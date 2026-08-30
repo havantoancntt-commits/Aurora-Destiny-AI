@@ -1,0 +1,7 @@
+{
+  "name": "Aurora Destiny AI",
+  "description": "Next-generation personal destiny & life pattern analysis platform combining traditional wisdom, data analytics, backtesting, and multi-agent AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
