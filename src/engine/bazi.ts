@@ -19,69 +19,70 @@ import {
   getTenGod,
   getNaYin
 } from './canchi';
-import { gregorianToJulianDay, convertSolarToLunar } from './lunarSolar';
+import { gregorianToJulianDay, convertSolarToLunar, getSunLongitudeDegrees } from './lunarSolar';
 
 // Calculate Year Stem & Branch
 export function calculateYearPillar(year: number, month: number, day: number): { stem: HeavenlyStem; branch: EarthlyBranch } {
-  // Lập Xuân is the boundary for BaZi year (Feb 4)
+  // Lập Xuân is the boundary for BaZi year (Sun longitude = 315°)
+  const jd = gregorianToJulianDay(year, month, day);
+  const sunDeg = getSunLongitudeDegrees(jd, 7);
+
   let baziYear = year;
-  if (month < 2 || (month === 2 && day < 4)) {
+  // If in Jan or early Feb and Sun hasn't reached Lập Xuân (315°), belongs to previous year
+  if (month === 1) {
+    baziYear = year - 1;
+  } else if (month === 2 && sunDeg < 315) {
     baziYear = year - 1;
   }
+
   // Formula: Year Stem = (baziYear - 4) % 10
-  const stemIdx = (baziYear - 4) % 10;
-  const stem = STEM_KEYS[(stemIdx + 10) % 10];
+  const stemIdx = ((baziYear - 4) % 10 + 10) % 10;
+  const stem = STEM_KEYS[stemIdx];
 
   // Formula: Year Branch = (baziYear - 4) % 12
-  const branchIdx = (baziYear - 4) % 12;
-  const branch = BRANCH_KEYS[(branchIdx + 12) % 12];
+  const branchIdx = ((baziYear - 4) % 12 + 12) % 12;
+  const branch = BRANCH_KEYS[branchIdx];
 
   return { stem, branch };
 }
 
-// Calculate Month Stem & Branch based on Solar Month & Year Stem (Ngũ Hổ Độn)
+// Calculate Month Stem & Branch based on Exact Solar Terms (12 Tiết Khí) & Ngũ Hổ Độn
 export function calculateMonthPillar(
   yearStem: HeavenlyStem,
+  year: number,
   month: number,
   day: number
 ): { stem: HeavenlyStem; branch: EarthlyBranch } {
-  // Month Branch: Feb is Dần (Yin_B, index 2), Mar is Mão (Mao, index 3)... Jan is Sửu (Chou, index 1)
-  // Solar terms determine solar month (approx 4th-7th of each month)
-  let solarMonthIndex = month; // 1 to 12
-  if (day < 5) {
-    solarMonthIndex = month === 1 ? 12 : month - 1;
-  }
+  const jd = gregorianToJulianDay(year, month, day);
+  const sunDeg = getSunLongitudeDegrees(jd, 7);
 
-  // Branch index map: Feb -> Yin_B (2), Mar -> Mao (3)... Dec -> Zi (0), Jan -> Chou (1)
-  const branchMapping: Record<number, EarthlyBranch> = {
-    1: 'Chou',
-    2: 'Yin_B',
-    3: 'Mao',
-    4: 'Chen',
-    5: 'Si',
-    6: 'Wu_B',
-    7: 'Wei',
-    8: 'Shen',
-    9: 'You',
-    10: 'Xu',
-    11: 'Hai',
-    12: 'Zi',
-  };
+  // Offset from Lập Xuân (315°). Each month covers exactly 30° of solar longitude
+  // 0 -> Dần (315°), 1 -> Mão (345°), 2 -> Thìn (15°), ..., 11 -> Sửu (285°)
+  const solarMonthOrder = Math.floor(((sunDeg - 315 + 360) % 360) / 30);
 
-  const branch = branchMapping[solarMonthIndex] || 'Yin_B';
+  // Month Branch mapping: order 0 is Dần, 1 is Mão, etc.
+  const branchOrder: EarthlyBranch[] = [
+    'Yin_B', // Tháng 1 Bát Tự (Dần - Tiết Lập Xuân)
+    'Mao',   // Tháng 2 (Mão - Tiết Kinh Trập)
+    'Chen',  // Tháng 3 (Thìn - Tiết Thanh Minh)
+    'Si',    // Tháng 4 (Tỵ - Tiết Lập Hạ)
+    'Wu_B',  // Tháng 5 (Ngọ - Tiết Mang Chủng)
+    'Wei',   // Tháng 6 (Mùi - Tiết Tiểu Thử)
+    'Shen',  // Tháng 7 (Thân - Tiết Lập Thu)
+    'You',   // Tháng 8 (Dậu - Tiết Bạch Lộ)
+    'Xu',    // Tháng 9 (Tuất - Tiết Hàn Lộ)
+    'Hai',   // Tháng 10 (Hợi - Tiết Lập Đông)
+    'Zi',    // Tháng 11 (Tý - Tiết Đại Tuyết)
+    'Chou'   // Tháng 12 (Sửu - Tiết Tiểu Hàn)
+  ];
+
+  const branch = branchOrder[solarMonthOrder] || 'Yin_B';
 
   // Five Tigers seeking Month Stem (Ngũ Hổ Độn Quy Luật)
-  // Giáp/Kỷ khởi Bính Dần; Ất/Canh khởi Mậu Dần; Bính/Tân khởi Canh Dần; Đinh/Nhâm khởi Nhâm Dần; Mậu/Quý khởi Giáp Dần
-  let startStemIdx = 2; // Bính
-  if (yearStem === 'Jia' || yearStem === 'Ji') startStemIdx = 2; // Bính
-  else if (yearStem === 'Yi' || yearStem === 'Geng') startStemIdx = 4; // Mậu
-  else if (yearStem === 'Bing' || yearStem === 'Xin') startStemIdx = 6; // Canh
-  else if (yearStem === 'Ding' || yearStem === 'Ren') startStemIdx = 8; // Nhâm
-  else if (yearStem === 'Wu' || yearStem === 'Gui') startStemIdx = 0; // Giáp
-
-  // Offset from Dần (Feb = 2)
-  const offset = (BRANCH_KEYS.indexOf(branch) - BRANCH_KEYS.indexOf('Yin_B') + 12) % 12;
-  const stem = STEM_KEYS[(startStemIdx + offset) % 10];
+  // Giáp/Kỷ khởi Bính Dần (2); Ất/Canh khởi Mậu Dần (4); Bính/Tân khởi Canh Dần (6); Đinh/Nhâm khởi Nhâm Dần (8); Mậu/Quý khởi Giáp Dần (0)
+  const yearStemIdx = STEM_KEYS.indexOf(yearStem);
+  const startStemIdx = ((yearStemIdx % 5) * 2 + 2) % 10;
+  const stem = STEM_KEYS[(startStemIdx + solarMonthOrder) % 10];
 
   return { stem, branch };
 }
@@ -155,7 +156,7 @@ export function calculateBaZiChart(birthData: BirthData): BaZiChart {
   const { solarYear, solarMonth, solarDay, solarHour } = birthData;
 
   const yearPB = calculateYearPillar(solarYear, solarMonth, solarDay);
-  const monthPB = calculateMonthPillar(yearPB.stem, solarMonth, solarDay);
+  const monthPB = calculateMonthPillar(yearPB.stem, solarYear, solarMonth, solarDay);
   const dayPB = calculateDayPillar(solarYear, solarMonth, solarDay);
   const hourPB = calculateHourPillar(dayPB.stem, solarHour);
 

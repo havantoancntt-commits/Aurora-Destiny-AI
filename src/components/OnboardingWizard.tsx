@@ -117,7 +117,7 @@ export const OnboardingWizard: React.FC<Props> = ({
   const previewCalculation = useMemo(() => {
     try {
       const yearP = calculateYearPillar(solarYear, solarMonth, solarDay);
-      const monthP = calculateMonthPillar(yearP.stem, solarMonth, solarDay);
+      const monthP = calculateMonthPillar(yearP.stem, solarYear, solarMonth, solarDay);
       const dayP = calculateDayPillar(solarYear, solarMonth, solarDay);
       const effectiveHour = hourMode === 'unknown' ? 12 : solarHour;
       const hourP = calculateHourPillar(dayP.stem, effectiveHour);

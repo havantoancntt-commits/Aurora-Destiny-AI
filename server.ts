@@ -12,6 +12,7 @@ import { evaluateWhatIfScenario } from './src/engine/scenarios';
 import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/aiSynthesizer';
 import { BirthData } from './src/types/destiny';
 import { UserProfile } from './src/types/user';
+import { STEMS, BRANCHES } from './src/engine/canchi';
 
 const app = express();
 const PORT = 3000;
@@ -243,35 +244,77 @@ app.post('/api/ai/chat', async (req, res) => {
   };
   db.addChatMessage(profileId, userMsg);
 
-  const baziSummary = `Nhật Chủ: ${calc.bazi.dayMaster} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), Dụng Thần: ${calc.bazi.favorableElements.join(', ')}, Cách Cục: ${calc.bazi.structureType}`;
-  const ziweiSummary = `Cung Mệnh: ${calc.ziwei.palaces.life?.majorStars.map(s => s.nameVi).join(', ')}, Cục: ${calc.ziwei.elementBureau}`;
-  const backtestSummary = `Độ nhất quán Backtest Score: ${bt.destinyConsistencyScore}/100`;
+  // High-precision factual summaries extracted directly from the deterministic calculation engine
+  const baziPillars = `Tứ Trụ: Năm [${STEMS[calc.bazi.yearPillar.stem].nameVi} ${BRANCHES[calc.bazi.yearPillar.branch].nameVi} (${calc.bazi.yearPillar.naYin}) - ${calc.bazi.yearPillar.tenGod}], ` +
+    `Tháng [${STEMS[calc.bazi.monthPillar.stem].nameVi} ${BRANCHES[calc.bazi.monthPillar.branch].nameVi} (${calc.bazi.monthPillar.naYin}) - ${calc.bazi.monthPillar.tenGod}], ` +
+    `Ngày [${STEMS[calc.bazi.dayPillar.stem].nameVi} ${BRANCHES[calc.bazi.dayPillar.branch].nameVi} (${calc.bazi.dayPillar.naYin}) - Nhật Chủ ${STEMS[calc.bazi.dayMaster].nameVi}], ` +
+    `Giờ [${STEMS[calc.bazi.hourPillar.stem].nameVi} ${BRANCHES[calc.bazi.hourPillar.branch].nameVi} (${calc.bazi.hourPillar.naYin}) - ${calc.bazi.hourPillar.tenGod}]`;
+
+  const baziBalance = `Nhật Chủ: ${STEMS[calc.bazi.dayMaster].nameVi} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}). ` +
+    `Phân bổ Ngũ hành: Kim ${calc.bazi.elementBalance.Metal}%, Mộc ${calc.bazi.elementBalance.Wood}%, Thủy ${calc.bazi.elementBalance.Water}%, Hỏa ${calc.bazi.elementBalance.Fire}%, Thổ ${calc.bazi.elementBalance.Earth}%. ` +
+    `Dụng Thần: [${calc.bazi.favorableElements.join(', ')}], Kỵ Thần: [${calc.bazi.unfavorableElements.join(', ')}], Cách Cục: ${calc.bazi.structureType}`;
+
+  const lifeStars = calc.ziwei.palaces.life?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Mệnh Vô Chính Diệu';
+  const careerStars = calc.ziwei.palaces.career?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Quan Lộc Vô Chính Diệu';
+  const wealthStars = calc.ziwei.palaces.wealth?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Tài Bạch Vô Chính Diệu';
+  const travelStars = calc.ziwei.palaces.travel?.majorStars?.map(s => `${s.nameVi} (${s.brightness})`).join(', ') || 'Thiên Di';
+
+  const ziweiDetails = `Cục: ${calc.ziwei.elementBureau}, Cung Thân: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'}. ` +
+    `Mệnh tại ${calc.ziwei.palaces.life?.branch} (${lifeStars} - Điểm: ${calc.ziwei.palaces.life?.score}/100). ` +
+    `Quan Lộc tại ${calc.ziwei.palaces.career?.branch} (${careerStars} - Điểm: ${calc.ziwei.palaces.career?.score}/100). ` +
+    `Tài Bạch tại ${calc.ziwei.palaces.wealth?.branch} (${wealthStars} - Điểm: ${calc.ziwei.palaces.wealth?.score}/100). ` +
+    `Thiên Di tại ${calc.ziwei.palaces.travel?.branch} (${travelStars} - Điểm: ${calc.ziwei.palaces.travel?.score}/100). ` +
+    `Cách Cục Tử Vi: ${calc.ziwei.majorConfigurations.join('; ')}`;
+
+  const currentYear = new Date().getFullYear();
+  const currentTransit = calc.annualTransits.find(t => t.year === currentYear) || calc.annualTransits[0];
+  const transitDetails = `Lưu Niên ${currentYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): ` +
+    `Sóng Cơ Hội: ${currentTransit.opportunityWave}%, Sóng Thận Trọng: ${currentTransit.cautionWave}%, Điểm tổng thể: ${currentTransit.overallScore}/100. ` +
+    `Trọng tâm khuyến nghị: ${currentTransit.recommendedFocus}`;
+
+  const backtestSummary = `Chỉ số Nhất quán Backtest: ${bt.destinyConsistencyScore}/100 (Chỉ số Bất định: ${calc.confidence.uncertaintyIndex}/100)`;
 
   let responseContent = '';
-  let confidenceScore = 90;
+  let confidenceScore = 92;
   const ai = getGemini();
 
   if (ai) {
     try {
       const prompt = `
 Bạn là Master Destiny AI của nền tảng cao cấp "Aurora Destiny AI" (Khẩu hiệu: "Understand the patterns. Shape your future.").
-Quy tắc đạo đức và chuyên môn cốt lõi:
-1. Bạn KHÔNG PHẢI thầy bói mê tín. Bạn là Chuyên gia Phân tích Dữ liệu Vận trình & Trực giác Chiến lược cao cấp.
-2. NGUỒN CHÂN LÝ: Bát tự và Tử vi đã được Calculation Engine tính toán bất biến. Tuyệt đối không tự bịa lá số khác.
-3. Không bao giờ cam kết 100% hay khẳng định tương lai cố định. Sử dụng các khái niệm: Xu hướng năng lượng, Sóng cơ hội, Độ tin cậy mô hình, Ranh giới bất định.
-4. Lời khuyên cho người dùng phải mang tính hành động, thực tế, thanh lịch, trang trọng và truyền cảm hứng tự chủ.
+
+QUY TẮC ĐẠO ĐỨC & CHUYÊN MÔN CAO NHẤT (BẮT BUỘC TUÂN THỦ):
+1. ĐỘ CHÍNH XÁC TUYỆT ĐỐI - KHÔNG BỊA ĐẶT THÊM BỚT:
+   - Tất cả dữ liệu Bát Tự (Tứ Trụ, Thập Thần, Ngũ Hành, Dụng Thần, Cách Cục) và Tử Vi (Chính tinh, Phụ tinh, Tứ Hóa, Cung vị, Cục) đã được Bộ Vi Xử Lý Thiên Văn Tính Toán Chính Xác 100% bên dưới.
+   - TUYỆT ĐỐI KHÔNG tự ý bịa thêm các sao khác, không tự bịa cách cục không tồn tại trong dữ liệu được cấp.
+   - BẮT BUỘC TRÍCH DẪN NGUỒN CỤ THỂ: Khi phân tích bất kỳ khía cạnh nào (sự nghiệp, tài lộc, tình cảm, sức khỏe, thời cơ), BẮT BUỘC phải trích dẫn tên cụ thể của sao (kèm độ sáng Miếu/Vượng/Đắc/Hãm), thập thần, hoặc hành ngũ hành từ dữ liệu dưới đây làm bằng chứng xác thực.
+2. KHÔNG PHẢI THẦY BÓI MÊ TÍN:
+   - Bạn là Chuyên gia Phân tích Dữ liệu Vận trình & Chiến lược gia Quản trị Rủi ro.
+   - Không phán xét số phận cố định, không hù dọa, không khẳng định 100%. Luôn nhấn mạnh quyền tự chủ, năng lực thực thi và tư duy chiến lược của con người.
+3. PHÂN TÍCH TOÀN DIỆN & CÂN BẰNG:
+   - Kết hợp hài hòa giữa Bát Tự (cốt lõi năng lượng bên trong, Dụng Thần), Tử Vi (bố cục cung vị, tinh bàn hành động) và Lưu Niên thời vận hiện tại.
+   - Chỉ rõ cả mặt cơ hội lẫn ranh giới rủi ro cần kiểm soát.
 
 DỮ LIỆU LÁ SỐ ĐÃ XÁC THỰC CỦA NGƯỜI DÙNG:
-- Tên: ${profile.name}
-- Bát Tự: ${baziSummary}
-- Tử Vi: ${ziweiSummary}
-- Bối cảnh hành vi: Ưu tiên: ${profile.behavioralContext.topPriority}, Nghề nghiệp: ${profile.behavioralContext.careerField}
-- Backtest Lịch sử: ${backtestSummary}
+- Họ tên: ${profile.name}
+- Giới tính: ${profile.birthData?.gender === 'Male' ? 'Nam mạng' : 'Nữ mạng'}
+- Bát Tự Tứ Trụ: ${baziPillars}
+- Ngũ Hành & Cấu Trúc: ${baziBalance}
+- Tử Vi Đẩu Số: ${ziweiDetails}
+- Lưu Niên Hiện Tại: ${transitDetails}
+- Bối Cảnh Người Dùng: Mục tiêu hàng đầu: "${profile.behavioralContext.topPriority}", Nghề nghiệp: "${profile.behavioralContext.careerField}"
+- Đo Lường Lịch Sử: ${backtestSummary}
 
 CÂU HỎI CỦA NGƯỜI DÙNG:
 "${message}"
 
-Hãy trả lời ngắn gọn, sắc sảo (khoảng 3-4 đoạn văn xúc tích), phân tích dựa trên sự kết hợp giữa Bát Tự, Tử Vi và chu kỳ thời điểm hiện tại, nêu rõ rủi ro cần chú ý và gợi ý hành động chiến lược.
+HƯỚNG DẪN TRẢ LỜI:
+- Trả lời bằng tiếng Việt văn phong chuyên nghiệp, tinh tế, trang nhã, sắc sảo (khoảng 3-4 đoạn văn xúc tích, có cấu trúc rõ ràng).
+- Nêu rõ:
+  1. Phân tích nền tảng dựa trên bằng chứng cụ thể từ lá số (sao, thập thần, ngũ hành).
+  2. Tác động của chu kỳ thời điểm hiện tại và tính khả thi đối với câu hỏi người dùng.
+  3. Ranh giới rủi ro / điểm mù cần lưu tâm.
+  4. Gợi ý hành động chiến lược thiết thực và truyền cảm hứng tự chủ.
 `;
 
       // Ưu tiên model 'gemini-3.7-flash' (hoặc qua biến môi trường GEMINI_MODEL), với fallback an toàn sang 'gemini-2.0-flash' nếu gặp lỗi 404 Model Not Found
@@ -294,22 +337,19 @@ Hãy trả lời ngắn gọn, sắc sảo (khoảng 3-4 đoạn văn xúc tích
       }
 
       responseContent = geminiRes.text?.trim() || '';
-      confidenceScore = 94;
+      confidenceScore = 95;
     } catch (err: any) {
-      // FIX: Cải thiện error logging chi tiết khi Gemini API gặp lỗi và kích hoạt fallback có cấu trúc
       console.warn('[Gemini API Error] Query failed, using structured fallback. Details:', err?.message || err);
     }
   }
 
-  // Fallback intelligent response if Gemini is not available
+  // Fallback intelligent response strictly grounded in verified calculation data if Gemini is not available
   if (!responseContent) {
-    const currentYear = new Date().getFullYear();
-    const transit = calc.annualTransits.find(t => t.year === currentYear) || calc.annualTransits[0];
-    responseContent = `Dựa trên dữ liệu lá số ${calc.bazi.structureType} và Nhật chủ ${calc.bazi.dayMasterElement} (${calc.bazi.dayMasterStrength}):\n\n` +
-      `1. **Xu hướng năng lượng**: Năm ${currentYear} (${transit.stem} ${transit.branch}) mang sóng cơ hội đạt ${transit.opportunityWave}%. Hành Dụng Thần (${calc.bazi.favorableElements.join(', ')}) đang trong chu kỳ tương sinh, tạo tiền đề thuận lợi cho mục tiêu "${profile.behavioralContext.topPriority || 'phát triển sự nghiệp'}".\n\n` +
-      `2. **Điểm tựa chiến lược**: Cung Quan Lộc và Tài Bạch của bạn hội tụ các trợ tinh vững chắc. Khi bạn tập trung vào chuyên môn hóa và xây dựng đối tác cùng chí hướng, tỷ lệ thành công sẽ được tối ưu hóa.\n\n` +
-      `3. **Ranh giới bất định & Lưu ý**: Sóng thận trọng năm nay ở mức ${transit.cautionWave}%. Hãy đảm bảo giữ quỹ dự phòng và tránh đưa ra quyết định tài chính mạo hiểm vào các tháng xung khắc ngũ hành.`;
-    confidenceScore = 88;
+    responseContent = `Dựa trên phân tích xác thực từ Bát Tự và Tử Vi Đẩu Số của bạn:\n\n` +
+      `1. **Căn cứ Bản Mệnh & Bát Tự**: Bạn mang Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), đắc Cách Cục **${calc.bazi.structureType}**. Dụng Thần tối ưu là hành **${calc.bazi.favorableElements.join(', ')}**, giúp điều hòa dòng năng lượng và gia tăng sức bật trong lĩnh vực "${profile.behavioralContext.careerField}".\n\n` +
+      `2. **Thế Tinh Bàn Tử Vi**: Cung Mệnh tại ${calc.ziwei.palaces.life?.branch} tọa thủ ${lifeStars}, hội tụ cùng Cung Quan Lộc (${careerStars}) và Cung Tài Bạch (${wealthStars}). Thế cờ tinh hoa này (${calc.ziwei.majorConfigurations.join(', ')}) tạo nền móng vững chắc cho khả năng quản trị và hoạch định chiến lược dài hạn.\n\n` +
+      `3. **Lưu Niên ${currentYear} & Định Hướng**: Năm ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị: ${currentTransit.recommendedFocus}. Hãy duy trì kỷ luật quản trị rủi ro và tận dụng tối đa năng lượng Dụng Thần để bứt phá.`;
+    confidenceScore = 90;
   }
 
   const assistantMsg = {
@@ -319,14 +359,17 @@ Hãy trả lời ngắn gọn, sắc sảo (khoảng 3-4 đoạn văn xúc tích
     timestamp: new Date().toISOString(),
     confidenceScore,
     suggestedQuestions: [
-      'Giai đoạn nào trong năm nay có sóng năng lượng cao nhất?',
-      'Cách khắc phục nhược điểm ngũ hành trong công việc hàng ngày?',
-      'Tôi nên ưu tiên mở rộng hay củng cố nội lực lúc này?'
+      'Giai đoạn nào trong năm nay có sóng năng lượng thuận lợi nhất?',
+      `Làm thế nào để ứng dụng Dụng Thần ${calc.bazi.favorableElements.join('/')} vào quản trị tài chính?`,
+      'Điểm mù lớn nhất cần phòng tránh trong các thương vụ hợp tác là gì?'
     ],
     groundedFacts: [
-      baziSummary,
-      ziweiSummary,
-      `Chỉ số nhất quán Backtest: ${bt.destinyConsistencyScore}/100`
+      `Bát Tự: Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterStrength}) - Cách Cục: ${calc.bazi.structureType}`,
+      `Dụng Thần: ${calc.bazi.favorableElements.join(', ')} | Kỵ Thần: ${calc.bazi.unfavorableElements.join(', ')}`,
+      `Tử Vi: Cung Mệnh (${lifeStars}) tại ${calc.ziwei.palaces.life?.branch} - Cục: ${calc.ziwei.elementBureau}`,
+      `Tam Phương Tứ Chính: Quan Lộc (${careerStars}), Tài Bạch (${wealthStars})`,
+      `Lưu Niên ${currentYear}: Sóng cơ hội ${currentTransit.opportunityWave}% - Sóng thận trọng ${currentTransit.cautionWave}%`,
+      `Chỉ số Nhất Quán Backtest: ${bt.destinyConsistencyScore}/100`
     ]
   };
 

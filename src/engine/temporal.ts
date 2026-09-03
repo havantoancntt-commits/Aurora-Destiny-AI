@@ -25,7 +25,7 @@ import { calculateYearPillar, calculateMonthPillar, calculateDayPillar } from '.
 export function calculateDecadeCycles(birthData: BirthData): DecadeCycle[] {
   const { solarYear, solarMonth, solarDay, gender } = birthData;
   const yearPB = calculateYearPillar(solarYear, solarMonth, solarDay);
-  const monthPB = calculateMonthPillar(yearPB.stem, solarMonth, solarDay);
+  const monthPB = calculateMonthPillar(yearPB.stem, solarYear, solarMonth, solarDay);
   const dayPB = calculateDayPillar(solarYear, solarMonth, solarDay);
 
   // Direction: Yang Male or Yin Female moves clockwise (forward); Yin Male or Yang Female moves counter-clockwise
