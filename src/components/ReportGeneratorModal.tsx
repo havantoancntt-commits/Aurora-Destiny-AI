@@ -216,8 +216,11 @@ export const ReportGeneratorModal: React.FC<Props> = ({
           </div>
 
           {/* Legal Disclaimer */}
-          <div className="border-t border-slate-800 pt-4 text-[10px] text-slate-500 italic text-center">
-            {ensemble.responsibleDisclaimer} • Aurora Mathematical Core v2.4.1
+          <div className="border-t border-slate-800 pt-4 text-[10px] text-slate-400 text-center space-y-1">
+            <p className="italic">{ensemble.responsibleDisclaimer}</p>
+            <p className="font-mono text-slate-400 text-[10px]">
+              Hệ thống được nghiên cứu & phát triển bởi <strong className="text-amber-300">Giáo Sư - Prof.TOAN</strong> (Liên hệ: <span className="text-teal-400">havantoancntt@gmail.com</span>) • Aurora Destiny AI Core v4.2
+            </p>
           </div>
         </div>
       </div>

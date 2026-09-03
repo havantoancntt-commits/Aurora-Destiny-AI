@@ -22,6 +22,7 @@ import { PrivacyCenterModal } from './components/PrivacyCenterModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { RealTimeAlertCenter } from './components/RealTimeAlertCenter';
 import { SacredCosmicCipher3D } from './components/SacredCosmicCipher3D';
+import { AppFooter } from './components/AppFooter';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -363,8 +364,8 @@ export default function App() {
       {/* 3. Main Workspace Content Area */}
       <main className={`relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-4 flex-1 w-full flex flex-col ${
         activeProfile && calculation && ensemble
-          ? 'pb-36 sm:pb-40'
-          : 'pb-4 sm:pb-8 min-h-[calc(100vh-80px)] justify-center'
+          ? 'pb-6 sm:pb-10'
+          : 'pb-4 sm:pb-8 min-h-[calc(100vh-120px)] justify-center'
       }`}>
         {/* Top 3D Navigation Tab Bar (Only when active profile exists) */}
         {activeProfile && calculation && ensemble && (
@@ -490,7 +491,16 @@ export default function App() {
         )}
       </main>
 
-      {/* 4. Bottom Thumb Navigation (Only rendered when a profile calculation exists) */}
+      {/* 4. Luxury Academic Footer */}
+      <AppFooter
+        language={language}
+        onOpenPrivacyCenter={() => setShowPrivacyModal(true)}
+        onOpenReportModal={() => setShowReportModal(true)}
+        onOpenAdminModal={() => setShowAdminModal(true)}
+        hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
+      />
+
+      {/* 5. Bottom Thumb Navigation (Only rendered when a profile calculation exists) */}
       {activeProfile && calculation && ensemble && (
         <BottomNav
           activeTab={activeTab}

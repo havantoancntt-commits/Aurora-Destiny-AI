@@ -242,6 +242,20 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
               ))}
             </div>
           </div>
+
+          {/* Developer & System Architect Signature */}
+          <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-purple-950/30 to-teal-950/20 border border-amber-500/20 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px]">
+            <div className="flex items-center gap-2 text-slate-300">
+              <span className="px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 font-mono font-bold text-[10px]">R&D ARCHITECT</span>
+              <span>Ứng dụng phát triển bởi <strong>Giáo Sư - Prof.TOAN</strong></span>
+            </div>
+            <a
+              href="mailto:havantoancntt@gmail.com"
+              className="font-mono text-teal-300 hover:text-teal-200 hover:underline"
+            >
+              havantoancntt@gmail.com
+            </a>
+          </div>
         </div>
       </div>
     </div>
