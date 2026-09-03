@@ -58,16 +58,16 @@ export const SacredCosmicCipher3D: React.FC<Props> = ({ size = 'lg', onActivate 
   ];
 
   return (
-    <div className="relative flex flex-col items-center justify-center select-none my-2">
+    <div className="relative flex flex-col items-center justify-center select-none my-1">
       {/* Outer Ethereal Radial Glow Atmosphere */}
-      <div className="absolute -inset-10 sm:-inset-16 pointer-events-none flex items-center justify-center">
+      <div className="absolute -inset-12 sm:-inset-20 pointer-events-none flex items-center justify-center">
         {/* Multilayer Pulsing Cosmic Aura */}
-        <div className="w-56 h-56 sm:w-72 sm:h-72 rounded-full bg-gradient-to-br from-purple-600/25 via-teal-500/20 to-amber-500/15 blur-3xl animate-pulse opacity-70" />
-        <div className="absolute w-40 h-40 sm:w-52 sm:h-52 rounded-full bg-teal-400/20 blur-2xl animate-spin" style={{ animationDuration: '24s' }} />
-        <div className="absolute w-48 h-48 sm:w-60 sm:h-60 rounded-full bg-indigo-500/20 blur-2xl" />
+        <div className="w-64 h-64 sm:w-80 sm:h-80 rounded-full bg-gradient-to-br from-purple-600/25 via-teal-500/20 to-amber-500/15 blur-3xl animate-pulse opacity-75" />
+        <div className="absolute w-44 h-44 sm:w-60 sm:h-60 rounded-full bg-teal-400/20 blur-2xl animate-spin" style={{ animationDuration: '28s' }} />
+        <div className="absolute w-52 h-52 sm:w-68 sm:h-68 rounded-full bg-indigo-500/20 blur-2xl" />
       </div>
 
-      {/* Interactive 3D Card Container */}
+      {/* Interactive 3D Card Container with Gentle Breathing Float */}
       <motion.div
         ref={containerRef}
         onMouseMove={handleMouseMove}
@@ -77,21 +77,29 @@ export const SacredCosmicCipher3D: React.FC<Props> = ({ size = 'lg', onActivate 
         }}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
+        animate={{
+          y: [0, -6, 0],
+        }}
+        transition={{
+          duration: 6,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
         style={{
           rotateX,
           rotateY,
           transformStyle: 'preserve-3d',
         }}
-        className="relative group cursor-pointer"
+        className="relative group cursor-pointer flex flex-col items-center"
         whileTap={{ scale: 0.96 }}
       >
         {/* Floating Sacred Aura Ring */}
-        <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-amber-400/20 via-teal-400/30 to-purple-500/25 blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-700 -z-10" />
+        <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-amber-400/20 via-teal-400/35 to-purple-500/30 blur-lg opacity-70 group-hover:opacity-100 transition-opacity duration-700 -z-10" />
 
         {/* Outer 3D Beveled Ring Frame */}
-        <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-gradient-to-br from-[#121324]/90 via-[#0a0b14]/95 to-[#06070c] border border-teal-500/40 p-2 shadow-[0_15px_40px_rgba(0,0,0,0.8),0_0_30px_rgba(45,212,191,0.25),inset_0_1px_2px_rgba(255,255,255,0.2)] group-hover:border-teal-300 group-hover:shadow-[0_20px_50px_rgba(45,212,191,0.35),0_0_40px_rgba(168,85,247,0.3)] transition-all duration-500 flex items-center justify-center overflow-hidden">
+        <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-[28px] bg-gradient-to-br from-[#131428]/95 via-[#0b0c18]/98 to-[#06070e] border border-teal-400/40 p-2.5 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_35px_rgba(45,212,191,0.25),inset_0_1px_2px_rgba(255,255,255,0.25)] group-hover:border-teal-300 group-hover:shadow-[0_25px_60px_rgba(45,212,191,0.4),0_0_50px_rgba(168,85,247,0.35)] transition-all duration-500 flex items-center justify-center overflow-hidden">
           {/* Subtle Starlight Canvas Pattern */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-500/10 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-teal-500/15 via-transparent to-transparent pointer-events-none" />
 
           {/* SVG Vector Sacred Geometry Matrix */}
           <div className="relative w-full h-full flex items-center justify-center" style={{ transform: 'translateZ(30px)' }}>

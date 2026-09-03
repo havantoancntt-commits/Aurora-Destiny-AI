@@ -361,14 +361,20 @@ export default function App() {
       </div>
 
       {/* 3. Main Workspace Content Area */}
-      <main className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-5 pb-36 sm:pb-40 flex-1 w-full">
-        {/* Top 3D Navigation Tab Bar */}
-        <Top3DTabBar
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-          language={language}
-          consistencyScore={ensemble?.overallConsistencyScore}
-        />
+      <main className={`relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-4 flex-1 w-full flex flex-col ${
+        activeProfile && calculation && ensemble
+          ? 'pb-36 sm:pb-40'
+          : 'pb-4 sm:pb-8 min-h-[calc(100vh-80px)] justify-center'
+      }`}>
+        {/* Top 3D Navigation Tab Bar (Only when active profile exists) */}
+        {activeProfile && calculation && ensemble && (
+          <Top3DTabBar
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            language={language}
+            consistencyScore={ensemble?.overallConsistencyScore}
+          />
+        )}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
@@ -378,32 +384,33 @@ export default function App() {
             </p>
           </div>
         ) : !activeProfile || !calculation || !ensemble ? (
-          <div className="flex flex-col items-center justify-center min-h-[55vh] max-w-xl mx-auto text-center px-4 py-8">
+          <div className="flex flex-col items-center justify-center my-auto w-full max-w-xl mx-auto text-center px-3 sm:px-4 py-2">
             <SacredCosmicCipher3D onActivate={() => setShowOnboarding(true)} />
-            <div className="mt-4 mb-2 flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/50 border border-purple-500/30 text-purple-200 text-xs font-mono tracking-wider">
+            
+            <div className="mt-3.5 mb-2.5 flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-200 text-xs font-mono tracking-wider shadow-md">
               <Sparkles className="w-3.5 h-3.5 text-teal-300 animate-pulse" />
               <span className="uppercase tracking-widest text-[10px] sm:text-xs">Trí Tuệ Nhân Tạo Giao Thoa Huyền Học Phương Đông</span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium mb-3 tracking-wide">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium mb-2.5 tracking-wide">
               Khai Mở Bản Đồ <span className="bg-gradient-to-r from-teal-300 via-emerald-200 to-purple-300 bg-clip-text text-transparent font-semibold">Thiên Cơ Bản Mệnh</span>
             </h2>
 
-            <p className="text-sm sm:text-base text-slate-300/90 leading-relaxed mb-6 max-w-lg font-light">
+            <p className="text-xs sm:text-sm md:text-base text-slate-300/90 leading-relaxed mb-5 max-w-lg font-light">
               Trận đồ lượng tử đã sẵn sàng hòa nhịp cùng trường năng lượng của bạn. Hãy khởi tạo thời khắc sinh thần để khai mở ma trận <span className="text-teal-300 font-medium">Bát Tự Hà Lạc</span>, <span className="text-teal-300 font-medium">Tử Vi Đẩu Số</span> và đồng hành cùng <span className="text-amber-300 font-medium">Hội Đồng 7 Chuyên Gia AI</span> khai phóng tiềm năng vận mệnh.
             </p>
 
             {/* Micro Feature Proof Pillars */}
-            <div className="grid grid-cols-3 gap-2 w-full max-w-md mb-7 text-[11px] sm:text-xs text-slate-300 font-mono">
-              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full max-w-md mb-6 text-[11px] sm:text-xs text-slate-300 font-mono">
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
                 <span className="text-teal-300 font-bold text-xs sm:text-sm">Bát Tự • Tử Vi</span>
                 <span className="text-[9px] text-slate-400 mt-0.5">Thuật Toán Cổ Học</span>
               </div>
-              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
                 <span className="text-purple-300 font-bold text-xs sm:text-sm">7 AI Chuyên Gia</span>
                 <span className="text-[9px] text-slate-400 mt-0.5">Phân Tích Đồng Thuận</span>
               </div>
-              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
                 <span className="text-emerald-300 font-bold text-xs sm:text-sm">Bảo Mật 100%</span>
                 <span className="text-[9px] text-slate-400 mt-0.5">Riêng Tư Cục Bộ</span>
               </div>
@@ -412,7 +419,7 @@ export default function App() {
             <button
               id="btn-open-onboarding-empty-state"
               onClick={() => setShowOnboarding(true)}
-              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 text-white font-semibold text-base shadow-[0_0_35px_rgba(45,212,191,0.4)] hover:shadow-[0_0_45px_rgba(168,85,247,0.5)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-teal-400/50 group"
+              className="px-7 sm:px-8 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 text-white font-semibold text-sm sm:text-base shadow-[0_0_35px_rgba(45,212,191,0.4)] hover:shadow-[0_0_45px_rgba(168,85,247,0.5)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-teal-400/50 group"
             >
               <UserPlus className="w-5 h-5 text-teal-200 group-hover:scale-110 transition-transform" />
               <span className="tracking-wide">Khởi Tạo Lá Số Bản Mệnh Ngay</span>
@@ -483,12 +490,14 @@ export default function App() {
         )}
       </main>
 
-      {/* 4. Bottom Thumb Navigation */}
-      <BottomNav
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        language={language}
-      />
+      {/* 4. Bottom Thumb Navigation (Only rendered when a profile calculation exists) */}
+      {activeProfile && calculation && ensemble && (
+        <BottomNav
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          language={language}
+        />
+      )}
 
       {/* MODALS */}
       {showOnboarding && (
