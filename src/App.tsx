@@ -237,13 +237,23 @@ export default function App() {
     }
   };
 
+  // FIX: Khởi tạo activeProfile trước các hàm xử lý sự kiện để guard clause và cập nhật ensemble hoạt động chính xác
+  const activeProfile = profiles.find((p) => p.id === activeProfileId) || profiles[0];
+
   // Add Historical Event for Backtesting
   const handleAddEvent = async (eventData: Partial<HistoricalEvent>) => {
+    // FIX: Guard clause ngăn chặn silent failure hoặc crash khi dữ liệu chưa sẵn sàng
+    if (!activeProfile || !calculation) {
+      console.warn('[Backtesting] Cannot add event: activeProfile or calculation is not yet loaded.');
+      return;
+    }
+
     try {
       const res = await fetch('/api/backtests/event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData)
+        // FIX: Đảm bảo profileId: activeProfileId được truyền đầy đủ vào body của request
+        body: JSON.stringify({ ...eventData, profileId: activeProfileId })
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
       const data = await res.json();
@@ -255,12 +265,19 @@ export default function App() {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
     } catch (e) {
-      console.error('API Error details:', e);
+      // FIX: Thêm console.error chi tiết để dễ debug
+      console.error('API Error details (handleAddEvent):', e);
     }
   };
 
   // Delete Historical Event
   const handleDeleteEvent = async (eventId: string) => {
+    // FIX: Guard clause ngăn chặn silent failure hoặc crash khi dữ liệu chưa sẵn sàng
+    if (!activeProfile || !calculation) {
+      console.warn('[Backtesting] Cannot delete event: activeProfile or calculation is not yet loaded.');
+      return;
+    }
+
     try {
       const res = await fetch(`/api/backtests/event/${activeProfileId}/${eventId}`, {
         method: 'DELETE'
@@ -274,7 +291,8 @@ export default function App() {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
     } catch (e) {
-      console.error('API Error details:', e);
+      // FIX: Thêm console.error chi tiết để dễ debug
+      console.error('API Error details (handleDeleteEvent):', e);
     }
   };
 
@@ -298,8 +316,6 @@ export default function App() {
       console.error('API Error details:', e);
     }
   };
-
-  const activeProfile = profiles.find((p) => p.id === activeProfileId) || profiles[0];
 
   return (
     <div className="min-h-screen bg-[#050508] text-slate-200 font-sans selection:bg-purple-500/30 selection:text-teal-200 relative overflow-hidden flex flex-col">

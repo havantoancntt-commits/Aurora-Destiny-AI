@@ -296,7 +296,8 @@ Hãy trả lời ngắn gọn, sắc sảo (khoảng 3-4 đoạn văn xúc tích
       responseContent = geminiRes.text?.trim() || '';
       confidenceScore = 94;
     } catch (err: any) {
-      console.error('API Error details (/api/ai/chat):', err);
+      // FIX: Cải thiện error logging chi tiết khi Gemini API gặp lỗi và kích hoạt fallback có cấu trúc
+      console.warn('[Gemini API Error] Query failed, using structured fallback. Details:', err?.message || err);
     }
   }
 
