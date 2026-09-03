@@ -120,7 +120,7 @@ export const SEED_HISTORICAL_EVENTS_1: HistoricalEvent[] = [
   }
 ];
 
-// In-Memory Database Store with LocalStorage Synchronization
+// Volatile In-Memory Store (Demo Purpose)
 class DatabaseStore {
   private user: UserAccount = DEFAULT_USER;
   private profiles: Map<string, UserProfile> = new Map();

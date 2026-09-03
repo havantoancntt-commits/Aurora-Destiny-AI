@@ -47,6 +47,7 @@ export default function App() {
       const hasSeen = sessionStorage.getItem('aurora_destiny_visited');
       return !hasSeen;
     } catch (e) {
+      console.error('API Error details (sessionStorage):', e);
       return true;
     }
   });
@@ -79,8 +80,10 @@ export default function App() {
     try {
       setIsLoading(true);
       // Fetch profiles
-      const resProfiles = await fetch('/api/profiles').then((r) => r.json());
-      const loadedProfiles: UserProfile[] = Array.isArray(resProfiles) ? resProfiles : [];
+      const resProfiles = await fetch('/api/profiles');
+      if (!resProfiles.ok) throw new Error(`HTTP error ${resProfiles.status}: ${resProfiles.statusText}`);
+      const dataProfiles = await resProfiles.json();
+      const loadedProfiles: UserProfile[] = Array.isArray(dataProfiles) ? dataProfiles : [];
       setProfiles(loadedProfiles);
 
       if (loadedProfiles.length === 0) {
@@ -99,19 +102,26 @@ export default function App() {
       setActiveProfileId(targetId);
 
       // Fetch calculation & ensemble
-      const calcData = await fetch(`/api/calculations/${targetId}`).then((r) => r.json());
+      const resCalc = await fetch(`/api/calculations/${targetId}`);
+      if (!resCalc.ok) throw new Error(`HTTP error ${resCalc.status}: ${resCalc.statusText}`);
+      const calcData = await resCalc.json();
       setCalculation(calcData.calculation);
       setEnsemble(calcData.ensemble);
       setBacktestResult(calcData.backtest);
 
       // Fetch historical events
-      const btData = await fetch(`/api/backtests/${targetId}`).then((r) => r.json());
+      const resBt = await fetch(`/api/backtests/${targetId}`);
+      if (!resBt.ok) throw new Error(`HTTP error ${resBt.status}: ${resBt.statusText}`);
+      const btData = await resBt.json();
       setEvents(btData.events || []);
 
       // Fetch user preferences
-      const userData = await fetch('/api/user').then((r) => r.json());
+      const resUser = await fetch('/api/user');
+      if (!resUser.ok) throw new Error(`HTTP error ${resUser.status}: ${resUser.statusText}`);
+      const userData = await resUser.json();
       if (userData?.preferences) setPreferences(userData.preferences);
     } catch (e) {
+      console.error('API Error details:', e);
       // Offline fallback: giữ trạng thái sạch, mở ô nhập thông tin
       setShowOnboarding(true);
       setProfiles([]);
@@ -133,15 +143,18 @@ export default function App() {
   const handleSelectProfile = async (profileId: string) => {
     setActiveProfileId(profileId);
     try {
-      const [calcData, btData] = await Promise.all([
-        fetch(`/api/calculations/${profileId}`).then((r) => r.json()),
-        fetch(`/api/backtests/${profileId}`).then((r) => r.json())
-      ]);
+      const resCalc = await fetch(`/api/calculations/${profileId}`);
+      if (!resCalc.ok) throw new Error(`HTTP error ${resCalc.status}: ${resCalc.statusText}`);
+      const resBt = await fetch(`/api/backtests/${profileId}`);
+      if (!resBt.ok) throw new Error(`HTTP error ${resBt.status}: ${resBt.statusText}`);
+      const [calcData, btData] = await Promise.all([resCalc.json(), resBt.json()]);
       setCalculation(calcData.calculation);
       setEnsemble(calcData.ensemble);
       setBacktestResult(calcData.backtest);
       setEvents(btData.events || []);
-    } catch (e) {}
+    } catch (e) {
+      console.error('API Error details:', e);
+    }
   };
 
   // Recalculate
@@ -153,11 +166,14 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profileId: activeProfileId })
       });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
       const data = await res.json();
       setCalculation(data.calculation);
       setEnsemble(data.ensemble);
       setBacktestResult(data.backtest);
-    } catch (e) {}
+    } catch (e) {
+      console.error('API Error details:', e);
+    }
   };
 
   // Create Profile from Onboarding
@@ -169,7 +185,9 @@ export default function App() {
     try {
       try {
         sessionStorage.setItem('aurora_destiny_visited', 'true');
-      } catch (e) {}
+      } catch (e) {
+        console.error('API Error details (sessionStorage):', e);
+      }
 
       const res = await fetch('/api/profiles', {
         method: 'POST',
@@ -181,6 +199,7 @@ export default function App() {
           isPrimary: profiles.length === 0
         })
       });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
       const data = await res.json();
       setProfiles((prev) => [...prev, data.profile]);
       setActiveProfileId(data.profile.id);
@@ -192,6 +211,7 @@ export default function App() {
       setEnsemble(generateMultiAgentEnsemble(data.profile, data.calculation, bt.destinyConsistencyScore));
       setShowOnboarding(false);
     } catch (e) {
+      console.error('API Error details:', e);
       // Local fallback calculation if fetch fails
       const newCalc = runFullDestinyCalculation(birthData, 'prof_' + Date.now(), 0);
       const newProfile: UserProfile = {
@@ -225,6 +245,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(eventData)
       });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
       const data = await res.json();
       setEvents((prev) => [data.event, ...prev]);
       setBacktestResult(data.backtestResult);
@@ -233,7 +254,9 @@ export default function App() {
       if (activeProfile && calculation) {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('API Error details:', e);
+    }
   };
 
   // Delete Historical Event
@@ -242,6 +265,7 @@ export default function App() {
       const res = await fetch(`/api/backtests/event/${activeProfileId}/${eventId}`, {
         method: 'DELETE'
       });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
       const data = await res.json();
       setEvents((prev) => prev.filter((e) => e.id !== eventId));
       setBacktestResult(data.backtestResult);
@@ -249,7 +273,9 @@ export default function App() {
       if (activeProfile && calculation) {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('API Error details:', e);
+    }
   };
 
   // Export User Dossier
@@ -259,13 +285,18 @@ export default function App() {
 
   // Update Preferences
   const handleUpdatePreferences = async (pref: Partial<UserPreferences>) => {
-    const res = await fetch('/api/user/preferences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(pref)
-    });
-    const updated = await res.json();
-    setPreferences(updated);
+    try {
+      const res = await fetch('/api/user/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pref)
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
+      const updated = await res.json();
+      setPreferences(updated);
+    } catch (e) {
+      console.error('API Error details:', e);
+    }
   };
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId) || profiles[0];
@@ -425,7 +456,9 @@ export default function App() {
           onCancel={() => {
             try {
               sessionStorage.setItem('aurora_destiny_visited', 'true');
-            } catch (e) {}
+            } catch (e) {
+              console.error('API Error details (sessionStorage):', e);
+            }
             setShowOnboarding(false);
           }}
           existingProfiles={profiles}

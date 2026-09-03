@@ -10,7 +10,6 @@ import { runFullDestinyCalculation } from './src/engine/destinyEngine';
 import { runBacktestAnalysis } from './src/engine/backtesting';
 import { evaluateWhatIfScenario } from './src/engine/scenarios';
 import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/aiSynthesizer';
-import { runAllEngineTests } from './src/engine/engine.test';
 import { BirthData } from './src/types/destiny';
 import { UserProfile } from './src/types/user';
 
@@ -54,11 +53,6 @@ app.get('/api/health', (req, res) => {
 app.get('/api/metrics', (req, res) => {
   const metrics = db.getObservabilityMetrics();
   res.json(metrics);
-});
-
-app.get('/api/tests/run', (req, res) => {
-  const report = runAllEngineTests();
-  res.json(report);
 });
 
 // ----------------------------------------------------
@@ -280,16 +274,29 @@ CÂU HỎI CỦA NGƯỜI DÙNG:
 Hãy trả lời ngắn gọn, sắc sảo (khoảng 3-4 đoạn văn xúc tích), phân tích dựa trên sự kết hợp giữa Bát Tự, Tử Vi và chu kỳ thời điểm hiện tại, nêu rõ rủi ro cần chú ý và gợi ý hành động chiến lược.
 `;
 
-      // Sử dụng mô hình Gemini chính thức và ổn định: 'gemini-3.8-flash'
-      const geminiRes = await ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
-        contents: prompt
-      });
+      // Ưu tiên model 'gemini-3.7-flash' (hoặc qua biến môi trường GEMINI_MODEL), với fallback an toàn sang 'gemini-2.0-flash' nếu gặp lỗi 404 Model Not Found
+      const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+      let geminiRes: any;
+      try {
+        geminiRes = await ai.models.generateContent({
+          model: primaryModel,
+          contents: prompt
+        });
+      } catch (primaryErr: any) {
+        console.error(`Gemini API error with primary model "${primaryModel}":`, primaryErr);
+        // Fallback model an toàn nếu model chính gặp sự cố (như 404 Not Found)
+        const fallbackModel = 'gemini-2.0-flash';
+        console.warn(`Attempting safe fallback to "${fallbackModel}"...`);
+        geminiRes = await ai.models.generateContent({
+          model: fallbackModel,
+          contents: prompt
+        });
+      }
 
       responseContent = geminiRes.text?.trim() || '';
       confidenceScore = 94;
     } catch (err: any) {
-      console.warn('Gemini API query error, using structured fallback:', err?.message);
+      console.error('API Error details (/api/ai/chat):', err);
     }
   }
 
