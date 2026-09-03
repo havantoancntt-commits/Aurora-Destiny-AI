@@ -380,19 +380,42 @@ export default function App() {
         ) : !activeProfile || !calculation || !ensemble ? (
           <div className="flex flex-col items-center justify-center min-h-[55vh] max-w-xl mx-auto text-center px-4 py-8">
             <SacredCosmicCipher3D onActivate={() => setShowOnboarding(true)} />
-            <h2 className="text-2xl md:text-3xl font-serif text-white font-medium mb-3 mt-4">
-              Chào Mừng Đến Với Aurora Destiny AI
+            <div className="mt-4 mb-2 flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/50 border border-purple-500/30 text-purple-200 text-xs font-mono tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-teal-300 animate-pulse" />
+              <span className="uppercase tracking-widest text-[10px] sm:text-xs">Trí Tuệ Nhân Tạo Giao Thoa Huyền Học Phương Đông</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium mb-3 tracking-wide">
+              Khai Mở Bản Đồ <span className="bg-gradient-to-r from-teal-300 via-emerald-200 to-purple-300 bg-clip-text text-transparent font-semibold">Thiên Cơ Bản Mệnh</span>
             </h2>
-            <p className="text-sm md:text-base text-gray-300/80 leading-relaxed mb-8 max-w-lg">
-              Hệ thống đã sẵn sàng và hoàn toàn trống dữ liệu demo. Hãy nhập thông tin ngày, giờ sinh để hệ thống tự động lập lá số Bát Tự, Tử Vi và kích hoạt 7 chuyên gia AI phân tích.
+
+            <p className="text-sm sm:text-base text-slate-300/90 leading-relaxed mb-6 max-w-lg font-light">
+              Trận đồ lượng tử đã sẵn sàng hòa nhịp cùng trường năng lượng của bạn. Hãy khởi tạo thời khắc sinh thần để khai mở ma trận <span className="text-teal-300 font-medium">Bát Tự Hà Lạc</span>, <span className="text-teal-300 font-medium">Tử Vi Đẩu Số</span> và đồng hành cùng <span className="text-amber-300 font-medium">Hội Đồng 7 Chuyên Gia AI</span> khai phóng tiềm năng vận mệnh.
             </p>
+
+            {/* Micro Feature Proof Pillars */}
+            <div className="grid grid-cols-3 gap-2 w-full max-w-md mb-7 text-[11px] sm:text-xs text-slate-300 font-mono">
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+                <span className="text-teal-300 font-bold text-xs sm:text-sm">Bát Tự • Tử Vi</span>
+                <span className="text-[9px] text-slate-400 mt-0.5">Thuật Toán Cổ Học</span>
+              </div>
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+                <span className="text-purple-300 font-bold text-xs sm:text-sm">7 AI Chuyên Gia</span>
+                <span className="text-[9px] text-slate-400 mt-0.5">Phân Tích Đồng Thuận</span>
+              </div>
+              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.03] border border-white/10 text-center">
+                <span className="text-emerald-300 font-bold text-xs sm:text-sm">Bảo Mật 100%</span>
+                <span className="text-[9px] text-slate-400 mt-0.5">Riêng Tư Cục Bộ</span>
+              </div>
+            </div>
+
             <button
               id="btn-open-onboarding-empty-state"
               onClick={() => setShowOnboarding(true)}
-              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 text-white font-semibold text-base shadow-[0_0_30px_rgba(45,212,191,0.35)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-teal-400/40"
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 text-white font-semibold text-base shadow-[0_0_35px_rgba(45,212,191,0.4)] hover:shadow-[0_0_45px_rgba(168,85,247,0.5)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-teal-400/50 group"
             >
-              <UserPlus className="w-5 h-5" />
-              <span>Nhập Thông Tin Bản Mệnh Ngay</span>
+              <UserPlus className="w-5 h-5 text-teal-200 group-hover:scale-110 transition-transform" />
+              <span className="tracking-wide">Khởi Tạo Lá Số Bản Mệnh Ngay</span>
             </button>
           </div>
         ) : (
