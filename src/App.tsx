@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Sparkles, UserPlus } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { Top3DTabBar } from './components/Top3DTabBar';
 import { BottomNav, TabKey } from './components/BottomNav';
@@ -79,9 +80,22 @@ export default function App() {
       setIsLoading(true);
       // Fetch profiles
       const resProfiles = await fetch('/api/profiles').then((r) => r.json());
-      setProfiles(resProfiles);
+      const loadedProfiles: UserProfile[] = Array.isArray(resProfiles) ? resProfiles : [];
+      setProfiles(loadedProfiles);
 
-      const targetId = resProfiles[0]?.id || 'prof_primary';
+      if (loadedProfiles.length === 0) {
+        // Hoàn toàn không có lá số demo, mở ngay ô nhập thông tin khi người dùng vừa truy cập
+        setShowOnboarding(true);
+        setActiveProfileId('');
+        setCalculation(null);
+        setEnsemble(null);
+        setBacktestResult(null);
+        setEvents([]);
+        setIsLoading(false);
+        return;
+      }
+
+      const targetId = loadedProfiles[0]?.id;
       setActiveProfileId(targetId);
 
       // Fetch calculation & ensemble
@@ -98,27 +112,14 @@ export default function App() {
       const userData = await fetch('/api/user').then((r) => r.json());
       if (userData?.preferences) setPreferences(userData.preferences);
     } catch (e) {
-      // Offline / In-memory fallback
-      const calc = runFullDestinyCalculation(SEED_BIRTH_DATA_1, 'prof_primary', SEED_HISTORICAL_EVENTS_1.length);
-      const bt = runBacktestAnalysis(SEED_HISTORICAL_EVENTS_1, calc);
-      const prof: UserProfile = {
-        id: 'prof_primary',
-        userId: 'usr_aurora_master',
-        name: 'Bản Mệnh Chính (Bính Tý 1996)',
-        isPrimary: true,
-        avatarSeed: 'alex_aurora',
-        birthData: SEED_BIRTH_DATA_1,
-        behavioralContext: SEED_BEHAVIORAL_1,
-        latestCalculationId: calc.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      setProfiles([prof]);
-      setActiveProfileId(prof.id);
-      setCalculation(calc);
-      setEvents(SEED_HISTORICAL_EVENTS_1);
-      setBacktestResult(bt);
-      setEnsemble(generateMultiAgentEnsemble(prof, calc, bt.destinyConsistencyScore));
+      // Offline fallback: giữ trạng thái sạch, mở ô nhập thông tin
+      setShowOnboarding(true);
+      setProfiles([]);
+      setActiveProfileId('');
+      setCalculation(null);
+      setEnsemble(null);
+      setBacktestResult(null);
+      setEvents([]);
     } finally {
       setIsLoading(false);
     }
@@ -317,12 +318,32 @@ export default function App() {
           consistencyScore={ensemble?.overallConsistencyScore}
         />
 
-        {isLoading || !calculation || !ensemble || !activeProfile ? (
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
             <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-purple-500 border-r-teal-400 animate-spin shadow-[0_0_20px_rgba(124,58,237,0.3)]" />
             <p className="text-xs text-teal-400/80 font-mono tracking-widest uppercase animate-pulse">
               Đang khởi tạo Universal Analysis Engine...
             </p>
+          </div>
+        ) : !activeProfile || !calculation || !ensemble ? (
+          <div className="flex flex-col items-center justify-center min-h-[55vh] max-w-xl mx-auto text-center px-4 py-12">
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-teal-500/10 border border-purple-500/30 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
+              <Sparkles className="w-10 h-10 text-teal-300" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-serif text-white font-medium mb-3">
+              Chào Mừng Đến Với Aurora Destiny AI
+            </h2>
+            <p className="text-sm md:text-base text-gray-300/80 leading-relaxed mb-8">
+              Hệ thống đã sẵn sàng và hoàn toàn trống dữ liệu demo. Hãy nhập thông tin ngày, giờ sinh để hệ thống tự động lập lá số Bát Tự, Tử Vi và kích hoạt 7 chuyên gia AI phân tích.
+            </p>
+            <button
+              id="btn-open-onboarding-empty-state"
+              onClick={() => setShowOnboarding(true)}
+              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-teal-500 text-white font-medium text-base shadow-[0_0_25px_rgba(124,58,237,0.4)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <UserPlus className="w-5 h-5" />
+              <span>Nhập Thông Tin Bản Mệnh Ngay</span>
+            </button>
           </div>
         ) : (
           <AnimatePresence mode="wait">

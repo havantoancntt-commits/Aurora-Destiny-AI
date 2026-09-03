@@ -143,9 +143,15 @@ app.delete('/api/profiles/:id', (req, res) => {
 // ----------------------------------------------------
 app.get('/api/calculations/:profileId', (req, res) => {
   const { profileId } = req.params;
-  const calc = db.getLatestCalculationForProfile(profileId);
   const profile = db.getProfile(profileId) || db.getProfiles()[0];
-  const bt = db.getBacktestResult(profileId);
+  if (!profile) {
+    return res.json({ calculation: null, ensemble: null, backtest: null });
+  }
+  const calc = db.getLatestCalculationForProfile(profile.id);
+  if (!calc) {
+    return res.json({ calculation: null, ensemble: null, backtest: null });
+  }
+  const bt = db.getBacktestResult(profile.id);
   const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
 
   res.json({ calculation: calc, ensemble, backtest: bt });
@@ -274,8 +280,9 @@ CÂU HỎI CỦA NGƯỜI DÙNG:
 Hãy trả lời ngắn gọn, sắc sảo (khoảng 3-4 đoạn văn xúc tích), phân tích dựa trên sự kết hợp giữa Bát Tự, Tử Vi và chu kỳ thời điểm hiện tại, nêu rõ rủi ro cần chú ý và gợi ý hành động chiến lược.
 `;
 
+      // Sử dụng mô hình Gemini chính thức và ổn định: 'gemini-3.8-flash'
       const geminiRes = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
+        model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
         contents: prompt
       });
 

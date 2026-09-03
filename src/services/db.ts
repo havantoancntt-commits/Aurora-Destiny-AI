@@ -140,7 +140,7 @@ class DatabaseStore {
   };
   private auditLogs: AuditLog[] = [];
   private featureFlags: SystemFeatureFlag[] = [
-    { key: 'gemini_37_flash', name: 'Gemini 3.7 Flash Engine', description: 'Server-side high-fidelity multi-agent synthesis', enabled: true, tierRequirement: 'Free' },
+    { key: 'gemini_flash', name: 'Gemini 3.8 Flash Engine', description: 'Server-side high-fidelity multi-agent synthesis', enabled: true, tierRequirement: 'Free' },
     { key: 'backtesting_studio', name: 'Deep Backtesting Studio', description: 'Historical event pattern alignment & consistency scoring', enabled: true, tierRequirement: 'Free' },
     { key: 'scenario_simulator', name: 'What-If Branching Simulator', description: 'Multi-path future energy timeline comparative evaluator', enabled: true, tierRequirement: 'Free' },
     { key: 'executive_pdf_export', name: 'Executive Destiny PDF Export', description: 'High-res downloadable destiny dossier generator', enabled: true, tierRequirement: 'Premium' },
@@ -148,87 +148,70 @@ class DatabaseStore {
   ];
 
   constructor() {
-    this.initializeDefaultData();
+    this.loadFromStorage();
   }
 
-  private initializeDefaultData() {
-    // Check if browser storage has existing state
-    const isBrowser = typeof window !== 'undefined' && window.localStorage;
-    
-    // Seed Profile 1
-    const calc1 = runFullDestinyCalculation(SEED_BIRTH_DATA_1, 'prof_primary', SEED_HISTORICAL_EVENTS_1.length);
-    const prof1: UserProfile = {
-      id: 'prof_primary',
-      userId: this.user.id,
-      name: 'Bản Mệnh Chính (Bính Tý 1996)',
-      isPrimary: true,
-      avatarSeed: 'alex_aurora',
-      birthData: SEED_BIRTH_DATA_1,
-      behavioralContext: SEED_BEHAVIORAL_1,
-      latestCalculationId: calc1.id,
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: new Date().toISOString()
-    };
+  // Đồng bộ hóa trạng thái hiện tại vào LocalStorage
+  private persist(): void {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+      const payload = {
+        user: this.user,
+        profiles: Array.from(this.profiles.entries()),
+        calculations: Array.from(this.calculations.entries()),
+        historicalEvents: Array.from(this.historicalEvents.entries()),
+        backtestResults: Array.from(this.backtestResults.entries()),
+        conversations: Array.from(this.conversations.entries()),
+        preferences: this.preferences,
+        auditLogs: this.auditLogs.slice(0, 50)
+      };
+      window.localStorage.setItem('aurora_destiny_db_v3', JSON.stringify(payload));
+    } catch (e) {
+      console.warn('Lỗi đồng bộ dữ liệu vào LocalStorage:', e);
+    }
+  }
 
-    // Seed Profile 2
-    const calc2 = runFullDestinyCalculation(SEED_BIRTH_DATA_2, 'prof_secondary', 0);
-    const prof2: UserProfile = {
-      id: 'prof_secondary',
-      userId: this.user.id,
-      name: 'Hồ Sơ Gia Đình (Canh Ngọ 1990)',
-      isPrimary: false,
-      avatarSeed: 'elena_aurora',
-      birthData: SEED_BIRTH_DATA_2,
-      behavioralContext: SEED_BEHAVIORAL_2,
-      latestCalculationId: calc2.id,
-      createdAt: '2026-01-05T00:00:00Z',
-      updatedAt: new Date().toISOString()
-    };
-
-    this.profiles.set(prof1.id, prof1);
-    this.profiles.set(prof2.id, prof2);
-    this.calculations.set(calc1.id, calc1);
-    this.calculations.set(calc2.id, calc2);
-    this.historicalEvents.set(prof1.id, SEED_HISTORICAL_EVENTS_1);
-    this.historicalEvents.set(prof2.id, []);
-
-    // Seed Backtest Result for Profile 1
-    const bt1 = runBacktestAnalysis(SEED_HISTORICAL_EVENTS_1, calc1);
-    this.backtestResults.set(prof1.id, bt1);
-
-    // Seed Conversation
-    const conv1: AIConversation = {
-      id: 'conv_primary',
-      profileId: prof1.id,
-      title: 'Chiến lược phát triển 2026-2028',
-      createdAt: '2026-01-10T10:00:00Z',
-      updatedAt: new Date().toISOString(),
-      messages: [
-        {
-          id: 'msg_1',
-          sender: 'assistant',
-          content: 'Xin chào Alex! Tôi là Aurora Destiny AI Assistant. Dữ liệu lá số Bát Tự và Tử Vi của bạn đã được tính toán với độ chính xác cao. Tôi có thể hỗ trợ phân tích xu hướng sự nghiệp, tài chính, kiểm chứng sự kiện quá khứ (Backtest), hoặc mô phỏng kịch bản (What-If). Bạn muốn khám phá chủ đề nào hôm nay?',
-          timestamp: '2026-01-10T10:00:00Z',
-          confidenceScore: 92,
-          suggestedQuestions: [
-            'Năm 2026-2027 có thuận lợi để mở rộng quy mô kinh doanh không?',
-            'Điểm mạnh vượt trội của Bát tự và Tử vi của tôi là gì?',
-            'Hành Dụng Thần nào giúp tôi cân bằng năng lượng tốt nhất?',
-            'Chu kỳ Đại vận hiện tại của tôi mang đặc tính gì?'
-          ],
-          groundedFacts: [
-            'Nhật chủ: Bính Hỏa (Yang Fire) sinh tháng Ngọ (Hỏa vượng)',
-            'Dụng Thần: Thủy (Quan Sát) & Kim (Tài Tinh)',
-            'Cung Mệnh Tử Vi: Tử Phủ Triều Viên',
-            'Đại vận hiện tại: 24-33 tuổi (Thổ Kim tương sinh)'
-          ]
+  // Khôi phục dữ liệu từ LocalStorage khi khởi tạo
+  private loadFromStorage(): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const raw = window.localStorage.getItem('aurora_destiny_db_v3');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.user) this.user = parsed.user;
+          if (parsed.preferences) this.preferences = parsed.preferences;
+          if (Array.isArray(parsed.profiles)) {
+            this.profiles = new Map(parsed.profiles);
+          }
+          if (Array.isArray(parsed.calculations)) {
+            this.calculations = new Map(parsed.calculations);
+          }
+          if (Array.isArray(parsed.historicalEvents)) {
+            this.historicalEvents = new Map(parsed.historicalEvents);
+          }
+          if (Array.isArray(parsed.backtestResults)) {
+            this.backtestResults = new Map(parsed.backtestResults);
+          }
+          if (Array.isArray(parsed.conversations)) {
+            this.conversations = new Map(parsed.conversations);
+          }
+          if (Array.isArray(parsed.auditLogs)) {
+            this.auditLogs = parsed.auditLogs;
+          }
+          return;
         }
-      ]
-    };
-    this.conversations.set(prof1.id, conv1);
+      } catch (e) {
+        console.warn('Lỗi đọc dữ liệu từ LocalStorage:', e);
+      }
+    }
 
-    // Seed Audit Log
-    this.logAudit(this.user.id, 'SYSTEM_INIT', 'Core Database Store Bootstrapped with deterministic calculation v2.4.1', 'SUCCESS');
+    // Khởi tạo trạng thái sạch (Không tạo profile demo giả lập, để trống cho người dùng nhập mới)
+    this.profiles = new Map();
+    this.calculations = new Map();
+    this.historicalEvents = new Map();
+    this.backtestResults = new Map();
+    this.conversations = new Map();
+    this.logAudit(this.user.id, 'SYSTEM_INIT', 'Core Database Store Initialized cleanly without mock profiles', 'SUCCESS');
   }
 
   public logAudit(userId: string, action: string, details: string, status: AuditLog['status'] = 'SUCCESS') {
@@ -254,6 +237,7 @@ class DatabaseStore {
   public updateUser(updates: Partial<UserAccount>): UserAccount {
     this.user = { ...this.user, ...updates };
     this.logAudit(this.user.id, 'USER_UPDATE', `Updated user account fields: ${Object.keys(updates).join(', ')}`);
+    this.persist();
     return this.user;
   }
 
@@ -268,6 +252,7 @@ class DatabaseStore {
   public saveProfile(profile: UserProfile): UserProfile {
     this.profiles.set(profile.id, profile);
     this.logAudit(this.user.id, 'PROFILE_SAVE', `Saved profile: ${profile.name} (${profile.id})`);
+    this.persist();
     return profile;
   }
 
@@ -278,6 +263,7 @@ class DatabaseStore {
     this.backtestResults.delete(id);
     this.conversations.delete(id);
     this.logAudit(this.user.id, 'PROFILE_DELETE', `Deleted profile: ${id}`);
+    this.persist();
     return deleted;
   }
 
@@ -298,6 +284,7 @@ class DatabaseStore {
       prof.latestCalculationId = calc.id;
       this.profiles.set(prof.id, prof);
     }
+    this.persist();
     return calc;
   }
 
@@ -309,6 +296,7 @@ class DatabaseStore {
       this.profiles.set(prof.id, prof);
     }
     this.logAudit(this.user.id, 'CALCULATION_SAVED', `Calculation ${calc.id} generated with engine ${calc.calculationVersion}`);
+    this.persist();
     return calc;
   }
 
@@ -326,6 +314,7 @@ class DatabaseStore {
     const calc = this.getLatestCalculationForProfile(event.profileId);
     const bt = runBacktestAnalysis(list, calc);
     this.backtestResults.set(event.profileId, bt);
+    this.persist();
 
     return event;
   }
@@ -339,6 +328,7 @@ class DatabaseStore {
     const calc = this.getLatestCalculationForProfile(profileId);
     const bt = runBacktestAnalysis(filtered, calc);
     this.backtestResults.set(profileId, bt);
+    this.persist();
 
     return true;
   }
@@ -350,6 +340,7 @@ class DatabaseStore {
     const events = this.getHistoricalEvents(profileId);
     const bt = runBacktestAnalysis(events, calc);
     this.backtestResults.set(profileId, bt);
+    this.persist();
     return bt;
   }
 
@@ -365,6 +356,7 @@ class DatabaseStore {
         messages: []
       };
       this.conversations.set(profileId, conv);
+      this.persist();
     }
     return conv;
   }
@@ -374,6 +366,7 @@ class DatabaseStore {
     conv.messages.push(message);
     conv.updatedAt = new Date().toISOString();
     this.conversations.set(profileId, conv);
+    this.persist();
     return message;
   }
 
@@ -384,6 +377,7 @@ class DatabaseStore {
   public updatePreferences(pref: Partial<UserPreferences>): UserPreferences {
     this.preferences = { ...this.preferences, ...pref };
     this.logAudit(this.user.id, 'PREFERENCES_UPDATE', 'Updated user privacy and interface preferences');
+    this.persist();
     return this.preferences;
   }
 

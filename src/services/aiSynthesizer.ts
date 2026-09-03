@@ -237,7 +237,7 @@ export function generateMultiAgentEnsemble(
   ];
 
   return {
-    modelName: 'Gemini 3.7 Flash Ensemble + Aurora Mathematical Engine',
+    modelName: 'Gemini 3.8 Flash Ensemble + Aurora Mathematical Engine',
     ensembleVersion: 'aurora_ensemble_v3.2',
     generatedAt: new Date().toISOString(),
     overallConsistencyScore,
