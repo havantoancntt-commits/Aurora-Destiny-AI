@@ -22,13 +22,15 @@ import { computeDailyDestiny } from '../services/aiSynthesizer';
 import { ELEMENT_RELATIONS } from '../engine/canchi';
 import { LanguageCode } from '../types/destiny';
 import { t } from '../i18n/translations';
+import { Radio } from 'lucide-react';
 
 interface Props {
   calculation: CalculationResult;
   language: LanguageCode;
+  onOpenAlertCenter?: () => void;
 }
 
-export const DailyDestinyView: React.FC<Props> = ({ calculation, language }) => {
+export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpenAlertCenter }) => {
   const [dailyData, setDailyData] = useState<DailyDestiny>(() => computeDailyDestiny(calculation));
 
   useEffect(() => {
@@ -58,10 +60,19 @@ export const DailyDestinyView: React.FC<Props> = ({ calculation, language }) => 
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="px-3.5 py-1 rounded-full text-xs font-mono bg-amber-950/80 border border-amber-500/40 text-amber-300 shadow-sm">
             {dailyData.dailyStemBranch} • Hành {ELEMENT_RELATIONS[dailyData.dailyElement]?.vi || dailyData.dailyElement}
           </span>
+          {onOpenAlertCenter && (
+            <button
+              onClick={onOpenAlertCenter}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-gradient-to-r from-teal-900/70 to-emerald-900/70 border border-teal-400/50 hover:border-teal-300 text-teal-200 hover:text-white transition-all shadow-[0_0_15px_rgba(45,212,191,0.2)] cursor-pointer"
+            >
+              <Radio className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
+              <span>Radar Thiên Thời LIVE</span>
+            </button>
+          )}
         </div>
       </motion.div>
 

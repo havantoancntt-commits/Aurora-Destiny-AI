@@ -20,6 +20,8 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import { ReportGeneratorModal } from './components/ReportGeneratorModal';
 import { PrivacyCenterModal } from './components/PrivacyCenterModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { RealTimeAlertCenter } from './components/RealTimeAlertCenter';
+import { SacredCosmicCipher3D } from './components/SacredCosmicCipher3D';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -54,6 +56,7 @@ export default function App() {
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState<boolean>(false);
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [showRealtimeAlertModal, setShowRealtimeAlertModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -352,6 +355,8 @@ export default function App() {
           onOpenAdminModal={() => setShowAdminModal(true)}
           onOpenReportModal={() => setShowReportModal(true)}
           onRunTestAudit={() => setShowAdminModal(true)}
+          calculation={calculation}
+          onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
         />
       </div>
 
@@ -373,20 +378,18 @@ export default function App() {
             </p>
           </div>
         ) : !activeProfile || !calculation || !ensemble ? (
-          <div className="flex flex-col items-center justify-center min-h-[55vh] max-w-xl mx-auto text-center px-4 py-12">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-teal-500/10 border border-purple-500/30 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
-              <Sparkles className="w-10 h-10 text-teal-300" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-serif text-white font-medium mb-3">
+          <div className="flex flex-col items-center justify-center min-h-[55vh] max-w-xl mx-auto text-center px-4 py-8">
+            <SacredCosmicCipher3D onActivate={() => setShowOnboarding(true)} />
+            <h2 className="text-2xl md:text-3xl font-serif text-white font-medium mb-3 mt-4">
               Chào Mừng Đến Với Aurora Destiny AI
             </h2>
-            <p className="text-sm md:text-base text-gray-300/80 leading-relaxed mb-8">
+            <p className="text-sm md:text-base text-gray-300/80 leading-relaxed mb-8 max-w-lg">
               Hệ thống đã sẵn sàng và hoàn toàn trống dữ liệu demo. Hãy nhập thông tin ngày, giờ sinh để hệ thống tự động lập lá số Bát Tự, Tử Vi và kích hoạt 7 chuyên gia AI phân tích.
             </p>
             <button
               id="btn-open-onboarding-empty-state"
               onClick={() => setShowOnboarding(true)}
-              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-teal-500 text-white font-medium text-base shadow-[0_0_25px_rgba(124,58,237,0.4)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 text-white font-semibold text-base shadow-[0_0_30px_rgba(45,212,191,0.35)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-teal-400/40"
             >
               <UserPlus className="w-5 h-5" />
               <span>Nhập Thông Tin Bản Mệnh Ngay</span>
@@ -449,6 +452,7 @@ export default function App() {
                 <DailyDestinyView
                   calculation={calculation}
                   language={language}
+                  onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
                 />
               )}
             </motion.div>
@@ -506,6 +510,15 @@ export default function App() {
 
       {showAdminModal && (
         <AdminDashboard onClose={() => setShowAdminModal(false)} />
+      )}
+
+      {/* Real-time Celestial Alert Radar Modal */}
+      {showRealtimeAlertModal && (
+        <RealTimeAlertCenter
+          calculation={calculation}
+          language={language}
+          onClose={() => setShowRealtimeAlertModal(false)}
+        />
       )}
     </div>
   );
