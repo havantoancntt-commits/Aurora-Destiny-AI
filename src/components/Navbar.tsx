@@ -37,6 +37,7 @@ interface Props {
   calculation?: CalculationResult | null;
   onOpenAlertCenter?: () => void;
   onOpenSponsorshipModal?: () => void;
+  onOpenInternationalModal?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -52,7 +53,8 @@ export const Navbar: React.FC<Props> = ({
   onRunTestAudit,
   calculation = null,
   onOpenAlertCenter = () => {},
-  onOpenSponsorshipModal
+  onOpenSponsorshipModal,
+  onOpenInternationalModal
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -303,9 +305,38 @@ export const Navbar: React.FC<Props> = ({
                       </button>
                     ))}
                   </div>
+
+                  {onOpenInternationalModal && (
+                    <div className="pt-2 mt-2 border-t border-white/10">
+                      <button
+                        id="btn-nav-open-international-settings"
+                        onClick={() => {
+                          setShowLangMenu(false);
+                          onOpenInternationalModal();
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-teal-500/20 via-emerald-500/20 to-teal-500/20 border border-teal-400/40 hover:bg-teal-500/30 text-teal-200 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                      >
+                        <Globe className="w-3.5 h-3.5 text-teal-400" />
+                        <span>Cài Đặt Quốc Tế Chuyên Sâu</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
+            {/* Direct International Settings Button */}
+            {onOpenInternationalModal && (
+              <button
+                id="btn-nav-global-settings"
+                onClick={onOpenInternationalModal}
+                className="p-1 sm:p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/5 border border-teal-500/30 hover:border-teal-400 hover:bg-teal-500/15 text-teal-300 hover:text-white text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0 cursor-pointer"
+                title="Cài Đặt Quốc Tế & Thiên Văn Toàn Cầu"
+              >
+                <Globe className="w-3.5 h-3.5 text-teal-400" />
+                <span className="hidden xl:inline font-medium tracking-wide">Cài Đặt Quốc Tế</span>
+              </button>
+            )}
 
             {/* Sponsorship / Support Channel Trigger */}
             {onOpenSponsorshipModal && (

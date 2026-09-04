@@ -30,6 +30,7 @@ import { STEMS, BRANCHES, ELEMENT_RELATIONS, getNaYin } from '../engine/canchi';
 import { calculateYearPillar, calculateMonthPillar, calculateDayPillar, calculateHourPillar } from '../engine/bazi';
 import { convertSolarToLunar } from '../engine/lunarSolar';
 import { UserProfile } from '../types/user';
+import { WORLD_LOCATIONS, WorldLocation } from '../services/internationalization';
 
 interface Props {
   language: LanguageCode;
@@ -108,6 +109,7 @@ export const OnboardingWizard: React.FC<Props> = ({
 
   // Place of birth
   const [birthCity, setBirthCity] = useState('Hà Nội');
+  const [birthCountry, setBirthCountry] = useState('Việt Nam');
   const [timezoneOffset, setTimezoneOffset] = useState<number>(7);
 
   // Priority Focus
@@ -176,9 +178,9 @@ export const OnboardingWizard: React.FC<Props> = ({
         solarMinute: hourMode === 'unknown' ? 0 : solarMinute,
         hasExactHour: hourMode !== 'unknown',
         birthCity,
-        birthCountry: 'Vietnam',
+        birthCountry: birthCountry || 'Việt Nam',
         timezoneOffset,
-        timezoneName: `UTC+${timezoneOffset}`,
+        timezoneName: `UTC${timezoneOffset >= 0 ? `+${timezoneOffset}` : timezoneOffset}`,
         gender,
         calendarSystem: 'solar'
       };
@@ -578,12 +580,17 @@ export const OnboardingWizard: React.FC<Props> = ({
 
             {/* MỤC 4: NƠI SINH & MỤC TIÊU QUAN TÂM */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
-              {/* Nơi Sinh */}
+              {/* Nơi Sinh & Tọa Độ Thiên Văn */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-teal-400" />
-                  <span>Nơi Sinh / Quê Quán</span>
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-teal-400" />
+                    <span>Nơi Sinh & Tọa Độ Thiên Văn</span>
+                  </label>
+                  <span className="text-[10px] font-mono text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/30">
+                    UTC{timezoneOffset >= 0 ? `+${timezoneOffset}` : timezoneOffset} • {birthCountry}
+                  </span>
+                </div>
                 <input
                   type="text"
                   value={birthCity}
@@ -591,21 +598,43 @@ export const OnboardingWizard: React.FC<Props> = ({
                   placeholder="Nhập tỉnh/thành phố nơi sinh..."
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-black/70 border border-white/20 text-white text-sm focus:border-teal-400 focus:outline-none"
                 />
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Nghệ An', 'Huế', 'Cần Thơ'].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setBirthCity(c)}
-                      className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
-                        birthCity === c
-                          ? 'bg-teal-500/30 border-teal-400 text-teal-200 font-bold'
-                          : 'bg-black/40 border-white/10 text-slate-300 hover:text-white'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
+                {/* Location Quick Chips */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { city: 'Hà Nội', country: 'Việt Nam', tz: 7 },
+                      { city: 'TP. Hồ Chí Minh', country: 'Việt Nam', tz: 7 },
+                      { city: 'Đà Nẵng', country: 'Việt Nam', tz: 7 },
+                      { city: 'Hải Phòng', country: 'Việt Nam', tz: 7 },
+                      { city: 'Cần Thơ', country: 'Việt Nam', tz: 7 },
+                      { city: 'Tokyo', country: 'Nhật Bản', tz: 9 },
+                      { city: 'Seoul', country: 'Hàn Quốc', tz: 9 },
+                      { city: 'Paris', country: 'Pháp', tz: 1 },
+                      { city: 'London', country: 'Vương Quốc Anh', tz: 0 },
+                      { city: 'New York', country: 'Hoa Kỳ', tz: -5 },
+                      { city: 'Sydney', country: 'Úc', tz: 10 }
+                    ].map((item) => {
+                      const isSelected = birthCity === item.city;
+                      return (
+                        <button
+                          key={item.city}
+                          type="button"
+                          onClick={() => {
+                            setBirthCity(item.city);
+                            setBirthCountry(item.country);
+                            setTimezoneOffset(item.tz);
+                          }}
+                          className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-teal-500/30 border-teal-400 text-teal-200 font-bold'
+                              : 'bg-black/40 border-white/10 text-slate-300 hover:text-white'
+                          }`}
+                        >
+                          {item.city}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

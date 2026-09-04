@@ -26,6 +26,7 @@ import { RealTimeAlertCenter } from './components/RealTimeAlertCenter';
 import { SacredCosmicCipher3D } from './components/SacredCosmicCipher3D';
 import { AppFooter } from './components/AppFooter';
 import { SponsorshipModal } from './components/SponsorshipModal';
+import { InternationalizationModal } from './components/InternationalizationModal';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -57,6 +58,7 @@ export default function App() {
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
   const [showRealtimeAlertModal, setShowRealtimeAlertModal] = useState<boolean>(false);
   const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
+  const [showInternationalModal, setShowInternationalModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -379,6 +381,7 @@ export default function App() {
           calculation={calculation}
           onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
           onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
+          onOpenInternationalModal={() => setShowInternationalModal(true)}
         />
       </div>
 
@@ -538,6 +541,7 @@ export default function App() {
         onOpenReportModal={() => setShowReportModal(true)}
         onOpenAdminModal={() => setShowAdminModal(true)}
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
+        onOpenInternationalModal={() => setShowInternationalModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -609,6 +613,22 @@ export default function App() {
         <SponsorshipModal
           language={language}
           onClose={() => setShowSponsorshipModal(false)}
+        />
+      )}
+
+      {/* Global Internationalization & Astronomy Studio Modal */}
+      {showInternationalModal && (
+        <InternationalizationModal
+          language={language}
+          onLanguageChange={setLanguage}
+          onClose={() => setShowInternationalModal(false)}
+          onSettingsApplied={(newSettings) => {
+            setPreferences((prev) => ({
+              ...prev,
+              language: newSettings.language,
+              timezone: newSettings.location.timezone
+            }));
+          }}
         />
       )}
     </div>

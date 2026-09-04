@@ -34,6 +34,7 @@ interface Props {
   onOpenReportModal?: () => void;
   onOpenAdminModal?: () => void;
   onOpenSponsorshipModal?: () => void;
+  onOpenInternationalModal?: () => void;
   hasFloatingDock?: boolean;
 }
 
@@ -43,6 +44,7 @@ export const AppFooter: React.FC<Props> = ({
   onOpenReportModal,
   onOpenAdminModal,
   onOpenSponsorshipModal,
+  onOpenInternationalModal,
   hasFloatingDock = false
 }) => {
   const [copied, setCopied] = useState(false);
@@ -412,6 +414,16 @@ export const AppFooter: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center gap-4 text-xs">
+            {onOpenInternationalModal && (
+              <button
+                id="btn-footer-international-settings"
+                onClick={onOpenInternationalModal}
+                className="text-teal-300 hover:text-teal-200 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-medium"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>{isVi ? 'Cài Đặt Quốc Tế & Múi Giờ' : 'Global Settings & Timezone'}</span>
+              </button>
+            )}
             {onOpenPrivacyCenter && (
               <button
                 onClick={onOpenPrivacyCenter}
