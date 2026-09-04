@@ -1,12 +1,15 @@
 // ==========================================
 // ENGINE UNIT & REGRESSION TEST SUITE
+// Deterministic Astrological Calculations, Boundaries & Constraints
 // ==========================================
 
-import { calculateBaZiChart, calculateYearPillar, calculateHourPillar } from './bazi';
+import { calculateBaZiChart, calculateYearPillar, calculateHourPillar, calculateDayPillar } from './bazi';
+import { getTenGod } from './canchi';
 import { calculateZiWeiChart } from './ziwei';
 import { runFullDestinyCalculation } from './destinyEngine';
 import { runBacktestAnalysis } from './backtesting';
 import { evaluateWhatIfScenario } from './scenarios';
+import { convertSolarToLunar } from './lunarSolar';
 import { BirthData } from '../types/destiny';
 import { HistoricalEvent } from '../types/backtest';
 
@@ -69,13 +72,23 @@ export function runAllEngineTests(): TestReport {
     'Dual runs produced identical astrological pillars'
   );
 
-  // TEST 5: Zi Wei Dou Shu 12 Palaces Structure
+  // TEST 5: Zi Wei Dou Shu 12 Palaces Structure & Major Stars
   const ziwei = calculateZiWeiChart(sampleBirth);
   const palaceKeys = Object.keys(ziwei.palaces);
   assert(palaceKeys.length === 12, 'Zi Wei 12 Palaces Completeness', `Generated ${palaceKeys.length} palaces`);
   assert(!!ziwei.palaces.life && !!ziwei.palaces.career && !!ziwei.palaces.wealth, 'Core Palaces Check', 'Life, Career, Wealth palaces exist');
 
-  // TEST 6: Backtesting Engine with Real Historical Events
+  // TEST 6: Lunar Calendar Conversion
+  const lunar = convertSolarToLunar(1995, 8, 18);
+  assert(lunar.lunarYear === 1995 && lunar.lunarMonth === 7 && lunar.lunarDay === 23, 'Solar to Lunar Conversion (1995-08-18 -> 1995-07-23)', `Lunar: ${lunar.lunarYear}-${lunar.lunarMonth}-${lunar.lunarDay}`);
+
+  // TEST 7: Ten Gods (Thập Thần) Relation Consistency
+  const directWealth = getTenGod('Jia', 'Ji').nameVi; // Giáp gặp Kỷ (Chính Tài)
+  const sevenKillings = getTenGod('Jia', 'Geng').nameVi; // Giáp gặp Canh (Thất Sát)
+  assert(directWealth === 'Chính Tài', 'Ten Gods Direct Wealth', `Got ${directWealth}`);
+  assert(sevenKillings === 'Thất Sát', 'Ten Gods Seven Killings', `Got ${sevenKillings}`);
+
+  // TEST 8: Backtesting Engine with Real Historical Events
   const sampleEvents: HistoricalEvent[] = [
     {
       id: 'e1',
@@ -106,7 +119,7 @@ export function runAllEngineTests(): TestReport {
   assert(btResult.totalEventsAnalyzed === 2, 'Backtest Event Processing', `Processed ${btResult.totalEventsAnalyzed} events`);
   assert(btResult.destinyConsistencyScore >= 0 && btResult.destinyConsistencyScore <= 100, 'Backtest Score Validity', `Score: ${btResult.destinyConsistencyScore}/100`);
 
-  // TEST 7: What-If Scenario Engine
+  // TEST 9: What-If Scenario Engine (3 Distinct Branches)
   const scenarioResult = evaluateWhatIfScenario('Tôi có nên chuyển sang làm AI năm nay?', calc1);
   assert(scenarioResult.scenarios.length === 3, 'What-If 3-Branch Scenarios', `Generated ${scenarioResult.scenarios.length} branches (A, B, C)`);
 
@@ -114,4 +127,20 @@ export function runAllEngineTests(): TestReport {
   const failed = results.filter(r => r.status === 'FAIL').length;
 
   return { passed, failed, results };
+}
+
+// Direct CLI Execution support
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log('🧪 Running Aurora Destiny AI Astronomical Engine Test Suite...\n');
+  const report = runAllEngineTests();
+  for (const r of report.results) {
+    const symbol = r.status === 'PASS' ? '✅' : '❌';
+    console.log(`${symbol} [${r.status}] ${r.testName}: ${r.message}`);
+  }
+  console.log(`\n📊 Summary: ${report.passed} passed, ${report.failed} failed.`);
+  if (report.failed > 0) {
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
 }

@@ -1,0 +1,1313 @@
+{
+  "users": {
+    "usr_guest_1788492797110_55772016": {
+      "id": "usr_guest_1788492797110_55772016",
+      "email": "guest_usr_guest_1788492797110_55772016@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-04T03:33:17.110Z",
+      "lastLoginAt": "2026-09-04T03:33:17.110Z",
+      "profilesCount": 1
+    },
+    "usr_guest_1788492804321_df7cc05b": {
+      "id": "usr_guest_1788492804321_df7cc05b",
+      "email": "guest_usr_guest_1788492804321_df7cc05b@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-04T03:33:24.321Z",
+      "lastLoginAt": "2026-09-04T03:33:24.321Z",
+      "profilesCount": 0
+    },
+    "usr_guest_1788492855316_33304e02": {
+      "id": "usr_guest_1788492855316_33304e02",
+      "email": "guest_usr_guest_1788492855316_33304e02@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-04T03:34:15.316Z",
+      "lastLoginAt": "2026-09-04T03:34:15.316Z",
+      "profilesCount": 0
+    },
+    "usr_guest_1788492855318_4408bd47": {
+      "id": "usr_guest_1788492855318_4408bd47",
+      "email": "guest_usr_guest_1788492855318_4408bd47@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-04T03:34:15.319Z",
+      "lastLoginAt": "2026-09-04T03:34:15.319Z",
+      "profilesCount": 0
+    },
+    "usr_admin_de1baf51": {
+      "id": "usr_admin_de1baf51",
+      "email": "havantoancntt@gmail.com",
+      "fullName": "Quản Trị Viên Hệ Thống",
+      "role": "SUPER_ADMIN",
+      "subscriptionTier": "Enterprise",
+      "language": "vi",
+      "emailVerified": true,
+      "createdAt": "2026-09-04T03:57:00.379Z",
+      "lastLoginAt": "2026-09-04T03:57:00.379Z",
+      "profilesCount": 0,
+      "passwordHash": "cec7b8ec8b181ffda4e525e23530e8f0:cae169e10fdda53e37d6cd590c22267b20e5d53d421a47726bea9bc098f035889d0642a1392923849b6270ee34411f4cb80af5dddc9ee40b7ce2fb7fde29ce32"
+    },
+    "usr_guest_1788494488741_588d6f9e": {
+      "id": "usr_guest_1788494488741_588d6f9e",
+      "email": "guest_usr_guest_1788494488741_588d6f9e@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-04T04:01:28.741Z",
+      "lastLoginAt": "2026-09-04T04:01:28.741Z",
+      "profilesCount": 0
+    }
+  },
+  "preferences": {
+    "usr_guest_1788492797110_55772016": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788492804321_df7cc05b": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788492855316_33304e02": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788492855318_4408bd47": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_admin_de1baf51": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788494488741_588d6f9e": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    }
+  },
+  "profiles": {
+    "prof_1788492801498_46fa09": {
+      "id": "prof_1788492801498_46fa09",
+      "userId": "usr_guest_1788492797110_55772016",
+      "name": "Hà Văn Toàn",
+      "isPrimary": false,
+      "avatarSeed": "hà_văn_toàn",
+      "birthData": {
+        "solarYear": 1996,
+        "solarMonth": 6,
+        "solarDay": 18,
+        "solarHour": 9,
+        "solarMinute": 30,
+        "hasExactHour": true,
+        "birthCity": "Hà Nội",
+        "birthCountry": "Vietnam",
+        "timezoneOffset": 7,
+        "timezoneName": "Asia/Bangkok",
+        "gender": "Male",
+        "calendarSystem": "solar"
+      },
+      "behavioralContext": {
+        "careerField": "",
+        "employmentStatus": "",
+        "financialGoal": "",
+        "relationshipStatus": "",
+        "topPriority": "",
+        "personalNotes": ""
+      },
+      "createdAt": "2026-09-04T03:33:21.498Z",
+      "updatedAt": "2026-09-04T03:33:21.502Z",
+      "latestCalculationId": "calc_1788492801502_7d2rc"
+    }
+  },
+  "calculations": {
+    "calc_1788492801502_7d2rc": {
+      "id": "calc_1788492801502_7d2rc",
+      "profileId": "prof_1788492801498_46fa09",
+      "calculationVersion": "calc_v2.5.0",
+      "astrologyRulesVersion": "astrorules_v2.0.0",
+      "analysisModelVersion": "aurora_ensemble_v3.5",
+      "timestamp": "2026-09-04T03:33:21.502Z",
+      "inputSnapshot": {
+        "solarYear": 1996,
+        "solarMonth": 6,
+        "solarDay": 18,
+        "solarHour": 9,
+        "solarMinute": 30,
+        "hasExactHour": true,
+        "birthCity": "Hà Nội",
+        "birthCountry": "Vietnam",
+        "timezoneOffset": 7,
+        "timezoneName": "Asia/Bangkok",
+        "gender": "Male",
+        "calendarSystem": "solar"
+      },
+      "bazi": {
+        "yearPillar": {
+          "stem": "Bing",
+          "branch": "Zi",
+          "stemElement": "Fire",
+          "branchElement": "Water",
+          "hiddenStems": [
+            {
+              "stem": "Gui",
+              "element": "Water",
+              "tenGod": "Chính Quan"
+            }
+          ],
+          "naYin": "Giản Hạ Thủy",
+          "tenGod": "Tỷ Kiên",
+          "strength": 44
+        },
+        "monthPillar": {
+          "stem": "Jia",
+          "branch": "Wu_B",
+          "stemElement": "Wood",
+          "branchElement": "Fire",
+          "hiddenStems": [
+            {
+              "stem": "Ding",
+              "element": "Fire",
+              "tenGod": "Kiếp Tài"
+            },
+            {
+              "stem": "Ji",
+              "element": "Earth",
+              "tenGod": "Thương Quan"
+            }
+          ],
+          "naYin": "Sa Trung Kim",
+          "tenGod": "Thiên Ấn",
+          "strength": 60
+        },
+        "dayPillar": {
+          "stem": "Bing",
+          "branch": "Xu",
+          "stemElement": "Fire",
+          "branchElement": "Earth",
+          "hiddenStems": [
+            {
+              "stem": "Wu",
+              "element": "Earth",
+              "tenGod": "Thực Thần"
+            },
+            {
+              "stem": "Xin",
+              "element": "Metal",
+              "tenGod": "Chính Tài"
+            },
+            {
+              "stem": "Ding",
+              "element": "Fire",
+              "tenGod": "Kiếp Tài"
+            }
+          ],
+          "naYin": "Ốc Thượng Thổ",
+          "tenGod": "Tỷ Kiên",
+          "strength": 78
+        },
+        "hourPillar": {
+          "stem": "Gui",
+          "branch": "Si",
+          "stemElement": "Water",
+          "branchElement": "Fire",
+          "hiddenStems": [
+            {
+              "stem": "Bing",
+              "element": "Fire",
+              "tenGod": "Tỷ Kiên"
+            },
+            {
+              "stem": "Geng",
+              "element": "Metal",
+              "tenGod": "Thiên Tài"
+            },
+            {
+              "stem": "Wu",
+              "element": "Earth",
+              "tenGod": "Thực Thần"
+            }
+          ],
+          "naYin": "Trường Lưu Thủy",
+          "tenGod": "Chính Quan",
+          "strength": 60
+        },
+        "dayMaster": "Bing",
+        "dayMasterElement": "Fire",
+        "dayMasterStrength": "Very Strong",
+        "elementBalance": {
+          "Wood": 9,
+          "Fire": 55,
+          "Earth": 13,
+          "Metal": 0,
+          "Water": 23
+        },
+        "favorableElements": [
+          "Earth",
+          "Metal"
+        ],
+        "unfavorableElements": [
+          "Fire",
+          "Wood"
+        ],
+        "structureType": "Kiếp Tài Cách",
+        "tenGodDistribution": {
+          "Tỷ Kiên": 2.5,
+          "Chính Quan": 1.5,
+          "Thiên Ấn": 1,
+          "Kiếp Tài": 1,
+          "Thương Quan": 0.5,
+          "Thực Thần": 1,
+          "Chính Tài": 0.5,
+          "Thiên Tài": 0.5
+        }
+      },
+      "ziwei": {
+        "palaces": {
+          "life": {
+            "key": "life",
+            "nameVi": "Mệnh",
+            "nameEn": "Life / Destiny",
+            "branch": "Chou",
+            "stem": "Xin",
+            "majorStars": [
+              {
+                "nameVi": "Thái Dương",
+                "nameEn": "Sun (Tai Yang)",
+                "nameZh": "太陽",
+                "brightness": "H",
+                "element": "Fire",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Thái Âm",
+                "nameEn": "Moon (Tai Yin)",
+                "nameZh": "太陰",
+                "brightness": "D",
+                "element": "Water",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [],
+            "score": 63,
+            "focalTheme": "Bản thể, tư chất bẩm sinh, ý chí và mô hình định mệnh cốt lõi"
+          },
+          "siblings": {
+            "key": "siblings",
+            "nameVi": "Huynh Đệ",
+            "nameEn": "Siblings & Peers",
+            "branch": "Zi",
+            "stem": "Geng",
+            "majorStars": [
+              {
+                "nameVi": "Vũ Khúc",
+                "nameEn": "General / Financier (Wu Qu)",
+                "nameZh": "武曲",
+                "brightness": "V",
+                "element": "Metal",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Thiên Phủ",
+                "nameEn": "Treasury / Empress (Tian Fu)",
+                "nameZh": "天府",
+                "brightness": "M",
+                "element": "Earth",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [],
+            "score": 99,
+            "focalTheme": "Mối quan hệ anh em, tri kỷ, mạng lưới đồng nghiệp cộng sự"
+          },
+          "spouse": {
+            "key": "spouse",
+            "nameVi": "Phu Thê",
+            "nameEn": "Spouse & Marriage",
+            "branch": "Hai",
+            "stem": "Ji",
+            "majorStars": [
+              {
+                "nameVi": "Thiên Đồng",
+                "nameEn": "Lucky Child (Tian Tong)",
+                "nameZh": "天同",
+                "brightness": "M",
+                "element": "Water",
+                "transformation": "Lu",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Thiên Khôi",
+                "nameEn": "Thiên Khôi",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [
+              "Hóa Lộc"
+            ],
+            "score": 99,
+            "focalTheme": "Hôn nhân phối ngẫu, duyên nợ tình cảm, sự hòa hợp tâm thức"
+          },
+          "children": {
+            "key": "children",
+            "nameVi": "Tử Tức",
+            "nameEn": "Children & Subordinates",
+            "branch": "Xu",
+            "stem": "Wu",
+            "majorStars": [
+              {
+                "nameVi": "Phá Quân",
+                "nameEn": "Army Breaker / Disruptor (Po Jun)",
+                "nameZh": "破軍",
+                "brightness": "V",
+                "element": "Water",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [],
+            "score": 82,
+            "focalTheme": "Hậu duệ, thế hệ kế cận, truyền thừa và mối nhân duyên con cái"
+          },
+          "wealth": {
+            "key": "wealth",
+            "nameVi": "Tài Bạch",
+            "nameEn": "Wealth & Assets",
+            "branch": "You",
+            "stem": "Ding",
+            "majorStars": [],
+            "minorStars": [
+              {
+                "nameVi": "Văn Khúc",
+                "nameEn": "Văn Khúc",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Water",
+                "type": "Lucky"
+              },
+              {
+                "nameVi": "Thiên Việt",
+                "nameEn": "Thiên Việt",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [],
+            "score": 73,
+            "focalTheme": "Dòng tiền, năng lực tạo dựng của cải, tư duy quản trị tài chính"
+          },
+          "health": {
+            "key": "health",
+            "nameVi": "Tật Ách",
+            "nameEn": "Health & Well-being",
+            "branch": "Shen",
+            "stem": "Bing",
+            "majorStars": [
+              {
+                "nameVi": "Liêm Trinh",
+                "nameEn": "Judge / Diplomat (Lian Zhen)",
+                "nameZh": "廉貞",
+                "brightness": "V",
+                "element": "Fire",
+                "transformation": "Ky",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Tả Phụ",
+                "nameEn": "Tả Phụ",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Earth",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [
+              "Hóa Kỵ"
+            ],
+            "score": 76,
+            "focalTheme": "Thể chất, năng lượng sinh học, phòng ngừa rủi ro và bệnh tật"
+          },
+          "travel": {
+            "key": "travel",
+            "nameVi": "Thiên Di",
+            "nameEn": "Travel & Outer World",
+            "branch": "Wei",
+            "stem": "Yi",
+            "majorStars": [],
+            "minorStars": [],
+            "transformations": [],
+            "score": 65,
+            "focalTheme": "Môi trường ngoại cảnh, khả năng xuất ngoại, vị thế xã hội bên ngoài"
+          },
+          "friends": {
+            "key": "friends",
+            "nameVi": "Nô Bộc",
+            "nameEn": "Friends & Allies",
+            "branch": "Wu_B",
+            "stem": "Jia",
+            "majorStars": [
+              {
+                "nameVi": "Thất Sát",
+                "nameEn": "Seven Killings Warrior (Qi Sha)",
+                "nameZh": "七殺",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Hữu Bật",
+                "nameEn": "Hữu Bật",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Water",
+                "type": "Lucky"
+              },
+              {
+                "nameVi": "Kình Dương",
+                "nameEn": "Kình Dương",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Challenging"
+              },
+              {
+                "nameVi": "Địa Không",
+                "nameEn": "Địa Không",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Challenging"
+              }
+            ],
+            "transformations": [],
+            "score": 83,
+            "focalTheme": "Bạn bè, đối tác hợp tác, cấp dưới và trợ lực xã hội"
+          },
+          "career": {
+            "key": "career",
+            "nameVi": "Quan Lộc",
+            "nameEn": "Career & Authority",
+            "branch": "Si",
+            "stem": "Gui",
+            "majorStars": [
+              {
+                "nameVi": "Thiên Lương",
+                "nameEn": "Elder Sage (Tian Liang)",
+                "nameZh": "天梁",
+                "brightness": "H",
+                "element": "Earth",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Văn Xương",
+                "nameEn": "Văn Xương",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Lucky"
+              },
+              {
+                "nameVi": "Lộc Tồn",
+                "nameEn": "Lộc Tồn",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Earth",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [],
+            "score": 61,
+            "focalTheme": "Sự nghiệp chuyên môn, quyền lực, con đường công danh chức vụ"
+          },
+          "property": {
+            "key": "property",
+            "nameVi": "Điền Trạch",
+            "nameEn": "Property & Real Estate",
+            "branch": "Chen",
+            "stem": "Ren",
+            "majorStars": [
+              {
+                "nameVi": "Tử Vi",
+                "nameEn": "Emperor (Zi Wei)",
+                "nameZh": "紫微",
+                "brightness": "V",
+                "element": "Earth",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Thiên Tướng",
+                "nameEn": "Prime Minister (Tian Xiang)",
+                "nameZh": "天相",
+                "brightness": "D",
+                "element": "Water",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Đà La",
+                "nameEn": "Đà La",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Challenging"
+              },
+              {
+                "nameVi": "Địa Kiếp",
+                "nameEn": "Địa Kiếp",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Challenging"
+              }
+            ],
+            "transformations": [],
+            "score": 84,
+            "focalTheme": "Bất động sản, tài sản tích lũy, cơ nghiệp tổ phụ và gia trạch"
+          },
+          "karma": {
+            "key": "karma",
+            "nameVi": "Phúc Đức",
+            "nameEn": "Spiritual Well-being & Karma",
+            "branch": "Mao",
+            "stem": "Xin",
+            "majorStars": [
+              {
+                "nameVi": "Thiên Cơ",
+                "nameEn": "Strategist (Tian Ji)",
+                "nameZh": "天機",
+                "brightness": "M",
+                "element": "Wood",
+                "transformation": "Quan",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Cự Môn",
+                "nameEn": "Great Gate / Orator (Ju Men)",
+                "nameZh": "巨門",
+                "brightness": "M",
+                "element": "Water",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [
+              "Hóa Quyền"
+            ],
+            "score": 99,
+            "focalTheme": "Đời sống tinh thần, phúc trạch tổ tiên, nội tâm an nhiên tĩnh tại"
+          },
+          "parents": {
+            "key": "parents",
+            "nameVi": "Phụ Mẫu",
+            "nameEn": "Parents & Mentors",
+            "branch": "Yin_B",
+            "stem": "Geng",
+            "majorStars": [
+              {
+                "nameVi": "Tham Lang",
+                "nameEn": "Wolf of Desire (Tan Lang)",
+                "nameZh": "貪狼",
+                "brightness": "D",
+                "element": "Wood",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [],
+            "score": 75,
+            "focalTheme": "Cha mẹ, tiền bối nâng đỡ, ân điển gia tộc và nguồn cội che chở"
+          }
+        },
+        "bodyPalaceKey": "spouse",
+        "lifePalaceKey": "life",
+        "elementBureau": "Thổ Ngũ Cục (Earth 5)",
+        "majorConfigurations": [
+          "Âm Dương Giao Thái (Harmonious Dual Energies)",
+          "Khoa Quyền Lộc Giáp (Honors & Influence Matrix)"
+        ]
+      },
+      "decades": [
+        {
+          "index": 1,
+          "startAge": 4,
+          "endAge": 13,
+          "startYear": 2000,
+          "endYear": 2009,
+          "stem": "Yi",
+          "branch": "Wei",
+          "element": "Wood",
+          "tenGod": "Chính Ấn",
+          "focalPalace": "life",
+          "harmonyScore": 90,
+          "keyThemes": [
+            "Giai đoạn 4-13 tuổi: Khởi động vận trình Ất Mùi",
+            "Cung trọng điểm: LIFE gắn liền với chuyển biến Chính Ấn"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Mộc gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 2,
+          "startAge": 14,
+          "endAge": 23,
+          "startYear": 2010,
+          "endYear": 2019,
+          "stem": "Bing",
+          "branch": "Shen",
+          "element": "Fire",
+          "tenGod": "Tỷ Kiên",
+          "focalPalace": "siblings",
+          "harmonyScore": 80,
+          "keyThemes": [
+            "Giai đoạn 14-23 tuổi: Khởi động vận trình Bính Thân",
+            "Cung trọng điểm: SIBLINGS gắn liền với chuyển biến Tỷ Kiên"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Hỏa gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 3,
+          "startAge": 24,
+          "endAge": 33,
+          "startYear": 2020,
+          "endYear": 2029,
+          "stem": "Ding",
+          "branch": "You",
+          "element": "Fire",
+          "tenGod": "Kiếp Tài",
+          "focalPalace": "spouse",
+          "harmonyScore": 80,
+          "keyThemes": [
+            "Giai đoạn 24-33 tuổi: Khởi động vận trình Đinh Dậu",
+            "Cung trọng điểm: SPOUSE gắn liền với chuyển biến Kiếp Tài"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Hỏa gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 4,
+          "startAge": 34,
+          "endAge": 43,
+          "startYear": 2030,
+          "endYear": 2039,
+          "stem": "Wu",
+          "branch": "Xu",
+          "element": "Earth",
+          "tenGod": "Thực Thần",
+          "focalPalace": "children",
+          "harmonyScore": 86,
+          "keyThemes": [
+            "Giai đoạn 34-43 tuổi: Khởi động vận trình Mậu Tuất",
+            "Cung trọng điểm: CHILDREN gắn liền với chuyển biến Thực Thần"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Thổ gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 5,
+          "startAge": 44,
+          "endAge": 53,
+          "startYear": 2040,
+          "endYear": 2049,
+          "stem": "Ji",
+          "branch": "Hai",
+          "element": "Earth",
+          "tenGod": "Thương Quan",
+          "focalPalace": "wealth",
+          "harmonyScore": 86,
+          "keyThemes": [
+            "Giai đoạn 44-53 tuổi: Khởi động vận trình Kỷ Hợi",
+            "Cung trọng điểm: WEALTH gắn liền với chuyển biến Thương Quan"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Thổ gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 6,
+          "startAge": 54,
+          "endAge": 63,
+          "startYear": 2050,
+          "endYear": 2059,
+          "stem": "Geng",
+          "branch": "Zi",
+          "element": "Metal",
+          "tenGod": "Thiên Tài",
+          "focalPalace": "health",
+          "harmonyScore": 72,
+          "keyThemes": [
+            "Giai đoạn 54-63 tuổi: Khởi động vận trình Canh Tý",
+            "Cung trọng điểm: HEALTH gắn liền với chuyển biến Thiên Tài"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Kim gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 7,
+          "startAge": 64,
+          "endAge": 73,
+          "startYear": 2060,
+          "endYear": 2069,
+          "stem": "Xin",
+          "branch": "Chou",
+          "element": "Metal",
+          "tenGod": "Chính Tài",
+          "focalPalace": "travel",
+          "harmonyScore": 72,
+          "keyThemes": [
+            "Giai đoạn 64-73 tuổi: Khởi động vận trình Tân Sửu",
+            "Cung trọng điểm: TRAVEL gắn liền với chuyển biến Chính Tài"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Kim gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 8,
+          "startAge": 74,
+          "endAge": 83,
+          "startYear": 2070,
+          "endYear": 2079,
+          "stem": "Ren",
+          "branch": "Yin_B",
+          "element": "Water",
+          "tenGod": "Thất Sát",
+          "focalPalace": "friends",
+          "harmonyScore": 65,
+          "keyThemes": [
+            "Giai đoạn 74-83 tuổi: Khởi động vận trình Nhâm Dần",
+            "Cung trọng điểm: FRIENDS gắn liền với chuyển biến Thất Sát"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Thủy gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        }
+      ],
+      "annualTransits": [
+        {
+          "year": 2020,
+          "stem": "Geng",
+          "branch": "Zi",
+          "element": "Metal",
+          "tenGod": "Thiên Tài",
+          "overallScore": 70,
+          "careerScore": 70,
+          "wealthScore": 63,
+          "relationshipScore": 70,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 67,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2020 (Canh Tý - Thiên Tài): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2021,
+          "stem": "Xin",
+          "branch": "Chou",
+          "element": "Metal",
+          "tenGod": "Chính Tài",
+          "overallScore": 70,
+          "careerScore": 76,
+          "wealthScore": 68,
+          "relationshipScore": 66,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 72,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2021 (Tân Sửu - Chính Tài): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2022,
+          "stem": "Ren",
+          "branch": "Yin_B",
+          "element": "Water",
+          "tenGod": "Thất Sát",
+          "overallScore": 64,
+          "careerScore": 58,
+          "wealthScore": 67,
+          "relationshipScore": 68,
+          "healthScore": 71,
+          "growthScore": 70,
+          "opportunityWave": 63,
+          "cautionWave": 49,
+          "highlightSummary": "Năm 2022 (Nhâm Dần - Thất Sát): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2023,
+          "stem": "Gui",
+          "branch": "Mao",
+          "element": "Water",
+          "tenGod": "Chính Quan",
+          "overallScore": 64,
+          "careerScore": 64,
+          "wealthScore": 72,
+          "relationshipScore": 64,
+          "healthScore": 71,
+          "growthScore": 70,
+          "opportunityWave": 68,
+          "cautionWave": 49,
+          "highlightSummary": "Năm 2023 (Quý Mão - Chính Quan): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2024,
+          "stem": "Jia",
+          "branch": "Chen",
+          "element": "Wood",
+          "tenGod": "Thiên Ấn",
+          "overallScore": 88,
+          "careerScore": 94,
+          "wealthScore": 81,
+          "relationshipScore": 84,
+          "healthScore": 70,
+          "growthScore": 94,
+          "opportunityWave": 88,
+          "cautionWave": 30,
+          "highlightSummary": "Năm 2024 (Giáp Thìn - Thiên Ấn): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2025,
+          "stem": "Yi",
+          "branch": "Si",
+          "element": "Wood",
+          "tenGod": "Chính Ấn",
+          "overallScore": 88,
+          "careerScore": 82,
+          "wealthScore": 86,
+          "relationshipScore": 92,
+          "healthScore": 70,
+          "growthScore": 94,
+          "opportunityWave": 84,
+          "cautionWave": 30,
+          "highlightSummary": "Năm 2025 (Ất Tỵ - Chính Ấn): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2026,
+          "stem": "Bing",
+          "branch": "Wu_B",
+          "element": "Fire",
+          "tenGod": "Tỷ Kiên",
+          "overallScore": 78,
+          "careerScore": 78,
+          "wealthScore": 81,
+          "relationshipScore": 78,
+          "healthScore": 74,
+          "growthScore": 84,
+          "opportunityWave": 80,
+          "cautionWave": 38,
+          "highlightSummary": "Năm 2026 (Bính Ngọ - Tỷ Kiên): Thiên can mang hành Hỏa, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2027,
+          "stem": "Ding",
+          "branch": "Wei",
+          "element": "Fire",
+          "tenGod": "Kiếp Tài",
+          "overallScore": 78,
+          "careerScore": 84,
+          "wealthScore": 86,
+          "relationshipScore": 74,
+          "healthScore": 74,
+          "growthScore": 84,
+          "opportunityWave": 85,
+          "cautionWave": 38,
+          "highlightSummary": "Năm 2027 (Đinh Mùi - Kiếp Tài): Thiên can mang hành Hỏa, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2028,
+          "stem": "Wu",
+          "branch": "Shen",
+          "element": "Earth",
+          "tenGod": "Thực Thần",
+          "overallScore": 84,
+          "careerScore": 78,
+          "wealthScore": 77,
+          "relationshipScore": 88,
+          "healthScore": 71,
+          "growthScore": 90,
+          "opportunityWave": 78,
+          "cautionWave": 33,
+          "highlightSummary": "Năm 2028 (Mậu Thân - Thực Thần): Thiên can mang hành Thổ, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2029,
+          "stem": "Ji",
+          "branch": "You",
+          "element": "Earth",
+          "tenGod": "Thương Quan",
+          "overallScore": 84,
+          "careerScore": 84,
+          "wealthScore": 82,
+          "relationshipScore": 84,
+          "healthScore": 71,
+          "growthScore": 90,
+          "opportunityWave": 83,
+          "cautionWave": 33,
+          "highlightSummary": "Năm 2029 (Kỷ Dậu - Thương Quan): Thiên can mang hành Thổ, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2030,
+          "stem": "Geng",
+          "branch": "Xu",
+          "element": "Metal",
+          "tenGod": "Thiên Tài",
+          "overallScore": 70,
+          "careerScore": 76,
+          "wealthScore": 73,
+          "relationshipScore": 66,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 75,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2030 (Canh Tuất - Thiên Tài): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2031,
+          "stem": "Xin",
+          "branch": "Hai",
+          "element": "Metal",
+          "tenGod": "Chính Tài",
+          "overallScore": 70,
+          "careerScore": 64,
+          "wealthScore": 78,
+          "relationshipScore": 74,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 71,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2031 (Tân Hợi - Chính Tài): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2032,
+          "stem": "Ren",
+          "branch": "Zi",
+          "element": "Water",
+          "tenGod": "Thất Sát",
+          "overallScore": 64,
+          "careerScore": 64,
+          "wealthScore": 57,
+          "relationshipScore": 64,
+          "healthScore": 71,
+          "growthScore": 70,
+          "opportunityWave": 61,
+          "cautionWave": 49,
+          "highlightSummary": "Năm 2032 (Nhâm Tý - Thất Sát): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2033,
+          "stem": "Gui",
+          "branch": "Chou",
+          "element": "Water",
+          "tenGod": "Chính Quan",
+          "overallScore": 64,
+          "careerScore": 70,
+          "wealthScore": 62,
+          "relationshipScore": 60,
+          "healthScore": 71,
+          "growthScore": 70,
+          "opportunityWave": 66,
+          "cautionWave": 49,
+          "highlightSummary": "Năm 2033 (Quý Sửu - Chính Quan): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2034,
+          "stem": "Jia",
+          "branch": "Yin_B",
+          "element": "Wood",
+          "tenGod": "Thiên Ấn",
+          "overallScore": 88,
+          "careerScore": 82,
+          "wealthScore": 91,
+          "relationshipScore": 92,
+          "healthScore": 70,
+          "growthScore": 94,
+          "opportunityWave": 87,
+          "cautionWave": 30,
+          "highlightSummary": "Năm 2034 (Giáp Dần - Thiên Ấn): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2035,
+          "stem": "Yi",
+          "branch": "Mao",
+          "element": "Wood",
+          "tenGod": "Chính Ấn",
+          "overallScore": 88,
+          "careerScore": 88,
+          "wealthScore": 95,
+          "relationshipScore": 88,
+          "healthScore": 70,
+          "growthScore": 94,
+          "opportunityWave": 92,
+          "cautionWave": 30,
+          "highlightSummary": "Năm 2035 (Ất Mão - Chính Ấn): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2036,
+          "stem": "Bing",
+          "branch": "Chen",
+          "element": "Fire",
+          "tenGod": "Tỷ Kiên",
+          "overallScore": 78,
+          "careerScore": 84,
+          "wealthScore": 71,
+          "relationshipScore": 74,
+          "healthScore": 74,
+          "growthScore": 84,
+          "opportunityWave": 78,
+          "cautionWave": 38,
+          "highlightSummary": "Năm 2036 (Bính Thìn - Tỷ Kiên): Thiên can mang hành Hỏa, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        }
+      ],
+      "confidence": {
+        "consistencyScore": 82,
+        "dataCompleteness": 100,
+        "historicalFit": 0,
+        "signalStrength": 85,
+        "uncertaintyIndex": 18,
+        "resolutionLevel": "High",
+        "assumptions": [
+          "Giờ sinh xác thực: Chuẩn hóa theo kinh độ múi giờ địa phương.",
+          "Địa điểm sinh: chuẩn hóa tọa độ tại Hà Nội.",
+          "Hệ lịch thiên văn Tiết khí và Lịch số Hồ Ngọc Đức được áp dụng làm quy chuẩn tính toán."
+        ],
+        "limitations": [
+          "Chỉ số đo lường tính mạch lạc và độ nhất quán nội tại của mô hình, KHÔNG đại diện cho sự tiền định tuyệt đối.",
+          "Sự kiện thực tế trong cuộc sống phụ thuộc chủ đạo vào ý chí tự do, năng lực hành động và hoàn cảnh khách quan.",
+          "Hệ thống mang tính chất tham vấn triết học Đông phương, không thay thế tư vấn y tế, tài chính hoặc pháp lý chuyên nghiệp."
+        ]
+      }
+    }
+  },
+  "historicalEvents": {},
+  "backtestResults": {
+    "prof_1788492801498_46fa09": {
+      "id": "bt_1788492801502",
+      "profileId": "prof_1788492801498_46fa09",
+      "calculationId": "calc_1788492801502_7d2rc",
+      "timestamp": "2026-09-04T03:33:21.502Z",
+      "totalEventsAnalyzed": 0,
+      "destinyConsistencyScore": 0,
+      "matchedEventsCount": 0,
+      "divergentEventsCount": 0,
+      "neutralEventsCount": 0,
+      "confidenceBand": "Sparse Data Fit",
+      "comparisons": [],
+      "strengthsSummary": [
+        "Chưa có sự kiện quá khứ nào được nạp để kiểm chứng mẫu."
+      ],
+      "anomaliesSummary": [
+        "Vui lòng nạp tối thiểu 2-3 sự kiện bước ngoặt để mở khóa chỉ số đối sánh lịch sử."
+      ],
+      "uncertaintyFactors": [
+        "Chưa đủ dữ liệu thực chứng lịch sử cá nhân."
+      ]
+    }
+  },
+  "chatMessages": {},
+  "sessions": {
+    "aurora_3563a9656dbf199c3b0bf2ebf465c40c263c89bee69ea03b80e460e644ec5f8e": {
+      "token": "aurora_3563a9656dbf199c3b0bf2ebf465c40c263c89bee69ea03b80e460e644ec5f8e",
+      "userId": "usr_guest_1788494488741_588d6f9e",
+      "expiresAt": 1788580888742,
+      "createdAt": 1788494488742,
+      "lastAccessedAt": 1788494488753,
+      "isGuest": true
+    },
+    "test_token_1788494586828": {
+      "token": "test_token_1788494586828",
+      "userId": "usr_guest_1788492797110_55772016",
+      "expiresAt": 1788580986828,
+      "createdAt": 1788494586828,
+      "lastAccessedAt": 1788494586828,
+      "isGuest": true
+    }
+  },
+  "auditLogs": [
+    {
+      "userId": "usr_admin_master",
+      "action": "USER_LOGIN",
+      "resource": "auth",
+      "status": "SUCCESS",
+      "requestId": "req_1788492816468_83c7f41d",
+      "id": "audit_1788492816476_a8b33a",
+      "timestamp": "2026-09-04T03:33:36.476Z"
+    },
+    {
+      "userId": "usr_guest_1788492804321_df7cc05b",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788492811917_a71dfec8",
+      "id": "audit_1788492811918_35ebb6",
+      "timestamp": "2026-09-04T03:33:31.918Z"
+    },
+    {
+      "userId": "usr_guest_1788492797110_55772016",
+      "action": "PROFILE_CREATED",
+      "resource": "profile",
+      "resourceId": "prof_1788492801498_46fa09",
+      "status": "SUCCESS",
+      "requestId": "req_1788492801498_82d55564",
+      "id": "audit_1788492801502_93a673",
+      "timestamp": "2026-09-04T03:33:21.502Z"
+    }
+  ],
+  "featureFlags": {
+    "enable_gemini_37_stream": {
+      "key": "enable_gemini_37_stream",
+      "name": "Gemini Ensemble Streaming",
+      "description": "Kích hoạt streaming token cho Multi-Agent Ensemble",
+      "enabled": true,
+      "updatedAt": "2026-09-04T03:33:09.718Z"
+    },
+    "enable_ziwei_3d_render": {
+      "key": "enable_ziwei_3d_render",
+      "name": "3D Cosmic Cipher Visualization",
+      "description": "Hiển thị mô hình Thiên Cầu 3D Tử Vi tương tác",
+      "enabled": true,
+      "updatedAt": "2026-09-04T03:33:09.718Z"
+    },
+    "strict_backtest_gate": {
+      "key": "strict_backtest_gate",
+      "name": "Strict Backtest Empirical Gate",
+      "description": "Yêu cầu tối thiểu 3 sự kiện để hiển thị Backtest Reliability Band",
+      "enabled": true,
+      "updatedAt": "2026-09-04T03:33:09.718Z"
+    },
+    "audit_logging_enabled": {
+      "key": "audit_logging_enabled",
+      "name": "Security Audit Trail",
+      "description": "Ghi nhật ký bảo mật và tuân thủ dữ liệu nhạy cảm",
+      "enabled": true,
+      "updatedAt": "2026-09-04T03:33:09.718Z"
+    }
+  },
+  "_checksum": "4474071b8802c18074f3bb6876057ef41b2f19e35bfccb99e0f9fadb4b72cc22"
+}

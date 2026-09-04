@@ -50,3 +50,12 @@ export interface AuthSession {
   user: UserAccount;
   expiresAt: string;
 }
+
+export interface StoredSession {
+  token: string;
+  userId: string;
+  expiresAt: number; // Unix epoch ms
+  createdAt: number;
+  lastAccessedAt: number;
+  isGuest?: boolean;
+}

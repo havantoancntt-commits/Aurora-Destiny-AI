@@ -10,11 +10,27 @@ export function evaluateWhatIfScenario(
   calculation: CalculationResult
 ): ScenarioAnalysisResult {
   const currentYear = new Date().getFullYear();
-  const currentTransit = calculation.annualTransits.find((t) => t.year === currentYear) || calculation.annualTransits[0];
-  const nextTransit = calculation.annualTransits.find((t) => t.year === currentYear + 1) || calculation.annualTransits[1];
+  const currentTransit = calculation?.annualTransits?.find((t) => t.year === currentYear) || calculation?.annualTransits?.[0] || {
+    year: currentYear,
+    stem: 'Bing',
+    branch: 'Wu_B',
+    element: 'Fire',
+    tenGod: 'Chính Quan',
+    overallScore: 70,
+    careerScore: 70,
+    wealthScore: 70,
+    relationshipScore: 70,
+    healthScore: 70,
+    growthScore: 70,
+    opportunityWave: 70,
+    cautionWave: 30,
+    highlightSummary: 'Chu kỳ chuyển tiếp năng lượng',
+    recommendedFocus: 'Cân bằng và phát triển bền vững'
+  };
+  const nextTransit = calculation?.annualTransits?.find((t) => t.year === currentYear + 1) || calculation?.annualTransits?.[1] || calculation?.annualTransits?.[0] || currentTransit;
 
-  const favorableEl = calculation.bazi.favorableElements.join(' & ');
-  const dmStrength = calculation.bazi.dayMasterStrength;
+  const favorableEl = calculation?.bazi?.favorableElements?.join(' & ') || 'Mộc & Hỏa';
+  const dmStrength = calculation?.bazi?.dayMasterStrength || 'Thân Cân Bằng';
 
   // Generate 3 structured options: A (Continue), B (Change/Pivot), C (Alternative/Hybrid)
   const scenarios: ScenarioOption[] = [

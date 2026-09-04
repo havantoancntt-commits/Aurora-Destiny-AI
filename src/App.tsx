@@ -101,13 +101,26 @@ export default function App() {
 
       // Fetch calculation & ensemble & backtest
       const calcData = await api.getCalculation(targetId).catch(() => ({ calculation: null, ensemble: null, backtest: null }));
-      setCalculation(calcData.calculation);
-      setEnsemble(calcData.ensemble);
-      setBacktestResult(calcData.backtest);
-
-      // Fetch historical events
       const btData = await api.getBacktests(targetId).catch(() => ({ events: [], result: null }));
+
+      let currentCalc = calcData.calculation;
+      if (!currentCalc && loadedProfiles[0]?.birthData) {
+        currentCalc = runFullDestinyCalculation(loadedProfiles[0].birthData, targetId, (btData.events || []).length);
+      }
+      setCalculation(currentCalc);
+
+      let currentBt = calcData.backtest || btData.result;
+      if (!currentBt && currentCalc) {
+        currentBt = runBacktestAnalysis(btData.events || [], currentCalc);
+      }
+      setBacktestResult(currentBt);
       setEvents(btData.events || []);
+
+      let currentEnsemble = calcData.ensemble;
+      if (!currentEnsemble && currentCalc && loadedProfiles[0]) {
+        currentEnsemble = generateMultiAgentEnsemble(loadedProfiles[0], currentCalc, currentBt?.destinyConsistencyScore || 75);
+      }
+      setEnsemble(currentEnsemble);
 
       // Fetch user preferences
       const me = await api.getMe().catch(() => null);
@@ -136,13 +149,29 @@ export default function App() {
     setActiveProfileId(profileId);
     try {
       const [calcData, btData] = await Promise.all([
-        api.getCalculation(profileId),
-        api.getBacktests(profileId)
+        api.getCalculation(profileId).catch(() => ({ calculation: null, ensemble: null, backtest: null })),
+        api.getBacktests(profileId).catch(() => ({ events: [], result: null }))
       ]);
-      setCalculation(calcData.calculation);
-      setEnsemble(calcData.ensemble);
-      setBacktestResult(calcData.backtest);
+      const prof = profiles.find((p) => p.id === profileId);
+
+      let currentCalc = calcData.calculation;
+      if (!currentCalc && prof?.birthData) {
+        currentCalc = runFullDestinyCalculation(prof.birthData, profileId, (btData.events || []).length);
+      }
+      setCalculation(currentCalc);
+
+      let currentBt = calcData.backtest || btData.result;
+      if (!currentBt && currentCalc) {
+        currentBt = runBacktestAnalysis(btData.events || [], currentCalc);
+      }
+      setBacktestResult(currentBt);
       setEvents(btData.events || []);
+
+      let currentEnsemble = calcData.ensemble;
+      if (!currentEnsemble && currentCalc && prof) {
+        currentEnsemble = generateMultiAgentEnsemble(prof, currentCalc, currentBt?.destinyConsistencyScore || 75);
+      }
+      setEnsemble(currentEnsemble);
     } catch (e) {
       console.error('API Error details (handleSelectProfile):', e);
     }
@@ -158,6 +187,16 @@ export default function App() {
       setBacktestResult(data.backtest);
     } catch (e) {
       console.error('API Error details (handleRecalculate):', e);
+      // Fallback deterministic recalculation
+      const prof = profiles.find((p) => p.id === activeProfileId);
+      if (prof?.birthData) {
+        const newCalc = runFullDestinyCalculation(prof.birthData, activeProfileId, events.length);
+        const newBt = runBacktestAnalysis(events, newCalc);
+        const newEnsemble = generateMultiAgentEnsemble(prof, newCalc, newBt.destinyConsistencyScore);
+        setCalculation(newCalc);
+        setBacktestResult(newBt);
+        setEnsemble(newEnsemble);
+      }
     }
   };
 

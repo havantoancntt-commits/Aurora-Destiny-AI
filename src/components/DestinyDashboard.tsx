@@ -54,7 +54,23 @@ export const DestinyDashboard: React.FC<Props> = ({
   const selectedPalace = ziwei.palaces[selectedPalaceKey] || ziwei.palaces.life;
 
   const currentYear = new Date().getFullYear();
-  const currentTransit = calculation.annualTransits.find((t) => t.year === currentYear) || calculation.annualTransits[0];
+  const currentTransit = calculation.annualTransits?.find((t) => t.year === currentYear) || calculation.annualTransits?.[0] || {
+    year: currentYear,
+    stem: 'Bing',
+    branch: 'Wu_B',
+    element: 'Fire',
+    tenGod: 'Chính Quan',
+    overallScore: 70,
+    careerScore: 70,
+    wealthScore: 70,
+    relationshipScore: 70,
+    healthScore: 70,
+    growthScore: 70,
+    opportunityWave: 70,
+    cautionWave: 30,
+    highlightSummary: 'Vận trình năm hiện tại',
+    recommendedFocus: 'Cân bằng và kiên định'
+  };
 
   const handleRefresh = async () => {
     if (onRecalculate) {

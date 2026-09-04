@@ -30,9 +30,25 @@ export const TimelineView: React.FC<Props> = ({ calculation, language }) => {
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedDecadeIdx, setSelectedDecadeIdx] = useState<number>(2);
 
-  const { decades, annualTransits } = calculation;
-  const currentTransit = annualTransits.find((t) => t.year === selectedYear) || annualTransits[0];
-  const selectedDecade = decades[selectedDecadeIdx] || decades[0];
+  const { decades = [], annualTransits = [] } = calculation || {};
+  const currentTransit = annualTransits?.find((t) => t.year === selectedYear) || annualTransits?.[0] || {
+    year: selectedYear,
+    stem: 'Bing',
+    branch: 'Wu_B',
+    element: 'Fire',
+    tenGod: 'Chính Quan',
+    overallScore: 70,
+    careerScore: 70,
+    wealthScore: 70,
+    relationshipScore: 70,
+    healthScore: 70,
+    growthScore: 70,
+    opportunityWave: 70,
+    cautionWave: 30,
+    highlightSummary: 'Vận trình năm hiện tại',
+    recommendedFocus: 'Cân bằng và kiên định'
+  };
+  const selectedDecade = decades?.[selectedDecadeIdx] || decades?.[0];
 
   return (
     <div className="space-y-6">

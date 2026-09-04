@@ -1,12 +1,13 @@
 // ==========================================
 // AURORA DESTINY AI — AUTHENTICATION & AUTHORIZATION
-// Multi-user isolation, secure session tokens & RBAC
+// Multi-user isolation, durable sessions, PBKDF2 (100k rounds),
+// timing-safe verification, RBAC, and dynamic admin bootstrap.
 // ==========================================
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { repository } from '../db/repository';
-import { UserAccount, UserRole } from '../types/user';
+import { UserAccount, UserRole, StoredSession } from '../types/user';
 
 // Extend Express Request type
 declare global {
@@ -14,38 +15,59 @@ declare global {
     interface Request {
       user?: UserAccount;
       requestId?: string;
+      sessionToken?: string;
     }
   }
 }
 
-// Active session token store: token -> { userId, expiresAt }
-interface ActiveSession {
-  userId: string;
-  expiresAt: number;
-}
-const sessionStore = new Map<string, ActiveSession>();
+const DUMMY_SALT = 'aurora_dummy_salt_for_constant_time_comparison';
+const DUMMY_HASH = crypto.pbkdf2Sync('dummy_pass', DUMMY_SALT, 100000, 64, 'sha512').toString('hex');
 
-// Helper: Hash password securely with salt using PBKDF2
+// Helper: Hash password securely with salt using PBKDF2 (100,000 rounds)
 export function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
   const actualSalt = salt || crypto.randomBytes(16).toString('hex');
-  const derived = crypto.pbkdf2Sync(password, actualSalt, 10000, 64, 'sha512').toString('hex');
+  const derived = crypto.pbkdf2Sync(password, actualSalt, 100000, 64, 'sha512').toString('hex');
   return { hash: derived, salt: actualSalt };
 }
 
 export function verifyPassword(password: string, storedHash: string, salt: string): boolean {
-  const { hash } = hashPassword(password, salt);
-  return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(storedHash));
+  try {
+    const { hash } = hashPassword(password, salt);
+    const hashBuf = Buffer.from(hash, 'hex');
+    const storedBuf = Buffer.from(storedHash, 'hex');
+    if (hashBuf.length !== storedBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(hashBuf, storedBuf);
+  } catch {
+    return false;
+  }
 }
 
-// Generate secure random session token
+// Generate secure cryptographically random session token
 export function generateToken(): string {
   return `aurora_${crypto.randomBytes(32).toString('hex')}`;
 }
 
-export function createSession(userId: string, durationMs: number = 7 * 24 * 60 * 60 * 1000): { token: string; expiresAt: string } {
+// Create persistent session
+export function createSession(userId: string, isGuest: boolean = false, durationMs?: number): { token: string; expiresAt: string } {
+  // Default session duration: 7 days for registered users, 24 hours for guests
+  const effectiveDuration = durationMs || (isGuest ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000);
   const token = generateToken();
-  const expiresAt = Date.now() + durationMs;
-  sessionStore.set(token, { userId, expiresAt });
+  const now = Date.now();
+  const expiresAt = now + effectiveDuration;
+
+  const storedSession: StoredSession = {
+    token,
+    userId,
+    expiresAt,
+    createdAt: now,
+    lastAccessedAt: now,
+    isGuest
+  };
+
+  repository.saveSession(storedSession);
+
   return {
     token,
     expiresAt: new Date(expiresAt).toISOString()
@@ -54,17 +76,19 @@ export function createSession(userId: string, durationMs: number = 7 * 24 * 60 *
 
 export function getSessionUser(token: string): UserAccount | null {
   if (!token) return null;
-  const session = sessionStore.get(token);
+  const session = repository.getSession(token);
   if (!session) return null;
-  if (Date.now() > session.expiresAt) {
-    sessionStore.delete(token);
-    return null;
-  }
   return repository.getUser(session.userId);
 }
 
+export function revokeSession(token: string): boolean {
+  if (!token) return false;
+  return repository.deleteSession(token);
+}
+
 export function registerUser(email: string, password: string, fullName: string, role: UserRole = 'USER'): { user: UserAccount; token: string } {
-  const existing = repository.getUserByEmail(email);
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = repository.getUserByEmail(normalizedEmail);
   if (existing) {
     throw new Error('Email đã được đăng ký trong hệ thống');
   }
@@ -75,7 +99,7 @@ export function registerUser(email: string, password: string, fullName: string, 
   const userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const newUser: UserAccount = {
     id: userId,
-    email: email.toLowerCase().trim(),
+    email: normalizedEmail,
     fullName: fullName.trim(),
     role,
     subscriptionTier: 'Free',
@@ -87,13 +111,17 @@ export function registerUser(email: string, password: string, fullName: string, 
   };
 
   const saved = repository.saveUser(newUser, passwordRecord);
-  const { token } = createSession(saved.id);
+  const { token } = createSession(saved.id, false);
   return { user: saved, token };
 }
 
 export function loginUser(email: string, password: string): { user: UserAccount; token: string } {
-  const existing = repository.getUserByEmail(email);
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = repository.getUserByEmail(normalizedEmail);
+
+  // Constant-time execution prevents timing attacks leaking email presence
   if (!existing || !existing.passwordHash) {
+    verifyPassword(password, DUMMY_HASH, DUMMY_SALT);
     throw new Error('Email hoặc mật khẩu không chính xác');
   }
 
@@ -105,7 +133,7 @@ export function loginUser(email: string, password: string): { user: UserAccount;
   existing.lastLoginAt = new Date().toISOString();
   repository.saveUser(existing);
 
-  const { token } = createSession(existing.id);
+  const { token } = createSession(existing.id, false);
   const { passwordHash: _, ...cleanUser } = existing;
   return { user: cleanUser, token };
 }
@@ -127,8 +155,44 @@ export function createGuestSession(): { user: UserAccount; token: string } {
   };
 
   const saved = repository.saveUser(guestUser);
-  const { token } = createSession(saved.id);
+  const { token } = createSession(saved.id, true);
   return { user: saved, token };
+}
+
+// Dynamic Bootstrap Admin (Only when ADMIN_EMAIL & ADMIN_PASSWORD env vars are explicitly provided)
+export function bootstrapAdminIfConfigured(): void {
+  const adminEmail = process.env.ADMIN_EMAIL?.trim();
+  const adminPass = process.env.ADMIN_PASSWORD?.trim();
+
+  if (!adminEmail || !adminPass) {
+    return; // No admin credentials in env; do not create hardcoded accounts
+  }
+
+  const existing = repository.getUserByEmail(adminEmail);
+  const { hash, salt } = hashPassword(adminPass);
+  const passwordRecord = `${salt}:${hash}`;
+
+  if (existing) {
+    existing.role = 'SUPER_ADMIN';
+    existing.subscriptionTier = 'Enterprise';
+    repository.saveUser(existing, passwordRecord);
+    console.log(`🔒 [Security] Administrator account "${adminEmail}" credentials synchronized from environment.`);
+  } else {
+    const adminUser: UserAccount = {
+      id: `usr_admin_${crypto.randomBytes(4).toString('hex')}`,
+      email: adminEmail.toLowerCase(),
+      fullName: 'Quản Trị Viên Hệ Thống',
+      role: 'SUPER_ADMIN',
+      subscriptionTier: 'Enterprise',
+      language: 'vi',
+      emailVerified: true,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      profilesCount: 0
+    };
+    repository.saveUser(adminUser, passwordRecord);
+    console.log(`🔒 [Security] Bootstrapped initial administrator account "${adminEmail}" from environment.`);
+  }
 }
 
 // Express Middleware: Extract user from Authorization or x-session-token header
@@ -142,6 +206,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
 
   if (token) {
+    req.sessionToken = token;
     const user = getSessionUser(token);
     if (user) {
       req.user = user;
@@ -223,8 +288,21 @@ export function verifyProfileOwnership(req: Request, res: Response, profileId: s
     return null;
   }
 
-  // Strict ownership check: Only owner or SUPER_ADMIN can access
-  if (profile.userId !== req.user.id && req.user.role !== 'SUPER_ADMIN') {
+  // Strict ownership check
+  if (profile.userId !== req.user.id) {
+    // Only SUPER_ADMIN can inspect with explicit audit trail
+    if (req.user.role === 'SUPER_ADMIN') {
+      repository.logAudit({
+        userId: req.user.id,
+        action: 'SUPER_ADMIN_CROSS_PROFILE_READ',
+        resource: 'profile',
+        resourceId: profileId,
+        status: 'SUCCESS',
+        requestId: req.requestId
+      });
+      return profile;
+    }
+
     repository.logAudit({
       userId: req.user.id,
       action: 'CROSS_USER_PROFILE_ACCESS_BLOCKED',
