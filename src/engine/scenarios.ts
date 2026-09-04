@@ -106,7 +106,7 @@ export function evaluateWhatIfScenario(
     id: `scn_${Date.now()}`,
     userQuestion: question,
     evaluatedAt: new Date().toISOString(),
-    contextSummary: `Phân tích đối sánh dựa trên lá số Bát tự (Nhật chủ ${calculation.bazi.dayMasterElement} - ${dmStrength}), hành Dụng Thần (${favorableEl}) và chu kỳ lưu niên ${currentYear}-${currentYear + 1}.`,
+    contextSummary: `Phân tích đối sánh dựa trên lá số Bát tự (Nhật chủ ${calculation?.bazi?.dayMasterElement || 'Hỏa'} - ${dmStrength}), hành Dụng Thần (${favorableEl}) và chu kỳ lưu niên ${currentYear}-${currentYear + 1}.`,
     scenarios,
     synthesisAdvice: `Dữ liệu chu kỳ cho thấy Kịch bản B hoặc C có độ cộng hưởng năng lượng cao hơn (+82 đến +86 điểm), tuy nhiên cần lưu ý chuẩn bị kịch bản phòng vệ trước khi ra quyết định dứt điểm.`,
     riskNotice: 'Mọi kịch bản phân tích nhằm mục đích mở rộng góc nhìn tư duy chiến lược và tham khảo, không đại diện cho lời khuyên đầu tư hay cam kết chắc chắn.'

@@ -220,7 +220,8 @@ HƯỚNG DẪN TRẢ LỜI:
         };
       }
     } catch (err: any) {
-      recordFailure();
+      const quotaHit = isQuotaError(err);
+      recordFailure(quotaHit);
       console.warn('[Resilient Gemini Service] Gemini call failed, activating deterministic grounded fallback:', err?.message || err);
     }
   }

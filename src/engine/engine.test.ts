@@ -130,7 +130,7 @@ export function runAllEngineTests(): TestReport {
 }
 
 // Direct CLI Execution support
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (typeof process !== 'undefined' && Array.isArray(process.argv) && process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   console.log('🧪 Running Aurora Destiny AI Astronomical Engine Test Suite...\n');
   const report = runAllEngineTests();
   for (const r of report.results) {

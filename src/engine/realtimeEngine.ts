@@ -244,11 +244,11 @@ export function calculateRealtimeSnapshot(
   const timeRemainingFormatted = `${remMin}m ${remSec < 10 ? '0' : ''}${remSec}s`;
 
   // 5. User Baseline anchors
-  const userDayMasterStem = calculation ? calculation.bazi.dayMaster : 'Jia';
-  const userDayMasterElement = calculation ? calculation.bazi.dayMasterElement : 'Wood';
-  const userFavorable = calculation ? calculation.bazi.favorableElements : ['Water', 'Fire'];
-  const userUnfavorable = calculation ? calculation.bazi.unfavorableElements : ['Metal'];
-  const userDayBranch = calculation ? calculation.bazi.dayPillar.branch : 'Chen';
+  const userDayMasterStem = calculation?.bazi?.dayMaster || 'Jia';
+  const userDayMasterElement = calculation?.bazi?.dayMasterElement || 'Wood';
+  const userFavorable = calculation?.bazi?.favorableElements || ['Water', 'Fire'];
+  const userUnfavorable = calculation?.bazi?.unfavorableElements || ['Metal'];
+  const userDayBranch = calculation?.bazi?.dayPillar?.branch || 'Chen';
 
   // 6. Generate 12 hourly slots for today
   const zodiacOffset = getZodiacOffset(dayBranch);
