@@ -21,7 +21,10 @@ import {
   Atom,
   Binary,
   Layers,
-  Heart
+  Heart,
+  CreditCard,
+  QrCode,
+  Coffee
 } from 'lucide-react';
 import { LanguageCode } from '../types/destiny';
 
@@ -30,6 +33,7 @@ interface Props {
   onOpenPrivacyCenter?: () => void;
   onOpenReportModal?: () => void;
   onOpenAdminModal?: () => void;
+  onOpenSponsorshipModal?: () => void;
   hasFloatingDock?: boolean;
 }
 
@@ -38,10 +42,13 @@ export const AppFooter: React.FC<Props> = ({
   onOpenPrivacyCenter,
   onOpenReportModal,
   onOpenAdminModal,
+  onOpenSponsorshipModal,
   hasFloatingDock = false
 }) => {
   const [copied, setCopied] = useState(false);
+  const [copiedBank, setCopiedBank] = useState(false);
   const email = 'havantoancntt@gmail.com';
+  const accountNumber = '0501000160764';
 
   const handleCopyEmail = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -56,6 +63,22 @@ export const AppFooter: React.FC<Props> = ({
     } else {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  const handleCopyBank = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(accountNumber).then(() => {
+        setCopiedBank(true);
+        setTimeout(() => setCopiedBank(false), 2500);
+      }).catch(() => {
+        setCopiedBank(true);
+        setTimeout(() => setCopiedBank(false), 2500);
+      });
+    } else {
+      setCopiedBank(true);
+      setTimeout(() => setCopiedBank(false), 2500);
     }
   };
 
@@ -128,6 +151,18 @@ export const AppFooter: React.FC<Props> = ({
 
             {/* Right: Interactive Contact Action Center */}
             <div className="w-full lg:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+              {onOpenSponsorshipModal && (
+                <button
+                  id="btn-footer-support-channel"
+                  onClick={onOpenSponsorshipModal}
+                  className="px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500/25 via-amber-500/25 to-emerald-500/25 border border-amber-400/50 text-amber-200 hover:text-white hover:border-amber-300 hover:bg-amber-500/35 text-xs sm:text-sm font-bold shadow-[0_0_20px_rgba(251,191,36,0.2)] hover:shadow-[0_0_28px_rgba(251,191,36,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer group"
+                  title="Ủng hộ kênh & Mời cà phê Giáo Sư TOAN"
+                >
+                  <Heart className="w-4 h-4 text-rose-400 fill-rose-400/40 group-hover:scale-110 transition-transform" />
+                  <span className="tracking-wide">{isVi ? 'Ủng Hộ Kênh / Dự Án' : 'Support Channel'}</span>
+                </button>
+              )}
+
               <a
                 id="btn-footer-mailto"
                 href={`mailto:${email}?subject=${encodeURIComponent('Liên hệ & Hợp tác Học thuật / Kỹ thuật - Aurora Destiny AI (Prof.TOAN)')}`}
@@ -156,6 +191,79 @@ export const AppFooter: React.FC<Props> = ({
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Dedicated Sponsorship & Academic Patronage Showcase (Tế Nhị & Đẳng Cấp) */}
+        <div className="relative mb-10 p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-[#061e14]/60 via-[#0a1120]/80 to-[#190e24]/60 border border-amber-400/25 shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+          <div className="absolute top-0 right-0 w-80 h-32 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                  <Heart className="w-3 h-3 text-rose-400 fill-rose-400/40" />
+                  {isVi ? 'Góc Đồng Hành & Ủng Hộ Kênh' : 'Patronage & Channel Support'}
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  Vietcombank • HA VAN TOAN
+                </span>
+              </div>
+
+              <h4 className="text-base sm:text-lg font-serif font-bold text-white tracking-wide">
+                {isVi ? 'Tiếp Lửa Tri Thức — Đồng Hành Cùng Giáo Sư - Prof.TOAN' : 'Support Scientific Open-Access Research'}
+              </h4>
+
+              <p className="text-xs text-slate-300 leading-relaxed font-light">
+                {isVi ? (
+                  <>
+                    Mọi đóng góp, mời tách trà ấm hay cà phê từ Quý vị là nguồn động lực to lớn giúp duy trì máy chủ điện toán AI và liên tục nâng cấp thuật toán Bát Tự & Tử Vi phụng sự cộng đồng phi thương mại.
+                  </>
+                ) : (
+                  <>
+                    Your voluntary support helps cover server infrastructure costs and allows Professor Prof.TOAN to keep expanding this research platform for the global community.
+                  </>
+                )}
+              </p>
+
+              {/* Fast Direct Bank Snapshot */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1 text-xs font-mono">
+                <div className="px-2.5 py-1.5 rounded-xl bg-black/50 border border-emerald-500/30 flex items-center gap-2 text-slate-200">
+                  <span className="text-emerald-400 font-bold">VCB:</span>
+                  <span className="text-amber-300 font-bold tracking-wider">{accountNumber}</span>
+                  <button
+                    onClick={handleCopyBank}
+                    className="p-1 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    title="Sao chép số tài khoản"
+                  >
+                    {copiedBank ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+
+                <div className="px-2.5 py-1.5 rounded-xl bg-black/50 border border-white/10 text-slate-300">
+                  <span className="text-slate-400">Chủ TK:</span> <strong className="text-white">HA VAN TOAN</strong>
+                </div>
+
+                {copiedBank && (
+                  <span className="text-emerald-400 text-[11px] font-medium animate-in fade-in">
+                    ✓ Đã sao chép STK Vietcombank!
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Action Trigger for Full Metal Card & VietQR Modal */}
+            <div className="w-full lg:w-auto shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              {onOpenSponsorshipModal && (
+                <button
+                  onClick={onOpenSponsorshipModal}
+                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-400 text-slate-950 font-bold text-xs sm:text-sm tracking-wide shadow-[0_0_25px_rgba(251,191,36,0.3)] hover:shadow-[0_0_35px_rgba(52,211,153,0.5)] hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  <QrCode className="w-4 h-4 text-slate-950" />
+                  <span>{isVi ? 'Mở Thẻ Vietcombank & Mã VietQR' : 'View Vietcombank Card & QR'}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

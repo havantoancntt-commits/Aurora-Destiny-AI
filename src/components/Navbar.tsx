@@ -15,7 +15,8 @@ import {
   Sparkles,
   Layers,
   X,
-  UserPlus
+  UserPlus,
+  Heart
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -35,6 +36,7 @@ interface Props {
   onRunTestAudit: () => void;
   calculation?: CalculationResult | null;
   onOpenAlertCenter?: () => void;
+  onOpenSponsorshipModal?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -49,7 +51,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenReportModal,
   onRunTestAudit,
   calculation = null,
-  onOpenAlertCenter = () => {}
+  onOpenAlertCenter = () => {},
+  onOpenSponsorshipModal
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -303,6 +306,19 @@ export const Navbar: React.FC<Props> = ({
                 </div>
               )}
             </div>
+
+            {/* Sponsorship / Support Channel Trigger */}
+            {onOpenSponsorshipModal && (
+              <button
+                id="btn-nav-support-channel"
+                onClick={onOpenSponsorshipModal}
+                className="p-1 sm:p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-amber-500/15 border border-amber-400/40 text-amber-200 hover:text-white hover:border-amber-300 hover:bg-amber-500/25 text-xs flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(251,191,36,0.15)] shrink-0 cursor-pointer group"
+                title="Ủng hộ kênh & Mời cà phê Giáo Sư TOAN"
+              >
+                <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/35 group-hover:scale-110 transition-transform" />
+                <span className="hidden sm:inline font-medium tracking-wide">Ủng Hộ Kênh</span>
+              </button>
+            )}
 
             {/* Quick Action Buttons */}
             <button

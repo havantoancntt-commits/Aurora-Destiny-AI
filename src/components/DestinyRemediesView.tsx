@@ -19,7 +19,9 @@ import {
   Clock,
   Shield,
   Layers,
-  ArrowUpRight
+  ArrowUpRight,
+  Heart,
+  CreditCard
 } from 'lucide-react';
 import {
   CalculationResult,
@@ -33,12 +35,14 @@ interface Props {
   profile: UserProfile;
   calculation: CalculationResult;
   language: LanguageCode;
+  onOpenSponsorshipModal?: () => void;
 }
 
 export const DestinyRemediesView: React.FC<Props> = ({
   profile,
   calculation,
-  language
+  language,
+  onOpenSponsorshipModal
 }) => {
   const remedies: DestinyRemediesData = useMemo(() => {
     return generateDestinyRemedies(profile, calculation);
@@ -414,6 +418,33 @@ export const DestinyRemediesView: React.FC<Props> = ({
             </div>
           ))}
         </div>
+
+        {/* Noble Channel Patronage & Academic Companion */}
+        {onOpenSponsorshipModal && (
+          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-gradient-to-r from-amber-500/[0.08] via-purple-950/[0.15] to-emerald-950/[0.15] border border-amber-400/20">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/30 shrink-0">
+                <Heart className="w-4 h-4 text-rose-400 fill-rose-400/40" />
+              </div>
+              <div>
+                <h5 className="text-xs font-bold text-white font-serif">
+                  Gieo Duyên Tri Thức — Đồng Hành Cùng Giáo Sư - Prof.TOAN
+                </h5>
+                <p className="text-[11px] text-slate-400 leading-tight mt-0.5">
+                  Mời tác giả tách cà phê hoặc tiếp sức máy chủ AI duy trì nền tảng phục vụ cộng đồng.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onOpenSponsorshipModal}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-emerald-400 hover:brightness-110 text-slate-950 font-bold text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Ủng Hộ Kênh / Dự Án</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

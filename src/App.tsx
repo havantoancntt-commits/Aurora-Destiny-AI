@@ -25,6 +25,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { RealTimeAlertCenter } from './components/RealTimeAlertCenter';
 import { SacredCosmicCipher3D } from './components/SacredCosmicCipher3D';
 import { AppFooter } from './components/AppFooter';
+import { SponsorshipModal } from './components/SponsorshipModal';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -55,6 +56,7 @@ export default function App() {
   const [showPrivacyModal, setShowPrivacyModal] = useState<boolean>(false);
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
   const [showRealtimeAlertModal, setShowRealtimeAlertModal] = useState<boolean>(false);
+  const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -376,6 +378,7 @@ export default function App() {
           onRunTestAudit={() => setShowAdminModal(true)}
           calculation={calculation}
           onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
+          onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         />
       </div>
 
@@ -493,6 +496,7 @@ export default function App() {
                   profile={activeProfile}
                   calculation={calculation}
                   language={language}
+                  onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                 />
               )}
 
@@ -533,6 +537,7 @@ export default function App() {
         onOpenPrivacyCenter={() => setShowPrivacyModal(true)}
         onOpenReportModal={() => setShowReportModal(true)}
         onOpenAdminModal={() => setShowAdminModal(true)}
+        onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -596,6 +601,14 @@ export default function App() {
           calculation={calculation}
           language={language}
           onClose={() => setShowRealtimeAlertModal(false)}
+        />
+      )}
+
+      {/* Sponsorship & Channel Support Modal */}
+      {showSponsorshipModal && (
+        <SponsorshipModal
+          language={language}
+          onClose={() => setShowSponsorshipModal(false)}
         />
       )}
     </div>
