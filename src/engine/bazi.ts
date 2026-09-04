@@ -22,10 +22,15 @@ import {
 import { gregorianToJulianDay, convertSolarToLunar, getSunLongitudeDegrees } from './lunarSolar';
 
 // Calculate Year Stem & Branch
-export function calculateYearPillar(year: number, month: number, day: number): { stem: HeavenlyStem; branch: EarthlyBranch } {
+export function calculateYearPillar(
+  year: number,
+  month: number,
+  day: number,
+  timezoneOffset: number = 7
+): { stem: HeavenlyStem; branch: EarthlyBranch } {
   // Lập Xuân is the boundary for BaZi year (Sun longitude = 315°)
   const jd = gregorianToJulianDay(year, month, day);
-  const sunDeg = getSunLongitudeDegrees(jd, 7);
+  const sunDeg = getSunLongitudeDegrees(jd, timezoneOffset);
 
   let baziYear = year;
   // If in Jan or early Feb and Sun hasn't reached Lập Xuân (315°), belongs to previous year
@@ -51,10 +56,11 @@ export function calculateMonthPillar(
   yearStem: HeavenlyStem,
   year: number,
   month: number,
-  day: number
+  day: number,
+  timezoneOffset: number = 7
 ): { stem: HeavenlyStem; branch: EarthlyBranch } {
   const jd = gregorianToJulianDay(year, month, day);
-  const sunDeg = getSunLongitudeDegrees(jd, 7);
+  const sunDeg = getSunLongitudeDegrees(jd, timezoneOffset);
 
   // Offset from Lập Xuân (315°). Each month covers exactly 30° of solar longitude
   // 0 -> Dần (315°), 1 -> Mão (345°), 2 -> Thìn (15°), ..., 11 -> Sửu (285°)
@@ -88,7 +94,12 @@ export function calculateMonthPillar(
 }
 
 // Calculate Day Pillar using Julian Day Number
-export function calculateDayPillar(year: number, month: number, day: number): { stem: HeavenlyStem; branch: EarthlyBranch } {
+export function calculateDayPillar(
+  year: number,
+  month: number,
+  day: number,
+  _timezoneOffset: number = 7
+): { stem: HeavenlyStem; branch: EarthlyBranch } {
   const jd = gregorianToJulianDay(year, month, day);
   // Reference epoch: JD 2451545 (Jan 1, 2000) was Mậu Ngọ (Wu, Wu_B)
   // Day Stem index: (jd + 9) % 10
@@ -103,7 +114,11 @@ export function calculateDayPillar(year: number, month: number, day: number): { 
 }
 
 // Calculate Hour Pillar based on Day Stem & Hour (Ngũ Thử Độn)
-export function calculateHourPillar(dayStem: HeavenlyStem, hour: number): { stem: HeavenlyStem; branch: EarthlyBranch } {
+export function calculateHourPillar(
+  dayStem: HeavenlyStem,
+  hour: number,
+  isLateRat: boolean = false
+): { stem: HeavenlyStem; branch: EarthlyBranch } {
   // Determine Hour Branch (Tý: 23:00-00:59, Sửu: 01:00-02:59, etc.)
   let branchIdx = Math.floor((hour + 1) / 2) % 12;
   const branch = BRANCH_KEYS[branchIdx];
@@ -116,6 +131,12 @@ export function calculateHourPillar(dayStem: HeavenlyStem, hour: number): { stem
   else if (dayStem === 'Bing' || dayStem === 'Xin') startStemIdx = 4; // Mậu
   else if (dayStem === 'Ding' || dayStem === 'Ren') startStemIdx = 6; // Canh
   else if (dayStem === 'Wu' || dayStem === 'Gui') startStemIdx = 8; // Nhâm
+
+  // For Late Rat (23:00 - 23:59), if configured to use next day's stem
+  if (isLateRat && hour === 23) {
+    const dayStemIdx = STEM_KEYS.indexOf(dayStem);
+    startStemIdx = (((dayStemIdx + 1) % 5) * 2) % 10;
+  }
 
   const stem = STEM_KEYS[(startStemIdx + branchIdx) % 10];
 
@@ -139,6 +160,21 @@ export function buildPillar(
     tenGod: getTenGod(dayMaster, hs).nameVi
   }));
 
+  // Dynamic Root Strength (Thông Căn / Đắc Địa / Tàng Can)
+  const branchElement = branchInfo.element;
+  const stemElement = stemInfo.element;
+  const isMainRoot = branchElement === stemElement;
+  const hasHiddenRoot = branchInfo.hiddenStems.some(hs => STEMS[hs].element === stemElement);
+  const isGeneratingRoot = ELEMENT_RELATIONS[branchElement].generates === stemElement;
+  const isClashingRoot = ELEMENT_RELATIONS[branchElement].overcomes === stemElement;
+
+  let calculatedStrength = 60;
+  if (isMainRoot) calculatedStrength += 28; // Tọa Bản Khí (Chính căn vững chắc)
+  else if (hasHiddenRoot) calculatedStrength += 18; // Dư khí hoặc Trung khí
+  else if (isGeneratingRoot) calculatedStrength += 12; // Được Địa chi sinh dưỡng
+  else if (isClashingRoot) calculatedStrength -= 16; // Bị Địa chi khắc chế
+  const strength = Math.min(99, Math.max(35, calculatedStrength));
+
   return {
     stem,
     branch,
@@ -147,17 +183,17 @@ export function buildPillar(
     hiddenStems,
     naYin,
     tenGod,
-    strength: 75
+    strength
   };
 }
 
 // Complete BaZi Chart Computation
 export function calculateBaZiChart(birthData: BirthData): BaZiChart {
-  const { solarYear, solarMonth, solarDay, solarHour } = birthData;
+  const { solarYear, solarMonth, solarDay, solarHour, timezoneOffset = 7 } = birthData;
 
-  const yearPB = calculateYearPillar(solarYear, solarMonth, solarDay);
-  const monthPB = calculateMonthPillar(yearPB.stem, solarYear, solarMonth, solarDay);
-  const dayPB = calculateDayPillar(solarYear, solarMonth, solarDay);
+  const yearPB = calculateYearPillar(solarYear, solarMonth, solarDay, timezoneOffset);
+  const monthPB = calculateMonthPillar(yearPB.stem, solarYear, solarMonth, solarDay, timezoneOffset);
+  const dayPB = calculateDayPillar(solarYear, solarMonth, solarDay, timezoneOffset);
   const hourPB = calculateHourPillar(dayPB.stem, solarHour);
 
   const dayMaster = dayPB.stem;

@@ -100,56 +100,59 @@ export function calculateDecadeCycles(birthData: BirthData): DecadeCycle[] {
   return cycles;
 }
 
-// Calculate Annual Transits (Lưu Niên) from current baseline
-export function calculateAnnualTransits(birthData: BirthData, startYear: number = 2020, endYear: number = 2036): AnnualTransit[] {
-  const dayPB = calculateDayPillar(birthData.solarYear, birthData.solarMonth, birthData.solarDay);
+// Calculate Single Annual Transit (Lưu Niên) for any specific year dynamically
+export function calculateSingleAnnualTransit(birthData: BirthData, yr: number): AnnualTransit {
+  const dayPB = calculateDayPillar(birthData.solarYear, birthData.solarMonth, birthData.solarDay, birthData.timezoneOffset);
   const dayMasterElement = STEMS[dayPB.stem].element;
 
+  const stemIdx = (yr - 4) % 10;
+  const branchIdx = (yr - 4) % 12;
+  const stem = STEM_KEYS[(stemIdx + 10) % 10];
+  const branch = BRANCH_KEYS[(branchIdx + 12) % 12];
+  const element = STEMS[stem].element;
+  const tenGod = getTenGod(dayPB.stem, stem).nameVi;
+
+  // Harmonic scores based on astrological synergy
+  let baseScore = 70;
+  if (element === dayMasterElement) baseScore = 78;
+  else if (ELEMENT_RELATIONS[dayMasterElement].generates === element) baseScore = 84;
+  else if (ELEMENT_RELATIONS[dayMasterElement].generatedBy === element) baseScore = 88;
+  else if (ELEMENT_RELATIONS[element].overcomes === dayMasterElement) baseScore = 64;
+
+  // Modulate domain scores
+  const careerScore = Math.min(96, Math.max(50, Math.round(baseScore + ((yr % 3) - 1) * 6)));
+  const wealthScore = Math.min(95, Math.max(48, Math.round(baseScore + ((yr % 4) - 1.5) * 5)));
+  const relationshipScore = Math.min(94, Math.max(52, Math.round(baseScore - ((yr % 3) - 1) * 4)));
+  const healthScore = Math.min(92, Math.max(55, Math.round(75 - Math.abs(baseScore - 75) * 0.4)));
+  const growthScore = Math.min(98, Math.max(58, Math.round(baseScore + 6)));
+
+  const opportunityWave = Math.min(95, Math.max(25, Math.round((careerScore + wealthScore) / 2)));
+  const cautionWave = Math.min(85, Math.max(15, Math.round(100 - (baseScore * 0.8) + (healthScore < 65 ? 15 : 0))));
+
+  return {
+    year: yr,
+    stem,
+    branch,
+    element,
+    tenGod,
+    overallScore: baseScore,
+    careerScore,
+    wealthScore,
+    relationshipScore,
+    healthScore,
+    growthScore,
+    opportunityWave,
+    cautionWave,
+    highlightSummary: `Năm ${yr} (${STEMS[stem].nameVi} ${BRANCHES[branch].nameVi} - ${tenGod}): Thiên can mang hành ${ELEMENT_RELATIONS[element]?.vi || element}, chu kỳ chuyển dịch chiến lược.`,
+    recommendedFocus: baseScore >= 80 ? 'Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh' : 'Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro'
+  };
+}
+
+// Calculate Annual Transits (Lưu Niên) from current baseline
+export function calculateAnnualTransits(birthData: BirthData, startYear: number = 2020, endYear: number = 2036): AnnualTransit[] {
   const transits: AnnualTransit[] = [];
-
   for (let yr = startYear; yr <= endYear; yr++) {
-    const stemIdx = (yr - 4) % 10;
-    const branchIdx = (yr - 4) % 12;
-    const stem = STEM_KEYS[(stemIdx + 10) % 10];
-    const branch = BRANCH_KEYS[(branchIdx + 12) % 12];
-    const element = STEMS[stem].element;
-    const tenGod = getTenGod(dayPB.stem, stem).nameVi;
-
-    // Harmonic scores based on astrological synergy
-    let baseScore = 70;
-    if (element === dayMasterElement) baseScore = 78;
-    else if (ELEMENT_RELATIONS[dayMasterElement].generates === element) baseScore = 84;
-    else if (ELEMENT_RELATIONS[dayMasterElement].generatedBy === element) baseScore = 88;
-    else if (ELEMENT_RELATIONS[element].overcomes === dayMasterElement) baseScore = 64;
-
-    // Modulate domain scores
-    const careerScore = Math.min(96, Math.max(50, Math.round(baseScore + ((yr % 3) - 1) * 6)));
-    const wealthScore = Math.min(95, Math.max(48, Math.round(baseScore + ((yr % 4) - 1.5) * 5)));
-    const relationshipScore = Math.min(94, Math.max(52, Math.round(baseScore - ((yr % 3) - 1) * 4)));
-    const healthScore = Math.min(92, Math.max(55, Math.round(75 - Math.abs(baseScore - 75) * 0.4)));
-    const growthScore = Math.min(98, Math.max(58, Math.round(baseScore + 6)));
-
-    const opportunityWave = Math.min(95, Math.max(25, Math.round((careerScore + wealthScore) / 2)));
-    const cautionWave = Math.min(85, Math.max(15, Math.round(100 - (baseScore * 0.8) + (healthScore < 65 ? 15 : 0))));
-
-    transits.push({
-      year: yr,
-      stem,
-      branch,
-      element,
-      tenGod,
-      overallScore: baseScore,
-      careerScore,
-      wealthScore,
-      relationshipScore,
-      healthScore,
-      growthScore,
-      opportunityWave,
-      cautionWave,
-      highlightSummary: `Năm ${yr} (${STEMS[stem].nameVi} ${BRANCHES[branch].nameVi} - ${tenGod}): Thiên can mang hành ${ELEMENT_RELATIONS[element]?.vi || element}, chu kỳ chuyển dịch chiến lược.`,
-      recommendedFocus: baseScore >= 80 ? 'Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh' : 'Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro'
-    });
+    transits.push(calculateSingleAnnualTransit(birthData, yr));
   }
-
   return transits;
 }

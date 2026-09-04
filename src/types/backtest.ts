@@ -10,7 +10,8 @@ export type EventCategory =
   | 'Health'
   | 'Education'
   | 'Crisis'
-  | 'MajorBreakthrough';
+  | 'MajorBreakthrough'
+  | 'PersonalDevelopment';
 
 export type EventImpact = 'Very Negative' | 'Negative' | 'Neutral' | 'Positive' | 'Breakthrough';
 

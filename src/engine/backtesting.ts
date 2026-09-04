@@ -1,5 +1,5 @@
 // ==========================================
-// BACKTESTING & HISTORICAL CONSISTENCY ENGINE
+// HISTORICAL PATTERN ANALYSIS & RETROSPECTIVE CONSISTENCY
 // ==========================================
 
 import {
@@ -8,27 +8,33 @@ import {
   CycleFitComparison
 } from '../types/backtest';
 import { CalculationResult } from '../types/destiny';
+import { calculateSingleAnnualTransit } from './temporal';
 
 export function runBacktestAnalysis(
   events: HistoricalEvent[],
   calculation: CalculationResult
 ): BacktestResult {
-  if (!events || events.length === 0) {
+  const currentYear = new Date().getFullYear();
+
+  // Prevent look-ahead bias: only analyze events that occurred in or before current year
+  const validPastEvents = (events || []).filter(e => e.year <= currentYear);
+
+  if (validPastEvents.length === 0) {
     return {
       id: `bt_${Date.now()}`,
       profileId: calculation.profileId,
       calculationId: calculation.id,
       timestamp: new Date().toISOString(),
       totalEventsAnalyzed: 0,
-      destinyConsistencyScore: 70, // Baseline neutral score
+      destinyConsistencyScore: 0, // No events = 0 empirical score
       matchedEventsCount: 0,
       divergentEventsCount: 0,
       neutralEventsCount: 0,
       confidenceBand: 'Sparse Data Fit',
       comparisons: [],
-      strengthsSummary: ['Chưa có sự kiện quá khứ nào được nạp để kiểm chứng.'],
-      anomaliesSummary: ['Vui lòng nạp tối thiểu 2-3 sự kiện bước ngoặt để mở khóa chỉ số Backtest Score.'],
-      uncertaintyFactors: ['Độ lệch mẫu do thiếu dữ liệu kiểm nghiệm thực tế.']
+      strengthsSummary: ['Chưa có sự kiện quá khứ nào được nạp để kiểm chứng mẫu.'],
+      anomaliesSummary: ['Vui lòng nạp tối thiểu 2-3 sự kiện bước ngoặt để mở khóa chỉ số đối sánh lịch sử.'],
+      uncertaintyFactors: ['Chưa đủ dữ liệu thực chứng lịch sử cá nhân.']
     };
   }
 
@@ -38,25 +44,18 @@ export function runBacktestAnalysis(
   let divergentCount = 0;
   let neutralCount = 0;
 
-  events.forEach((event) => {
-    // Find transit for the event year
-    const transit = calculation.annualTransits.find((t) => t.year === event.year) || {
-      overallScore: 72,
-      careerScore: 70,
-      wealthScore: 70,
-      relationshipScore: 70,
-      opportunityWave: 65,
-      cautionWave: 45,
-      element: 'Fire' as any,
-      tenGod: 'Tỷ Kiên'
-    };
+  validPastEvents.forEach((event) => {
+    // Dynamically calculate the authentic transit for the exact event year if not precalculated
+    const transit =
+      calculation.annualTransits.find((t) => t.year === event.year) ||
+      calculateSingleAnnualTransit(calculation.inputSnapshot, event.year);
 
     // Evaluate Alignment
-    let expectedPositive = transit.overallScore >= 75 || transit.opportunityWave >= 70;
-    let expectedNegative = transit.cautionWave >= 60 || transit.overallScore < 68;
+    const expectedPositive = transit.overallScore >= 75 || transit.opportunityWave >= 70;
+    const expectedNegative = transit.cautionWave >= 60 || transit.overallScore < 68;
 
-    let eventIsPositive = event.impact === 'Positive' || event.impact === 'Breakthrough';
-    let eventIsNegative = event.impact === 'Negative' || event.impact === 'Very Negative';
+    const eventIsPositive = event.impact === 'Positive' || event.impact === 'Breakthrough';
+    const eventIsNegative = event.impact === 'Negative' || event.impact === 'Very Negative';
 
     let matchScore = 70;
     let status: CycleFitComparison['status'] = 'Moderate Match';
@@ -65,7 +64,7 @@ export function runBacktestAnalysis(
     if (eventIsPositive && expectedPositive) {
       matchScore = 88 + Math.min(10, event.intensity * 2);
       status = 'Strong Match';
-      explanation = `Sự kiện thuận lợi trùng khớp với chu kỳ năng lượng cao (${transit.tenGod}) và sóng cơ hội ${transit.opportunityWave}%.`;
+      explanation = `Sự kiện thuận lợi trùng khớp với chu kỳ năng lượng (${transit.tenGod}) và sóng cơ hội ${transit.opportunityWave}%.`;
       matchedCount++;
     } else if (eventIsNegative && expectedNegative) {
       matchScore = 85 + Math.min(10, event.intensity * 2);
@@ -75,22 +74,22 @@ export function runBacktestAnalysis(
     } else if (eventIsPositive && expectedNegative) {
       matchScore = 42;
       status = 'Anomalous Divergence';
-      explanation = `Sự kiện bứt phá tích cực vượt qua vùng năng lượng thận trọng (cho thấy năng lực ứng biến cá nhân hoặc yếu tố ngoại cảnh hỗ trợ).`;
+      explanation = `Sự kiện bứt phá tích cực vượt qua sóng thận trọng (thể hiện nỗ lực chủ động cá nhân hoặc đòn bẩy ngoại cảnh).`;
       divergentCount++;
     } else if (eventIsNegative && expectedPositive) {
       matchScore = 48;
       status = 'Anomalous Divergence';
-      explanation = `Biến cố tiêu cực xảy ra trong năm có chỉ số nền tích cực, cần xem xét thêm yếu tố môi trường hoặc quyết định tức thời.`;
+      explanation = `Biến cố tiêu cực diễn ra trong năm chu kỳ tích cực, cần lưu ý biến số môi trường hoặc hành vi chủ quan.`;
       divergentCount++;
     } else {
-      matchScore = 72;
+      matchScore = 70;
       status = 'Neutral Divergence';
       explanation = `Sự kiện tương đối hài hòa với biên độ dao động thông thường của chu kỳ.`;
       neutralCount++;
     }
 
-    // Weight by user recall confidence
-    const confidenceWeight = (event.userConfidence || 3) / 5;
+    // Weight by user recall confidence (1-5 normalized)
+    const confidenceWeight = Math.min(1, Math.max(0.2, (event.userConfidence || 3) / 5));
     totalMatchPoints += matchScore * (0.6 + confidenceWeight * 0.4);
 
     comparisons.push({
@@ -110,19 +109,19 @@ export function runBacktestAnalysis(
     });
   });
 
-  const rawScore = Math.round(totalMatchPoints / events.length);
-  const destinyConsistencyScore = Math.min(96, Math.max(45, rawScore));
+  const rawScore = Math.round(totalMatchPoints / validPastEvents.length);
+  const destinyConsistencyScore = Math.min(96, Math.max(30, rawScore));
 
   let confidenceBand: BacktestResult['confidenceBand'] = 'Moderate Coherence';
-  if (events.length >= 3 && destinyConsistencyScore >= 80) {
+  if (validPastEvents.length >= 3 && destinyConsistencyScore >= 80) {
     confidenceBand = 'High Empirical Reliability';
-  } else if (events.length < 3) {
+  } else if (validPastEvents.length < 3) {
     confidenceBand = 'Sparse Data Fit';
   }
 
   const strengthsSummary = [
-    `Tỷ lệ trùng khớp mẫu lịch sử đạt ${Math.round((matchedCount / events.length) * 100)}% trên ${events.length} sự kiện thực tế.`,
-    `Các bước ngoặt lĩnh vực ${events[0]?.category || 'Sự nghiệp'} có độ tương quan mạnh với chu kỳ Dụng Thần (${calculation.bazi.favorableElements.join(', ')}).`
+    `Tỷ lệ tương hợp mẫu lịch sử đạt ${Math.round((matchedCount / validPastEvents.length) * 100)}% trên ${validPastEvents.length} sự kiện thực tế.`,
+    `Các bước ngoặt lĩnh vực ${validPastEvents[0]?.category || 'Sự nghiệp'} có mức liên kết rõ rệt với quy luật Dụng Thần (${calculation.bazi.favorableElements.join(', ')}).`
   ];
 
   const anomaliesSummary = divergentCount > 0
@@ -130,8 +129,8 @@ export function runBacktestAnalysis(
     : [`Không có dị biệt cực đoan; các biến cố lịch sử bám sát quỹ đạo chu kỳ tính toán.`];
 
   const uncertaintyFactors = [
-    `Số lượng sự kiện ghi nhận: ${events.length} (Khuyến nghị nạp từ 5 sự kiện để đạt mức tối ưu).`,
-    `Độ chính xác hồi ức của người dùng: Trung bình ${Math.round(events.reduce((s, e) => s + e.userConfidence, 0) / events.length)}/5 sao.`
+    `Số lượng sự kiện ghi nhận: ${validPastEvents.length} (Khuyến nghị nạp từ 5 sự kiện quá khứ để đạt mức tối ưu).`,
+    `Độ tin cậy ghi nhớ của người dùng: Trung bình ${Math.round(validPastEvents.reduce((s, e) => s + (e.userConfidence || 3), 0) / validPastEvents.length)}/5.`
   ];
 
   return {
@@ -139,7 +138,7 @@ export function runBacktestAnalysis(
     profileId: calculation.profileId,
     calculationId: calculation.id,
     timestamp: new Date().toISOString(),
-    totalEventsAnalyzed: events.length,
+    totalEventsAnalyzed: validPastEvents.length,
     destinyConsistencyScore,
     matchedEventsCount: matchedCount,
     divergentEventsCount: divergentCount,
@@ -151,3 +150,4 @@ export function runBacktestAnalysis(
     uncertaintyFactors
   };
 }
+

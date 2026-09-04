@@ -8,9 +8,9 @@ import { calculateZiWeiChart } from './ziwei';
 import { calculateDecadeCycles, calculateAnnualTransits } from './temporal';
 import { evaluateConfidence } from './confidence';
 
-export const CALCULATION_ENGINE_VERSION = 'calc_v2.4.1';
-export const ASTROLOGY_RULES_VERSION = 'astrorules_v1.8.0';
-export const ANALYSIS_MODEL_VERSION = 'aurora_ensemble_v3.2';
+export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
+export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
+export const ANALYSIS_MODEL_VERSION = 'aurora_ensemble_v3.5';
 
 export function runFullDestinyCalculation(
   birthData: BirthData,

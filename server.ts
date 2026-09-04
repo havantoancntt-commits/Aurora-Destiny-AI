@@ -1,25 +1,97 @@
 // ==========================================
-// AURORA DESTINY AI — FULL-STACK SERVER
+// AURORA DESTINY AI — PRODUCTION FULL-STACK SERVER
+// Hardened Architecture, Security & Deterministic Integrity
 // ==========================================
 
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import crypto from 'crypto';
+import { ZodError } from 'zod';
 import { GoogleGenAI } from '@google/genai';
-import { db } from './src/services/db';
-import { runFullDestinyCalculation } from './src/engine/destinyEngine';
+
+import { repository } from './src/db/repository';
+import {
+  authMiddleware,
+  requireAuth,
+  requireAdmin,
+  verifyProfileOwnership,
+  registerUser,
+  loginUser,
+  createGuestSession
+} from './src/server/auth';
+import {
+  ProfileCreateSchema,
+  ProfileUpdateSchema,
+  HistoricalEventSchema,
+  AiChatSchema,
+  ScenarioEvaluateSchema,
+  UserPreferencesSchema,
+  FeatureFlagToggleSchema,
+  RegisterSchema,
+  LoginSchema
+} from './src/schemas/validationSchemas';
+
+import { runFullDestinyCalculation, CALCULATION_ENGINE_VERSION, ASTROLOGY_RULES_VERSION } from './src/engine/destinyEngine';
 import { runBacktestAnalysis } from './src/engine/backtesting';
 import { evaluateWhatIfScenario } from './src/engine/scenarios';
 import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/aiSynthesizer';
-import { BirthData } from './src/types/destiny';
-import { UserProfile } from './src/types/user';
 import { STEMS, BRANCHES } from './src/engine/canchi';
+import { UserProfile } from './src/types/user';
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '10mb' }));
+// Security: parse JSON with strict size limit
+app.use(express.json({ limit: '2mb' }));
 
-// Lazy-initialized Gemini Client
+// ----------------------------------------------------
+// MIDDLEWARE: REQUEST TRACING & SECURITY HEADERS
+// ----------------------------------------------------
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const reqId = `req_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  req.requestId = reqId;
+  res.setHeader('X-Request-Id', reqId);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
+// Authentication middleware extracts user from bearer token or x-session-token
+app.use(authMiddleware);
+
+// ----------------------------------------------------
+// RATE LIMITING (Sliding window in-memory for AI chat)
+// ----------------------------------------------------
+const chatRateLimits = new Map<string, { count: number; windowStart: number }>();
+function checkRateLimit(req: Request, res: Response, limitPerMinute: number = 30): boolean {
+  const identifier = req.user?.id || req.ip || 'anonymous';
+  const now = Date.now();
+  const entry = chatRateLimits.get(identifier);
+
+  if (!entry || now - entry.windowStart > 60000) {
+    chatRateLimits.set(identifier, { count: 1, windowStart: now });
+    return true;
+  }
+
+  if (entry.count >= limitPerMinute) {
+    res.status(429).json({
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Bạn đã thực hiện quá nhiều yêu cầu. Vui lòng chờ 1 phút trước khi tiếp tục.',
+        requestId: req.requestId
+      }
+    });
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
+// ----------------------------------------------------
+// GEMINI CLIENT (Lazy initialization with safe model fallback)
+// ----------------------------------------------------
 let geminiClient: GoogleGenAI | null = null;
 function getGemini(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -29,7 +101,7 @@ function getGemini(): GoogleGenAI | null {
       apiKey,
       httpOptions: {
         headers: {
-          'User-Agent': 'aistudio-build'
+          'User-Agent': 'aurora-destiny-ai/2.5.0'
         }
       }
     });
@@ -37,372 +109,678 @@ function getGemini(): GoogleGenAI | null {
   return geminiClient;
 }
 
+// Check Gemini API key existence on startup without leaking secrets
+const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+if (!hasGeminiKey) {
+  console.warn('⚠️ [Aurora Destiny AI] GEMINI_API_KEY is not defined. Server running with deterministic structured fallback interpretation.');
+} else {
+  console.log('✅ [Aurora Destiny AI] GEMINI_API_KEY verified. AI Multi-Agent Synthesizer enabled.');
+}
+
 // ----------------------------------------------------
-// 1. HEALTH & SYSTEM METRICS
+// 1. HEALTH & METRICS
 // ----------------------------------------------------
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     app: 'Aurora Destiny AI',
-    version: '2.4.1',
+    version: '2.5.0',
     serverTimestamp: new Date().toISOString(),
     geminiConfigured: !!process.env.GEMINI_API_KEY,
-    calculationEngine: 'Deterministic v2.4.1'
+    calculationEngine: CALCULATION_ENGINE_VERSION,
+    astrologyRules: ASTROLOGY_RULES_VERSION
   });
 });
 
-app.get('/api/metrics', (req, res) => {
-  const metrics = db.getObservabilityMetrics();
-  res.json(metrics);
-});
-
-// ----------------------------------------------------
-// 2. USER & PROFILE MANAGEMENT
-// ----------------------------------------------------
-app.get('/api/user', (req, res) => {
+app.get('/api/metrics', requireAdmin, (req, res) => {
+  const metrics = repository.getMetrics();
   res.json({
-    user: db.getUser(),
-    preferences: db.getPreferences()
+    ...metrics,
+    aiConfigured: !!process.env.GEMINI_API_KEY,
+    calculationEngineVersion: CALCULATION_ENGINE_VERSION
   });
 });
 
-app.post('/api/user/preferences', (req, res) => {
-  const updated = db.updatePreferences(req.body);
-  res.json(updated);
+// ----------------------------------------------------
+// 2. AUTHENTICATION (MULTI-USER ISOLATION)
+// ----------------------------------------------------
+app.post('/api/auth/register', (req, res, next) => {
+  try {
+    const validated = RegisterSchema.parse(req.body);
+    const result = registerUser(validated.email, validated.password, validated.fullName);
+    
+    repository.logAudit({
+      userId: result.user.id,
+      action: 'USER_REGISTERED',
+      resource: 'auth',
+      status: 'SUCCESS',
+      requestId: req.requestId
+    });
+
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
 });
 
+app.post('/api/auth/login', (req, res, next) => {
+  try {
+    const validated = LoginSchema.parse(req.body);
+    const result = loginUser(validated.email, validated.password);
+
+    repository.logAudit({
+      userId: result.user.id,
+      action: 'USER_LOGIN',
+      resource: 'auth',
+      status: 'SUCCESS',
+      requestId: req.requestId
+    });
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Auto-provision guest session for first-time visitors
+app.post('/api/auth/guest', (req, res) => {
+  const result = createGuestSession();
+  res.setHeader('x-session-token', result.token);
+  res.json(result);
+});
+
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  const prefs = repository.getPreferences(req.user!.id);
+  res.json({
+    user: req.user,
+    preferences: prefs
+  });
+});
+
+// ----------------------------------------------------
+// 3. USER PREFERENCES
+// ----------------------------------------------------
+app.get('/api/user', requireAuth, (req, res) => {
+  const prefs = repository.getPreferences(req.user!.id);
+  res.json({
+    user: req.user,
+    preferences: prefs
+  });
+});
+
+app.post('/api/user/preferences', requireAuth, (req, res, next) => {
+  try {
+    const validated = UserPreferencesSchema.parse(req.body);
+    const updated = repository.updatePreferences(req.user!.id, validated);
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------
+// 4. PROFILES (STRICT USER ISOLATION)
+// ----------------------------------------------------
 app.get('/api/profiles', (req, res) => {
-  res.json(db.getProfiles());
-});
-
-app.post('/api/profiles', (req, res) => {
-  const { name, birthData, behavioralContext, isPrimary } = req.body;
-  const newProfile: UserProfile = {
-    id: `prof_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    userId: db.getUser().id,
-    name: name || 'Hồ Sơ Mới',
-    isPrimary: isPrimary || false,
-    avatarSeed: `avatar_${Date.now()}`,
-    birthData: birthData as BirthData,
-    behavioralContext: behavioralContext || {
-      careerField: '',
-      employmentStatus: '',
-      financialGoal: '',
-      relationshipStatus: '',
-      topPriority: '',
-      personalNotes: ''
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  const calc = runFullDestinyCalculation(newProfile.birthData, newProfile.id, 0);
-  newProfile.latestCalculationId = calc.id;
-  db.saveCalculation(calc);
-  db.saveProfile(newProfile);
-
-  res.json({ profile: newProfile, calculation: calc });
-});
-
-app.put('/api/profiles/:id', (req, res) => {
-  const { id } = req.params;
-  const existing = db.getProfile(id);
-  if (!existing) {
-    return res.status(404).json({ error: 'Profile not found' });
+  // If no auth token, return empty array cleanly so Onboarding Wizard displays cleanly
+  if (!req.user) {
+    return res.json([]);
   }
-
-  const updatedProfile = {
-    ...existing,
-    ...req.body,
-    updatedAt: new Date().toISOString()
-  };
-
-  if (req.body.birthData) {
-    const calc = runFullDestinyCalculation(req.body.birthData, id, db.getHistoricalEvents(id).length);
-    updatedProfile.latestCalculationId = calc.id;
-    db.saveCalculation(calc);
-  }
-
-  db.saveProfile(updatedProfile);
-  res.json(updatedProfile);
+  const profiles = repository.getProfiles(req.user.id);
+  res.json(profiles);
 });
 
-app.delete('/api/profiles/:id', (req, res) => {
+app.post('/api/profiles', requireAuth, (req, res, next) => {
+  try {
+    const validated = ProfileCreateSchema.parse(req.body);
+    const userId = req.user!.id;
+
+    const newProfile: UserProfile = {
+      id: `prof_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+      userId,
+      name: validated.name,
+      isPrimary: validated.isPrimary || false,
+      avatarSeed: validated.name.toLowerCase().replace(/\s+/g, '_'),
+      birthData: validated.birthData,
+      behavioralContext: validated.behavioralContext || {
+        careerField: '',
+        employmentStatus: '',
+        financialGoal: '',
+        relationshipStatus: '',
+        topPriority: '',
+        personalNotes: ''
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Run deterministic calculation engine as single source of truth
+    const calc = runFullDestinyCalculation(newProfile.birthData, newProfile.id, 0);
+    newProfile.latestCalculationId = calc.id;
+
+    repository.saveCalculation(calc);
+    repository.saveProfile(newProfile);
+
+    // Initialize clean backtest result
+    const initialBt = runBacktestAnalysis([], calc);
+    repository.saveBacktestResult(initialBt);
+
+    repository.logAudit({
+      userId,
+      action: 'PROFILE_CREATED',
+      resource: 'profile',
+      resourceId: newProfile.id,
+      status: 'SUCCESS',
+      requestId: req.requestId
+    });
+
+    res.status(201).json({ profile: newProfile, calculation: calc });
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.put('/api/profiles/:id', requireAuth, (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const profile = verifyProfileOwnership(req, res, id);
+    if (!profile) return; // Error handled inside verifyProfileOwnership
+
+    const validated = ProfileUpdateSchema.parse(req.body);
+
+    const updatedProfile: UserProfile = {
+      ...profile,
+      ...validated,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (validated.birthData) {
+      const events = repository.getHistoricalEvents(id);
+      const calc = runFullDestinyCalculation(validated.birthData, id, events.length);
+      updatedProfile.latestCalculationId = calc.id;
+      repository.saveCalculation(calc);
+
+      const bt = runBacktestAnalysis(events, calc);
+      repository.saveBacktestResult(bt);
+    }
+
+    repository.saveProfile(updatedProfile);
+
+    repository.logAudit({
+      userId: req.user!.id,
+      action: 'PROFILE_UPDATED',
+      resource: 'profile',
+      resourceId: id,
+      status: 'SUCCESS',
+      requestId: req.requestId
+    });
+
+    res.json(updatedProfile);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.delete('/api/profiles/:id', requireAuth, (req, res) => {
   const { id } = req.params;
-  const success = db.deleteProfile(id);
+  const profile = verifyProfileOwnership(req, res, id);
+  if (!profile) return;
+
+  const success = repository.deleteProfile(id, req.user!.id);
+
+  repository.logAudit({
+    userId: req.user!.id,
+    action: 'PROFILE_DELETED',
+    resource: 'profile',
+    resourceId: id,
+    status: success ? 'SUCCESS' : 'FAILURE',
+    requestId: req.requestId
+  });
+
   res.json({ success });
 });
 
 // ----------------------------------------------------
-// 3. CALCULATION & ENSEMBLE AI
+// 5. CALCULATION & ENSEMBLE AI (DETERMINISTIC)
 // ----------------------------------------------------
-app.get('/api/calculations/:profileId', (req, res) => {
+app.get('/api/calculations/:profileId', requireAuth, (req, res) => {
   const { profileId } = req.params;
-  const profile = db.getProfile(profileId) || db.getProfiles()[0];
-  if (!profile) {
-    return res.json({ calculation: null, ensemble: null, backtest: null });
-  }
-  const calc = db.getLatestCalculationForProfile(profile.id);
-  if (!calc) {
-    return res.json({ calculation: null, ensemble: null, backtest: null });
-  }
-  const bt = db.getBacktestResult(profile.id);
-  const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return; // Strict: NEVER fallback to profiles[0]
 
+  let calc = repository.getLatestCalculationForProfile(profile.id);
+  if (!calc) {
+    const events = repository.getHistoricalEvents(profile.id);
+    calc = runFullDestinyCalculation(profile.birthData, profile.id, events.length);
+    repository.saveCalculation(calc);
+  }
+
+  let bt = repository.getBacktestResult(profile.id);
+  if (!bt) {
+    const events = repository.getHistoricalEvents(profile.id);
+    bt = runBacktestAnalysis(events, calc);
+    repository.saveBacktestResult(bt);
+  }
+
+  const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
   res.json({ calculation: calc, ensemble, backtest: bt });
 });
 
-app.post('/api/calculations/recalculate', (req, res) => {
+app.post('/api/calculations/recalculate', requireAuth, (req, res) => {
   const { profileId } = req.body;
-  const profile = db.getProfile(profileId);
-  if (!profile) return res.status(404).json({ error: 'Profile not found' });
+  if (!profileId) {
+    return res.status(400).json({ error: { code: 'INVALID_INPUT', message: 'profileId is required' } });
+  }
 
-  const events = db.getHistoricalEvents(profileId);
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return;
+
+  const events = repository.getHistoricalEvents(profileId);
   const calc = runFullDestinyCalculation(profile.birthData, profileId, events.length);
-  db.saveCalculation(calc);
+  repository.saveCalculation(calc);
 
   const bt = runBacktestAnalysis(events, calc);
-  const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
+  repository.saveBacktestResult(bt);
 
+  const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
   res.json({ calculation: calc, ensemble, backtest: bt });
 });
 
 // ----------------------------------------------------
-// 4. BACKTESTING STUDIO
+// 6. BACKTESTING STUDIO
 // ----------------------------------------------------
-app.get('/api/backtests/:profileId', (req, res) => {
+app.get('/api/backtests/:profileId', requireAuth, (req, res) => {
   const { profileId } = req.params;
-  const events = db.getHistoricalEvents(profileId);
-  const result = db.getBacktestResult(profileId);
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return;
+
+  const events = repository.getHistoricalEvents(profileId);
+  let result = repository.getBacktestResult(profileId);
+  if (!result) {
+    const calc = repository.getLatestCalculationForProfile(profileId);
+    if (calc) {
+      result = runBacktestAnalysis(events, calc);
+      repository.saveBacktestResult(result);
+    }
+  }
+
   res.json({ events, result });
 });
 
-app.post('/api/backtests/event', (req, res) => {
-  const { profileId, year, month, title, category, impact, intensity, description, userConfidence, evidenceNote } = req.body;
-  const event = {
-    id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    profileId,
-    year: Number(year),
-    month: month ? Number(month) : undefined,
-    title,
-    category,
-    impact,
-    intensity: Number(intensity || 3),
-    description: description || '',
-    userConfidence: Number(userConfidence || 5),
-    evidenceNote: evidenceNote || '',
-    createdAt: new Date().toISOString()
-  };
+app.post('/api/backtests/event', requireAuth, (req, res, next) => {
+  try {
+    const validated = HistoricalEventSchema.parse(req.body);
+    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    if (!profile) return;
 
-  db.addHistoricalEvent(event);
-  const updatedResult = db.getBacktestResult(profileId);
-  res.json({ event, backtestResult: updatedResult });
+    const event = {
+      id: `evt_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+      ...validated,
+      createdAt: new Date().toISOString()
+    };
+
+    repository.addHistoricalEvent(event);
+
+    const allEvents = repository.getHistoricalEvents(validated.profileId);
+    let calc = repository.getLatestCalculationForProfile(validated.profileId);
+    if (!calc) {
+      calc = runFullDestinyCalculation(profile.birthData, profile.id, allEvents.length);
+      repository.saveCalculation(calc);
+    }
+
+    const updatedResult = runBacktestAnalysis(allEvents, calc);
+    repository.saveBacktestResult(updatedResult);
+
+    repository.logAudit({
+      userId: req.user!.id,
+      action: 'HISTORICAL_EVENT_ADDED',
+      resource: 'historical_event',
+      resourceId: event.id,
+      status: 'SUCCESS',
+      requestId: req.requestId
+    });
+
+    res.status(201).json({ event, backtestResult: updatedResult });
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.delete('/api/backtests/event/:profileId/:eventId', (req, res) => {
+app.delete('/api/backtests/event/:profileId/:eventId', requireAuth, (req, res) => {
   const { profileId, eventId } = req.params;
-  db.deleteHistoricalEvent(profileId, eventId);
-  const updatedResult = db.getBacktestResult(profileId);
-  res.json({ success: true, backtestResult: updatedResult });
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return;
+
+  const deleted = repository.deleteHistoricalEvent(profileId, eventId);
+  const allEvents = repository.getHistoricalEvents(profileId);
+  const calc = repository.getLatestCalculationForProfile(profileId);
+  
+  let updatedResult = null;
+  if (calc) {
+    updatedResult = runBacktestAnalysis(allEvents, calc);
+    repository.saveBacktestResult(updatedResult);
+  }
+
+  repository.logAudit({
+    userId: req.user!.id,
+    action: 'HISTORICAL_EVENT_DELETED',
+    resource: 'historical_event',
+    resourceId: eventId,
+    status: deleted ? 'SUCCESS' : 'FAILURE',
+    requestId: req.requestId
+  });
+
+  res.json({ success: deleted, backtestResult: updatedResult });
 });
 
 // ----------------------------------------------------
-// 5. WHAT-IF SCENARIOS
+// 7. WHAT-IF SCENARIOS
 // ----------------------------------------------------
-app.post('/api/scenarios/evaluate', (req, res) => {
-  const { profileId, question } = req.body;
-  const calc = db.getLatestCalculationForProfile(profileId);
-  const result = evaluateWhatIfScenario(question || 'Điều gì xảy ra nếu tôi thay đổi định hướng sự nghiệp?', calc);
-  res.json(result);
+app.post('/api/scenarios/evaluate', requireAuth, (req, res, next) => {
+  try {
+    const validated = ScenarioEvaluateSchema.parse(req.body);
+    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    if (!profile) return;
+
+    let calc = repository.getLatestCalculationForProfile(validated.profileId);
+    if (!calc) {
+      calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
+      repository.saveCalculation(calc);
+    }
+
+    const result = evaluateWhatIfScenario(validated.question, calc);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ----------------------------------------------------
-// 6. DAILY DESTINY
+// 8. DAILY DESTINY
 // ----------------------------------------------------
-app.get('/api/daily/:profileId', (req, res) => {
+app.get('/api/daily/:profileId', requireAuth, (req, res) => {
   const { profileId } = req.params;
-  const calc = db.getLatestCalculationForProfile(profileId);
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return;
+
+  let calc = repository.getLatestCalculationForProfile(profileId);
+  if (!calc) {
+    calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
+    repository.saveCalculation(calc);
+  }
+
   const daily = computeDailyDestiny(calc);
   res.json(daily);
 });
 
 // ----------------------------------------------------
-// 7. AI CONVERSATIONAL ASSISTANT (GEMINI + FALLBACK)
+// 9. AI CONVERSATIONAL ASSISTANT (GEMINI + GROUNDED FALLBACK)
 // ----------------------------------------------------
-app.post('/api/ai/chat', async (req, res) => {
-  const { profileId, message } = req.body;
-  const profile = db.getProfile(profileId) || db.getProfiles()[0];
-  const calc = db.getLatestCalculationForProfile(profileId);
-  const bt = db.getBacktestResult(profileId);
+app.post('/api/ai/chat', requireAuth, async (req, res, next) => {
+  try {
+    if (!checkRateLimit(req, res, 30)) return;
 
-  // Save user message
-  const userMsg = {
-    id: `msg_u_${Date.now()}`,
-    sender: 'user' as const,
-    content: message,
-    timestamp: new Date().toISOString()
-  };
-  db.addChatMessage(profileId, userMsg);
+    const validated = AiChatSchema.parse(req.body);
+    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    if (!profile) return;
 
-  // High-precision factual summaries extracted directly from the deterministic calculation engine
-  const baziPillars = `Tứ Trụ: Năm [${STEMS[calc.bazi.yearPillar.stem].nameVi} ${BRANCHES[calc.bazi.yearPillar.branch].nameVi} (${calc.bazi.yearPillar.naYin}) - ${calc.bazi.yearPillar.tenGod}], ` +
-    `Tháng [${STEMS[calc.bazi.monthPillar.stem].nameVi} ${BRANCHES[calc.bazi.monthPillar.branch].nameVi} (${calc.bazi.monthPillar.naYin}) - ${calc.bazi.monthPillar.tenGod}], ` +
-    `Ngày [${STEMS[calc.bazi.dayPillar.stem].nameVi} ${BRANCHES[calc.bazi.dayPillar.branch].nameVi} (${calc.bazi.dayPillar.naYin}) - Nhật Chủ ${STEMS[calc.bazi.dayMaster].nameVi}], ` +
-    `Giờ [${STEMS[calc.bazi.hourPillar.stem].nameVi} ${BRANCHES[calc.bazi.hourPillar.branch].nameVi} (${calc.bazi.hourPillar.naYin}) - ${calc.bazi.hourPillar.tenGod}]`;
+    let calc = repository.getLatestCalculationForProfile(validated.profileId);
+    if (!calc) {
+      calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
+      repository.saveCalculation(calc);
+    }
 
-  const baziBalance = `Nhật Chủ: ${STEMS[calc.bazi.dayMaster].nameVi} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}). ` +
-    `Phân bổ Ngũ hành: Kim ${calc.bazi.elementBalance.Metal}%, Mộc ${calc.bazi.elementBalance.Wood}%, Thủy ${calc.bazi.elementBalance.Water}%, Hỏa ${calc.bazi.elementBalance.Fire}%, Thổ ${calc.bazi.elementBalance.Earth}%. ` +
-    `Dụng Thần: [${calc.bazi.favorableElements.join(', ')}], Kỵ Thần: [${calc.bazi.unfavorableElements.join(', ')}], Cách Cục: ${calc.bazi.structureType}`;
+    let bt = repository.getBacktestResult(validated.profileId);
+    if (!bt) {
+      bt = runBacktestAnalysis([], calc);
+      repository.saveBacktestResult(bt);
+    }
 
-  const lifeStars = calc.ziwei.palaces.life?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Mệnh Vô Chính Diệu';
-  const careerStars = calc.ziwei.palaces.career?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Quan Lộc Vô Chính Diệu';
-  const wealthStars = calc.ziwei.palaces.wealth?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Tài Bạch Vô Chính Diệu';
-  const travelStars = calc.ziwei.palaces.travel?.majorStars?.map(s => `${s.nameVi} (${s.brightness})`).join(', ') || 'Thiên Di';
+    // Save user message
+    const userMsg = {
+      id: `msg_u_${Date.now()}`,
+      sender: 'user' as const,
+      content: validated.message,
+      timestamp: new Date().toISOString()
+    };
+    repository.addChatMessage(validated.profileId, userMsg);
 
-  const ziweiDetails = `Cục: ${calc.ziwei.elementBureau}, Cung Thân: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'}. ` +
-    `Mệnh tại ${calc.ziwei.palaces.life?.branch} (${lifeStars} - Điểm: ${calc.ziwei.palaces.life?.score}/100). ` +
-    `Quan Lộc tại ${calc.ziwei.palaces.career?.branch} (${careerStars} - Điểm: ${calc.ziwei.palaces.career?.score}/100). ` +
-    `Tài Bạch tại ${calc.ziwei.palaces.wealth?.branch} (${wealthStars} - Điểm: ${calc.ziwei.palaces.wealth?.score}/100). ` +
-    `Thiên Di tại ${calc.ziwei.palaces.travel?.branch} (${travelStars} - Điểm: ${calc.ziwei.palaces.travel?.score}/100). ` +
-    `Cách Cục Tử Vi: ${calc.ziwei.majorConfigurations.join('; ')}`;
+    // Extract exact factual values computed by the deterministic calculation engine
+    const baziPillars = `Tứ Trụ: Năm [${STEMS[calc.bazi.yearPillar.stem].nameVi} ${BRANCHES[calc.bazi.yearPillar.branch].nameVi} (${calc.bazi.yearPillar.naYin}) - ${calc.bazi.yearPillar.tenGod}], ` +
+      `Tháng [${STEMS[calc.bazi.monthPillar.stem].nameVi} ${BRANCHES[calc.bazi.monthPillar.branch].nameVi} (${calc.bazi.monthPillar.naYin}) - ${calc.bazi.monthPillar.tenGod}], ` +
+      `Ngày [${STEMS[calc.bazi.dayPillar.stem].nameVi} ${BRANCHES[calc.bazi.dayPillar.branch].nameVi} (${calc.bazi.dayPillar.naYin}) - Nhật Chủ ${STEMS[calc.bazi.dayMaster].nameVi}], ` +
+      `Giờ [${STEMS[calc.bazi.hourPillar.stem].nameVi} ${BRANCHES[calc.bazi.hourPillar.branch].nameVi} (${calc.bazi.hourPillar.naYin}) - ${calc.bazi.hourPillar.tenGod}]`;
 
-  const currentYear = new Date().getFullYear();
-  const currentTransit = calc.annualTransits.find(t => t.year === currentYear) || calc.annualTransits[0];
-  const transitDetails = `Lưu Niên ${currentYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): ` +
-    `Sóng Cơ Hội: ${currentTransit.opportunityWave}%, Sóng Thận Trọng: ${currentTransit.cautionWave}%, Điểm tổng thể: ${currentTransit.overallScore}/100. ` +
-    `Trọng tâm khuyến nghị: ${currentTransit.recommendedFocus}`;
+    const baziBalance = `Nhật Chủ: ${STEMS[calc.bazi.dayMaster].nameVi} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}). ` +
+      `Phân bổ Ngũ hành: Kim ${calc.bazi.elementBalance.Metal}%, Mộc ${calc.bazi.elementBalance.Wood}%, Thủy ${calc.bazi.elementBalance.Water}%, Hỏa ${calc.bazi.elementBalance.Fire}%, Thổ ${calc.bazi.elementBalance.Earth}%. ` +
+      `Dụng Thần: [${calc.bazi.favorableElements.join(', ')}], Kỵ Thần: [${calc.bazi.unfavorableElements.join(', ')}], Cách Cục: ${calc.bazi.structureType}`;
 
-  const backtestSummary = `Chỉ số Nhất quán Backtest: ${bt.destinyConsistencyScore}/100 (Chỉ số Bất định: ${calc.confidence.uncertaintyIndex}/100)`;
+    const lifeStars = calc.ziwei.palaces.life?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Mệnh Vô Chính Diệu';
+    const careerStars = calc.ziwei.palaces.career?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Quan Lộc Vô Chính Diệu';
+    const wealthStars = calc.ziwei.palaces.wealth?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Tài Bạch Vô Chính Diệu';
 
-  let responseContent = '';
-  let confidenceScore = 92;
-  const ai = getGemini();
+    const ziweiDetails = `Cục: ${calc.ziwei.elementBureau}, Cung Thân: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'}. ` +
+      `Mệnh tại ${calc.ziwei.palaces.life?.branch} (${lifeStars} - Điểm: ${calc.ziwei.palaces.life?.score}/100). ` +
+      `Quan Lộc tại ${calc.ziwei.palaces.career?.branch} (${careerStars} - Điểm: ${calc.ziwei.palaces.career?.score}/100). ` +
+      `Tài Bạch tại ${calc.ziwei.palaces.wealth?.branch} (${wealthStars} - Điểm: ${calc.ziwei.palaces.wealth?.score}/100). ` +
+      `Cách Cục Tử Vi: ${calc.ziwei.majorConfigurations.join('; ')}`;
 
-  if (ai) {
-    try {
-      const prompt = `
-Bạn là Master Destiny AI của nền tảng cao cấp "Aurora Destiny AI" (Khẩu hiệu: "Understand the patterns. Shape your future.").
+    const currentYear = new Date().getFullYear();
+    const currentTransit = calc.annualTransits.find(t => t.year === currentYear) || calc.annualTransits[0];
+    const transitDetails = currentTransit ? `Lưu Niên ${currentYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): ` +
+      `Sóng Cơ Hội: ${currentTransit.opportunityWave}%, Sóng Thận Trọng: ${currentTransit.cautionWave}%, Điểm tổng thể: ${currentTransit.overallScore}/100. ` +
+      `Trọng tâm: ${currentTransit.recommendedFocus}` : 'Đang tính toán chu kỳ Lưu Niên';
 
-QUY TẮC ĐẠO ĐỨC & CHUYÊN MÔN CAO NHẤT (BẮT BUỘC TUÂN THỦ):
-1. ĐỘ CHÍNH XÁC TUYỆT ĐỐI - KHÔNG BỊA ĐẶT THÊM BỚT:
+    const backtestSummary = `Chỉ số Tương Hợp Lịch Sử: ${bt.destinyConsistencyScore}/100 (Chỉ số Bất Định: ${calc.confidence.uncertaintyIndex}/100)`;
+
+    let responseContent = '';
+    let confidenceScore = 90;
+    const ai = getGemini();
+
+    if (ai) {
+      try {
+        const prompt = `
+Bạn là Master Destiny AI của nền tảng "Aurora Destiny AI" (Khẩu hiệu: "Understand the patterns. Shape your future.").
+
+QUY TẮC BẢO ĐẢM TÍNH XÁC THỰC & ĐẠO ĐỨC NGHỀ NGHIỆP:
+1. ĐỘ CHÍNH XÁC TUYỆT ĐỐI THEO LÁ SỐ ĐÃ TÍNH TOÁN:
    - Tất cả dữ liệu Bát Tự (Tứ Trụ, Thập Thần, Ngũ Hành, Dụng Thần, Cách Cục) và Tử Vi (Chính tinh, Phụ tinh, Tứ Hóa, Cung vị, Cục) đã được Bộ Vi Xử Lý Thiên Văn Tính Toán Chính Xác 100% bên dưới.
    - TUYỆT ĐỐI KHÔNG tự ý bịa thêm các sao khác, không tự bịa cách cục không tồn tại trong dữ liệu được cấp.
-   - BẮT BUỘC TRÍCH DẪN NGUỒN CỤ THỂ: Khi phân tích bất kỳ khía cạnh nào (sự nghiệp, tài lộc, tình cảm, sức khỏe, thời cơ), BẮT BUỘC phải trích dẫn tên cụ thể của sao (kèm độ sáng Miếu/Vượng/Đắc/Hãm), thập thần, hoặc hành ngũ hành từ dữ liệu dưới đây làm bằng chứng xác thực.
-2. KHÔNG PHẢI THẦY BÓI MÊ TÍN:
+   - BẮT BUỘC TRÍCH DẪN NGUỒN CỤ THỂ: Khi phân tích bất kỳ khía cạnh nào, BẮT BUỘC phải trích dẫn tên cụ thể của sao (kèm độ sáng Miếu/Vượng/Đắc/Hãm), thập thần, hoặc hành ngũ hành từ dữ liệu dưới đây làm bằng chứng.
+2. KHÔNG MÊ TÍN DỊ ĐOAN:
    - Bạn là Chuyên gia Phân tích Dữ liệu Vận trình & Chiến lược gia Quản trị Rủi ro.
-   - Không phán xét số phận cố định, không hù dọa, không khẳng định 100%. Luôn nhấn mạnh quyền tự chủ, năng lực thực thi và tư duy chiến lược của con người.
-3. PHÂN TÍCH TOÀN DIỆN & CÂN BẰNG:
+   - Không phán xét số phận cố định, không khẳng định tương lai 100%. Luôn nhấn mạnh quyền tự chủ, năng lực thực thi và tư duy chiến lược của con người.
+3. KẾT HỢP TOÀN DIỆN:
    - Kết hợp hài hòa giữa Bát Tự (cốt lõi năng lượng bên trong, Dụng Thần), Tử Vi (bố cục cung vị, tinh bàn hành động) và Lưu Niên thời vận hiện tại.
-   - Chỉ rõ cả mặt cơ hội lẫn ranh giới rủi ro cần kiểm soát.
 
-DỮ LIỆU LÁ SỐ ĐÃ XÁC THỰC CỦA NGƯỜI DÙNG:
+DỮ LIỆU LÁ SỐ ĐÃ XÁC THỰC:
 - Họ tên: ${profile.name}
 - Giới tính: ${profile.birthData?.gender === 'Male' ? 'Nam mạng' : 'Nữ mạng'}
 - Bát Tự Tứ Trụ: ${baziPillars}
 - Ngũ Hành & Cấu Trúc: ${baziBalance}
 - Tử Vi Đẩu Số: ${ziweiDetails}
 - Lưu Niên Hiện Tại: ${transitDetails}
-- Bối Cảnh Người Dùng: Mục tiêu hàng đầu: "${profile.behavioralContext.topPriority}", Nghề nghiệp: "${profile.behavioralContext.careerField}"
-- Đo Lường Lịch Sử: ${backtestSummary}
+- Bối Cảnh Người Dùng: Mục tiêu hàng đầu: "${profile.behavioralContext?.topPriority || 'Phát triển toàn diện'}", Lĩnh vực: "${profile.behavioralContext?.careerField || 'Tự do'}"
+- Đo Lường Đối Sánh Lịch Sử: ${backtestSummary}
 
 CÂU HỎI CỦA NGƯỜI DÙNG:
-"${message}"
+"${validated.message}"
 
 HƯỚNG DẪN TRẢ LỜI:
 - Trả lời bằng tiếng Việt văn phong chuyên nghiệp, tinh tế, trang nhã, sắc sảo (khoảng 3-4 đoạn văn xúc tích, có cấu trúc rõ ràng).
-- Nêu rõ:
-  1. Phân tích nền tảng dựa trên bằng chứng cụ thể từ lá số (sao, thập thần, ngũ hành).
-  2. Tác động của chu kỳ thời điểm hiện tại và tính khả thi đối với câu hỏi người dùng.
-  3. Ranh giới rủi ro / điểm mù cần lưu tâm.
-  4. Gợi ý hành động chiến lược thiết thực và truyền cảm hứng tự chủ.
+- 1. Phân tích nền tảng dựa trên bằng chứng cụ thể từ lá số (sao, thập thần, ngũ hành).
+- 2. Tác động của chu kỳ thời điểm hiện tại và tính khả thi đối với câu hỏi người dùng.
+- 3. Ranh giới rủi ro / điểm mù cần lưu tâm.
+- 4. Gợi ý hành động chiến lược thiết thực và truyền cảm hứng tự chủ.
 `;
 
-      // Ưu tiên model 'gemini-3.7-flash' (hoặc qua biến môi trường GEMINI_MODEL), với fallback an toàn sang 'gemini-2.0-flash' nếu gặp lỗi 404 Model Not Found
-      const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
-      let geminiRes: any;
-      try {
-        geminiRes = await ai.models.generateContent({
-          model: primaryModel,
-          contents: prompt
-        });
-      } catch (primaryErr: any) {
-        console.error(`Gemini API error with primary model "${primaryModel}":`, primaryErr);
-        // Fallback model an toàn nếu model chính gặp sự cố (như 404 Not Found)
-        const fallbackModel = 'gemini-2.0-flash';
-        console.warn(`Attempting safe fallback to "${fallbackModel}"...`);
-        geminiRes = await ai.models.generateContent({
-          model: fallbackModel,
-          contents: prompt
-        });
+        const primaryModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+        let geminiRes: any;
+        try {
+          geminiRes = await ai.models.generateContent({
+            model: primaryModel,
+            contents: prompt
+          });
+        } catch (primaryErr: any) {
+          console.warn(`[Gemini API] Primary model "${primaryModel}" failed, trying fallback:`, primaryErr?.message || primaryErr);
+          const fallbackModel = 'gemini-2.0-flash';
+          geminiRes = await ai.models.generateContent({
+            model: fallbackModel,
+            contents: prompt
+          });
+        }
+
+        responseContent = geminiRes.text?.trim() || '';
+        confidenceScore = 95;
+      } catch (err: any) {
+        console.warn('[Gemini API] Request failed, activating structured deterministic fallback interpretation:', err?.message || err);
       }
-
-      responseContent = geminiRes.text?.trim() || '';
-      confidenceScore = 95;
-    } catch (err: any) {
-      console.warn('[Gemini API Error] Query failed, using structured fallback. Details:', err?.message || err);
     }
+
+    // High-fidelity structured fallback grounded in deterministic calculation engine
+    if (!responseContent) {
+      const transitDesc = currentTransit
+        ? `Năm ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị: ${currentTransit.recommendedFocus}.`
+        : `Lưu Niên ${currentYear} đang trong chu kỳ tích lũy năng lượng ổn định.`;
+
+      responseContent = `Dựa trên phân tích xác thực từ Bát Tự và Tử Vi Đẩu Số của bạn:\n\n` +
+        `1. **Căn cứ Bản Mệnh & Bát Tự**: Bạn mang Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), đắc Cách Cục **${calc.bazi.structureType}**. Dụng Thần tối ưu là hành **${calc.bazi.favorableElements.join(', ')}**, giúp điều hòa dòng năng lượng và gia tăng sức bật trong lĩnh vực "${profile.behavioralContext?.careerField || 'sự nghiệp'}".\n\n` +
+        `2. **Thế Tinh Bàn Tử Vi**: Cung Mệnh tại ${calc.ziwei.palaces.life?.branch} tọa thủ ${lifeStars}, hội tụ cùng Cung Quan Lộc (${careerStars}) và Cung Tài Bạch (${wealthStars}). Thế cờ tinh hoa này (${calc.ziwei.majorConfigurations.join(', ')}) tạo nền móng vững chắc cho khả năng quản trị và hoạch định chiến lược dài hạn.\n\n` +
+        `3. **Lưu Niên ${currentYear} & Định Hướng**: ${transitDesc} Hãy duy trì kỷ luật quản trị rủi ro và tận dụng tối đa năng lượng Dụng Thần để bứt phá.`;
+      confidenceScore = 90;
+    }
+
+    const assistantMsg = {
+      id: `msg_a_${Date.now()}`,
+      sender: 'assistant' as const,
+      content: responseContent,
+      timestamp: new Date().toISOString(),
+      confidenceScore,
+      suggestedQuestions: [
+        'Giai đoạn nào trong năm nay có sóng năng lượng thuận lợi nhất?',
+        `Làm thế nào để ứng dụng Dụng Thần ${calc.bazi.favorableElements.join('/')} vào quản trị tài chính?`,
+        'Điểm mù lớn nhất cần phòng tránh trong các thương vụ hợp tác là gì?'
+      ],
+      groundedFacts: [
+        `Bát Tự: Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterStrength}) - Cách Cục: ${calc.bazi.structureType}`,
+        `Dụng Thần: ${calc.bazi.favorableElements.join(', ')} | Kỵ Thần: ${calc.bazi.unfavorableElements.join(', ')}`,
+        `Tử Vi: Cung Mệnh (${lifeStars}) tại ${calc.ziwei.palaces.life?.branch} - Cục: ${calc.ziwei.elementBureau}`,
+        `Tam Phương Tứ Chính: Quan Lộc (${careerStars}), Tài Bạch (${wealthStars})`,
+        currentTransit ? `Lưu Niên ${currentYear}: Sóng cơ hội ${currentTransit.opportunityWave}% - Sóng thận trọng ${currentTransit.cautionWave}%` : `Lưu Niên ${currentYear}`,
+        `Chỉ số Tương Hợp Lịch Sử: ${bt.destinyConsistencyScore}/100`
+      ]
+    };
+
+    repository.addChatMessage(validated.profileId, assistantMsg);
+    res.json(assistantMsg);
+  } catch (err) {
+    next(err);
   }
-
-  // Fallback intelligent response strictly grounded in verified calculation data if Gemini is not available
-  if (!responseContent) {
-    responseContent = `Dựa trên phân tích xác thực từ Bát Tự và Tử Vi Đẩu Số của bạn:\n\n` +
-      `1. **Căn cứ Bản Mệnh & Bát Tự**: Bạn mang Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), đắc Cách Cục **${calc.bazi.structureType}**. Dụng Thần tối ưu là hành **${calc.bazi.favorableElements.join(', ')}**, giúp điều hòa dòng năng lượng và gia tăng sức bật trong lĩnh vực "${profile.behavioralContext.careerField}".\n\n` +
-      `2. **Thế Tinh Bàn Tử Vi**: Cung Mệnh tại ${calc.ziwei.palaces.life?.branch} tọa thủ ${lifeStars}, hội tụ cùng Cung Quan Lộc (${careerStars}) và Cung Tài Bạch (${wealthStars}). Thế cờ tinh hoa này (${calc.ziwei.majorConfigurations.join(', ')}) tạo nền móng vững chắc cho khả năng quản trị và hoạch định chiến lược dài hạn.\n\n` +
-      `3. **Lưu Niên ${currentYear} & Định Hướng**: Năm ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị: ${currentTransit.recommendedFocus}. Hãy duy trì kỷ luật quản trị rủi ro và tận dụng tối đa năng lượng Dụng Thần để bứt phá.`;
-    confidenceScore = 90;
-  }
-
-  const assistantMsg = {
-    id: `msg_a_${Date.now()}`,
-    sender: 'assistant' as const,
-    content: responseContent,
-    timestamp: new Date().toISOString(),
-    confidenceScore,
-    suggestedQuestions: [
-      'Giai đoạn nào trong năm nay có sóng năng lượng thuận lợi nhất?',
-      `Làm thế nào để ứng dụng Dụng Thần ${calc.bazi.favorableElements.join('/')} vào quản trị tài chính?`,
-      'Điểm mù lớn nhất cần phòng tránh trong các thương vụ hợp tác là gì?'
-    ],
-    groundedFacts: [
-      `Bát Tự: Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterStrength}) - Cách Cục: ${calc.bazi.structureType}`,
-      `Dụng Thần: ${calc.bazi.favorableElements.join(', ')} | Kỵ Thần: ${calc.bazi.unfavorableElements.join(', ')}`,
-      `Tử Vi: Cung Mệnh (${lifeStars}) tại ${calc.ziwei.palaces.life?.branch} - Cục: ${calc.ziwei.elementBureau}`,
-      `Tam Phương Tứ Chính: Quan Lộc (${careerStars}), Tài Bạch (${wealthStars})`,
-      `Lưu Niên ${currentYear}: Sóng cơ hội ${currentTransit.opportunityWave}% - Sóng thận trọng ${currentTransit.cautionWave}%`,
-      `Chỉ số Nhất Quán Backtest: ${bt.destinyConsistencyScore}/100`
-    ]
-  };
-
-  db.addChatMessage(profileId, assistantMsg);
-  res.json(assistantMsg);
 });
 
 // ----------------------------------------------------
-// 8. AUDIT LOGS & PRIVACY EXPORT
+// 10. AUDIT LOGS & ADMIN (PRIVACY HARDENED)
 // ----------------------------------------------------
-app.get('/api/audit-logs', (req, res) => {
-  res.json(db.getAuditLogs());
+app.get('/api/audit-logs', requireAdmin, (req, res) => {
+  const logs = repository.getAuditLogs(100);
+  res.json(logs);
 });
 
 app.get('/api/feature-flags', (req, res) => {
-  res.json(db.getFeatureFlags());
+  res.json(repository.getFeatureFlags());
 });
 
-app.post('/api/feature-flags/toggle', (req, res) => {
-  const { key, enabled } = req.body;
-  res.json(db.toggleFeatureFlag(key, enabled));
+app.post('/api/feature-flags/toggle', requireAdmin, (req, res, next) => {
+  try {
+    const validated = FeatureFlagToggleSchema.parse(req.body);
+    const updated = repository.toggleFeatureFlag(validated.key, validated.enabled);
+    if (!updated) {
+      return res.status(404).json({ error: { code: 'FLAG_NOT_FOUND', message: 'Feature flag not found' } });
+    }
+    res.json(repository.getFeatureFlags());
+  } catch (err) {
+    next(err);
+  }
 });
 
-app.get('/api/export/:profileId', (req, res) => {
+// Privacy Export: Strict user ownership check
+app.get('/api/export/:profileId', requireAuth, (req, res) => {
   const { profileId } = req.params;
-  const jsonStr = db.exportFullUserData(profileId);
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return;
+
+  const calc = repository.getLatestCalculationForProfile(profileId);
+  const events = repository.getHistoricalEvents(profileId);
+  const bt = repository.getBacktestResult(profileId);
+  const messages = repository.getChatMessages(profileId);
+  const prefs = repository.getPreferences(req.user!.id);
+
+  const exportBundle = {
+    app: 'Aurora Destiny AI',
+    exportTimestamp: new Date().toISOString(),
+    user: {
+      id: req.user!.id,
+      email: req.user!.email,
+      fullName: req.user!.fullName,
+      role: req.user!.role,
+      subscriptionTier: req.user!.subscriptionTier
+    },
+    profile,
+    calculation: calc,
+    historicalEvents: events,
+    backtestResult: bt,
+    chatMessages: messages,
+    preferences: prefs
+  };
+
+  repository.logAudit({
+    userId: req.user!.id,
+    action: 'USER_DATA_EXPORTED',
+    resource: 'profile',
+    resourceId: profileId,
+    status: 'SUCCESS',
+    requestId: req.requestId
+  });
+
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', `attachment; filename="aurora_destiny_${profileId}.json"`);
-  res.send(jsonStr);
+  res.send(JSON.stringify(exportBundle, null, 2));
 });
 
 // ----------------------------------------------------
-// 9. VITE MIDDLEWARE & STATIC SERVING
+// 11. CENTRALIZED ERROR HANDLING MIDDLEWARE
+// ----------------------------------------------------
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  // Handle Zod validation errors cleanly
+  if (err instanceof ZodError) {
+    return res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Dữ liệu đầu vào không hợp lệ',
+        details: err.issues.map(i => ({
+          field: i.path.join('.'),
+          message: i.message
+        })),
+        requestId: req.requestId
+      }
+    });
+  }
+
+  // Handle known application errors
+  const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
+  console.error(`[Error ${req.requestId}] ${req.method} ${req.originalUrl}:`, err?.message || err);
+
+  res.status(statusCode).json({
+    error: {
+      code: err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST'),
+      message: err.message || 'Đã xảy ra lỗi trong quá trình xử lý',
+      requestId: req.requestId
+    }
+  });
+});
+
+// ----------------------------------------------------
+// 12. VITE MIDDLEWARE & STATIC ASSETS
 // ----------------------------------------------------
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -421,7 +799,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✨ Aurora Destiny AI Server active on http://0.0.0.0:${PORT}`);
+    console.log(`✨ Aurora Destiny AI Production Server active on http://0.0.0.0:${PORT}`);
   });
 }
 

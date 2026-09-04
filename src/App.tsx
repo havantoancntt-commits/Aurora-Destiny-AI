@@ -28,12 +28,7 @@ import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
 import { MultiAgentEnsemble, ChatMessage } from './types/ai';
 import { HistoricalEvent, BacktestResult } from './types/backtest';
-import {
-  DEFAULT_USER,
-  SEED_BIRTH_DATA_1,
-  SEED_BEHAVIORAL_1,
-  SEED_HISTORICAL_EVENTS_1
-} from './services/db';
+import { api } from './services/apiClient';
 import { runFullDestinyCalculation } from './engine/destinyEngine';
 import { generateMultiAgentEnsemble } from './services/aiSynthesizer';
 import { runBacktestAnalysis } from './engine/backtesting';
@@ -83,11 +78,10 @@ export default function App() {
   const loadInitialData = async () => {
     try {
       setIsLoading(true);
+      await api.ensureSession();
+
       // Fetch profiles
-      const resProfiles = await fetch('/api/profiles');
-      if (!resProfiles.ok) throw new Error(`HTTP error ${resProfiles.status}: ${resProfiles.statusText}`);
-      const dataProfiles = await resProfiles.json();
-      const loadedProfiles: UserProfile[] = Array.isArray(dataProfiles) ? dataProfiles : [];
+      const loadedProfiles = await api.getProfiles().catch(() => []);
       setProfiles(loadedProfiles);
 
       if (loadedProfiles.length === 0) {
@@ -105,25 +99,19 @@ export default function App() {
       const targetId = loadedProfiles[0]?.id;
       setActiveProfileId(targetId);
 
-      // Fetch calculation & ensemble
-      const resCalc = await fetch(`/api/calculations/${targetId}`);
-      if (!resCalc.ok) throw new Error(`HTTP error ${resCalc.status}: ${resCalc.statusText}`);
-      const calcData = await resCalc.json();
+      // Fetch calculation & ensemble & backtest
+      const calcData = await api.getCalculation(targetId).catch(() => ({ calculation: null, ensemble: null, backtest: null }));
       setCalculation(calcData.calculation);
       setEnsemble(calcData.ensemble);
       setBacktestResult(calcData.backtest);
 
       // Fetch historical events
-      const resBt = await fetch(`/api/backtests/${targetId}`);
-      if (!resBt.ok) throw new Error(`HTTP error ${resBt.status}: ${resBt.statusText}`);
-      const btData = await resBt.json();
+      const btData = await api.getBacktests(targetId).catch(() => ({ events: [], result: null }));
       setEvents(btData.events || []);
 
       // Fetch user preferences
-      const resUser = await fetch('/api/user');
-      if (!resUser.ok) throw new Error(`HTTP error ${resUser.status}: ${resUser.statusText}`);
-      const userData = await resUser.json();
-      if (userData?.preferences) setPreferences(userData.preferences);
+      const me = await api.getMe().catch(() => null);
+      if (me?.preferences) setPreferences(me.preferences);
     } catch (e) {
       console.error('API Error details:', e);
       // Offline fallback: giữ trạng thái sạch, mở ô nhập thông tin
@@ -147,17 +135,16 @@ export default function App() {
   const handleSelectProfile = async (profileId: string) => {
     setActiveProfileId(profileId);
     try {
-      const resCalc = await fetch(`/api/calculations/${profileId}`);
-      if (!resCalc.ok) throw new Error(`HTTP error ${resCalc.status}: ${resCalc.statusText}`);
-      const resBt = await fetch(`/api/backtests/${profileId}`);
-      if (!resBt.ok) throw new Error(`HTTP error ${resBt.status}: ${resBt.statusText}`);
-      const [calcData, btData] = await Promise.all([resCalc.json(), resBt.json()]);
+      const [calcData, btData] = await Promise.all([
+        api.getCalculation(profileId),
+        api.getBacktests(profileId)
+      ]);
       setCalculation(calcData.calculation);
       setEnsemble(calcData.ensemble);
       setBacktestResult(calcData.backtest);
       setEvents(btData.events || []);
     } catch (e) {
-      console.error('API Error details:', e);
+      console.error('API Error details (handleSelectProfile):', e);
     }
   };
 
@@ -165,18 +152,12 @@ export default function App() {
   const handleRecalculate = async () => {
     if (!activeProfileId) return;
     try {
-      const res = await fetch('/api/calculations/recalculate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId: activeProfileId })
-      });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
-      const data = await res.json();
+      const data = await api.recalculate(activeProfileId);
       setCalculation(data.calculation);
       setEnsemble(data.ensemble);
       setBacktestResult(data.backtest);
     } catch (e) {
-      console.error('API Error details:', e);
+      console.error('API Error details (handleRecalculate):', e);
     }
   };
 
@@ -193,18 +174,13 @@ export default function App() {
         console.error('API Error details (sessionStorage):', e);
       }
 
-      const res = await fetch('/api/profiles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          birthData,
-          behavioralContext: behavioral,
-          isPrimary: profiles.length === 0
-        })
+      const data = await api.createProfile({
+        name,
+        birthData,
+        behavioralContext: behavioral,
+        isPrimary: profiles.length === 0
       });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
-      const data = await res.json();
+
       setProfiles((prev) => [...prev, data.profile]);
       setActiveProfileId(data.profile.id);
       setCalculation(data.calculation);
@@ -215,12 +191,12 @@ export default function App() {
       setEnsemble(generateMultiAgentEnsemble(data.profile, data.calculation, bt.destinyConsistencyScore));
       setShowOnboarding(false);
     } catch (e) {
-      console.error('API Error details:', e);
-      // Local fallback calculation if fetch fails
+      console.error('API Error details (handleCreateProfile):', e);
+      // Deterministic calculation if network drops
       const newCalc = runFullDestinyCalculation(birthData, 'prof_' + Date.now(), 0);
       const newProfile: UserProfile = {
         id: 'prof_' + Date.now(),
-        userId: 'usr_aurora_master',
+        userId: 'usr_guest',
         name,
         isPrimary: profiles.length === 0,
         avatarSeed: name.toLowerCase().replace(/\s+/g, '_'),
@@ -241,26 +217,21 @@ export default function App() {
     }
   };
 
-  // FIX: Khởi tạo activeProfile trước các hàm xử lý sự kiện để guard clause và cập nhật ensemble hoạt động chính xác
   const activeProfile = profiles.find((p) => p.id === activeProfileId) || profiles[0];
 
   // Add Historical Event for Backtesting
   const handleAddEvent = async (eventData: Partial<HistoricalEvent>) => {
-    // FIX: Guard clause ngăn chặn silent failure hoặc crash khi dữ liệu chưa sẵn sàng
     if (!activeProfile || !calculation) {
       console.warn('[Backtesting] Cannot add event: activeProfile or calculation is not yet loaded.');
       return;
     }
 
     try {
-      const res = await fetch('/api/backtests/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // FIX: Đảm bảo profileId: activeProfileId được truyền đầy đủ vào body của request
-        body: JSON.stringify({ ...eventData, profileId: activeProfileId })
+      const data = await api.addHistoricalEvent({
+        ...eventData,
+        profileId: activeProfileId
       });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
-      const data = await res.json();
+
       setEvents((prev) => [data.event, ...prev]);
       setBacktestResult(data.backtestResult);
 
@@ -269,25 +240,19 @@ export default function App() {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
     } catch (e) {
-      // FIX: Thêm console.error chi tiết để dễ debug
       console.error('API Error details (handleAddEvent):', e);
     }
   };
 
   // Delete Historical Event
   const handleDeleteEvent = async (eventId: string) => {
-    // FIX: Guard clause ngăn chặn silent failure hoặc crash khi dữ liệu chưa sẵn sàng
     if (!activeProfile || !calculation) {
       console.warn('[Backtesting] Cannot delete event: activeProfile or calculation is not yet loaded.');
       return;
     }
 
     try {
-      const res = await fetch(`/api/backtests/event/${activeProfileId}/${eventId}`, {
-        method: 'DELETE'
-      });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
-      const data = await res.json();
+      const data = await api.deleteHistoricalEvent(activeProfileId, eventId);
       setEvents((prev) => prev.filter((e) => e.id !== eventId));
       setBacktestResult(data.backtestResult);
 
@@ -295,26 +260,36 @@ export default function App() {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
     } catch (e) {
-      // FIX: Thêm console.error chi tiết để dễ debug
       console.error('API Error details (handleDeleteEvent):', e);
     }
   };
 
   // Export User Dossier
-  const handleExportData = (profId: string) => {
-    window.open(`/api/export/${profId}`, '_blank');
+  const handleExportData = async (profId: string) => {
+    try {
+      const token = api.getToken();
+      const res = await fetch(`/api/export/${profId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `aurora_destiny_${profId}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (e) {
+      console.error('Export error:', e);
+    }
   };
 
   // Update Preferences
   const handleUpdatePreferences = async (pref: Partial<UserPreferences>) => {
     try {
-      const res = await fetch('/api/user/preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pref)
-      });
-      if (!res.ok) throw new Error(`HTTP error ${res.status}: ${res.statusText}`);
-      const updated = await res.json();
+      const updated = await api.updatePreferences(pref);
       setPreferences(updated);
     } catch (e) {
       console.error('API Error details:', e);
