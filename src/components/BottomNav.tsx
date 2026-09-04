@@ -9,8 +9,8 @@ import {
   Compass,
   Radar,
   TrendingUp,
-  History,
-  GitBranch,
+  HeartHandshake,
+  Sparkles,
   Sun,
   ChevronDown,
   ChevronUp
@@ -18,7 +18,7 @@ import {
 import { t } from '../i18n/translations';
 import { LanguageCode } from '../types/destiny';
 
-export type TabKey = 'dashboard' | 'radar' | 'timeline' | 'backtest' | 'scenarios' | 'daily';
+export type TabKey = 'dashboard' | 'radar' | 'timeline' | 'compatibility' | 'remedies' | 'daily';
 
 interface Props {
   activeTab: TabKey;
@@ -33,8 +33,8 @@ export const BottomNav: React.FC<Props> = ({ activeTab, onSelectTab, language })
     { key: 'dashboard', labelKey: 'myDestiny', icon: Compass, color: 'text-purple-400' },
     { key: 'radar', labelKey: 'lifeRadar', icon: Radar, color: 'text-teal-400' },
     { key: 'timeline', labelKey: 'timeline', icon: TrendingUp, color: 'text-cyan-400' },
-    { key: 'backtest', labelKey: 'backtest', icon: History, color: 'text-amber-400' },
-    { key: 'scenarios', labelKey: 'scenarios', icon: GitBranch, color: 'text-pink-400' },
+    { key: 'compatibility', labelKey: 'compatibility', icon: HeartHandshake, color: 'text-rose-400' },
+    { key: 'remedies', labelKey: 'remedies', icon: Sparkles, color: 'text-emerald-400' },
     { key: 'daily', labelKey: 'dailyDestiny', icon: Sun, color: 'text-yellow-400' },
   ];
 

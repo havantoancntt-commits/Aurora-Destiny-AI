@@ -14,6 +14,8 @@ import { LifeRadarView } from './components/LifeRadarView';
 import { TimelineView } from './components/TimelineView';
 import { BacktestingStudio } from './components/BacktestingStudio';
 import { ScenarioSimulator } from './components/ScenarioSimulator';
+import { CompatibilityStudio } from './components/CompatibilityStudio';
+import { DestinyRemediesView } from './components/DestinyRemediesView';
 import { DailyDestinyView } from './components/DailyDestinyView';
 import { CelestialBackground } from './components/CelestialBackground';
 import { OnboardingWizard } from './components/OnboardingWizard';
@@ -212,6 +214,8 @@ export default function App() {
       } catch (e) {
         console.error('API Error details (sessionStorage):', e);
       }
+
+      await api.ensureSession();
 
       const data = await api.createProfile({
         name,
@@ -475,7 +479,25 @@ export default function App() {
                 />
               )}
 
-              {activeTab === 'backtest' && backtestResult && (
+              {activeTab === 'compatibility' && (
+                <CompatibilityStudio
+                  activeProfile={activeProfile}
+                  calculation={calculation}
+                  allProfiles={profiles}
+                  language={language}
+                />
+              )}
+
+              {activeTab === 'remedies' && (
+                <DestinyRemediesView
+                  profile={activeProfile}
+                  calculation={calculation}
+                  language={language}
+                />
+              )}
+
+              {/* Legacy fallbacks if triggered programmatically */}
+              {(activeTab as string) === 'backtest' && backtestResult && (
                 <BacktestingStudio
                   events={events}
                   backtestResult={backtestResult}
@@ -486,7 +508,7 @@ export default function App() {
                 />
               )}
 
-              {activeTab === 'scenarios' && (
+              {(activeTab as string) === 'scenarios' && (
                 <ScenarioSimulator
                   calculation={calculation}
                   language={language}

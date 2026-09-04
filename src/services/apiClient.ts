@@ -51,8 +51,8 @@ class ApiClient {
   }
 
   // Ensure an authenticated session token exists (auto-provisions guest session if none)
-  public async ensureSession(): Promise<string> {
-    if (this.token) return this.token;
+  public async ensureSession(force = false): Promise<string> {
+    if (this.token && !force) return this.token;
 
     try {
       const res = await fetch('/api/auth/guest', { method: 'POST' });
@@ -66,7 +66,7 @@ class ApiClient {
     } catch (err) {
       console.warn('Could not auto-provision guest session:', err);
     }
-    return '';
+    return this.token || '';
   }
 
   private async fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -77,12 +77,27 @@ class ApiClient {
       headers.set('Authorization', `Bearer ${this.token}`);
     }
 
-    const res = await fetch(input, { ...init, headers });
+    let res = await fetch(input, { ...init, headers });
 
     // Catch any updated session token from response header
     const newToken = res.headers.get('x-session-token');
     if (newToken && newToken !== this.token) {
       this.setToken(newToken);
+    }
+
+    // Auto-heal on 401 UNAUTHENTICATED: Token was rejected/expired, re-provision fresh session and retry
+    if (res.status === 401) {
+      this.clearToken();
+      const freshToken = await this.ensureSession(true);
+      if (freshToken) {
+        const retryHeaders = new Headers(init?.headers || {});
+        retryHeaders.set('Authorization', `Bearer ${freshToken}`);
+        res = await fetch(input, { ...init, headers: retryHeaders });
+        const retryToken = res.headers.get('x-session-token');
+        if (retryToken && retryToken !== this.token) {
+          this.setToken(retryToken);
+        }
+      }
     }
 
     return res;

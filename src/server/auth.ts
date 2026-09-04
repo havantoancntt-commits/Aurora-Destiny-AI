@@ -213,6 +213,23 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     }
   }
 
+  // Auto-provision an isolated guest session if unauthenticated on general API requests
+  // This guarantees seamless user onboarding, uninterrupted chart generation, and auto-healing for expired tokens
+  if (
+    !req.user &&
+    req.path.startsWith('/api') &&
+    !req.path.startsWith('/api/auth/login') &&
+    !req.path.startsWith('/api/auth/register') &&
+    !req.path.startsWith('/api/auth/guest') &&
+    !req.path.startsWith('/api/health')
+  ) {
+    const guest = createGuestSession();
+    req.user = guest.user;
+    req.sessionToken = guest.token;
+    res.setHeader('x-session-token', guest.token);
+    res.setHeader('Access-Control-Expose-Headers', 'x-session-token');
+  }
+
   next();
 }
 

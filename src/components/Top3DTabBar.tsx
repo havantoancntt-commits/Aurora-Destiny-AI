@@ -9,10 +9,9 @@ import {
   Compass,
   Radar,
   TrendingUp,
-  History,
-  GitBranch,
-  Sun,
+  HeartHandshake,
   Sparkles,
+  Sun,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -70,20 +69,20 @@ export const Top3DTabBar: React.FC<Props> = ({
       badge: 'Đại Vận & Lưu Niên'
     },
     {
-      key: 'backtest',
-      labelKey: 'backtest',
-      enLabel: 'Đối Soát Lịch Sử',
-      icon: History,
-      accentColor: 'from-amber-500 to-orange-500',
-      badge: consistencyScore ? `${consistencyScore}% Nhất Quán` : 'Kiểm Chứng Thực Nghiệm'
+      key: 'compatibility',
+      labelKey: 'compatibility',
+      enLabel: 'Tương Hợp Nhân Duyên',
+      icon: HeartHandshake,
+      accentColor: 'from-rose-500 to-pink-500',
+      badge: 'Hợp Tuổi & Đối Tác'
     },
     {
-      key: 'scenarios',
-      labelKey: 'scenarios',
-      enLabel: 'Mô Phỏng Nhánh',
-      icon: GitBranch,
-      accentColor: 'from-pink-500 to-rose-500',
-      badge: 'What-If Engine'
+      key: 'remedies',
+      labelKey: 'remedies',
+      enLabel: 'Cải Mệnh & Phong Thủy',
+      icon: Sparkles,
+      accentColor: 'from-emerald-500 to-teal-500',
+      badge: 'Dụng Thần Cải Vận'
     },
     {
       key: 'daily',
