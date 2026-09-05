@@ -16,7 +16,8 @@ import {
   Layers,
   X,
   UserPlus,
-  Heart
+  Heart,
+  BookOpen
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -351,14 +352,15 @@ export const Navbar: React.FC<Props> = ({
               </button>
             )}
 
-            {/* Quick Action Buttons */}
+            {/* Executive Dossier & Book of Destiny Button */}
             <button
+              id="btn-nav-executive-dossier"
               onClick={onOpenReportModal}
-              className="p-1 sm:p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0"
-              title="Xuất Báo Cáo"
+              className="p-1 sm:p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-yellow-500/15 border border-amber-400/40 text-amber-200 hover:text-white hover:border-amber-300 hover:bg-amber-500/25 text-xs flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(251,191,36,0.2)] shrink-0 cursor-pointer group"
+              title="Xuất Bản Sách Bản Mệnh Tinh Hoa (Executive Dossier PDF)"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">{t('executiveReport', language)}</span>
+              <BookOpen className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden lg:inline font-bold tracking-wide">Sách Bản Mệnh</span>
             </button>
 
             <button

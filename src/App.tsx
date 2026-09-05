@@ -467,6 +467,7 @@ export default function App() {
                   language={language}
                   onRecalculate={handleRecalculate}
                   onNavigateTab={setActiveTab}
+                  onOpenReportModal={() => setShowReportModal(true)}
                 />
               )}
 

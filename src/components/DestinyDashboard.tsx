@@ -19,7 +19,8 @@ import {
   Calendar,
   MapPin,
   CheckCircle2,
-  RefreshCw
+  RefreshCw,
+  BookOpen
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -36,6 +37,7 @@ interface Props {
   language: LanguageCode;
   onRecalculate?: () => void;
   onNavigateTab?: (tab: any) => void;
+  onOpenReportModal?: () => void;
 }
 
 export const DestinyDashboard: React.FC<Props> = ({
@@ -44,7 +46,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   ensemble,
   language,
   onRecalculate,
-  onNavigateTab
+  onNavigateTab,
+  onOpenReportModal
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [isRecalculating, setIsRecalculating] = useState(false);
@@ -186,6 +189,39 @@ export const DestinyDashboard: React.FC<Props> = ({
             </p>
           </div>
         </div>
+
+        {/* Executive Dossier Callout Banner */}
+        {onOpenReportModal && (
+          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-[#0a0d1c] to-amber-950/40 border border-amber-500/40 shadow-[0_4px_25px_rgba(251,191,36,0.15)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-[0_0_20px_rgba(251,191,36,0.4)] shrink-0">
+                <BookOpen className="w-6 h-6 text-slate-950" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm font-bold text-amber-200 uppercase tracking-wide font-cinzel">
+                    Sách Bản Mệnh Tinh Hoa • Executive Dossier PDF
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    6 TRANG A4
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Ấn phẩm cẩm nang bìa mạ vàng tiêu chuẩn in ấn, tích hợp dấu mộc triện thư, chữ ký bảo chứng của Giáo Sư - Prof.TOAN &amp; cẩm nang phong thủy cá nhân trọn đời.
+                </p>
+              </div>
+            </div>
+
+            <button
+              id="btn-open-executive-dossier"
+              onClick={onOpenReportModal}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(251,191,36,0.3)] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            >
+              <BookOpen className="w-4 h-4 text-slate-950" />
+              <span>Xem &amp; Xuất Bản Sách</span>
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* 2. BAZI FOUR PILLARS (TỨ TRỤ BÁT TỰ) INTERACTIVE GRID */}
