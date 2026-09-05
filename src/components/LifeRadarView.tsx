@@ -3,7 +3,7 @@
 // Ultra-luxury animated Life Radar View
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Radar as RadarIcon,
@@ -33,6 +33,125 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
   const [activeAgentTab, setActiveAgentTab] = useState<number>(0);
 
   const selectedDomain = ensemble.lifeRadar.find((d) => d.domainKey === selectedDomainKey) || ensemble.lifeRadar[0];
+
+  const radarDomains = ensemble.lifeRadar || [];
+  const totalAxes = radarDomains.length || 8;
+
+  // Geometry configuration for 360x360 SVG Canvas
+  const cx = 180;
+  const cy = 180;
+  const maxR = 94; // Maximum radius of outer grid
+  const labelR = 126; // Distance of text labels from center
+
+  // Compute overall average score & strategic life stage badge
+  const averageScore = useMemo(() => {
+    if (!radarDomains || radarDomains.length === 0) return 80;
+    const total = radarDomains.reduce((sum, d) => sum + (d.score || 0), 0);
+    return Math.round(total / radarDomains.length);
+  }, [radarDomains]);
+
+  const stageBadgeText = useMemo(() => {
+    if (averageScore >= 88) return 'Tiềm Năng Đột Phá';
+    if (averageScore >= 80) return 'Cân Bằng Cao';
+    if (averageScore >= 70) return 'Vững Vàng Tích Lũy';
+    return 'Chuyển Tiếp Thích Ứng';
+  }, [averageScore]);
+
+  // Short clean label for radar axes to prevent label clipping
+  const getDomainShortLabel = (item: LifeDomainItem): string => {
+    switch (item.domainKey) {
+      case 'career': return 'SỰ NGHIỆP';
+      case 'finance': return 'TÀI CHÍNH';
+      case 'relationships': return 'TÌNH CẢM';
+      case 'family': return 'GIA ĐẠO';
+      case 'learning': return 'TRI THỨC';
+      case 'growth': return 'PHÁT TRIỂN';
+      case 'opportunity': return 'CƠ HỘI';
+      case 'risk': return 'RỦI RO';
+      default:
+        return ((item as any).domain || '').split('&')[0].trim().toUpperCase();
+    }
+  };
+
+  // Concentric grid polygon rings at 25%, 50%, 75%, 100%
+  const gridLevels = [0.25, 0.5, 0.75, 1.0];
+  const gridPolygons = useMemo(() => {
+    return gridLevels.map((lvl) => {
+      const r = maxR * lvl;
+      const pts = radarDomains.map((_, i) => {
+        const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+      return { level: lvl, points: pts };
+    });
+  }, [radarDomains, totalAxes]);
+
+  // Axis lines radiating from center
+  const axesLines = useMemo(() => {
+    return radarDomains.map((_, i) => {
+      const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
+      const x = cx + maxR * Math.cos(angle);
+      const y = cy + maxR * Math.sin(angle);
+      return { x1: cx, y1: cy, x2: x, y2: y };
+    });
+  }, [radarDomains, totalAxes]);
+
+  // Actual data energy polygon
+  const dataPolygonPoints = useMemo(() => {
+    return radarDomains.map((item, i) => {
+      const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
+      const r = Math.max(16, ((item.score || 50) / 100) * maxR);
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+  }, [radarDomains, totalAxes]);
+
+  // Data nodes at vertices
+  const dataNodes = useMemo(() => {
+    return radarDomains.map((item, i) => {
+      const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
+      const r = Math.max(16, ((item.score || 50) / 100) * maxR);
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      const isSelected = item.domainKey === selectedDomainKey;
+      return { item, x, y, isSelected };
+    });
+  }, [radarDomains, totalAxes, selectedDomainKey]);
+
+  // Label positions with intelligent text-anchor and dynamic dy
+  const labelNodes = useMemo(() => {
+    return radarDomains.map((item, i) => {
+      const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const x = cx + labelR * cos;
+      const y = cy + labelR * sin;
+      const isSelected = item.domainKey === selectedDomainKey;
+
+      let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+      if (cos > 0.25) textAnchor = 'start';
+      else if (cos < -0.25) textAnchor = 'end';
+
+      let dy1 = 4;
+      if (sin > 0.4) dy1 = 12;
+      else if (sin < -0.4) dy1 = -4;
+
+      const shortLabel = getDomainShortLabel(item);
+
+      return {
+        item,
+        x,
+        y,
+        textAnchor,
+        dy1,
+        isSelected,
+        shortLabel
+      };
+    });
+  }, [radarDomains, totalAxes, selectedDomainKey]);
 
   const agentsList = [
     ensemble.traditionalAstrologyAgent,
@@ -80,50 +199,181 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4 }}
-          className="lg:col-span-6 bg-gradient-to-b from-white/[0.04] to-white/[0.01] border border-white/10 rounded-3xl relative flex items-center justify-center p-8 overflow-hidden min-h-[340px] backdrop-blur-2xl shadow-xl"
+          className="lg:col-span-6 bg-gradient-to-b from-white/[0.04] to-white/[0.01] border border-white/10 rounded-3xl flex flex-col justify-between p-4 sm:p-5 overflow-hidden backdrop-blur-2xl shadow-xl relative"
         >
-          {/* Dot Grid Background */}
+          {/* Dot Grid Subtle Ambient Background */}
           <div className="absolute inset-0 opacity-20 pointer-events-none bg-immersive-radial" />
-          
-          <div className="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
-            {/* Concentric rings */}
-            <div className="absolute inset-0 border border-white/10 rounded-full"></div>
-            <div className="absolute inset-8 border border-white/10 rounded-full"></div>
-            <div className="absolute inset-16 border border-white/10 rounded-full"></div>
-            <div className="absolute inset-24 border border-white/10 rounded-full"></div>
-            
-            {/* Cardinal axis labels */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-5 text-[10px] tracking-widest text-teal-300 uppercase font-mono">Sự Nghiệp</div>
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-5 text-[10px] tracking-widest text-purple-300 uppercase font-mono">Tài Chính</div>
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-9 text-[10px] tracking-widest text-slate-300 uppercase font-mono rotate-90">Sức Khỏe</div>
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-9 text-[10px] tracking-widest text-amber-300 uppercase font-mono -rotate-90">Phát Triển</div>
 
-            {/* Glowing polygon */}
-            <div className="w-full h-full p-2 relative">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-[70%] h-[70%] bg-purple-500/15 rounded-full blur-2xl animate-pulse"></div>
+          {/* TOP BAR: Title & Current Stage Badge */}
+          <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 z-10 w-full">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-teal-500/15 border border-teal-500/30 flex items-center justify-center">
+                <RadarIcon className="w-3.5 h-3.5 text-teal-400" />
               </div>
-              <svg className="w-full h-full drop-shadow-[0_0_15px_rgba(45,212,191,0.5)]" viewBox="0 0 100 100">
-                <polygon
-                  points="50,16 78,38 72,82 28,82 22,38"
-                  fill="rgba(45, 212, 191, 0.22)"
-                  stroke="#2dd4bf"
-                  strokeWidth="1.4"
-                />
-                <circle cx="50" cy="16" r="3" fill="#2dd4bf" className="animate-ping" />
-                <circle cx="50" cy="16" r="2.5" fill="#2dd4bf" />
-                <circle cx="78" cy="38" r="2.5" fill="#2dd4bf" />
-                <circle cx="72" cy="82" r="2.5" fill="#2dd4bf" />
-                <circle cx="28" cy="82" r="2.5" fill="#2dd4bf" />
-                <circle cx="22" cy="38" r="2.5" fill="#2dd4bf" />
-              </svg>
+              <span className="text-[11px] font-mono tracking-widest text-slate-300 uppercase font-semibold">
+                Đa Trục Năng Lượng Đời Sống
+              </span>
+            </div>
+
+            {/* Strategic Life Stage Badge (Completely separated from canvas) */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/15 border border-purple-500/30 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+              <span className="text-[10px] text-slate-400 uppercase tracking-wider hidden sm:inline">
+                Giai Đoạn:
+              </span>
+              <span className="text-xs font-mono font-bold text-purple-200 uppercase">
+                {stageBadgeText}
+              </span>
             </div>
           </div>
 
-          <div className="absolute bottom-4 left-5 flex items-center gap-2">
-            <span className="text-[10px] opacity-60 uppercase tracking-widest text-slate-400">Giai Đoạn Hiện Tại:</span>
-            <span className="text-xs font-mono font-semibold bg-white/10 px-2.5 py-0.5 rounded-lg text-purple-300 uppercase border border-white/10 shadow-sm">
-              Cân Bằng Cao
+          {/* CENTER RADAR CANVAS: Mathematical SVG with zero overlapping */}
+          <div className="relative w-full max-w-[340px] sm:max-w-[370px] aspect-square mx-auto my-2 flex items-center justify-center select-none">
+            <svg
+              className="w-full h-full overflow-visible drop-shadow-[0_0_20px_rgba(45,212,191,0.25)]"
+              viewBox="0 0 360 360"
+            >
+              <defs>
+                <linearGradient id="radarPolygonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.32" />
+                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0.18" />
+                </linearGradient>
+                <radialGradient id="centerCoreGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.25" />
+                  <stop offset="70%" stopColor="#a855f7" stopOpacity="0.06" />
+                  <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+                </radialGradient>
+                <filter id="nodeGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#2dd4bf" floodOpacity="0.8" />
+                </filter>
+              </defs>
+
+              {/* Center Ambient Core */}
+              <circle cx={cx} cy={cy} r={maxR} fill="url(#centerCoreGlow)" />
+
+              {/* Concentric Grid Levels (25%, 50%, 75%, 100%) */}
+              {gridPolygons.map((poly, idx) => (
+                <polygon
+                  key={idx}
+                  points={poly.points}
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.1)"
+                  strokeWidth={idx === 3 ? 1.2 : 0.8}
+                  strokeDasharray={idx < 3 ? '3 3' : undefined}
+                />
+              ))}
+
+              {/* Grid Scale Percentage Indicators along top vertical axis */}
+              <text x={cx + 4} y={cy - maxR * 0.5 + 3} fill="#64748b" fontSize="8" fontFamily="monospace">50%</text>
+              <text x={cx + 4} y={cy - maxR * 0.75 + 3} fill="#64748b" fontSize="8" fontFamily="monospace">75%</text>
+              <text x={cx + 4} y={cy - maxR + 3} fill="#64748b" fontSize="8" fontFamily="monospace">100%</text>
+
+              {/* Radiating Axes Lines */}
+              {axesLines.map((line, idx) => (
+                <line
+                  key={idx}
+                  x1={line.x1}
+                  y1={line.y1}
+                  x2={line.x2}
+                  y2={line.y2}
+                  stroke="rgba(255, 255, 255, 0.12)"
+                  strokeWidth="0.9"
+                />
+              ))}
+
+              {/* Dynamic Data Polygon */}
+              <polygon
+                points={dataPolygonPoints}
+                fill="url(#radarPolygonGrad)"
+                stroke="#2dd4bf"
+                strokeWidth="2"
+                strokeLinejoin="round"
+              />
+
+              {/* Vertices & Interactive Nodes */}
+              {dataNodes.map((node) => (
+                <g
+                  key={node.item.domainKey}
+                  onClick={() => setSelectedDomainKey(node.item.domainKey)}
+                  className="cursor-pointer group"
+                >
+                  {node.isSelected && (
+                    <circle
+                      cx={node.x}
+                      cy={node.y}
+                      r={9}
+                      fill="none"
+                      stroke="#2dd4bf"
+                      strokeWidth="1.5"
+                      opacity="0.6"
+                      className="animate-pulse"
+                    />
+                  )}
+                  <circle
+                    cx={node.x}
+                    cy={node.y}
+                    r={node.isSelected ? 5 : 3.5}
+                    fill={node.isSelected ? '#ffffff' : '#2dd4bf'}
+                    stroke={node.isSelected ? '#2dd4bf' : 'rgba(0,0,0,0.6)'}
+                    strokeWidth={node.isSelected ? 2.5 : 1}
+                    filter="url(#nodeGlow)"
+                    className="transition-transform group-hover:scale-125"
+                  />
+                </g>
+              ))}
+
+              {/* Smart Non-overlapping Axis Labels */}
+              {labelNodes.map((lbl) => (
+                <g
+                  key={lbl.item.domainKey}
+                  onClick={() => setSelectedDomainKey(lbl.item.domainKey)}
+                  className="cursor-pointer group select-none"
+                >
+                  {/* Domain Title */}
+                  <text
+                    x={lbl.x}
+                    y={lbl.y}
+                    textAnchor={lbl.textAnchor}
+                    dy={lbl.dy1}
+                    fill={lbl.isSelected ? '#2dd4bf' : '#cbd5e1'}
+                    fontSize="10"
+                    fontWeight={lbl.isSelected ? '700' : '600'}
+                    fontFamily="monospace"
+                    letterSpacing="0.08em"
+                    className="transition-colors group-hover:fill-teal-300"
+                  >
+                    {lbl.shortLabel}
+                  </text>
+
+                  {/* Domain Score Pill Subtext */}
+                  <text
+                    x={lbl.x}
+                    y={lbl.y}
+                    textAnchor={lbl.textAnchor}
+                    dy={lbl.dy1 + 11}
+                    fill={lbl.isSelected ? '#a855f7' : '#94a3b8'}
+                    fontSize="9"
+                    fontWeight="500"
+                    fontFamily="monospace"
+                  >
+                    {lbl.item.score}đ
+                  </text>
+                </g>
+              ))}
+            </svg>
+          </div>
+
+          {/* BOTTOM BAR: Selection Details & Interaction Guide */}
+          <div className="flex items-center justify-between pt-3 border-t border-white/10 z-10 w-full text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+              <span className="text-slate-400 text-[11px]">Đang chọn:</span>
+              <span className="font-semibold text-white text-[11px]">{selectedDomain.domain}</span>
+              <span className="text-teal-400 font-mono font-bold text-xs">({selectedDomain.score}/100)</span>
+            </div>
+
+            <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
+              * Chạm trực tiếp vào đỉnh để xem chi tiết
             </span>
           </div>
         </motion.div>
