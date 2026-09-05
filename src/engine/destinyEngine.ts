@@ -12,6 +12,22 @@ export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
 export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
 export const ANALYSIS_MODEL_VERSION = 'aurora_ensemble_v3.5';
 
+function deterministicHash(str: string): string {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
+  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
+  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const part1 = (h1 >>> 0).toString(16).padStart(8, '0');
+  const part2 = (h2 >>> 0).toString(16).padStart(8, '0');
+  return `${part1}${part2}`;
+}
+
 export function runFullDestinyCalculation(
   birthData: BirthData,
   profileId: string = 'prof_default',
@@ -24,8 +40,11 @@ export function runFullDestinyCalculation(
   const annualTransits = calculateAnnualTransits(birthData, currentYear - 6, currentYear + 10);
   const confidence = evaluateConfidence(birthData, eventsCount);
 
+  const inputSignature = `${profileId}_${birthData.solarYear}_${birthData.solarMonth}_${birthData.solarDay}_${birthData.solarHour}_${birthData.solarMinute}_${birthData.gender}_${CALCULATION_ENGINE_VERSION}`;
+  const deterministicId = `calc_${deterministicHash(inputSignature)}`;
+
   return {
-    id: `calc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: deterministicId,
     profileId,
     calculationVersion: CALCULATION_ENGINE_VERSION,
     astrologyRulesVersion: ASTROLOGY_RULES_VERSION,

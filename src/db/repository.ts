@@ -288,7 +288,7 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
       };
 
       const serialized = JSON.stringify(payload, null, 2);
-      const tempPath = `${this.filePath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 6)}`;
+      const tempPath = `${this.filePath}.tmp.${Date.now()}.${crypto.randomBytes(4).toString('hex')}`;
       fs.writeFileSync(tempPath, serialized, 'utf-8');
       
       // 3. Atomic rename (POSIX rename guarantee prevents half-written corrupted files)
@@ -542,18 +542,7 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   saveProfile(profile: UserProfile): UserProfile {
     // Foreign Key check: userId must exist in users
     if (!this.state.users[profile.userId]) {
-      this.saveUser({
-        id: profile.userId,
-        email: `${profile.userId}@aurora.local`,
-        fullName: profile.name,
-        role: 'USER',
-        subscriptionTier: 'Free',
-        language: 'vi',
-        emailVerified: false,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        profilesCount: 1
-      });
+      throw new Error(`Foreign key constraint failed: User '${profile.userId}' does not exist.`);
     }
 
     this.state.profiles[profile.id] = { ...profile, updatedAt: new Date().toISOString() };
