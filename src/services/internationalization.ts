@@ -569,7 +569,7 @@ export function formatCurrencyAmount(
       maximumFractionDigits: currency === 'VND' || currency === 'JPY' ? 0 : 2
     }).format(amount);
   } catch {
-    return `${amount.toLocaleString()} ${conf.symbol}`;
+    return `${(amount ?? 0).toLocaleString()} ${conf.symbol}`;
   }
 }
 

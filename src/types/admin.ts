@@ -14,6 +14,16 @@ export interface ObservabilityMetrics {
   totalProfilesStored: number;
   totalBacktestRuns: number;
   totalScenariosEvaluated: number;
+  totalUsers?: number;
+  totalProfiles?: number;
+  totalEvents?: number;
+  totalActiveSessions?: number;
+  totalAuditLogs?: number;
+  uptimeSeconds?: number;
+  storageMode?: string;
+  aiConfigured?: boolean;
+  circuitBreakerOpen?: boolean;
+  calculationEngineVersion?: string;
 }
 
 export interface AuditLog {
