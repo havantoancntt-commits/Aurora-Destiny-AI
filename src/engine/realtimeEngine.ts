@@ -21,6 +21,15 @@ import { gregorianToJulianDay, getSolarTerm } from './lunarSolar';
 
 export type AlertLevel = 'GOLDEN_WINDOW' | 'BALANCED_FLOW' | 'CLASH_ANOMALY';
 
+export type LuckCategory = 'DAI_CAT' | 'TIEU_CAT' | 'BINH_HOA' | 'TIEU_HUNG' | 'DAI_HUNG';
+
+export interface LuckAspectDetail {
+  score: number; // 0 - 100
+  status: 'Cát Lợi (Hên)' | 'Thuận Lợi' | 'Bình Hòa' | 'Thận Trọng' | 'Nguy Cơ (Xui)';
+  verdict: 'HEN' | 'BINH' | 'XUI';
+  advice: string;
+}
+
 export interface HourlySlotInsight {
   branchKey: EarthlyBranch;
   branchNameVi: string;
@@ -35,14 +44,26 @@ export interface HourlySlotInsight {
   element: FiveElement;
   resonanceScore: number; // 0 - 100
   alertLevel: AlertLevel;
+  luckCategory: LuckCategory;
+  luckPercentage: number; // 0 - 100% (Tỷ lệ Hên thực tế)
+  riskPercentage: number; // 100 - luckPercentage (Tỷ lệ Xui/Rủi ro)
   tenGodName: string;
   isGuiRen: boolean; // Thiên Ất Quý Nhân
   isSanHe: boolean; // Tam Hợp
   isLiuHe: boolean; // Lục Hợp
   isClash: boolean; // Lục Xung
+  isLucHai?: boolean; // Lục Hại
   tacticalAdvice: string;
   bestForActivities: string[];
   avoidActivities: string[];
+  
+  // Chi tiết 4 phương diện hên xui
+  aspects: {
+    wealth: LuckAspectDetail;      // Tài lộc, tiền bạc, mua bán
+    career: LuckAspectDetail;      // Công việc, đàm phán, quyết định
+    relationship: LuckAspectDetail;// Giao tiếp, nhân duyên, quý nhân
+    safety: LuckAspectDetail;      // Bình an, di chuyển, sức khỏe
+  };
 }
 
 export interface RealtimeDestinySnapshot {
@@ -53,6 +74,13 @@ export interface RealtimeDestinySnapshot {
   secondsRemainingInCurrentHour: number;
   timeRemainingFormatted: string;
   
+  // Canh giờ vi mô (Sơ khắc, Chính khắc, Mạt khắc)
+  microPhase: {
+    phaseName: 'Sơ Khắc' | 'Chính Khắc' | 'Mạt Khắc';
+    phaseDescription: string;
+    progressPercentage: number; // 0 - 100% trong 2h
+  };
+
   // Current Pillars
   currentYearPillar: { stem: string; branch: string };
   currentMonthPillar: { stem: string; branch: string };
@@ -62,10 +90,14 @@ export interface RealtimeDestinySnapshot {
   // Current Moment Analysis
   currentSlot: HourlySlotInsight;
   resonanceScore: number;
+  luckCategory: LuckCategory;
+  luckPercentage: number; // % Hên
+  riskPercentage: number; // % Xui
   alertLevel: AlertLevel;
   headlineMessage: string;
   actionGuidance: string;
   mitigationProtocol: string;
+  quickRemedy: string; // Lời khuyên hóa giải tức thì
   auspiciousDirection: string;
   luckyColorHex: string;
   luckyColorName: string;
@@ -284,46 +316,88 @@ export function calculateRealtimeSnapshot(
     if (isClash) score -= 28;
 
     // Clamp score
-    score = Math.max(30, Math.min(99, score));
+    score = Math.max(25, Math.min(99, score));
 
     // Alert Level determination
     let alertLevel: AlertLevel = 'BALANCED_FLOW';
     if (score >= 82) alertLevel = 'GOLDEN_WINDOW';
     else if (score < 62 || isClash) alertLevel = 'CLASH_ANOMALY';
 
+    // Precision Luck Category (5 Phân Cấp Hên - Xui Chuẩn Xác)
+    let luckCategory: LuckCategory = 'BINH_HOA';
+    if (score >= 85) luckCategory = 'DAI_CAT';
+    else if (score >= 72) luckCategory = 'TIEU_CAT';
+    else if (score >= 58) luckCategory = 'BINH_HOA';
+    else if (score >= 45 && !isClash) luckCategory = 'TIEU_HUNG';
+    else luckCategory = 'DAI_HUNG';
+
+    const luckPercentage = score;
+    const riskPercentage = Math.max(1, 100 - score);
+
+    // 4 Detailed Life Fortune Aspects
+    const wealthScore = Math.max(20, Math.min(99, score + (isGuiRen ? 8 : 0) + (['Chính Tài', 'Thiên Tài', 'Thực Thần'].includes(tenGod.nameVi) ? 10 : -5)));
+    const careerScore = Math.max(20, Math.min(99, score + (zodiacSpirit.isAuspicious ? 6 : -6) + (['Chính Quan', 'Chính Ấn'].includes(tenGod.nameVi) ? 8 : -4)));
+    const relScore = Math.max(20, Math.min(99, score + (isSanHe || isLiuHe ? 14 : isClash ? -18 : 0)));
+    const safetyScore = Math.max(20, Math.min(99, score - (isClash ? 25 : 0) - (!zodiacSpirit.isAuspicious ? 8 : 0)));
+
+    const getAspectVerdict = (s: number): { status: 'Cát Lợi (Hên)' | 'Thuận Lợi' | 'Bình Hòa' | 'Thận Trọng' | 'Nguy Cơ (Xui)'; verdict: 'HEN' | 'BINH' | 'XUI' } => {
+      if (s >= 80) return { status: 'Cát Lợi (Hên)', verdict: 'HEN' };
+      if (s >= 68) return { status: 'Thuận Lợi', verdict: 'HEN' };
+      if (s >= 55) return { status: 'Bình Hòa', verdict: 'BINH' };
+      if (s >= 42) return { status: 'Thận Trọng', verdict: 'XUI' };
+      return { status: 'Nguy Cơ (Xui)', verdict: 'XUI' };
+    };
+
+    const wealthVerdict = getAspectVerdict(wealthScore);
+    const careerVerdict = getAspectVerdict(careerScore);
+    const relVerdict = getAspectVerdict(relScore);
+    const safetyVerdict = getAspectVerdict(safetyScore);
+
     // Activity recommendations
     const bestFor: string[] = [];
     const avoid: string[] = [];
 
-    if (alertLevel === 'GOLDEN_WINDOW') {
-      bestFor.push('Ký kết hợp đồng & đàm phán thương vụ lớn');
-      bestFor.push('Ra mắt sản phẩm, công bố thông điệp quan trọng');
-      bestFor.push('Gặp gỡ đối tác quý nhân và mở rộng kết nối');
-      avoid.push('Trì hoãn hoặc bỏ lỡ cơ hội hành động');
-    } else if (alertLevel === 'CLASH_ANOMALY') {
-      bestFor.push('Tập trung làm việc độc lập & nghiên cứu chuyên sâu');
-      bestFor.push('Thiền định, cân bằng tâm trí và uống nhiều nước');
-      bestFor.push('Rà soát lỗ hổng chi phí và bảo mật dữ liệu');
-      avoid.push('Tranh cãi bộc phát hoặc quyết định đầu tư mạo hiểm');
-      avoid.push('Ký kết văn bản pháp lý thiếu sự kiểm chứng kỹ');
+    if (luckCategory === 'DAI_CAT') {
+      bestFor.push('Ký kết hợp đồng tài chính & chốt giao dịch lớn');
+      bestFor.push('Ra mắt dự án, xuất hành khởi sự, gặp đối tác VIP');
+      bestFor.push('Cầu tài lộc, mở tài khoản, quyết định đầu tư then chốt');
+      avoid.push('Trì hoãn, chần chừ làm lỡ vận may trời ban');
+    } else if (luckCategory === 'TIEU_CAT') {
+      bestFor.push('Đàm phán công việc, trao đổi công khai, gửi báo cáo');
+      bestFor.push('Mở rộng quan hệ, giao lưu đối tác, kết bạn mới');
+      bestFor.push('Hoàn thành các mục tiêu quan trọng trong ngày');
+      avoid.push('Nghi ngờ bản thân, bỏ qua các ý tưởng sáng tạo');
+    } else if (luckCategory === 'DAI_HUNG') {
+      bestFor.push('Làm việc độc lập, thiền định tịnh tâm, đọc sách');
+      bestFor.push('Bảo toàn tài chính, rà soát sổ sách kế toán cẩn mật');
+      bestFor.push('Tạm dừng các chuyến đi xa hoặc lái xe tốc độ cao');
+      avoid.push('Ký kết giấy tờ pháp lý, xuất tiền đầu tư rủi ro');
+      avoid.push('Tranh cãi gay gắt với sếp, đồng nghiệp hay người thân');
+      avoid.push('Quyết định bộc phát trong lúc cảm xúc dao động');
+    } else if (luckCategory === 'TIEU_HUNG') {
+      bestFor.push('Xử lý việc tồn đọng nội bộ, rà soát chi phí');
+      bestFor.push('Kiểm tra kỹ lưỡng hợp đồng trước khi xác nhận');
+      bestFor.push('Nghỉ ngơi dưỡng sức, uống đủ nước thanh lọc cơ thể');
+      avoid.push('Vội vã chuyển tiền mà chưa đối chiếu tài khoản');
+      avoid.push('Bình luận nhạy cảm trên mạng xã hội hoặc nhóm chat');
     } else {
-      bestFor.push('Vận hành công việc hàng ngày ổn định');
-      bestFor.push('Hoàn thiện các đầu mục nhiệm vụ còn tồn đọng');
-      bestFor.push('Trao đổi nhóm và chăm sóc khách hàng thân thiết');
-      avoid.push('Hành động vội vã vượt ngoài kế hoạch chuẩn bị');
+      bestFor.push('Vận hành công việc theo quy trình định sẵn');
+      bestFor.push('Học hỏi nâng cao kỹ năng, trao đổi chuyên môn');
+      bestFor.push('Chăm sóc khách hàng hiện hữu và đối tác quen thuộc');
+      avoid.push('Hành động vượt ngoài kế hoạch đã chuẩn bị');
     }
 
     let tacticalAdvice = '';
     if (isClash) {
-      tacticalAdvice = `⚠️ Địa chi giờ ${slotBranchInfo.nameVi} xung trực tiếp với Chi ngày sinh (${BRANCHES[userDayBranch]?.nameVi}). Tần số năng lượng biến động mạnh, cần phòng ngự và thận trọng tối đa.`;
+      tacticalAdvice = `⚠️ [ĐẠI HUNG - CỰC XUI] Địa chi giờ ${slotBranchInfo.nameVi} xung trực tiếp với Chi ngày sinh (${BRANCHES[userDayBranch]?.nameVi}). Tần số năng lượng dao động cực mạnh, hãy hoãn quyết định lớn.`;
     } else if (isGuiRen) {
-      tacticalAdvice = `🌟 Giờ Thiên Ất Quý Nhân chiếu rọi: Dễ gặp được sự đồng thuận từ cấp trên hoặc đối tác chiến lược.`;
+      tacticalAdvice = `🌟 [ĐẠI CÁT - CỰC HÊN] Giờ Thiên Ất Quý Nhân chiếu rọi: Dễ gặp quý nhân tương trợ, hóa giải mọi trở ngại, đàm phán đại lợi.`;
     } else if (isSanHe || isLiuHe) {
-      tacticalAdvice = `✨ Giờ Tam Hợp / Lục Hợp mang lại từ trường hòa nhã, năng suất tương tác đội ngũ đạt mức tối ưu.`;
+      tacticalAdvice = `✨ [CÁT LÀNH] Giờ Tam Hợp / Lục Hợp hội tụ: Trường khí hòa hợp, làm việc nhóm và chốt hợp tác thuận buồm xuôi gió.`;
     } else if (zodiacSpirit.isAuspicious) {
-      tacticalAdvice = `Giờ Hoàng Đạo (${zodiacSpirit.name}) hỗ trợ khí sắc tích cực và sự minh mẫn trong tư duy logic.`;
+      tacticalAdvice = `[HOÀNG ĐẠO] Sao ${zodiacSpirit.name} hộ mệnh: Tư duy sáng suốt, khí vận tích cực, phù hợp tiến hành việc quan trọng.`;
     } else {
-      tacticalAdvice = `Giờ Hắc Đạo (${zodiacSpirit.name}): Thích hợp làm việc tĩnh, giữ vững kỷ luật nội tại.`;
+      tacticalAdvice = `[HẮC ĐẠO] Sao ${zodiacSpirit.name}: Khí vận có phần trầm lắng, thích hợp giữ vững kỷ luật nội tại, tránh xung đột.`;
     }
 
     return {
@@ -340,6 +414,9 @@ export function calculateRealtimeSnapshot(
       element: slotStemInfo.element,
       resonanceScore: score,
       alertLevel,
+      luckCategory,
+      luckPercentage,
+      riskPercentage,
       tenGodName: tenGod.nameVi,
       isGuiRen,
       isSanHe,
@@ -347,13 +424,74 @@ export function calculateRealtimeSnapshot(
       isClash,
       tacticalAdvice,
       bestForActivities: bestFor,
-      avoidActivities: avoid
+      avoidActivities: avoid,
+      aspects: {
+        wealth: {
+          score: wealthScore,
+          status: wealthVerdict.status,
+          verdict: wealthVerdict.verdict,
+          advice: wealthVerdict.verdict === 'HEN' 
+            ? 'Cát vận tài chính vượng phát, thích hợp xuất tiền, chốt hợp đồng hoặc mua sắm tài sản giá trị.'
+            : wealthVerdict.verdict === 'XUI'
+            ? 'Nguy cơ hao hụt hoặc tranh chấp tài sản. Tuyệt đối không cho mượn tiền hay đầu tư mạo hiểm.'
+            : 'Tài chính bình ổn, chỉ nên thu chi theo định mức hàng ngày.'
+        },
+        career: {
+          score: careerScore,
+          status: careerVerdict.status,
+          verdict: careerVerdict.verdict,
+          advice: careerVerdict.verdict === 'HEN'
+            ? 'Quan vận hanh thông, lời nói có trọng lượng, thích hợp thuyết trình và ra quyết định chỉ huy.'
+            : careerVerdict.verdict === 'XUI'
+            ? 'Dễ gặp bất đồng ý kiến hoặc trục trặc giấy tờ. Cần kiểm tra kỹ từng câu chữ trước khi gửi.'
+            : 'Tiến độ công việc đều đặn, tập trung xử lý các đầu mục kế hoạch sẵn có.'
+        },
+        relationship: {
+          score: relScore,
+          status: relVerdict.status,
+          verdict: relVerdict.verdict,
+          advice: relVerdict.verdict === 'HEN'
+            ? 'Nhân duyên hòa nhã, gặp gỡ kết nối bạn bè đối tác rất dễ tạo thiện cảm và tìm thấy tiếng nói chung.'
+            : relVerdict.verdict === 'XUI'
+            ? 'Khí trường dễ gây hiểu lầm hoặc nóng nảy. Khuyến nghị lắng nghe nhiều hơn phản bác.'
+            : 'Giao tiếp bình thường, đối nhân xử thế theo phép lịch thiệp.'
+        },
+        safety: {
+          score: safetyScore,
+          status: safetyVerdict.status,
+          verdict: safetyVerdict.verdict,
+          advice: safetyVerdict.verdict === 'HEN'
+            ? 'Thân tâm an lạc, sinh lực tràn trề, di chuyển xa gần đều được cát tinh nâng đỡ thuận lợi.'
+            : safetyVerdict.verdict === 'XUI'
+            ? 'Chú ý an toàn khi tham gia giao thông, tránh nâng vật nặng hoặc thức khuya làm tổn hao chân khí.'
+            : 'Sức khỏe ổn định, nên uống nước ấm và đi dạo thư giãn nhẹ nhàng.'
+        }
+      }
     };
   });
 
   const currentSlot = hourlySlots.find(s => s.isCurrent) || hourlySlots[0];
   const resonanceScore = currentSlot.resonanceScore;
   const alertLevel = currentSlot.alertLevel;
+  const luckCategory = currentSlot.luckCategory;
+  const luckPercentage = currentSlot.luckPercentage;
+  const riskPercentage = currentSlot.riskPercentage;
+
+  // Compute Micro-phase within current 2-hour window
+  let phaseName: 'Sơ Khắc' | 'Chính Khắc' | 'Mạt Khắc' = 'Chính Khắc';
+  let phaseDescription = '';
+  const progressPct = Math.round((minutesIntoWindow / 120) * 100);
+
+  if (minutesIntoWindow < 30) {
+    phaseName = 'Sơ Khắc';
+    phaseDescription = 'Giai đoạn khí trường canh giờ mới đang bắt đầu khai mở, năng lượng đang dần tích tụ.';
+  } else if (minutesIntoWindow <= 90) {
+    phaseName = 'Chính Khắc';
+    phaseDescription = 'Thời khắc chính vị - Khí trường đạt đỉnh cao vượng thịnh nhất của canh giờ hiện tại.';
+  } else {
+    phaseName = 'Mạt Khắc';
+    phaseDescription = 'Giai đoạn chuyển giao giao thoa, khí trường chuẩn bị chuyển dịch sang canh giờ kế tiếp.';
+  }
 
   // Auspicious directions & colors based on current hour element & favorable element
   const primaryEl = currentSlot.element;
@@ -382,19 +520,33 @@ export function calculateRealtimeSnapshot(
   let headlineMessage = '';
   let actionGuidance = '';
   let mitigationProtocol = '';
+  let quickRemedy = '';
 
-  if (alertLevel === 'GOLDEN_WINDOW') {
-    headlineMessage = `CỬA SỔ HOÀNG KIM: Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
-    actionGuidance = `Trường năng lượng đạt độ cộng hưởng cao nhất (${resonanceScore}/100). Hãy chốt các thỏa thuận then chốt, gửi email quan trọng hoặc đưa ra các quyết định bước ngoặt ngay trong canh giờ này.`;
-    mitigationProtocol = 'Tự tin đẩy mạnh tốc độ thực thi; từ trường cá nhân đang được bảo hộ bởi sao cát tinh.';
-  } else if (alertLevel === 'CLASH_ANOMALY') {
-    headlineMessage = `CẢNH BÁO XUNG KHẮC: Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
-    actionGuidance = `Phát hiện xung khắc vi mô (${currentSlot.isClash ? 'Địa Chi Tương Xung' : 'Xung Khắc Ngũ Hành'}). Khuyến nghị kích hoạt chế độ phòng vệ: hoãn ký kết các điều khoản mạo hiểm và giữ bình tĩnh tuyệt đối.`;
-    mitigationProtocol = `Tránh hành động bốc đồng; duy trì không gian yên tĩnh và kiểm tra kỹ lưỡng số liệu trước khi phê duyệt.`;
+  if (luckCategory === 'DAI_CAT') {
+    headlineMessage = `⚡ ĐẠI CÁT HOÀNG KIM (${luckPercentage}% MAY MẮN): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    actionGuidance = `Khí trường vũ trụ và mệnh bàn đồng pha tuyệt đối! Mọi hoạt động đầu tư, chốt đơn, ký kết, đàm phán đều có xác suất thắng lợi cao nhất.`;
+    mitigationProtocol = 'Nắm bắt ngay thời cơ hành động quyết đoán; từ trường của bạn đang được các cát tinh bảo bọc trọn vẹn.';
+    quickRemedy = 'Quay mặt về hướng ' + auspiciousDirection + ', mang theo vật phẩm màu ' + luckyColorName + ' để kích hoạt đỉnh cao tài lộc.';
+  } else if (luckCategory === 'TIEU_CAT') {
+    headlineMessage = `✨ TIỂU CÁT HANH THÔNG (${luckPercentage}% MAY MẮN): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    actionGuidance = `Thời điểm thuận lợi, nhân hòa, thích hợp gặp gỡ đối tác, xử lý việc trọng đại và đẩy nhanh tiến độ công việc.`;
+    mitigationProtocol = 'Duy trì phong độ tích cực, chủ động trao đổi và chia sẻ cơ hội với đồng đội.';
+    quickRemedy = 'Uống một ngụm trà ấm, hướng bàn làm việc về ' + auspiciousDirection + ' để duy trì dòng năng lượng hanh thông.';
+  } else if (luckCategory === 'DAI_HUNG') {
+    headlineMessage = `🚨 CẢNH BÁO ĐẠI HUNG (${riskPercentage}% RỦI RO): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    actionGuidance = `Phát hiện xung khắc nghiêm trọng giữa thời khắc hiện tại và bản mệnh (${currentSlot.isClash ? 'Địa Chi Lục Xung kịch liệt' : 'Tương Khắc Ngũ Hành'}). Nguy cơ xui xẻo, trục trặc cao!`;
+    mitigationProtocol = 'Kích hoạt ngay chế độ phòng vệ tuyệt đối: Hoãn ký kết, không xuất tiền đầu tư, không tranh cãi, giữ tĩnh lặng.';
+    quickRemedy = 'Hóa giải tức thì: Tránh ra quyết định vội vàng trước ' + currentSlot.endHour + ':00. Uống nước lọc, hít sâu 3 hơi để ổn định từ trường.';
+  } else if (luckCategory === 'TIEU_HUNG') {
+    headlineMessage = `⚠️ CẢNH BÁO THẬN TRỌNG (${riskPercentage}% RỦI RO): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    actionGuidance = `Năng lượng có phần nhiễu loạn do Hắc Đạo hoặc ngũ hành không tương dung. Dễ xảy ra chậm trễ hoặc phát sinh chi phí ngoài dự kiến.`;
+    mitigationProtocol = 'Kiểm tra kỹ lưỡng giấy tờ và số liệu, tránh phán đoán chủ quan.';
+    quickRemedy = 'Dành 5 phút nghỉ ngơi, điều chỉnh tâm thế điềm đạm trước khi phản hồi email hay điện thoại.';
   } else {
-    headlineMessage = `DÒNG CHẢY ỔN ĐỊNH: Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
-    actionGuidance = `Năng lượng trung tính và cân bằng (${resonanceScore}/100). Phù hợp tối ưu cho việc nghiên cứu, sắp xếp công việc, xây dựng kế hoạch và hội thảo nội bộ.`;
-    mitigationProtocol = 'Duy trì nhịp làm việc có kế hoạch; không cần can thiệp điều chỉnh đột ngột.';
+    headlineMessage = `⚖️ BÌNH HÒA TRUNG TÍNH (Cân Bằng): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    actionGuidance = `Năng lượng điều hòa, thích hợp làm việc định kỳ, tích lũy kiến thức, lên kế hoạch cho các bước đi tiếp theo.`;
+    mitigationProtocol = 'Tiến hành mọi sự theo lịch trình bài bản, giữ nhịp thở ổn định.';
+    quickRemedy = 'Giữ không gian làm việc thoáng đãng và ngăn nắp để duy trì sự sáng suốt.';
   }
 
   return {
@@ -415,10 +567,19 @@ export function calculateRealtimeSnapshot(
     },
     currentSlot,
     resonanceScore,
+    luckCategory,
+    luckPercentage,
+    riskPercentage,
     alertLevel,
+    microPhase: {
+      phaseName,
+      phaseDescription,
+      progressPercentage: progressPct
+    },
     headlineMessage,
     actionGuidance,
     mitigationProtocol,
+    quickRemedy,
     auspiciousDirection,
     luckyColorHex,
     luckyColorName,

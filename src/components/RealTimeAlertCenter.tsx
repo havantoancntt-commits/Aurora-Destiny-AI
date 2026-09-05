@@ -307,12 +307,25 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
                   {/* Inner Content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <span className="text-2xl font-mono font-bold text-white tracking-tight">
-                      {snapshot.resonanceScore}
+                      {snapshot.luckPercentage}
                       <span className="text-xs text-slate-400 font-normal">%</span>
                     </span>
-                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono">
-                      Cộng Hưởng
+                    <span className="text-[9px] uppercase tracking-wider text-emerald-400 font-mono font-bold">
+                      Tỷ Lệ Hên
                     </span>
+                  </div>
+                </div>
+
+                {/* Luck vs Risk Probability Summary */}
+                <div className="w-full flex items-center justify-between gap-3 text-xs font-mono bg-black/60 px-3 py-1.5 rounded-xl border border-white/10">
+                  <div className="text-left">
+                    <span className="text-[10px] text-slate-400 block">MAY MẮN:</span>
+                    <span className="font-bold text-emerald-400">{snapshot.luckPercentage}%</span>
+                  </div>
+                  <div className="w-px h-6 bg-white/10" />
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 block">RỦI RO:</span>
+                    <span className="font-bold text-rose-400">{snapshot.riskPercentage}%</span>
                   </div>
                 </div>
 
@@ -524,6 +537,83 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
                 <p className="text-sm text-slate-200 leading-relaxed font-sans">
                   {activeSlot.tacticalAdvice}
                 </p>
+
+                {/* 4 Life Fortune Aspects Grid */}
+                {activeSlot.aspects && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-amber-300">💰 Tài Lộc</span>
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                          activeSlot.aspects.wealth.verdict === 'HEN'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : activeSlot.aspects.wealth.verdict === 'XUI'
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {activeSlot.aspects.wealth.score}% ({activeSlot.aspects.wealth.verdict === 'HEN' ? 'Hên' : activeSlot.aspects.wealth.verdict === 'XUI' ? 'Xui' : 'Bình'})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-tight">
+                        {activeSlot.aspects.wealth.advice}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-indigo-300">💼 Công Việc</span>
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                          activeSlot.aspects.career.verdict === 'HEN'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : activeSlot.aspects.career.verdict === 'XUI'
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {activeSlot.aspects.career.score}% ({activeSlot.aspects.career.verdict === 'HEN' ? 'Hên' : activeSlot.aspects.career.verdict === 'XUI' ? 'Xui' : 'Bình'})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-tight">
+                        {activeSlot.aspects.career.advice}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-rose-300">❤️ Nhân Duyên</span>
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                          activeSlot.aspects.relationship.verdict === 'HEN'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : activeSlot.aspects.relationship.verdict === 'XUI'
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {activeSlot.aspects.relationship.score}% ({activeSlot.aspects.relationship.verdict === 'HEN' ? 'Hên' : activeSlot.aspects.relationship.verdict === 'XUI' ? 'Xui' : 'Bình'})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-tight">
+                        {activeSlot.aspects.relationship.advice}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/10 space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-teal-300">🛡️ An Toàn</span>
+                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold ${
+                          activeSlot.aspects.safety.verdict === 'HEN'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : activeSlot.aspects.safety.verdict === 'XUI'
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {activeSlot.aspects.safety.score}% ({activeSlot.aspects.safety.verdict === 'HEN' ? 'Hên' : activeSlot.aspects.safety.verdict === 'XUI' ? 'Xui' : 'Bình'})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-tight">
+                        {activeSlot.aspects.safety.advice}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Best For vs Avoid Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">

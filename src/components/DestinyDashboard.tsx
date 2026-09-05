@@ -30,6 +30,7 @@ import { PALACE_DEFS } from '../engine/ziwei';
 import { t } from '../i18n/translations';
 import { LanguageCode } from '../types/destiny';
 import { BaGuaCompassWidget } from './BaGuaCompassWidget';
+import { RealTimeLuckRadarBar } from './RealTimeLuckRadarBar';
 
 interface Props {
   profile: UserProfile;
@@ -41,6 +42,7 @@ interface Props {
   onOpenReportModal?: () => void;
   onOpenOracleModal?: () => void;
   onOpenSponsorshipModal?: () => void;
+  onOpenAlertCenter?: () => void;
 }
 
 export const DestinyDashboard: React.FC<Props> = ({
@@ -52,7 +54,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   onNavigateTab,
   onOpenReportModal,
   onOpenOracleModal = () => {},
-  onOpenSponsorshipModal = () => {}
+  onOpenSponsorshipModal = () => {},
+  onOpenAlertCenter = () => {}
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [isRecalculating, setIsRecalculating] = useState(false);
@@ -101,6 +104,12 @@ export const DestinyDashboard: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
+      {/* 0. LIVE REAL-TIME LUCK & FORTUNE RADAR MONITOR */}
+      <RealTimeLuckRadarBar
+        calculation={calculation}
+        onOpenFullRadar={onOpenAlertCenter}
+      />
+
       {/* 1. HERO EXECUTIVE SUMMARY CARD WITH DYNAMIC LIGHTING */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}

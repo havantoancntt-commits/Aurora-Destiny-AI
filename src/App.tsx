@@ -477,6 +477,7 @@ export default function App() {
                   onOpenReportModal={() => setShowReportModal(true)}
                   onOpenOracleModal={() => setShowOracleModal(true)}
                   onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
+                  onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
                 />
               )}
 
