@@ -29,6 +29,7 @@ import { STEMS, BRANCHES, ELEMENT_RELATIONS } from '../engine/canchi';
 import { PALACE_DEFS } from '../engine/ziwei';
 import { t } from '../i18n/translations';
 import { LanguageCode } from '../types/destiny';
+import { BaGuaCompassWidget } from './BaGuaCompassWidget';
 
 interface Props {
   profile: UserProfile;
@@ -38,6 +39,8 @@ interface Props {
   onRecalculate?: () => void;
   onNavigateTab?: (tab: any) => void;
   onOpenReportModal?: () => void;
+  onOpenOracleModal?: () => void;
+  onOpenSponsorshipModal?: () => void;
 }
 
 export const DestinyDashboard: React.FC<Props> = ({
@@ -47,7 +50,9 @@ export const DestinyDashboard: React.FC<Props> = ({
   language,
   onRecalculate,
   onNavigateTab,
-  onOpenReportModal
+  onOpenReportModal,
+  onOpenOracleModal = () => {},
+  onOpenSponsorshipModal = () => {}
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [isRecalculating, setIsRecalculating] = useState(false);
@@ -224,7 +229,15 @@ export const DestinyDashboard: React.FC<Props> = ({
         )}
       </motion.div>
 
-      {/* 2. BAZI FOUR PILLARS (TỨ TRỤ BÁT TỰ) INTERACTIVE GRID */}
+      {/* 2. SACRED BAGUA COMPASS & LUCKY DIRECTIONS PORTAL */}
+      <BaGuaCompassWidget
+        dayMasterElement={bazi.dayMasterElement}
+        favorableElements={bazi.favorableElements || ['Fire', 'Earth']}
+        onOpenOracleModal={onOpenOracleModal}
+        onOpenSponsorshipModal={onOpenSponsorshipModal}
+      />
+
+      {/* 3. BAZI FOUR PILLARS (TỨ TRỤ BÁT TỰ) INTERACTIVE GRID */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}

@@ -27,6 +27,8 @@ import { SacredCosmicCipher3D } from './components/SacredCosmicCipher3D';
 import { AppFooter } from './components/AppFooter';
 import { SponsorshipModal } from './components/SponsorshipModal';
 import { InternationalizationModal } from './components/InternationalizationModal';
+import { MysticOracleModal } from './components/MysticOracleModal';
+import { sacredSound } from './services/soundService';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -59,6 +61,7 @@ export default function App() {
   const [showRealtimeAlertModal, setShowRealtimeAlertModal] = useState<boolean>(false);
   const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
   const [showInternationalModal, setShowInternationalModal] = useState<boolean>(false);
+  const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -382,6 +385,7 @@ export default function App() {
           onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
           onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
           onOpenInternationalModal={() => setShowInternationalModal(true)}
+          onOpenOracleModal={() => setShowOracleModal(true)}
         />
       </div>
 
@@ -395,7 +399,10 @@ export default function App() {
         {activeProfile && calculation && ensemble && (
           <Top3DTabBar
             activeTab={activeTab}
-            onSelectTab={setActiveTab}
+            onSelectTab={(tab) => {
+              sacredSound.playCelestialChime(768);
+              setActiveTab(tab);
+            }}
             language={language}
             consistencyScore={ensemble?.overallConsistencyScore}
           />
@@ -468,6 +475,8 @@ export default function App() {
                   onRecalculate={handleRecalculate}
                   onNavigateTab={setActiveTab}
                   onOpenReportModal={() => setShowReportModal(true)}
+                  onOpenOracleModal={() => setShowOracleModal(true)}
+                  onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                 />
               )}
 
@@ -550,7 +559,10 @@ export default function App() {
       {activeProfile && calculation && ensemble && (
         <BottomNav
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={(tab) => {
+            sacredSound.playCelestialChime(768);
+            setActiveTab(tab);
+          }}
           language={language}
         />
       )}
@@ -632,6 +644,15 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Mystic I Ching Oracle Divination Modal */}
+      <MysticOracleModal
+        isOpen={showOracleModal}
+        onClose={() => setShowOracleModal(false)}
+        language={language}
+        userName={activeProfile?.name || 'Quý Bạn'}
+        onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
+      />
     </div>
   );
 }

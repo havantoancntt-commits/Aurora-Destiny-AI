@@ -17,12 +17,16 @@ import {
   X,
   UserPlus,
   Heart,
-  BookOpen
+  BookOpen,
+  Volume2,
+  VolumeX,
+  Compass
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { RealTimePulsePill } from './RealTimePulsePill';
+import { sacredSound } from '../services/soundService';
 
 interface Props {
   language: LanguageCode;
@@ -39,6 +43,7 @@ interface Props {
   onOpenAlertCenter?: () => void;
   onOpenSponsorshipModal?: () => void;
   onOpenInternationalModal?: () => void;
+  onOpenOracleModal?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -55,10 +60,19 @@ export const Navbar: React.FC<Props> = ({
   calculation = null,
   onOpenAlertCenter = () => {},
   onOpenSponsorshipModal,
-  onOpenInternationalModal
+  onOpenInternationalModal,
+  onOpenOracleModal
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isMuted, setIsMuted] = useState(sacredSound.getIsMuted());
+  const [isAmbientOn, setIsAmbientOn] = useState(sacredSound.getIsAmbientPlaying());
+
+  const handleToggleAudio = () => {
+    const muted = sacredSound.toggleMute();
+    setIsMuted(muted);
+    setIsAmbientOn(sacredSound.getIsAmbientPlaying());
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -336,6 +350,43 @@ export const Navbar: React.FC<Props> = ({
               >
                 <Globe className="w-3.5 h-3.5 text-teal-400" />
                 <span className="hidden xl:inline font-medium tracking-wide">Cài Đặt Quốc Tế</span>
+              </button>
+            )}
+
+            {/* Sacred Meditation Soundscape 432Hz Controller */}
+            <button
+              id="btn-nav-sacred-sound"
+              onClick={handleToggleAudio}
+              className={`p-1 sm:p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0 cursor-pointer ${
+                isMuted
+                  ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                  : 'bg-gradient-to-r from-purple-500/20 to-teal-500/20 border-teal-400/50 text-teal-200 shadow-[0_0_15px_rgba(45,212,191,0.25)]'
+              }`}
+              title={isMuted ? 'Bật sóng thiền vũ trụ 432Hz & Chuông Bát Nhã' : 'Đang phát sóng thiền 432Hz (Bấm để tắt)'}
+            >
+              {isMuted ? (
+                <VolumeX className="w-3.5 h-3.5 text-slate-400" />
+              ) : (
+                <Volume2 className="w-3.5 h-3.5 text-teal-300 animate-pulse" />
+              )}
+              <span className="hidden xl:inline font-mono font-medium tracking-tight">
+                {isMuted ? 'Âm Thiền: Tắt' : 'Thiên Âm 432Hz'}
+              </span>
+            </button>
+
+            {/* Mystic I Ching Oracle Divination Button */}
+            {onOpenOracleModal && (
+              <button
+                id="btn-nav-mystic-oracle"
+                onClick={onOpenOracleModal}
+                className="p-1 sm:p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-400/25 to-amber-500/20 border border-amber-400/60 text-amber-200 hover:text-white hover:border-amber-300 hover:bg-amber-500/30 text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.3)] shrink-0 cursor-pointer group"
+                title="Gieo Quẻ Kinh Dịch Khai Vận Hôm Nay"
+              >
+                <Compass className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-45 transition-transform" />
+                <span className="hidden md:inline font-bold tracking-wide font-cinzel">Gieo Quẻ</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-amber-400 text-black font-bold uppercase">
+                  Cát Vận
+                </span>
               </button>
             )}
 
