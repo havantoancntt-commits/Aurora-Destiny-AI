@@ -13,20 +13,29 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Layers
+  Layers,
+  Sliders,
+  Flame,
+  Clock
 } from 'lucide-react';
 import { CalculationResult, DecadeCycle, AnnualTransit } from '../types/destiny';
 import { STEMS, BRANCHES, ELEMENT_RELATIONS } from '../engine/canchi';
 import { LanguageCode } from '../types/destiny';
 import { t } from '../i18n/translations';
+import { DynamicTransitTimeMachine } from './DynamicTransitTimeMachine';
+import { LifetimeHeatmap100Years } from './LifetimeHeatmap100Years';
+import { soundEngine } from '../services/soundEffects';
 
 interface Props {
   calculation: CalculationResult;
   language: LanguageCode;
 }
 
+type TimelineSubTab = 'time-machine' | 'heatmap-100' | 'classic';
+
 export const TimelineView: React.FC<Props> = ({ calculation, language }) => {
   const currentYear = new Date().getFullYear();
+  const [activeSubTab, setActiveSubTab] = useState<TimelineSubTab>('time-machine');
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedDecadeIdx, setSelectedDecadeIdx] = useState<number>(2);
 
@@ -52,33 +61,123 @@ export const TimelineView: React.FC<Props> = ({ calculation, language }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Navigation Subtabs Bar */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+        className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-black/50 border border-white/10 backdrop-blur-xl"
       >
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-sm">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold text-white font-cinzel">
-              Dòng Thời Gian & Chu Kỳ Vận Trình (Timeline)
-            </h2>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Theo dõi nhịp điệu Đại Vận 10 năm và Lưu Niên từng năm.
-          </p>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => {
+              soundEngine.playRadarTick();
+              setActiveSubTab('time-machine');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
+              activeSubTab === 'time-machine'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold shadow-[0_0_15px_rgba(147,51,234,0.4)] border border-purple-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5 text-purple-300" />
+            <span>Phi Tinh Tứ Hóa Động (Time-Travel)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundEngine.playRadarTick();
+              setActiveSubTab('heatmap-100');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
+              activeSubTab === 'heatmap-100'
+                ? 'bg-gradient-to-r from-amber-600 to-yellow-600 text-black font-bold shadow-[0_0_15px_rgba(245,158,11,0.4)] border border-amber-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
+            <span>Bản Đồ Nhiệt 100 Năm (Life Heatmap)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundEngine.playRadarTick();
+              setActiveSubTab('classic');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
+              activeSubTab === 'classic'
+                ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-bold shadow-[0_0_15px_rgba(20,184,166,0.4)] border border-teal-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5 text-teal-300" />
+            <span>Đại Vận & Lưu Niên Chi Tiết</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="px-3.5 py-1 rounded-full text-xs font-mono bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 shadow-sm">
-            Năm Đang Chọn: {selectedYear}
-          </span>
+        <div className="flex items-center gap-2 px-3 py-1 text-xs font-mono text-slate-400">
+          <span>Năm hiện tại: <strong className="text-teal-300">{currentYear}</strong></span>
         </div>
       </motion.div>
+
+      {/* Content Rendering based on subtab */}
+      {activeSubTab === 'time-machine' && calculation.ziwei && (
+        <motion.div
+          key="time-machine"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <DynamicTransitTimeMachine chart={calculation.ziwei} />
+        </motion.div>
+      )}
+
+      {activeSubTab === 'heatmap-100' && (
+        <motion.div
+          key="heatmap-100"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <LifetimeHeatmap100Years
+            birthData={calculation.inputSnapshot}
+            calculation={calculation}
+            onSelectYear={(yr) => {
+              setSelectedYear(yr);
+            }}
+          />
+        </motion.div>
+      )}
+
+      {activeSubTab === 'classic' && (
+        <motion.div
+          key="classic"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-sm">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <h2 className="text-lg sm:text-xl font-bold text-white font-cinzel">
+                  Dòng Thời Gian & Chu Kỳ Vận Trình (Timeline)
+                </h2>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Theo dõi nhịp điệu Đại Vận 10 năm và Lưu Niên từng năm.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="px-3.5 py-1 rounded-full text-xs font-mono bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 shadow-sm">
+                Năm Đang Chọn: {selectedYear}
+              </span>
+            </div>
+          </div>
 
       {/* 1. DECADE CYCLES (ĐẠI VẬN 10 NĂM) CAROUSEL */}
       <motion.div
@@ -296,6 +395,8 @@ export const TimelineView: React.FC<Props> = ({ calculation, language }) => {
           </motion.div>
         )}
       </motion.div>
+      </motion.div>
+      )}
     </div>
   );
 };

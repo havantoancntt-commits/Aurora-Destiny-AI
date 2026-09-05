@@ -66,15 +66,15 @@ export const Top3DTabBar: React.FC<Props> = ({
       enLabel: 'Dòng Thời Gian 100 Năm',
       icon: TrendingUp,
       accentColor: 'from-cyan-500 to-blue-500',
-      badge: 'Đại Vận & Lưu Niên'
+      badge: 'Phi Tinh & 100 Năm'
     },
     {
       key: 'compatibility',
       labelKey: 'compatibility',
-      enLabel: 'Tương Hợp Nhân Duyên',
+      enLabel: 'Tương Hợp & Đối Tác',
       icon: HeartHandshake,
       accentColor: 'from-rose-500 to-pink-500',
-      badge: 'Hợp Tuổi & Đối Tác'
+      badge: 'Doanh Chủ & Nhân Duyên'
     },
     {
       key: 'remedies',

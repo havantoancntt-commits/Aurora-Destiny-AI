@@ -31,6 +31,8 @@ import {
   CompatibilityPartnerInput,
   CompatibilityAnalysis
 } from '../engine/compatibility';
+import { ExecutiveSynastryStudio } from './ExecutiveSynastryStudio';
+import { soundEngine } from '../services/soundEffects';
 
 interface Props {
   activeProfile: UserProfile;
@@ -45,6 +47,8 @@ export const CompatibilityStudio: React.FC<Props> = ({
   allProfiles,
   language
 }) => {
+  const [studioType, setStudioType] = useState<'personal' | 'executive'>('executive');
+
   // Other profiles excluding activeProfile
   const otherProfiles = useMemo(
     () => allProfiles.filter(p => p.id !== activeProfile.id),
@@ -67,8 +71,42 @@ export const CompatibilityStudio: React.FC<Props> = ({
     solarMonth: 8,
     solarDay: 18,
     solarHour: 10,
-    relationType: 'Spouse'
+    relationType: 'Business'
   });
+
+  // Partner Profile Object for Executive Synastry
+  const partnerProfileObj: UserProfile = useMemo(() => {
+    if (partnerMode === 'saved' && selectedSavedId) {
+      const saved = otherProfiles.find(p => p.id === selectedSavedId);
+      if (saved) return saved;
+    }
+    return {
+      id: 'custom_partner',
+      name: customPartner.name,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      birthData: {
+        solarYear: customPartner.solarYear,
+        solarMonth: customPartner.solarMonth,
+        solarDay: customPartner.solarDay,
+        solarHour: customPartner.solarHour ?? 12,
+        solarMinute: 0,
+        hasExactHour: true,
+        birthCity: 'Hà Nội',
+        birthCountry: 'Việt Nam',
+        timezoneOffset: 7,
+        timezoneName: 'Asia/Ho_Chi_Minh',
+        gender: customPartner.gender,
+        calendarSystem: 'solar'
+      },
+      settings: {
+        theme: 'luxury',
+        language: 'vi',
+        soundEffects: true,
+        autoAnalyze: true
+      }
+    };
+  }, [partnerMode, selectedSavedId, otherProfiles, customPartner]);
 
   // Active Partner Data for analysis
   const currentPartnerData: CompatibilityPartnerInput = useMemo(() => {
@@ -118,6 +156,41 @@ export const CompatibilityStudio: React.FC<Props> = ({
 
   return (
     <div className="space-y-6 pb-24 text-slate-200">
+      {/* 0. Studio Type Selector (Executive vs Personal) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-xl">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              soundEngine.playRadarTick();
+              setStudioType('executive');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
+              studioType === 'executive'
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-black font-bold shadow-[0_0_15px_rgba(245,158,11,0.4)] border border-amber-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            <span>Thẩm Định Doanh Chủ & Đối Tác HĐQT (Executive Synastry)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundEngine.playRadarTick();
+              setStudioType('personal');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
+              studioType === 'personal'
+                ? 'bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold shadow-[0_0_15px_rgba(244,63,94,0.4)] border border-rose-400/40'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Heart className="w-3.5 h-3.5" />
+            <span>Tương Hợp Nhân Duyên & Gia Đạo (Personal Synastry)</span>
+          </button>
+        </div>
+      </div>
+
       {/* 1. Header Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#120f24] via-[#0d1127] to-[#070a18] p-6 border border-rose-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
         <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
@@ -286,7 +359,28 @@ export const CompatibilityStudio: React.FC<Props> = ({
         )}
       </div>
 
-      {/* 3. Overall Compatibility Score Banner */}
+      {studioType === 'executive' ? (
+        <motion.div
+          key="executive-view"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <ExecutiveSynastryStudio
+            userProfile={activeProfile}
+            userCalc={calculation}
+            partnerProfile={partnerProfileObj}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="personal-view"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          {/* 3. Overall Compatibility Score Banner */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Big Score Dial Card */}
         <div className="lg:col-span-1 rounded-2xl bg-gradient-to-b from-[#141226]/90 via-[#0d0f1f]/90 to-[#070913]/95 border border-white/10 p-6 flex flex-col items-center justify-center text-center shadow-xl relative overflow-hidden">
@@ -567,6 +661,8 @@ export const CompatibilityStudio: React.FC<Props> = ({
           ))}
         </div>
       </div>
+      </motion.div>
+      )}
     </div>
   );
 };

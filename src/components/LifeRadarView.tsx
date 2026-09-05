@@ -37,11 +37,10 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
   const radarDomains = ensemble.lifeRadar || [];
   const totalAxes = radarDomains.length || 8;
 
-  // Geometry configuration for 360x360 SVG Canvas
-  const cx = 180;
-  const cy = 180;
-  const maxR = 94; // Maximum radius of outer grid
-  const labelR = 126; // Distance of text labels from center
+  // Geometry configuration for 380x380 SVG Canvas with generous padding
+  const cx = 190;
+  const cy = 190;
+  const maxR = 98; // Maximum radius of outer grid
 
   // Compute overall average score & strategic life stage badge
   const averageScore = useMemo(() => {
@@ -121,23 +120,26 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
     });
   }, [radarDomains, totalAxes, selectedDomainKey]);
 
-  // Label positions with intelligent text-anchor and dynamic dy
+  // Label positions with intelligent dynamic radial offset and anti-overlapping anchors
   const labelNodes = useMemo(() => {
     return radarDomains.map((item, i) => {
       const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
-      const x = cx + labelR * cos;
-      const y = cy + labelR * sin;
+
+      // Adaptive radial breathing room to prevent card boundary clipping
+      const radialDist = Math.abs(sin) > 0.8 ? maxR + 34 : (Math.abs(cos) > 0.8 ? maxR + 26 : maxR + 30);
+      const x = cx + radialDist * cos;
+      const y = cy + radialDist * sin;
       const isSelected = item.domainKey === selectedDomainKey;
 
       let textAnchor: 'start' | 'middle' | 'end' = 'middle';
       if (cos > 0.25) textAnchor = 'start';
       else if (cos < -0.25) textAnchor = 'end';
 
-      let dy1 = 4;
-      if (sin > 0.4) dy1 = 12;
-      else if (sin < -0.4) dy1 = -4;
+      let dy1 = 0;
+      if (sin > 0.7) dy1 = 6;
+      else if (sin < -0.7) dy1 = -6;
 
       const shortLabel = getDomainShortLabel(item);
 
@@ -231,7 +233,7 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
           <div className="relative w-full max-w-[340px] sm:max-w-[370px] aspect-square mx-auto my-2 flex items-center justify-center select-none">
             <svg
               className="w-full h-full overflow-visible drop-shadow-[0_0_20px_rgba(45,212,191,0.25)]"
-              viewBox="0 0 360 360"
+              viewBox="0 0 380 380"
             >
               <defs>
                 <linearGradient id="radarPolygonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -263,10 +265,37 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
                 />
               ))}
 
-              {/* Grid Scale Percentage Indicators along top vertical axis */}
-              <text x={cx + 4} y={cy - maxR * 0.5 + 3} fill="#64748b" fontSize="8" fontFamily="monospace">50%</text>
-              <text x={cx + 4} y={cy - maxR * 0.75 + 3} fill="#64748b" fontSize="8" fontFamily="monospace">75%</text>
-              <text x={cx + 4} y={cy - maxR + 3} fill="#64748b" fontSize="8" fontFamily="monospace">100%</text>
+              {/* Grid Scale Percentage Indicators shifted off-axis at 22.5° to eliminate overlap */}
+              {[0.5, 0.75, 1.0].map((lvl, idx) => {
+                const scaleAngle = -Math.PI / 2 + Math.PI / 8; // 22.5 deg off vertical axis
+                const sx = cx + (maxR * lvl) * Math.cos(scaleAngle);
+                const sy = cy + (maxR * lvl) * Math.sin(scaleAngle);
+                return (
+                  <g key={`scale-${idx}`}>
+                    <rect
+                      x={sx - 11}
+                      y={sy - 6}
+                      width={22}
+                      height={12}
+                      rx={3}
+                      fill="rgba(5, 8, 18, 0.85)"
+                      stroke="rgba(255, 255, 255, 0.1)"
+                      strokeWidth="0.5"
+                    />
+                    <text
+                      x={sx}
+                      y={sy + 3}
+                      fill="#64748b"
+                      fontSize="7.5"
+                      fontWeight="600"
+                      fontFamily="monospace"
+                      textAnchor="middle"
+                    >
+                      {Math.round(lvl * 100)}%
+                    </text>
+                  </g>
+                );
+              })}
 
               {/* Radiating Axes Lines */}
               {axesLines.map((line, idx) => (
@@ -322,14 +351,32 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
                 </g>
               ))}
 
-              {/* Smart Non-overlapping Axis Labels */}
+              {/* Smart Non-overlapping Axis Labels with Optical Text Halos */}
               {labelNodes.map((lbl) => (
                 <g
                   key={lbl.item.domainKey}
                   onClick={() => setSelectedDomainKey(lbl.item.domainKey)}
                   className="cursor-pointer group select-none"
                 >
-                  {/* Domain Title */}
+                  {/* Background Optical Shield Halo for Title */}
+                  <text
+                    x={lbl.x}
+                    y={lbl.y}
+                    textAnchor={lbl.textAnchor}
+                    dy={lbl.dy1}
+                    fill="#050814"
+                    stroke="#050814"
+                    strokeWidth="4"
+                    strokeLinejoin="round"
+                    fontSize="10"
+                    fontWeight="800"
+                    fontFamily="monospace"
+                    letterSpacing="0.08em"
+                  >
+                    {lbl.shortLabel}
+                  </text>
+
+                  {/* Foreground Domain Title */}
                   <text
                     x={lbl.x}
                     y={lbl.y}
@@ -345,15 +392,40 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
                     {lbl.shortLabel}
                   </text>
 
-                  {/* Domain Score Pill Subtext */}
+                  {/* Background Optical Shield Halo for Score */}
                   <text
                     x={lbl.x}
                     y={lbl.y}
                     textAnchor={lbl.textAnchor}
-                    dy={lbl.dy1 + 11}
-                    fill={lbl.isSelected ? '#a855f7' : '#94a3b8'}
-                    fontSize="9"
-                    fontWeight="500"
+                    dy={lbl.dy1 + 13}
+                    fill="#050814"
+                    stroke="#050814"
+                    strokeWidth="3.5"
+                    strokeLinejoin="round"
+                    fontSize="9.5"
+                    fontWeight="bold"
+                    fontFamily="monospace"
+                  >
+                    {lbl.item.score}đ
+                  </text>
+
+                  {/* Foreground Domain Score Pill Subtext */}
+                  <text
+                    x={lbl.x}
+                    y={lbl.y}
+                    textAnchor={lbl.textAnchor}
+                    dy={lbl.dy1 + 13}
+                    fill={
+                      lbl.isSelected
+                        ? '#a855f7'
+                        : lbl.item.score >= 80
+                        ? '#34d399'
+                        : lbl.item.score <= 50
+                        ? '#f87171'
+                        : '#94a3b8'
+                    }
+                    fontSize="9.5"
+                    fontWeight="700"
                     fontFamily="monospace"
                   >
                     {lbl.item.score}đ
