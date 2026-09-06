@@ -7,6 +7,7 @@ import { calculateBaZiChart } from './bazi';
 import { calculateZiWeiChart } from './ziwei';
 import { calculateDecadeCycles, calculateAnnualTransits } from './temporal';
 import { evaluateConfidence } from './confidence';
+import { calculateTrueSolarTime } from './lunarSolar';
 
 export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
 export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
@@ -33,14 +34,31 @@ export function runFullDestinyCalculation(
   profileId: string = 'prof_default',
   eventsCount: number = 0
 ): CalculationResult {
-  const bazi = calculateBaZiChart(birthData);
-  const ziwei = calculateZiWeiChart(birthData);
-  const decades = calculateDecadeCycles(birthData);
-  const currentYear = new Date().getFullYear();
-  const annualTransits = calculateAnnualTransits(birthData, currentYear - 6, currentYear + 10);
-  const confidence = evaluateConfidence(birthData, eventsCount);
+  let effectiveBirthData: BirthData = { ...birthData };
 
-  const inputSignature = `${profileId}_${birthData.solarYear}_${birthData.solarMonth}_${birthData.solarDay}_${birthData.solarHour}_${birthData.solarMinute}_${birthData.gender}_${CALCULATION_ENGINE_VERSION}`;
+  // If user selected True Solar Time convention, compute astronomical solar hour & minute
+  if (birthData.timeConvention === 'trueSolar') {
+    const tst = calculateTrueSolarTime(
+      birthData.solarYear,
+      birthData.solarMonth,
+      birthData.solarDay,
+      birthData.solarHour,
+      birthData.solarMinute || 0,
+      birthData.timezoneOffset,
+      birthData.longitude ?? (birthData.timezoneOffset * 15)
+    );
+    effectiveBirthData.solarHour = tst.trueSolarHour;
+    effectiveBirthData.solarMinute = tst.trueSolarMinute;
+  }
+
+  const bazi = calculateBaZiChart(effectiveBirthData);
+  const ziwei = calculateZiWeiChart(effectiveBirthData);
+  const decades = calculateDecadeCycles(effectiveBirthData);
+  const currentYear = new Date().getFullYear();
+  const annualTransits = calculateAnnualTransits(effectiveBirthData, currentYear - 6, currentYear + 10);
+  const confidence = evaluateConfidence(effectiveBirthData, eventsCount);
+
+  const inputSignature = `${profileId}_${birthData.solarYear}_${birthData.solarMonth}_${birthData.solarDay}_${birthData.solarHour}_${birthData.solarMinute}_${birthData.gender}_${birthData.isLateRat ? 'lateRat' : 'standard'}_${birthData.timeConvention || 'civil'}_${CALCULATION_ENGINE_VERSION}`;
   const deterministicId = `calc_${deterministicHash(inputSignature)}`;
 
   return {

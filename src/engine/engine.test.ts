@@ -9,7 +9,14 @@ import { calculateZiWeiChart } from './ziwei';
 import { runFullDestinyCalculation } from './destinyEngine';
 import { runBacktestAnalysis } from './backtesting';
 import { evaluateWhatIfScenario } from './scenarios';
-import { convertSolarToLunar } from './lunarSolar';
+import {
+  convertSolarToLunar,
+  findSolarTermCrossing,
+  calculateEquationOfTime,
+  calculateTrueSolarTime,
+  getSunLongitudeAtTime,
+  gregorianToContinuousJD
+} from './lunarSolar';
 import { BirthData } from '../types/destiny';
 import { HistoricalEvent } from '../types/backtest';
 
@@ -183,6 +190,136 @@ export function runAllEngineTests(): TestReport {
     dedupBt.totalEventsAnalyzed === 1,
     'Backtest Deduplication of Identical Year & Title',
     `Deduped from 2 to ${dedupBt.totalEventsAnalyzed} event`
+  );
+
+  // TEST 15: Exact Solar Term Crossing & Lập Xuân Boundary Suite
+  const crossing2024 = findSolarTermCrossing(315, { year: 2024, month: 2, day: 4 }, 7);
+  assert(
+    Math.abs(crossing2024.solarLongitude - 315) < 0.0001,
+    'Solar Term Numerical Crossing Precision',
+    `Found Lập Xuân 2024 crossing at ${crossing2024.localIso} (Long: ${crossing2024.solarLongitude.toFixed(5)}°)`
+  );
+
+  // Boundary testing: -1d, -1h, -10m, -1m, +1m, +10m, +1h, +1d
+  const testOffsets = [
+    { offsetMs: -86400000, label: '-1d', expectYear: 'Gui' },
+    { offsetMs: -3600000, label: '-1h', expectYear: 'Gui' },
+    { offsetMs: -600000, label: '-10m', expectYear: 'Gui' },
+    { offsetMs: -60000, label: '-1m', expectYear: 'Gui' },
+    { offsetMs: 60000, label: '+1m', expectYear: 'Jia' },
+    { offsetMs: 600000, label: '+10m', expectYear: 'Jia' },
+    { offsetMs: 3600000, label: '+1h', expectYear: 'Jia' },
+    { offsetMs: 86400000, label: '+1d', expectYear: 'Jia' }
+  ];
+
+  let boundaryTestsPassed = true;
+  for (const t of testOffsets) {
+    const instantDate = new Date(crossing2024.utcDate.getTime() + t.offsetMs);
+    const localDate = new Date(instantDate.getTime() + 7 * 3600000);
+    const p = calculateYearPillar(
+      localDate.getUTCFullYear(),
+      localDate.getUTCMonth() + 1,
+      localDate.getUTCDate(),
+      7,
+      localDate.getUTCHours(),
+      localDate.getUTCMinutes()
+    );
+    if (p.stem !== t.expectYear) {
+      boundaryTestsPassed = false;
+      break;
+    }
+  }
+  assert(
+    boundaryTestsPassed,
+    'Solar Term Crossing Boundaries (-1d, -1h, -10m, -1m, +1m, +10m, +1h, +1d)',
+    'All 8 boundary instants transitioned deterministically between Quý Mão and Giáp Thìn'
+  );
+
+  // TEST 16: True Solar Time & Equation of Time (EoT) Verification
+  const j2000 = gregorianToContinuousJD(2000, 1, 1, 12, 0, 7);
+  const eotJ2000 = calculateEquationOfTime(j2000);
+  assert(
+    eotJ2000.equationOfTimeMinutes >= -15 && eotJ2000.equationOfTimeMinutes <= 17,
+    'Equation of Time Physical Limits',
+    `J2000 EoT: ${eotJ2000.equationOfTimeMinutes.toFixed(2)} min (within -15 to +17 min)`
+  );
+
+  const tstResult = calculateTrueSolarTime(2024, 6, 15, 12, 0, 7, 105.85); // Hanoi: 105.85°E
+  assert(
+    tstResult.convention === 'trueSolar' &&
+    tstResult.longitudeCorrectionMinutes === 3.4 && // (105.85 - 105) * 4 = +3.4m
+    typeof tstResult.trueSolarHour === 'number' &&
+    typeof tstResult.trueSolarMinute === 'number',
+    'True Solar Time Hanoi Solar Correction',
+    `Civil: 12:00 -> True Solar: ${tstResult.trueSolarHour}:${String(tstResult.trueSolarMinute).padStart(2, '0')} (EoT: ${tstResult.equationOfTimeMinutes}m, LongCorr: ${tstResult.longitudeCorrectionMinutes}m)`
+  );
+
+  // TEST 17: Comprehensive Late Rat 10-Time Matrix
+  // Test matrix on base date: 2024-05-10
+  const matrixTimes = [
+    { hour: 22, min: 59, branch: 'Hai', lateAdvances: false },
+    { hour: 23, min: 0, branch: 'Zi', lateAdvances: true },
+    { hour: 23, min: 30, branch: 'Zi', lateAdvances: true },
+    { hour: 23, min: 59, branch: 'Zi', lateAdvances: true },
+    { hour: 0, min: 0, branch: 'Zi', lateAdvances: false }, // Calendar day 11
+    { hour: 0, min: 30, branch: 'Zi', lateAdvances: false },
+    { hour: 0, min: 59, branch: 'Zi', lateAdvances: false },
+    { hour: 1, min: 0, branch: 'Chou', lateAdvances: false },
+    { hour: 1, min: 59, branch: 'Chou', lateAdvances: false },
+    { hour: 2, min: 0, branch: 'Chou', lateAdvances: false }
+  ];
+
+  let matrixAllCorrect = true;
+  for (const m of matrixTimes) {
+    const day = m.hour === 23 || m.hour === 22 ? 10 : 11;
+    const dpEarly = calculateDayPillar(2024, 5, day, 7, false, m.hour);
+    const dpLate = calculateDayPillar(2024, 5, day, 7, true, m.hour);
+    const hp = calculateHourPillar(dpEarly.stem, m.hour, m.min, false);
+
+    if (hp.branch !== m.branch) {
+      matrixAllCorrect = false;
+      break;
+    }
+    if (m.lateAdvances) {
+      if (dpEarly.stem === dpLate.stem) {
+        matrixAllCorrect = false;
+        break;
+      }
+    } else {
+      if (dpEarly.stem !== dpLate.stem) {
+        matrixAllCorrect = false;
+        break;
+      }
+    }
+  }
+  assert(
+    matrixAllCorrect,
+    'Late Rat 10-Time Matrix (22:59 to 02:00 for ON and OFF)',
+    'Verified branch and day transitions across all 10 boundary timestamps'
+  );
+
+  // TEST 18: Lunar Calendar Benchmark Dataset (1984 - 2025)
+  const lunarBenchmarks = [
+    { sy: 1984, sm: 2, sd: 2, ly: 1984, lm: 1, ld: 1, isLeap: false, desc: 'Giáp Tý Tết' },
+    { sy: 2000, sm: 2, sd: 5, ly: 2000, lm: 1, ld: 1, isLeap: false, desc: 'Canh Thìn Tết' },
+    { sy: 2020, sm: 1, sd: 25, ly: 2020, lm: 1, ld: 1, isLeap: false, desc: 'Canh Tý Tết' },
+    { sy: 2023, sm: 3, sd: 22, ly: 2023, lm: 2, ld: 1, isLeap: true, desc: 'Quý Mão Nhuận Tháng 2' },
+    { sy: 2024, sm: 2, sd: 10, ly: 2024, lm: 1, ld: 1, isLeap: false, desc: 'Giáp Thìn Tết' },
+    { sy: 2025, sm: 1, sd: 29, ly: 2025, lm: 1, ld: 1, isLeap: false, desc: 'Ất Tỵ Tết' }
+  ];
+
+  let lunarAllPassed = true;
+  for (const b of lunarBenchmarks) {
+    const l = convertSolarToLunar(b.sy, b.sm, b.sd, 7);
+    if (l.lunarYear !== b.ly || l.lunarMonth !== b.lm || l.lunarDay !== b.ld || l.isLeapMonth !== b.isLeap) {
+      lunarAllPassed = false;
+      break;
+    }
+  }
+  assert(
+    lunarAllPassed,
+    'Lunar Calendar Benchmark Dataset (1984-2025 Tet & Leap Months)',
+    'All 6 historic benchmarks matched astronomical records exactly'
   );
 
   const passed = results.filter(r => r.status === 'PASS').length;

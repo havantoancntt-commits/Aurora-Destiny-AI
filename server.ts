@@ -76,6 +76,15 @@ bootstrapAdminIfConfigured();
 // Clean up expired sessions on startup
 repository.cleanupExpiredSessions();
 
+// Periodic expired session & abandoned guest purge (every 15 minutes)
+setInterval(() => {
+  try {
+    repository.cleanupExpiredSessions();
+  } catch (err) {
+    console.error('[Session Cleanup Error]', err);
+  }
+}, 15 * 60 * 1000);
+
 // ----------------------------------------------------
 // 1. HEALTH & OBSERVABILITY (LIVENESS, READINESS & DIAGNOSTICS)
 // ----------------------------------------------------
@@ -284,6 +293,20 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, (req, res, next) 
     const validated = ProfileCreateSchema.parse(req.body);
     const userId = req.user!.id;
 
+    // Enforce guest quota: Guest users limited to max 2 profiles
+    if (req.user!.role === 'GUEST' || userId.startsWith('usr_guest_')) {
+      const existingProfiles = repository.getProfiles(userId);
+      if (existingProfiles.length >= 2) {
+        return res.status(403).json({
+          error: {
+            code: 'GUEST_QUOTA_EXCEEDED',
+            message: 'Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.',
+            requestId: req.requestId
+          }
+        });
+      }
+    }
+
     // Atomic transaction for profile, calculation & initial backtest creation
     const { newProfile, calc } = repository.runTransaction((repo) => {
       const createdProfile: UserProfile = {
@@ -471,6 +494,20 @@ app.post(['/api/events', '/api/backtests/event'], requireAuth, (req, res, next) 
     const validated = HistoricalEventSchema.parse(req.body);
     const profile = verifyProfileOwnership(req, res, validated.profileId);
     if (!profile) return;
+
+    // Enforce guest quota: Guest users limited to max 5 historical events
+    if (req.user!.role === 'GUEST' || req.user!.id.startsWith('usr_guest_')) {
+      const existingEvents = repository.getHistoricalEvents(validated.profileId);
+      if (existingEvents.length >= 5) {
+        return res.status(403).json({
+          error: {
+            code: 'GUEST_EVENT_QUOTA_EXCEEDED',
+            message: 'Phiên khách tạm thời giới hạn tối đa 5 sự kiện đối chiếu. Vui lòng đăng ký tài khoản chính thức miễn phí để lưu trữ toàn bộ lịch sử.',
+            requestId: req.requestId
+          }
+        });
+      }
+    }
 
     const event = {
       id: `evt_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,

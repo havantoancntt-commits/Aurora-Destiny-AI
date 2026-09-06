@@ -4,7 +4,7 @@
 
 import { BirthData, BehavioralContext, CalculationResult } from './destiny';
 
-export type UserRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN';
+export type UserRole = 'USER' | 'ADMIN' | 'SUPER_ADMIN' | 'GUEST';
 
 export type SubscriptionTier = 'Free' | 'Premium' | 'Pro' | 'Enterprise';
 
@@ -32,6 +32,7 @@ export interface UserAccount {
   createdAt: string;
   lastLoginAt: string;
   profilesCount: number;
+  isGuest?: boolean;
 }
 
 export interface UserPreferences {
@@ -54,6 +55,7 @@ export interface AuthSession {
 export interface StoredSession {
   token: string;
   userId: string;
+  role?: UserRole;
   expiresAt: number; // Unix epoch ms
   createdAt: number;
   lastAccessedAt: number;

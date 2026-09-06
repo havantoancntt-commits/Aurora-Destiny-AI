@@ -52,7 +52,7 @@ export const SOLAR_TERMS = [
 
 // Exact Sun Longitude in Degrees (0° to 360°)
 export function getSunLongitudeDegrees(jdn: number, timeZone: number = 7): number {
-  const T = (jdn - 2451545.0 + 0.5 - timeZone / 24) / 36525;
+  const T = (jdn - 2451545.0 - 0.5 - timeZone / 24) / 36525;
   const T2 = T * T;
   const dr = PI / 180;
   const M = 357.5291 + 35999.0503 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
@@ -120,6 +120,181 @@ export function getSolarTerm(
   return SOLAR_TERMS[termIdx];
 }
 
+// ==========================================================
+// NUMERICAL ROOT FINDING: EXACT SOLAR TERM CROSSING INSTANT
+// Finds exact moment when Sun crosses 0°, 15°, 30° ... 315°
+// ==========================================================
+export interface SolarTermCrossing {
+  targetLongitude: number;
+  continuousJD: number;
+  utcDate: Date;
+  localIso: string;
+  solarLongitude: number;
+  errorToleranceDeg: number;
+  timezoneOffset: number;
+}
+
+export function findSolarTermCrossing(
+  targetLongitude: number,
+  approximateDate: { year: number; month: number; day: number },
+  timezoneOffset: number = 7,
+  errorToleranceDeg: number = 0.00001
+): SolarTermCrossing {
+  const approxJD = gregorianToContinuousJD(
+    approximateDate.year,
+    approximateDate.month,
+    approximateDate.day,
+    12,
+    0,
+    timezoneOffset
+  );
+
+  function angleDiff(jd: number): number {
+    const deg = getSunLongitudeAtInstant(jd);
+    return ((deg - targetLongitude + 540) % 360) - 180;
+  }
+
+  const initialDiff = angleDiff(approxJD);
+  const approxDaysShift = -initialDiff / 0.985647;
+  let centerJD = approxJD + approxDaysShift;
+
+  let lowJD = centerJD - 2.5;
+  let highJD = centerJD + 2.5;
+  let diffLow = angleDiff(lowJD);
+  let diffHigh = angleDiff(highJD);
+
+  let attempts = 0;
+  while (diffLow > 0 && attempts < 10) {
+    lowJD -= 2.0;
+    diffLow = angleDiff(lowJD);
+    attempts++;
+  }
+  attempts = 0;
+  while (diffHigh < 0 && attempts < 10) {
+    highJD += 2.0;
+    diffHigh = angleDiff(highJD);
+    attempts++;
+  }
+
+  let midJD = (lowJD + highJD) / 2;
+  for (let iter = 0; iter < 60; iter++) {
+    midJD = (lowJD + highJD) / 2;
+    const diff = angleDiff(midJD);
+    if (Math.abs(diff) <= errorToleranceDeg || (highJD - lowJD) < 1e-8) {
+      break;
+    }
+    if (diff < 0) {
+      lowJD = midJD;
+    } else {
+      highJD = midJD;
+    }
+  }
+
+  const finalLongitude = getSunLongitudeAtInstant(midJD);
+  const utcMs = Math.round((midJD - 2440587.5) * 86400000);
+  const utcDate = new Date(utcMs);
+  const localMs = utcMs + timezoneOffset * 3600000;
+  const localIso = new Date(localMs).toISOString().replace('Z', `+${String(timezoneOffset).padStart(2, '0')}:00`);
+
+  return {
+    targetLongitude,
+    continuousJD: midJD,
+    utcDate,
+    localIso,
+    solarLongitude: finalLongitude,
+    errorToleranceDeg,
+    timezoneOffset
+  };
+}
+
+// ==========================================================
+// TRUE SOLAR TIME & EQUATION OF TIME (EoT)
+// Calculates physical solar time accounting for Earth's orbital eccentricity & axial tilt
+// ==========================================================
+export interface TrueSolarTimeResult {
+  convention: 'civil' | 'trueSolar';
+  civilHour: number;
+  civilMinute: number;
+  trueSolarHour: number;
+  trueSolarMinute: number;
+  equationOfTimeMinutes: number;
+  longitudeCorrectionMinutes: number;
+  totalCorrectionMinutes: number;
+  explanation: string;
+}
+
+export function calculateEquationOfTime(continuousJD: number): {
+  equationOfTimeMinutes: number;
+  sunDeclinationDegrees: number;
+} {
+  const T = (continuousJD - 2451545.0) / 36525;
+  const dr = Math.PI / 180;
+  const radToDeg = 180 / Math.PI;
+
+  const L0 = (280.46645 + 36000.76983 * T + 0.0003032 * T * T) % 360;
+  const M = (357.52910 + 35999.05030 * T - 0.0001559 * T * T - 0.00000048 * T * T * T) % 360;
+  const e = 0.016708634 - 0.000042037 * T - 0.0000001267 * T * T;
+  const eps0 = 23.43929111 - (46.8150 * T + 0.00059 * T * T - 0.001813 * T * T * T) / 3600;
+  const eps = eps0 * dr;
+
+  const y = Math.tan(eps / 2) * Math.tan(eps / 2);
+  const L0_rad = L0 * dr;
+  const M_rad = M * dr;
+
+  const eotRad =
+    y * Math.sin(2 * L0_rad) -
+    2 * e * Math.sin(M_rad) +
+    4 * e * y * Math.sin(M_rad) * Math.cos(2 * L0_rad) -
+    0.5 * y * y * Math.sin(4 * L0_rad) -
+    1.25 * e * e * Math.sin(2 * M_rad);
+
+  const equationOfTimeMinutes = eotRad * radToDeg * 4;
+
+  const sunTrueLong = getSunLongitudeAtInstant(continuousJD) * dr;
+  const sinDec = Math.sin(eps) * Math.sin(sunTrueLong);
+  const sunDeclinationDegrees = Math.asin(sinDec) * radToDeg;
+
+  return { equationOfTimeMinutes, sunDeclinationDegrees };
+}
+
+export function calculateTrueSolarTime(
+  year: number,
+  month: number,
+  day: number,
+  civilHour: number,
+  civilMinute: number,
+  timezoneOffset: number = 7,
+  longitude: number = 105.85 // Default Hanoi: 105.85°E
+): TrueSolarTimeResult {
+  const jd = gregorianToContinuousJD(year, month, day, civilHour, civilMinute, timezoneOffset);
+  const { equationOfTimeMinutes } = calculateEquationOfTime(jd);
+
+  const standardMeridian = timezoneOffset * 15;
+  const longitudeCorrectionMinutes = (longitude - standardMeridian) * 4;
+  const totalCorrectionMinutes = equationOfTimeMinutes + longitudeCorrectionMinutes;
+
+  const totalCivilMinutes = civilHour * 60 + civilMinute;
+  let totalTrueSolarMinutes = Math.round(totalCivilMinutes + totalCorrectionMinutes);
+
+  while (totalTrueSolarMinutes < 0) totalTrueSolarMinutes += 1440;
+  totalTrueSolarMinutes = totalTrueSolarMinutes % 1440;
+
+  const trueSolarHour = Math.floor(totalTrueSolarMinutes / 60);
+  const trueSolarMinute = totalTrueSolarMinutes % 60;
+
+  return {
+    convention: 'trueSolar',
+    civilHour,
+    civilMinute,
+    trueSolarHour,
+    trueSolarMinute,
+    equationOfTimeMinutes: Math.round(equationOfTimeMinutes * 100) / 100,
+    longitudeCorrectionMinutes: Math.round(longitudeCorrectionMinutes * 100) / 100,
+    totalCorrectionMinutes: Math.round(totalCorrectionMinutes * 100) / 100,
+    explanation: `Giờ dân dụng: ${civilHour}h${String(civilMinute).padStart(2, '0')}. Hiệu chỉnh kinh độ (${longitude}° vs ${standardMeridian}°): ${longitudeCorrectionMinutes >= 0 ? '+' : ''}${longitudeCorrectionMinutes.toFixed(1)}p. Phương trình thời gian (EoT): ${equationOfTimeMinutes >= 0 ? '+' : ''}${equationOfTimeMinutes.toFixed(1)}p. Giờ mặt trời thực: ${trueSolarHour}h${String(trueSolarMinute).padStart(2, '0')}.`
+  };
+}
+
 // Astronomical New Moon (Sóc) calculation
 function getNewMoonDay(k: number, timeZone: number): number {
   const T = k / 1236.85;
@@ -177,23 +352,37 @@ export function convertSolarToLunar(
   year: number,
   month: number,
   day: number,
-  timezoneOffset: number = 7
+  timezoneOffset: number = 7,
+  isLateRat: boolean = false,
+  hour: number = 12
 ): LunarDate {
-  const dayNumber = gregorianToJulianDay(year, month, day);
+  let effectiveYear = year;
+  let effectiveMonth = month;
+  let effectiveDay = day;
+
+  // If isLateRat is true and hour is 23 (Dạ Tý), the day advances to the next calendar date
+  if (isLateRat && hour === 23) {
+    const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+    effectiveYear = nextDate.getUTCFullYear();
+    effectiveMonth = nextDate.getUTCMonth() + 1;
+    effectiveDay = nextDate.getUTCDate();
+  }
+
+  const dayNumber = gregorianToJulianDay(effectiveYear, effectiveMonth, effectiveDay);
   const k = Math.floor((dayNumber - 2415021.076998695) / 29.530588853);
   let monthStart = getNewMoonDay(k + 1, timezoneOffset);
   if (monthStart > dayNumber) {
     monthStart = getNewMoonDay(k, timezoneOffset);
   }
-  let a11 = getLunarMonth11(year, timezoneOffset);
+  let a11 = getLunarMonth11(effectiveYear, timezoneOffset);
   let b11 = a11;
   let lunarYear: number;
   if (a11 >= monthStart) {
-    lunarYear = year;
-    a11 = getLunarMonth11(year - 1, timezoneOffset);
+    lunarYear = effectiveYear;
+    a11 = getLunarMonth11(effectiveYear - 1, timezoneOffset);
   } else {
-    lunarYear = year + 1;
-    b11 = getLunarMonth11(year + 1, timezoneOffset);
+    lunarYear = effectiveYear + 1;
+    b11 = getLunarMonth11(effectiveYear + 1, timezoneOffset);
   }
 
   const lunarDay = dayNumber - monthStart + 1;

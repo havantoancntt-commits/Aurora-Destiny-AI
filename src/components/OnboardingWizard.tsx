@@ -106,6 +106,8 @@ export const OnboardingWizard: React.FC<Props> = ({
   const [solarHour, setSolarHour] = useState<number>(12);
   const [solarMinute, setSolarMinute] = useState<number>(0);
   const [selectedZodiacBranch, setSelectedZodiacBranch] = useState<EarthlyBranch>('Wu_B');
+  const [isLateRat, setIsLateRat] = useState<boolean>(false);
+  const [timeConvention, setTimeConvention] = useState<'civil' | 'trueSolar'>('civil');
 
   // Place of birth
   const [birthCity, setBirthCity] = useState('Hà Nội');
@@ -118,13 +120,13 @@ export const OnboardingWizard: React.FC<Props> = ({
   // Real-time Can Chi & Elemental Preview Computation
   const previewCalculation = useMemo(() => {
     try {
-      const yearP = calculateYearPillar(solarYear, solarMonth, solarDay);
-      const monthP = calculateMonthPillar(yearP.stem, solarYear, solarMonth, solarDay);
-      const dayP = calculateDayPillar(solarYear, solarMonth, solarDay);
       const effectiveHour = hourMode === 'unknown' ? 12 : solarHour;
-      const hourP = calculateHourPillar(dayP.stem, effectiveHour);
+      const yearP = calculateYearPillar(solarYear, solarMonth, solarDay, timezoneOffset, effectiveHour, solarMinute);
+      const monthP = calculateMonthPillar(yearP.stem, solarYear, solarMonth, solarDay, timezoneOffset, effectiveHour, solarMinute);
+      const dayP = calculateDayPillar(solarYear, solarMonth, solarDay, timezoneOffset, isLateRat, effectiveHour);
+      const hourP = calculateHourPillar(dayP.stem, effectiveHour, solarMinute, isLateRat);
       const naYin = getNaYin(yearP.stem, yearP.branch);
-      const lunar = convertSolarToLunar(solarYear, solarMonth, solarDay, timezoneOffset);
+      const lunar = convertSolarToLunar(solarYear, solarMonth, solarDay, timezoneOffset, isLateRat, effectiveHour);
 
       return {
         year: `${STEMS[yearP.stem].nameVi} ${BRANCHES[yearP.branch].nameVi}`,
@@ -150,7 +152,7 @@ export const OnboardingWizard: React.FC<Props> = ({
         solarTerm: 'Lập Xuân'
       };
     }
-  }, [solarYear, solarMonth, solarDay, solarHour, hourMode, timezoneOffset]);
+  }, [solarYear, solarMonth, solarDay, solarHour, solarMinute, hourMode, timezoneOffset, isLateRat]);
 
   // Handle Zodiac Selection
   const handleSelectZodiac = (zh: typeof ZODIAC_HOURS[0]) => {
@@ -182,7 +184,10 @@ export const OnboardingWizard: React.FC<Props> = ({
         timezoneOffset,
         timezoneName: `UTC${timezoneOffset >= 0 ? `+${timezoneOffset}` : timezoneOffset}`,
         gender,
-        calendarSystem: 'solar'
+        calendarSystem: 'solar',
+        isLateRat,
+        timeConvention,
+        longitude: birthCity.includes('Hồ Chí Minh') ? 106.66 : 105.85
       };
 
       const behavioral: BehavioralContext = {
@@ -576,6 +581,60 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </span>
                 </div>
               )}
+
+              {/* Astronomical Conventions & Late Rat Configuration */}
+              <div className="pt-3 border-t border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-200 block">Quy ước Dạ Tý (23h00 - 23h59)</span>
+                    <span className="text-[11px] text-slate-400">
+                      {isLateRat ? 'Tính sang Trụ Ngày hôm sau (Dạ Tý quy ước mới)' : 'Giữ nguyên Trụ Ngày hiện tại (Chính Tý cổ truyền)'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsLateRat(!isLateRat)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                      isLateRat ? 'bg-teal-500' : 'bg-white/20'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isLateRat ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div>
+                    <span className="text-xs font-semibold text-slate-200 block">Hệ Quy Chiếu Thời Gian</span>
+                    <span className="text-[11px] text-slate-400">
+                      {timeConvention === 'civil' ? 'Giờ Dân Dụng (Civil Standard Time UTC+7)' : 'Giờ Mặt Trời Thực (True Solar Time - EoT)'}
+                    </span>
+                  </div>
+                  <div className="flex rounded-xl bg-black/60 p-1 border border-white/10 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setTimeConvention('civil')}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                        timeConvention === 'civil' ? 'bg-teal-500/30 text-teal-300 font-bold border border-teal-500/30' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Dân Dụng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimeConvention('trueSolar')}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                        timeConvention === 'trueSolar' ? 'bg-teal-500/30 text-teal-300 font-bold border border-teal-500/30' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Mặt Trời Thực
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* MỤC 4: NƠI SINH & MỤC TIÊU QUAN TÂM */}

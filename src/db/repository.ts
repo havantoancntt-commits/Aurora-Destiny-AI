@@ -333,17 +333,77 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     const { _checksum, ...cleanState } = this.state;
     const currentChecksum = this.computeChecksum(cleanState);
 
-    // Foreign key integrity check: Every profile must have a valid user
+    // 1. Email uniqueness check
+    const seenEmails = new Map<string, string>();
+    for (const [userId, user] of Object.entries(this.state.users)) {
+      if (!user.isGuest && user.email) {
+        const normalizedEmail = user.email.toLowerCase().trim();
+        if (seenEmails.has(normalizedEmail)) {
+          errors.push(`Duplicate email ${normalizedEmail} between users ${seenEmails.get(normalizedEmail)} and ${userId}`);
+        } else {
+          seenEmails.set(normalizedEmail, userId);
+        }
+      }
+      // Check timestamp validity
+      if (user.createdAt && isNaN(Date.parse(user.createdAt))) {
+        errors.push(`Invalid createdAt timestamp on user ${userId}`);
+      }
+    }
+
+    // 2. Session -> User FK check
+    for (const [token, session] of Object.entries(this.state.sessions)) {
+      if (!this.state.users[session.userId]) {
+        errors.push(`Orphan session ${token.slice(0, 8)}...: user ${session.userId} does not exist.`);
+      }
+    }
+
+    // 3. User Preferences -> User FK check
+    for (const [userId] of Object.entries(this.state.preferences)) {
+      if (!this.state.users[userId]) {
+        errors.push(`Orphan preferences for non-existent user ${userId}.`);
+      }
+    }
+
+    // 4. Profile -> User FK check
     for (const [profileId, profile] of Object.entries(this.state.profiles)) {
       if (!this.state.users[profile.userId]) {
         errors.push(`Orphan profile ${profileId}: user ${profile.userId} does not exist.`);
       }
+      if (profile.createdAt && isNaN(Date.parse(profile.createdAt))) {
+        errors.push(`Invalid createdAt timestamp on profile ${profileId}`);
+      }
     }
 
-    // Foreign key integrity check: Every calculation must link to a valid profile
+    // 5. Calculation -> Profile FK check
     for (const [calcId, calc] of Object.entries(this.state.calculations)) {
       if (!this.state.profiles[calc.profileId]) {
         errors.push(`Orphan calculation ${calcId}: profile ${calc.profileId} does not exist.`);
+      }
+    }
+
+    // 6. Historical Events -> Profile FK check
+    for (const [profileId, events] of Object.entries(this.state.historicalEvents)) {
+      if (!this.state.profiles[profileId]) {
+        errors.push(`Orphan historical events list: profile ${profileId} does not exist.`);
+      }
+      for (const ev of events) {
+        if (ev.profileId !== profileId) {
+          errors.push(`Mismatched profileId in event ${ev.id}: expected ${profileId}, got ${ev.profileId}`);
+        }
+      }
+    }
+
+    // 7. Backtest Results -> Profile FK check
+    for (const [profileId, bt] of Object.entries(this.state.backtestResults)) {
+      if (!this.state.profiles[profileId]) {
+        errors.push(`Orphan backtest result: profile ${profileId} does not exist.`);
+      }
+    }
+
+    // 8. Chat Messages -> Profile FK check
+    for (const [profileId] of Object.entries(this.state.chatMessages)) {
+      if (!this.state.profiles[profileId]) {
+        errors.push(`Orphan chat messages: profile ${profileId} does not exist.`);
       }
     }
 
@@ -513,7 +573,40 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
         cleaned++;
       }
     }
-    if (cleaned > 0) {
+
+    // Cascade purge abandoned guest users and their associated entities
+    const activeGuestUserIds = new Set<string>();
+    for (const session of Object.values(this.state.sessions)) {
+      if (session.isGuest && now <= session.expiresAt) {
+        activeGuestUserIds.add(session.userId);
+      }
+    }
+
+    const guestsToDelete: string[] = [];
+    for (const userId of Object.keys(this.state.users)) {
+      if (userId.startsWith('usr_guest_') && !activeGuestUserIds.has(userId)) {
+        guestsToDelete.push(userId);
+      }
+    }
+
+    for (const guestId of guestsToDelete) {
+      delete this.state.users[guestId];
+      delete this.state.preferences[guestId];
+
+      const profileIds = Object.values(this.state.profiles)
+        .filter(p => p.userId === guestId)
+        .map(p => p.id);
+
+      for (const pId of profileIds) {
+        delete this.state.profiles[pId];
+        delete this.state.calculations[pId];
+        delete this.state.backtestResults[pId];
+        delete this.state.historicalEvents[pId];
+        delete this.state.chatMessages[pId];
+      }
+    }
+
+    if (cleaned > 0 || guestsToDelete.length > 0) {
       this.schedulePersist();
     }
     return cleaned;

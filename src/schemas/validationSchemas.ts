@@ -22,7 +22,10 @@ export const BirthDataSchema = z.object({
   timezoneOffset: z.number().min(-12, 'Múi giờ hợp lệ từ -12 đến +14').max(14, 'Múi giờ hợp lệ từ -12 đến +14'),
   timezoneName: z.string().trim().min(1).max(100),
   gender: z.enum(['Male', 'Female', 'Other', 'PreferNotToSay']),
-  calendarSystem: z.enum(['solar', 'lunar'])
+  calendarSystem: z.enum(['solar', 'lunar']),
+  isLateRat: z.boolean().optional().default(false),
+  timeConvention: z.enum(['civil', 'trueSolar']).optional().default('civil'),
+  longitude: z.number().min(-180).max(180).optional()
 }).refine((data) => {
   // Validate real calendar days per month (including leap years)
   const daysInMonth = new Date(data.solarYear, data.solarMonth, 0).getDate();

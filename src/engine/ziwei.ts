@@ -102,7 +102,14 @@ function getTuViBranchIndex(lunarDay: number, cucNumber: number): number {
 }
 
 export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
-  const lunar = convertSolarToLunar(birthData.solarYear, birthData.solarMonth, birthData.solarDay, birthData.timezoneOffset);
+  const lunar = convertSolarToLunar(
+    birthData.solarYear,
+    birthData.solarMonth,
+    birthData.solarDay,
+    birthData.timezoneOffset,
+    birthData.isLateRat,
+    birthData.solarHour
+  );
   const yearPB = calculateYearPillar(
     birthData.solarYear,
     birthData.solarMonth,
