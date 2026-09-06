@@ -19,21 +19,21 @@ import {
   getTenGod,
   getNaYin
 } from './canchi';
-import { gregorianToJulianDay, convertSolarToLunar, getSunLongitudeDegrees } from './lunarSolar';
+import { gregorianToJulianDay, convertSolarToLunar, getSunLongitudeDegrees, getSunLongitudeAtTime } from './lunarSolar';
 
-// Calculate Year Stem & Branch
+// Calculate Year Stem & Branch using exact Solar Term boundary (Lập Xuân = 315° Sun Longitude)
 export function calculateYearPillar(
   year: number,
   month: number,
   day: number,
-  timezoneOffset: number = 7
+  timezoneOffset: number = 7,
+  hour: number = 12,
+  minute: number = 0
 ): { stem: HeavenlyStem; branch: EarthlyBranch } {
-  // Lập Xuân is the boundary for BaZi year (Sun longitude = 315°)
-  const jd = gregorianToJulianDay(year, month, day);
-  const sunDeg = getSunLongitudeDegrees(jd, timezoneOffset);
+  const sunDeg = getSunLongitudeAtTime(year, month, day, hour, minute, timezoneOffset);
 
   let baziYear = year;
-  // If in Jan or early Feb and Sun hasn't reached Lập Xuân (315°), belongs to previous year
+  // If in Jan or early Feb and Sun hasn't reached Lập Xuân (315°), belongs to previous astronomical year
   if (month === 1) {
     baziYear = year - 1;
   } else if (month === 2 && sunDeg < 315) {
@@ -57,10 +57,11 @@ export function calculateMonthPillar(
   year: number,
   month: number,
   day: number,
-  timezoneOffset: number = 7
+  timezoneOffset: number = 7,
+  hour: number = 12,
+  minute: number = 0
 ): { stem: HeavenlyStem; branch: EarthlyBranch } {
-  const jd = gregorianToJulianDay(year, month, day);
-  const sunDeg = getSunLongitudeDegrees(jd, timezoneOffset);
+  const sunDeg = getSunLongitudeAtTime(year, month, day, hour, minute, timezoneOffset);
 
   // Offset from Lập Xuân (315°). Each month covers exactly 30° of solar longitude
   // 0 -> Dần (315°), 1 -> Mão (345°), 2 -> Thìn (15°), ..., 11 -> Sửu (285°)
@@ -93,14 +94,28 @@ export function calculateMonthPillar(
   return { stem, branch };
 }
 
-// Calculate Day Pillar using Julian Day Number
+// Calculate Day Pillar using Julian Day Number with Late Rat (Dạ Tý) support
 export function calculateDayPillar(
   year: number,
   month: number,
   day: number,
-  _timezoneOffset: number = 7
+  _timezoneOffset: number = 7,
+  isLateRat: boolean = false,
+  hour: number = 12
 ): { stem: HeavenlyStem; branch: EarthlyBranch } {
-  const jd = gregorianToJulianDay(year, month, day);
+  let effectiveYear = year;
+  let effectiveMonth = month;
+  let effectiveDay = day;
+
+  // Under Late Rat (Dạ Tý) convention, 23:00 - 23:59 belongs to the next calendar day's Day Pillar
+  if (isLateRat && hour === 23) {
+    const nextDate = new Date(Date.UTC(year, month - 1, day + 1));
+    effectiveYear = nextDate.getUTCFullYear();
+    effectiveMonth = nextDate.getUTCMonth() + 1;
+    effectiveDay = nextDate.getUTCDate();
+  }
+
+  const jd = gregorianToJulianDay(effectiveYear, effectiveMonth, effectiveDay);
   // Reference epoch: JD 2451545 (Jan 1, 2000) was Mậu Ngọ (Wu, Wu_B)
   // Day Stem index: (jd + 9) % 10
   // Day Branch index: (jd + 1) % 12
@@ -117,7 +132,8 @@ export function calculateDayPillar(
 export function calculateHourPillar(
   dayStem: HeavenlyStem,
   hour: number,
-  isLateRat: boolean = false
+  _minute: number = 0,
+  _isLateRat: boolean = false
 ): { stem: HeavenlyStem; branch: EarthlyBranch } {
   // Determine Hour Branch (Tý: 23:00-00:59, Sửu: 01:00-02:59, etc.)
   let branchIdx = Math.floor((hour + 1) / 2) % 12;
@@ -131,12 +147,6 @@ export function calculateHourPillar(
   else if (dayStem === 'Bing' || dayStem === 'Xin') startStemIdx = 4; // Mậu
   else if (dayStem === 'Ding' || dayStem === 'Ren') startStemIdx = 6; // Canh
   else if (dayStem === 'Wu' || dayStem === 'Gui') startStemIdx = 8; // Nhâm
-
-  // For Late Rat (23:00 - 23:59), if configured to use next day's stem
-  if (isLateRat && hour === 23) {
-    const dayStemIdx = STEM_KEYS.indexOf(dayStem);
-    startStemIdx = (((dayStemIdx + 1) % 5) * 2) % 10;
-  }
 
   const stem = STEM_KEYS[(startStemIdx + branchIdx) % 10];
 
@@ -189,12 +199,20 @@ export function buildPillar(
 
 // Complete BaZi Chart Computation
 export function calculateBaZiChart(birthData: BirthData): BaZiChart {
-  const { solarYear, solarMonth, solarDay, solarHour, timezoneOffset = 7 } = birthData;
+  const {
+    solarYear,
+    solarMonth,
+    solarDay,
+    solarHour,
+    solarMinute = 0,
+    timezoneOffset = 7,
+    isLateRat = false
+  } = birthData;
 
-  const yearPB = calculateYearPillar(solarYear, solarMonth, solarDay, timezoneOffset);
-  const monthPB = calculateMonthPillar(yearPB.stem, solarYear, solarMonth, solarDay, timezoneOffset);
-  const dayPB = calculateDayPillar(solarYear, solarMonth, solarDay, timezoneOffset);
-  const hourPB = calculateHourPillar(dayPB.stem, solarHour);
+  const yearPB = calculateYearPillar(solarYear, solarMonth, solarDay, timezoneOffset, solarHour, solarMinute);
+  const monthPB = calculateMonthPillar(yearPB.stem, solarYear, solarMonth, solarDay, timezoneOffset, solarHour, solarMinute);
+  const dayPB = calculateDayPillar(solarYear, solarMonth, solarDay, timezoneOffset, isLateRat, solarHour);
+  const hourPB = calculateHourPillar(dayPB.stem, solarHour, solarMinute, isLateRat);
 
   const dayMaster = dayPB.stem;
   const dayMasterElement = STEMS[dayMaster].element;
@@ -219,19 +237,33 @@ export function calculateBaZiChart(birthData: BirthData): BaZiChart {
   rawElements[hourPillar.branchElement] += 1.5;
 
   const totalPoints = Object.values(rawElements).reduce((a, b) => a + b, 0);
-  const elementBalance: Record<FiveElement, number> = {
-    Wood: Math.round((rawElements.Wood / totalPoints) * 100),
-    Fire: Math.round((rawElements.Fire / totalPoints) * 100),
-    Earth: Math.round((rawElements.Earth / totalPoints) * 100),
-    Metal: Math.round((rawElements.Metal / totalPoints) * 100),
-    Water: Math.round((rawElements.Water / totalPoints) * 100),
-  };
+  const safeTotalPoints = totalPoints > 0 ? totalPoints : 1;
 
-  // Adjust rounding differences
-  const sumPct = Object.values(elementBalance).reduce((a, b) => a + b, 0);
-  if (sumPct !== 100) {
-    elementBalance.Earth += (100 - sumPct);
-  }
+  // Hamilton / Largest Remainder Method: ensures exact 100% sum, non-negative, and no arbitrary Earth dumping
+  const elements: FiveElement[] = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'];
+  const rawPercentages = elements.map((el) => {
+    const exact = (rawElements[el] / safeTotalPoints) * 100;
+    const floor = Math.floor(exact);
+    const remainder = exact - floor;
+    return { element: el, exact, floor, remainder };
+  });
+
+  const initialSum = rawPercentages.reduce((sum, item) => sum + item.floor, 0);
+  const remainderToDistribute = Math.max(0, Math.min(5, 100 - initialSum));
+
+  // Sort descending by remainder, break ties deterministically by canonical element index
+  const sortedByRemainder = [...rawPercentages].sort((a, b) => {
+    if (Math.abs(b.remainder - a.remainder) > 0.000001) {
+      return b.remainder - a.remainder;
+    }
+    return elements.indexOf(a.element) - elements.indexOf(b.element);
+  });
+
+  const bonusElements = new Set(sortedByRemainder.slice(0, remainderToDistribute).map((i) => i.element));
+  const elementBalance: Record<FiveElement, number> = { Wood: 0, Fire: 0, Earth: 0, Metal: 0, Water: 0 };
+  rawPercentages.forEach((item) => {
+    elementBalance[item.element] = item.floor + (bonusElements.has(item.element) ? 1 : 0);
+  });
 
   // Calculate Day Master Strength (Vượng / Suy)
   // Generator + Same Element vs Overcomer + Drainer + Wealth

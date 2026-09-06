@@ -123,6 +123,68 @@ export function runAllEngineTests(): TestReport {
   const scenarioResult = evaluateWhatIfScenario('Tôi có nên chuyển sang làm AI năm nay?', calc1);
   assert(scenarioResult.scenarios.length === 3, 'What-If 3-Branch Scenarios', `Generated ${scenarioResult.scenarios.length} branches (A, B, C)`);
 
+  // TEST 10: Late Rat (Dạ Tý) Boundary Comparison at 23:00
+  // On 2024-05-10, hour 23 with isLateRat = false should keep day 10 pillar.
+  // With isLateRat = true, it should advance to day 11 pillar.
+  const earlyRatDay = calculateDayPillar(2024, 5, 10, 7, false, 23);
+  const lateRatDay = calculateDayPillar(2024, 5, 10, 7, true, 23);
+  const nextDayPillar = calculateDayPillar(2024, 5, 11, 7, false, 12);
+  assert(
+    earlyRatDay.stem !== lateRatDay.stem && lateRatDay.stem === nextDayPillar.stem,
+    'Late Rat Day Pillar Transition at 23h',
+    `Early: ${earlyRatDay.stem} vs Late: ${lateRatDay.stem} (Next day: ${nextDayPillar.stem})`
+  );
+
+  // TEST 11: Element Balance 100% Invariant across multiple charts
+  const testBirths: BirthData[] = [
+    { ...sampleBirth, solarYear: 1980, solarMonth: 1, solarDay: 1, solarHour: 0 },
+    { ...sampleBirth, solarYear: 1990, solarMonth: 6, solarDay: 15, solarHour: 12 },
+    { ...sampleBirth, solarYear: 2000, solarMonth: 12, solarDay: 31, solarHour: 23 },
+    { ...sampleBirth, solarYear: 2024, solarMonth: 2, solarDay: 4, solarHour: 16 }
+  ];
+  let allSums100 = true;
+  for (const b of testBirths) {
+    const chart = calculateBaZiChart(b);
+    const sum = Object.values(chart.elementBalance).reduce((acc, v) => acc + v, 0);
+    const hasNaN = Object.values(chart.elementBalance).some(v => isNaN(v) || v < 0);
+    if (sum !== 100 || hasNaN) {
+      allSums100 = false;
+      break;
+    }
+  }
+  assert(allSums100, 'Element Balance Invariant Across Multiple Charts', 'All charts produced valid non-NaN percentages summing strictly to 100%');
+
+  // TEST 12: Continuous Solar Longitude & Solar Term Resolution
+  const solarTermFeb3 = convertSolarToLunar(2024, 2, 3);
+  const solarTermFeb5 = convertSolarToLunar(2024, 2, 5);
+  assert(
+    solarTermFeb3.lunarDay > 0 && solarTermFeb5.lunarDay > 0,
+    'Solar Term Resolution Stability',
+    `Feb 3: ${solarTermFeb3.lunarDay}, Feb 5: ${solarTermFeb5.lunarDay}`
+  );
+
+  // TEST 13: Backtest with Empty Events Handling
+  const emptyBt = runBacktestAnalysis([], calc1);
+  assert(
+    emptyBt.totalEventsAnalyzed === 0 &&
+    emptyBt.destinyConsistencyScore === 0 &&
+    emptyBt.confidenceBand === 'Sparse Data Fit',
+    'Backtest Empty Events Fallback',
+    `Analyzed: ${emptyBt.totalEventsAnalyzed}, Score: ${emptyBt.destinyConsistencyScore}`
+  );
+
+  // TEST 14: Backtest Deduplication of Identical Events
+  const duplicateEvents: HistoricalEvent[] = [
+    sampleEvents[0],
+    { ...sampleEvents[0], id: 'e1_dup' }
+  ];
+  const dedupBt = runBacktestAnalysis(duplicateEvents, calc1);
+  assert(
+    dedupBt.totalEventsAnalyzed === 1,
+    'Backtest Deduplication of Identical Year & Title',
+    `Deduped from 2 to ${dedupBt.totalEventsAnalyzed} event`
+  );
+
   const passed = results.filter(r => r.status === 'PASS').length;
   const failed = results.filter(r => r.status === 'FAIL').length;
 

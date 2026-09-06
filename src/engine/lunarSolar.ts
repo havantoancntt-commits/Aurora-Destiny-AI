@@ -65,10 +65,57 @@ export function getSunLongitudeDegrees(jdn: number, timeZone: number = 7): numbe
   return L;
 }
 
-// Determine Exact Solar Term for a given date
-export function getSolarTerm(year: number, month: number, day: number, timezoneOffset: number = 7): string {
-  const jd = gregorianToJulianDay(year, month, day);
-  const sunDeg = getSunLongitudeDegrees(jd, timezoneOffset);
+// Compute Continuous Astronomical Julian Day from Gregorian Date & Time
+export function gregorianToContinuousJD(
+  year: number,
+  month: number,
+  day: number,
+  hour: number = 12,
+  minute: number = 0,
+  timezoneOffset: number = 7
+): number {
+  const jdNoon = gregorianToJulianDay(year, month, day);
+  const fractionalDayUT = (hour + minute / 60 - timezoneOffset) / 24;
+  return jdNoon - 0.5 + fractionalDayUT;
+}
+
+// Exact Sun Longitude from Continuous Astronomical Julian Date
+export function getSunLongitudeAtInstant(continuousJD: number): number {
+  const T = (continuousJD - 2451545.0) / 36525;
+  const T2 = T * T;
+  const dr = PI / 180;
+  const M = 357.5291 + 35999.0503 * T - 0.0001559 * T2 - 0.00000048 * T * T2;
+  const L0 = 280.46645 + 36000.76983 * T + 0.0003032 * T2;
+  let DL = (1.9146 - 0.004817 * T - 0.000014 * T2) * Math.sin(dr * M);
+  DL += (0.019993 - 0.000101 * T) * Math.sin(dr * 2 * M) + 0.00029 * Math.sin(dr * 3 * M);
+  let L = (L0 + DL) % 360;
+  if (L < 0) L += 360;
+  return L;
+}
+
+// Exact Sun Longitude calculated at specific date and time
+export function getSunLongitudeAtTime(
+  year: number,
+  month: number,
+  day: number,
+  hour: number = 12,
+  minute: number = 0,
+  timezoneOffset: number = 7
+): number {
+  const jd = gregorianToContinuousJD(year, month, day, hour, minute, timezoneOffset);
+  return getSunLongitudeAtInstant(jd);
+}
+
+// Determine Exact Solar Term for a given date and time
+export function getSolarTerm(
+  year: number,
+  month: number,
+  day: number,
+  timezoneOffset: number = 7,
+  hour: number = 12,
+  minute: number = 0
+): string {
+  const sunDeg = getSunLongitudeAtTime(year, month, day, hour, minute, timezoneOffset);
   const termIdx = Math.floor(sunDeg / 15) % 24;
   return SOLAR_TERMS[termIdx];
 }

@@ -183,6 +183,7 @@ export interface BirthData {
   timezoneName: string;
   gender: Gender;
   calendarSystem: 'solar' | 'lunar';
+  isLateRat?: boolean; // Configuration for hour 23 (Dạ Tý)
 }
 
 export interface BehavioralContext {

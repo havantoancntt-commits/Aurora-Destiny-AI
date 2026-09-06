@@ -37,6 +37,7 @@ export interface FeatureFlag {
 export interface IDatabaseRepository {
   // Users & Auth
   getUser(userId: string): UserAccount | null;
+  getAllUsers(): UserAccount[];
   getUserByEmail(email: string): (UserAccount & { passwordHash?: string }) | null;
   saveUser(user: UserAccount, passwordHash?: string): UserAccount;
   deleteUser(userId: string): boolean;
@@ -361,6 +362,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     if (!user) return null;
     const { passwordHash, ...cleanUser } = user;
     return cleanUser;
+  }
+
+  getAllUsers(): UserAccount[] {
+    return Object.values(this.state.users).map(({ passwordHash: _, ...clean }) => clean);
   }
 
   getUserByEmail(email: string): (UserAccount & { passwordHash?: string }) | null {

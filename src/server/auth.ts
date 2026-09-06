@@ -117,30 +117,7 @@ export function registerUser(email: string, password: string, fullName: string, 
 
 export function loginUser(email: string, password: string): { user: UserAccount; token: string } {
   const normalizedEmail = email.toLowerCase().trim();
-  let existing = repository.getUserByEmail(normalizedEmail);
-
-  // If user does not exist yet:
-  if (!existing) {
-    const defaultAdminEmail = (process.env.ADMIN_EMAIL || 'admin@aurora.internal').trim().toLowerCase();
-    const defaultAdminPass = (process.env.ADMIN_PASSWORD || 'AuroraAdmin2026!').trim();
-
-    if (normalizedEmail === defaultAdminEmail && password === defaultAdminPass) {
-      bootstrapAdminIfConfigured();
-      existing = repository.getUserByEmail(normalizedEmail);
-    } else if (password && password.length >= 6) {
-      // Auto-provision user account smoothly when authenticating directly via login flow
-      const isPrivileged =
-        normalizedEmail.includes('admin') ||
-        normalizedEmail.includes('toan') ||
-        normalizedEmail === 'bachhoatrituenhantao1@gmail.com';
-      return registerUser(
-        normalizedEmail,
-        password,
-        normalizedEmail.split('@')[0],
-        isPrivileged ? 'SUPER_ADMIN' : 'USER'
-      );
-    }
-  }
+  const existing = repository.getUserByEmail(normalizedEmail);
 
   // Constant-time execution prevents timing attacks leaking email presence
   if (!existing || !existing.passwordHash) {
@@ -150,16 +127,7 @@ export function loginUser(email: string, password: string): { user: UserAccount;
 
   const [salt, storedHash] = existing.passwordHash.split(':');
   if (!salt || !storedHash || !verifyPassword(password, storedHash, salt)) {
-    // Check if matching default admin credentials for self-healing
-    const defaultAdminEmail = (process.env.ADMIN_EMAIL || 'admin@aurora.internal').trim().toLowerCase();
-    const defaultAdminPass = (process.env.ADMIN_PASSWORD || 'AuroraAdmin2026!').trim();
-    if (normalizedEmail === defaultAdminEmail && password === defaultAdminPass) {
-      const { hash: newHash, salt: newSalt } = hashPassword(defaultAdminPass);
-      existing.passwordHash = `${newSalt}:${newHash}`;
-      repository.saveUser(existing, existing.passwordHash);
-    } else {
-      throw new Error('Email hoặc mật khẩu không chính xác');
-    }
+    throw new Error('Email hoặc mật khẩu không chính xác');
   }
 
   existing.lastLoginAt = new Date().toISOString();
@@ -170,13 +138,13 @@ export function loginUser(email: string, password: string): { user: UserAccount;
   return { user: cleanUser, token };
 }
 
-// Create an isolated guest session so every unique visitor has their own isolated profile state
+// Create an isolated guest session with strict limits
 export function createGuestSession(): { user: UserAccount; token: string } {
   const guestId = `usr_guest_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const guestUser: UserAccount = {
     id: guestId,
     email: `guest_${guestId}@aurora.internal`,
-    fullName: 'Nhà Khám Phá Định Mệnh',
+    fullName: 'Khách Tham Quan',
     role: 'USER',
     subscriptionTier: 'Free',
     language: 'vi',
@@ -191,10 +159,15 @@ export function createGuestSession(): { user: UserAccount; token: string } {
   return { user: saved, token };
 }
 
-// Dynamic Bootstrap Admin (Ensures admin account is available for monitoring and administration)
+// Dynamic Bootstrap Admin - Only provisions if explicitly configured via environment variables
 export function bootstrapAdminIfConfigured(): void {
-  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@aurora.internal').trim().toLowerCase();
-  const adminPass = (process.env.ADMIN_PASSWORD || 'AuroraAdmin2026!').trim();
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const adminPass = process.env.ADMIN_PASSWORD?.trim();
+
+  if (!adminEmail || !adminPass) {
+    console.log('ℹ️ [Security] Admin bootstrap skipped: ADMIN_EMAIL or ADMIN_PASSWORD not configured.');
+    return;
+  }
 
   const existing = repository.getUserByEmail(adminEmail);
   const { hash, salt } = hashPassword(adminPass);
@@ -204,7 +177,7 @@ export function bootstrapAdminIfConfigured(): void {
     existing.role = 'SUPER_ADMIN';
     existing.subscriptionTier = 'Enterprise';
     repository.saveUser(existing, passwordRecord);
-    console.log(`🔒 [Security] Administrator account "${adminEmail}" credentials synchronized.`);
+    console.log(`🔒 [Security] Administrator account "${adminEmail}" synchronized.`);
   } else {
     const adminUser: UserAccount = {
       id: `usr_admin_${crypto.randomBytes(4).toString('hex')}`,
@@ -239,23 +212,6 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     if (user) {
       req.user = user;
     }
-  }
-
-  // Auto-provision an isolated guest session if unauthenticated on general API requests
-  // This guarantees seamless user onboarding, uninterrupted chart generation, and auto-healing for expired tokens
-  if (
-    !req.user &&
-    req.path.startsWith('/api') &&
-    !req.path.startsWith('/api/auth/login') &&
-    !req.path.startsWith('/api/auth/register') &&
-    !req.path.startsWith('/api/auth/guest') &&
-    !req.path.startsWith('/api/health')
-  ) {
-    const guest = createGuestSession();
-    req.user = guest.user;
-    req.sessionToken = guest.token;
-    res.setHeader('x-session-token', guest.token);
-    res.setHeader('Access-Control-Expose-Headers', 'x-session-token');
   }
 
   next();

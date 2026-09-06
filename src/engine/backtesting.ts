@@ -17,7 +17,15 @@ export function runBacktestAnalysis(
   const currentYear = new Date().getFullYear();
 
   // Prevent look-ahead bias: only analyze events that occurred in or before current year
-  const validPastEvents = (events || []).filter(e => e.year <= currentYear);
+  // Deduplicate events by year and normalized title
+  const seenEvents = new Set<string>();
+  const validPastEvents = (events || []).filter((e) => {
+    if (e.year > currentYear) return false;
+    const key = `${e.year}_${(e.title || '').trim().toLowerCase()}`;
+    if (seenEvents.has(key)) return false;
+    seenEvents.add(key);
+    return true;
+  });
 
   if (validPastEvents.length === 0) {
     return {
@@ -33,8 +41,11 @@ export function runBacktestAnalysis(
       confidenceBand: 'Sparse Data Fit',
       comparisons: [],
       strengthsSummary: ['Chưa có sự kiện quá khứ nào được nạp để kiểm chứng mẫu.'],
-      anomaliesSummary: ['Vui lòng nạp tối thiểu 2-3 sự kiện bước ngoặt để mở khóa chỉ số đối sánh lịch sử.'],
-      uncertaintyFactors: ['Chưa đủ dữ liệu thực chứng lịch sử cá nhân.']
+      anomaliesSummary: ['Vui lòng nạp tối thiểu 3 sự kiện bước ngoặt để mở khóa chỉ số đối sánh lịch sử.'],
+      uncertaintyFactors: [
+        'Chưa đủ dữ liệu thực chứng lịch sử cá nhân.',
+        'Chỉ số đối sánh lịch sử phản ánh mức độ tương hợp với dữ liệu đã nạp, không phải xác suất chắc chắn của tương lai.'
+      ]
     };
   }
 
@@ -130,7 +141,8 @@ export function runBacktestAnalysis(
 
   const uncertaintyFactors = [
     `Số lượng sự kiện ghi nhận: ${validPastEvents.length} (Khuyến nghị nạp từ 5 sự kiện quá khứ để đạt mức tối ưu).`,
-    `Độ tin cậy ghi nhớ của người dùng: Trung bình ${Math.round(validPastEvents.reduce((s, e) => s + (e.userConfidence || 3), 0) / validPastEvents.length)}/5.`
+    `Độ tin cậy ghi nhớ của người dùng: Trung bình ${Math.round(validPastEvents.reduce((s, e) => s + (e.userConfidence || 3), 0) / validPastEvents.length)}/5.`,
+    'Chỉ số phản ánh mức độ tương thích mẫu lịch sử, không phải khẳng định tất định về tương lai.'
   ];
 
   return {
