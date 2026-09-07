@@ -18,6 +18,8 @@ import {
   loginUser,
   createGuestSession,
   revokeSession,
+  requestPasswordReset,
+  resetPasswordWithToken,
   bootstrapAdminIfConfigured
 } from './src/server/auth';
 import {
@@ -38,7 +40,9 @@ import {
   UserPreferencesSchema,
   FeatureFlagToggleSchema,
   RegisterSchema,
-  LoginSchema
+  LoginSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema
 } from './src/schemas/validationSchemas';
 
 import { runFullDestinyCalculation, CALCULATION_ENGINE_VERSION, ASTROLOGY_RULES_VERSION, ANALYSIS_MODEL_VERSION } from './src/engine/destinyEngine';
@@ -52,21 +56,68 @@ import { UserProfile } from './src/types/user';
 const app = express();
 const PORT = 3000;
 
+// Trust reverse proxy for correct IP rate-limiting behind Cloud Run / Nginx
+app.set('trust proxy', 1);
+
 // Security: parse JSON with strict size limit
 app.use(express.json({ limit: '2mb' }));
 
+// Lightweight native cookie parser (no third-party dependency needed)
+app.use((req: Request, res: Response, next: NextFunction) => {
+  (req as any).cookies = {};
+  if (req.headers.cookie) {
+    req.headers.cookie.split(';').forEach(cookieStr => {
+      const parts = cookieStr.split('=');
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        const val = decodeURIComponent(parts.slice(1).join('=').trim());
+        (req as any).cookies[key] = val;
+      }
+    });
+  }
+  next();
+});
+
+// Helper functions for secure HttpOnly cookie management
+function setSessionCookie(res: Response, token: string): void {
+  const isProd = process.env.NODE_ENV === 'production';
+  res.cookie('aurora_session', token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+}
+
+function clearSessionCookie(res: Response): void {
+  res.clearCookie('aurora_session', {
+    httpOnly: true,
+    path: '/'
+  });
+}
+
 // ----------------------------------------------------
-// MIDDLEWARE: REQUEST TRACING & SECURITY HEADERS
+// MIDDLEWARE: REQUEST TRACING & HARDENED SECURITY HEADERS
 // ----------------------------------------------------
 app.use((req: Request, res: Response, next: NextFunction) => {
   const reqId = `req_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   req.requestId = reqId;
   res.setHeader('X-Request-Id', reqId);
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
+
+  // Content Security Policy - allowing embedding within Google AI Studio preview iframes
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://ai.studio https://*.run.app;"
+  );
   next();
 });
 
@@ -164,6 +215,7 @@ app.post('/api/auth/register', registerRateLimiter, (req, res, next) => {
       requestId: req.requestId
     });
 
+    setSessionCookie(res, result.token);
     res.setHeader('x-session-token', result.token);
     res.status(201).json(result);
   } catch (err) {
@@ -174,7 +226,8 @@ app.post('/api/auth/register', registerRateLimiter, (req, res, next) => {
 app.post('/api/auth/login', loginRateLimiter, (req, res, next) => {
   try {
     const validated = LoginSchema.parse(req.body);
-    const result = loginUser(validated.email, validated.password);
+    // Session rotation: pass current session token if client had one (e.g. from guest session)
+    const result = loginUser(validated.email, validated.password, req.sessionToken);
 
     repository.logAudit({
       userId: result.user.id,
@@ -184,6 +237,7 @@ app.post('/api/auth/login', loginRateLimiter, (req, res, next) => {
       requestId: req.requestId
     });
 
+    setSessionCookie(res, result.token);
     res.setHeader('x-session-token', result.token);
     res.json(result);
   } catch (err) {
@@ -196,6 +250,7 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
   if (token) {
     revokeSession(token);
   }
+  clearSessionCookie(res);
   repository.logAudit({
     userId: req.user!.id,
     action: 'USER_LOGOUT',
@@ -209,8 +264,61 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 // Auto-provision isolated guest session for first-time visitors
 app.post('/api/auth/guest', guestRateLimiter, (req, res) => {
   const result = createGuestSession();
+  setSessionCookie(res, result.token);
   res.setHeader('x-session-token', result.token);
   res.json(result);
+});
+
+// Request Password Reset
+app.post('/api/auth/forgot-password', loginRateLimiter, (req, res, next) => {
+  try {
+    const validated = ForgotPasswordSchema.parse(req.body);
+    const result = requestPasswordReset(validated.email);
+
+    repository.logAudit({
+      userId: 'system',
+      action: 'PASSWORD_RESET_REQUESTED',
+      resource: 'auth',
+      status: 'SUCCESS',
+      requestId: req.requestId
+    });
+
+    // Constant message prevents email enumeration attack
+    res.json({
+      success: true,
+      message: 'Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được xử lý thành công.',
+      // In development / demo mode without external SMTP, return token for verification
+      ...(process.env.NODE_ENV !== 'production' && result ? { debugToken: result.resetToken } : {})
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Reset Password with Token
+app.post('/api/auth/reset-password', loginRateLimiter, (req, res, next) => {
+  try {
+    const validated = ResetPasswordSchema.parse(req.body);
+    const success = resetPasswordWithToken(validated.token, validated.newPassword);
+
+    if (!success) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_OR_EXPIRED_TOKEN',
+          message: 'Mã khôi phục không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu lại.',
+          requestId: req.requestId
+        }
+      });
+    }
+
+    clearSessionCookie(res);
+    res.json({
+      success: true,
+      message: 'Mật khẩu đã được thay đổi thành công. Vui lòng đăng nhập lại với mật khẩu mới.'
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
@@ -692,6 +800,34 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
   } catch (err) {
     next(err);
   }
+});
+
+// Retrieve conversation history for profile (strictly authenticated & isolated)
+app.get('/api/ai/messages/:profileId', requireAuth, (req, res) => {
+  const { profileId } = req.params;
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return;
+
+  const messages = repository.getChatMessages(profileId);
+  res.json(messages);
+});
+
+// Clear conversation history for profile
+app.delete('/api/ai/messages/:profileId', requireAuth, (req, res) => {
+  const { profileId } = req.params;
+  const profile = verifyProfileOwnership(req, res, profileId);
+  if (!profile) return;
+
+  const cleared = repository.clearChatMessages(profileId);
+  repository.logAudit({
+    userId: req.user!.id,
+    action: 'CHAT_HISTORY_CLEARED',
+    resource: 'chat',
+    resourceId: profileId,
+    status: 'SUCCESS',
+    requestId: req.requestId
+  });
+  res.json({ success: cleared });
 });
 
 // ----------------------------------------------------

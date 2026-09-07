@@ -9,11 +9,11 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. USERS
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id VARCHAR(64) PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(100) NOT NULL,
-    role VARCHAR(32) NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'ADMIN', 'SUPER_ADMIN')),
+    role VARCHAR(32) NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'GUEST', 'ADMIN', 'SUPER_ADMIN')),
     subscription_tier VARCHAR(32) NOT NULL DEFAULT 'Free' CHECK (subscription_tier IN ('Free', 'Premium', 'Pro', 'Enterprise')),
     language VARCHAR(10) NOT NULL DEFAULT 'vi',
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- 2. USER PREFERENCES
 CREATE TABLE IF NOT EXISTS user_preferences (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(64) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     theme VARCHAR(20) NOT NULL DEFAULT 'dark',
     language VARCHAR(10) NOT NULL DEFAULT 'vi',
     timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
@@ -36,10 +36,32 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 2B. SESSIONS
+CREATE TABLE IF NOT EXISTS sessions (
+    token VARCHAR(128) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_guest BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
+-- 2C. PASSWORD RESETS
+CREATE TABLE IF NOT EXISTS password_resets (
+    token VARCHAR(128) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user ON password_resets(user_id);
+
 -- 3. PROFILES
 CREATE TABLE IF NOT EXISTS profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     avatar_seed VARCHAR(128) NOT NULL,
@@ -51,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 
 -- 4. BIRTH DATA
 CREATE TABLE IF NOT EXISTS birth_data (
-    profile_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+    profile_id VARCHAR(64) PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
     solar_year INT NOT NULL CHECK (solar_year BETWEEN 1900 AND 2100),
     solar_month INT NOT NULL CHECK (solar_month BETWEEN 1 AND 12),
     solar_day INT NOT NULL CHECK (solar_day BETWEEN 1 AND 31),
@@ -73,8 +95,8 @@ CREATE TABLE IF NOT EXISTS birth_data (
 
 -- 5. CALCULATIONS (Single Source of Truth)
 CREATE TABLE IF NOT EXISTS calculations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    id VARCHAR(64) PRIMARY KEY,
+    profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     calculation_version VARCHAR(32) NOT NULL,
     astrology_rules_version VARCHAR(32) NOT NULL,
     analysis_model_version VARCHAR(32) NOT NULL,
@@ -91,8 +113,8 @@ CREATE INDEX IF NOT EXISTS idx_calculations_created_at ON calculations(created_a
 
 -- 6. HISTORICAL EVENTS (Retrospective Analysis)
 CREATE TABLE IF NOT EXISTS historical_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    id VARCHAR(64) PRIMARY KEY,
+    profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     year INT NOT NULL CHECK (year BETWEEN 1920 AND 2100),
     month INT CHECK (month BETWEEN 1 AND 12),
     title VARCHAR(200) NOT NULL,
@@ -108,9 +130,9 @@ CREATE INDEX IF NOT EXISTS idx_historical_events_profile_id ON historical_events
 
 -- 7. BACKTEST RESULTS (Pattern Alignment Snapshot)
 CREATE TABLE IF NOT EXISTS backtest_results (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    calculation_id UUID REFERENCES calculations(id) ON DELETE SET NULL,
+    id VARCHAR(64) PRIMARY KEY,
+    profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    calculation_id VARCHAR(64) REFERENCES calculations(id) ON DELETE SET NULL,
     total_events_analyzed INT NOT NULL DEFAULT 0,
     destiny_consistency_score NUMERIC(5, 2) NOT NULL DEFAULT 0,
     matched_events_count INT NOT NULL DEFAULT 0,
@@ -127,17 +149,17 @@ CREATE INDEX IF NOT EXISTS idx_backtest_results_profile_id ON backtest_results(p
 
 -- 8. CONVERSATIONS & CHAT MESSAGES
 CREATE TABLE IF NOT EXISTS conversations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    id VARCHAR(64) PRIMARY KEY,
+    profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL DEFAULT 'Destiny Analysis Session',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS chat_messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
-    profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    id VARCHAR(64) PRIMARY KEY,
+    conversation_id VARCHAR(64) REFERENCES conversations(id) ON DELETE CASCADE,
+    profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     sender VARCHAR(16) NOT NULL CHECK (sender IN ('user', 'assistant', 'system')),
     content TEXT NOT NULL,
     confidence_score NUMERIC(5, 2),
@@ -149,8 +171,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_profile_id ON chat_messages(profile
 
 -- 9. AUDIT LOGS (Security & Compliance)
 CREATE TABLE IF NOT EXISTS audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(64) NOT NULL,
     resource VARCHAR(64) NOT NULL,
     resource_id VARCHAR(128),

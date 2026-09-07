@@ -11,79 +11,7 @@
       "createdAt": "2026-09-04T03:57:00.379Z",
       "lastLoginAt": "2026-09-04T03:57:00.379Z",
       "profilesCount": 0,
-      "passwordHash": "072c54d42e75b840082d2af2a6282c69:b051a9d144f79b44261894530b542182d63d0877260c96fbddc1956a9294c2c364c854dfa6bce65dee6f5dd5278627f86994dd946b192d9394f7a2f630e7c75c"
-    },
-    "usr_guest_1788683037931_0ba3604f": {
-      "id": "usr_guest_1788683037931_0ba3604f",
-      "email": "guest_usr_guest_1788683037931_0ba3604f@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-06T08:23:57.931Z",
-      "lastLoginAt": "2026-09-06T08:23:57.931Z",
-      "profilesCount": 0
-    },
-    "usr_guest_1788683038045_df7cfa58": {
-      "id": "usr_guest_1788683038045_df7cfa58",
-      "email": "guest_usr_guest_1788683038045_df7cfa58@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-06T08:23:58.045Z",
-      "lastLoginAt": "2026-09-06T08:23:58.045Z",
-      "profilesCount": 0
-    },
-    "usr_guest_1788683118717_197abc25": {
-      "id": "usr_guest_1788683118717_197abc25",
-      "email": "guest_usr_guest_1788683118717_197abc25@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-06T08:25:18.718Z",
-      "lastLoginAt": "2026-09-06T08:25:18.718Z",
-      "profilesCount": 0
-    },
-    "usr_guest_1788683118828_31cd9ecb": {
-      "id": "usr_guest_1788683118828_31cd9ecb",
-      "email": "guest_usr_guest_1788683118828_31cd9ecb@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-06T08:25:18.828Z",
-      "lastLoginAt": "2026-09-06T08:25:18.828Z",
-      "profilesCount": 0
-    },
-    "usr_guest_1788683339009_3cf1f05e": {
-      "id": "usr_guest_1788683339009_3cf1f05e",
-      "email": "guest_usr_guest_1788683339009_3cf1f05e@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-06T08:28:59.009Z",
-      "lastLoginAt": "2026-09-06T08:28:59.009Z",
-      "profilesCount": 0
-    },
-    "usr_guest_1788683339118_523e3551": {
-      "id": "usr_guest_1788683339118_523e3551",
-      "email": "guest_usr_guest_1788683339118_523e3551@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-06T08:28:59.118Z",
-      "lastLoginAt": "2026-09-06T08:28:59.118Z",
-      "profilesCount": 0
+      "passwordHash": "a676bac45e06f43535a06a729e298e5d:047e39d0457fd51ba20ebb94cc5e23206c8aa09213e282c44a0a581b0c4eabaeacc7c0198d42a979f311b2b56f61b0b50d129060b21746367ec80275753382e8"
     },
     "usr_guest_1788685125636_d7912c80": {
       "id": "usr_guest_1788685125636_d7912c80",
@@ -135,70 +63,291 @@
       "lastLoginAt": "2026-09-06T08:58:45.839Z",
       "profilesCount": 0,
       "passwordHash": "4cdbafdcb1386bafeb4b9dc33fdfbb1a:df975a30601b667632590e0cc14e98b6ce1d6fdaf819f21a8449c9b3039bbd2e2d28a89cd4488a4755c91911c6376c406aecb4448f6757c77f496c5722d17d6e"
+    },
+    "usr_guest_1788767770003_d0173feb": {
+      "id": "usr_guest_1788767770003_d0173feb",
+      "email": "guest_usr_guest_1788767770003_d0173feb@aurora.internal",
+      "fullName": "Khách Tham Quan",
+      "role": "GUEST",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T07:56:10.003Z",
+      "lastLoginAt": "2026-09-07T07:56:10.003Z",
+      "profilesCount": 0
+    },
+    "usr_1788767770078_5648446b": {
+      "id": "usr_1788767770078_5648446b",
+      "email": "user_a_1788767770009@aurora.com",
+      "fullName": "User Alpha",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T07:56:10.078Z",
+      "lastLoginAt": "2026-09-07T07:56:10.078Z",
+      "profilesCount": 0,
+      "passwordHash": "d91b2f9d02146c1822c901366d07e5a1:8f4e53ba8ce25bdd4dc0c6ec3178f6d15745c6ada3f5288f832e3b5fce33980c676f9c7e6528c21af522617ce2de2cacca93c4d09defd932bfd3e2d5cf9cf66d"
+    },
+    "usr_1788767770146_2bafa1a3": {
+      "id": "usr_1788767770146_2bafa1a3",
+      "email": "user_b_1788767770009@aurora.com",
+      "fullName": "User Beta",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T07:56:10.146Z",
+      "lastLoginAt": "2026-09-07T07:56:10.146Z",
+      "profilesCount": 0,
+      "passwordHash": "8fa4633eae2d233999dd2c63476dcbc2:e2361b656a84ad161db9cf2b02f420cb49dcdbe772a83cba014a50b64bcfee0e5be2a67e161b94c732b861c14b56435ed79bfaf70436c1fbb43a009554ad8434"
+    },
+    "usr_1788767770216_cd01d1d6": {
+      "id": "usr_1788767770216_cd01d1d6",
+      "email": "attacker_1788767770009@aurora.com",
+      "fullName": "Attacker Account",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T07:56:10.216Z",
+      "lastLoginAt": "2026-09-07T07:56:10.216Z",
+      "profilesCount": 0,
+      "passwordHash": "c4eaad1fa7b2e40051ef66ed62b554d8:a5cb6648c55edf4a781690af348c8c47f8d5f7a50d93314dfbd78ad5bcb602070325fc64d6864ff7436a87f0afd9fcbb744334789d0c9b64cd95ac24b9e044be"
+    },
+    "usr_guest_1788770485739_90258092": {
+      "id": "usr_guest_1788770485739_90258092",
+      "email": "guest_usr_guest_1788770485739_90258092@aurora.internal",
+      "fullName": "Khách Tham Quan",
+      "role": "GUEST",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:41:25.739Z",
+      "lastLoginAt": "2026-09-07T08:41:25.739Z",
+      "profilesCount": 0
+    },
+    "usr_1788770485811_c2c1c786": {
+      "id": "usr_1788770485811_c2c1c786",
+      "email": "user_a_1788770485746@aurora.com",
+      "fullName": "User Alpha",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:41:25.811Z",
+      "lastLoginAt": "2026-09-07T08:41:25.811Z",
+      "profilesCount": 0,
+      "passwordHash": "ac0a6f620da15e8f998bafb23483645f:3a64655452d44f286cbcb983b583abbfca4af9e7df19fbb165f2428e209b0ce639fd9458cbf64313f22ece0ee1334442c9410a1616ad5bda45d58e897a0bab56"
+    },
+    "usr_1788770485876_4dde7a5b": {
+      "id": "usr_1788770485876_4dde7a5b",
+      "email": "user_b_1788770485746@aurora.com",
+      "fullName": "User Beta",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:41:25.876Z",
+      "lastLoginAt": "2026-09-07T08:41:25.876Z",
+      "profilesCount": 0,
+      "passwordHash": "52975e944f22d24554950ea42ee73d86:a5496d8b23a545f9d2daa6dfe409b1d0281b3e793728158ab7fc50c62e2cab41ee1968b4317df5317082f8bd3d0de8f2ba59bfaa0d15baa623cd6b235dee1126"
+    },
+    "usr_1788770485942_16586086": {
+      "id": "usr_1788770485942_16586086",
+      "email": "attacker_1788770485746@aurora.com",
+      "fullName": "Attacker Account",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:41:25.942Z",
+      "lastLoginAt": "2026-09-07T08:41:25.942Z",
+      "profilesCount": 0,
+      "passwordHash": "0e708a7dbbf72f80d35220c31eb0f195:6c3b2f9baebd79bc3b10895c3fff737d14292638e4dcc0ee9f414a0728ef81a7a973d9e4fb0489ea13af05f0f2b31f11350181ab195cbb05566e008aa59b52a6"
+    },
+    "usr_guest_1788770536597_440ba6de": {
+      "id": "usr_guest_1788770536597_440ba6de",
+      "email": "guest_usr_guest_1788770536597_440ba6de@aurora.internal",
+      "fullName": "Khách Tham Quan",
+      "role": "GUEST",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:16.597Z",
+      "lastLoginAt": "2026-09-07T08:42:16.597Z",
+      "profilesCount": 0
+    },
+    "usr_1788770536668_b6e1ee75": {
+      "id": "usr_1788770536668_b6e1ee75",
+      "email": "user_a_1788770536603@aurora.com",
+      "fullName": "User Alpha",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:16.668Z",
+      "lastLoginAt": "2026-09-07T08:42:16.668Z",
+      "profilesCount": 0,
+      "passwordHash": "33d0852d8c58ee46505ba65582d2680e:33a583768fede085e3011806e496d8ebf244e66c1202207d52e128eda72e72218156c28de6b0f778ed0727ce37addd3b17e11452280ab3cc7f013d156761922a"
+    },
+    "usr_1788770536735_810123a7": {
+      "id": "usr_1788770536735_810123a7",
+      "email": "user_b_1788770536603@aurora.com",
+      "fullName": "User Beta",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:16.735Z",
+      "lastLoginAt": "2026-09-07T08:42:16.735Z",
+      "profilesCount": 0,
+      "passwordHash": "517d35027728a2aae85f8164c1a22643:1163e01c3a64bf7b39114023b460668e77eb7ff802eca3be4dab3ab8fc0be19fa8993b99f0feb83e04b3a651f18485b9123d4329c2476dca6361246e1e8606e4"
+    },
+    "usr_1788770536804_9fafecd0": {
+      "id": "usr_1788770536804_9fafecd0",
+      "email": "attacker_1788770536603@aurora.com",
+      "fullName": "Attacker Account",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:16.804Z",
+      "lastLoginAt": "2026-09-07T08:42:16.804Z",
+      "profilesCount": 0,
+      "passwordHash": "708e497cf24ec358d53dfe4fb06f9a35:1bd30b0eca7085b2f89588fd4e7e3371409f8105c4f32c7d747a3f4609fb18777289972d669a674a4f6c4220bed018fff77881af34254b60ac42ed3459b8a6ce"
+    },
+    "usr_1788770537401_ff35100e": {
+      "id": "usr_1788770537401_ff35100e",
+      "email": "rotation_1788770537336@aurora.io",
+      "fullName": "Rotation Test",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:17.401Z",
+      "lastLoginAt": "2026-09-07T08:42:17.669Z",
+      "profilesCount": 0,
+      "passwordHash": "8eede98276d2e6fc0150719eb8ddc02f:2bedc154e3a1b65dab38e81680ea69e75185afa5bf125e81946efcd96514c62bccdc9562ac00801f7c4da659c51e4e05bfc0cd732a603ae7c3ec9d39fba094ce"
+    },
+    "usr_guest_1788770569195_ff276d78": {
+      "id": "usr_guest_1788770569195_ff276d78",
+      "email": "guest_usr_guest_1788770569195_ff276d78@aurora.internal",
+      "fullName": "Khách Tham Quan",
+      "role": "GUEST",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:49.195Z",
+      "lastLoginAt": "2026-09-07T08:42:49.195Z",
+      "profilesCount": 0
+    },
+    "usr_1788770569267_92e1b6f5": {
+      "id": "usr_1788770569267_92e1b6f5",
+      "email": "user_a_1788770569201@aurora.com",
+      "fullName": "User Alpha",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:49.267Z",
+      "lastLoginAt": "2026-09-07T08:42:49.267Z",
+      "profilesCount": 0,
+      "passwordHash": "55024f505429e0ac1580684d4b5b3c02:8888d01fa002d7ff3b4ecff8c51d19b0cfaafd5338973182c75283c8e3f8a7366b7cd14f323a6333b021d91f0031cc741b68aa4dffe09d1e3ac6bb21d474b3ac"
+    },
+    "usr_1788770569332_671382d3": {
+      "id": "usr_1788770569332_671382d3",
+      "email": "user_b_1788770569201@aurora.com",
+      "fullName": "User Beta",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:49.332Z",
+      "lastLoginAt": "2026-09-07T08:42:49.332Z",
+      "profilesCount": 0,
+      "passwordHash": "397646da10088b5ce524185c4cf4b6dd:f4f3f41f1c7c7fe6ac7bc9c5586e85b2a9fec052fbd21fc8cec91980faa26a9c379203abf96a1a7bf69ead8681b6a1424a68ea4cbe9b3de0a6ae7c9dfe1e3b17"
+    },
+    "usr_1788770569398_62febcf7": {
+      "id": "usr_1788770569398_62febcf7",
+      "email": "attacker_1788770569201@aurora.com",
+      "fullName": "Attacker Account",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:49.398Z",
+      "lastLoginAt": "2026-09-07T08:42:49.398Z",
+      "profilesCount": 0,
+      "passwordHash": "ee140825594d35dccb3fd4ba10b035d1:a261ae3f606691f0e1fed86862aacfc6ab874aa6463f7a8b9889403dda935b4178e4b2143c4403489d866621ef7c4e674bb16e957e92eef99e88afa9a1056332"
+    },
+    "usr_1788770569880_6f70fd50": {
+      "id": "usr_1788770569880_6f70fd50",
+      "email": "rotation_1788770569814@aurora.io",
+      "fullName": "Rotation Test",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:42:49.880Z",
+      "lastLoginAt": "2026-09-07T08:42:50.143Z",
+      "profilesCount": 0,
+      "passwordHash": "98d664f8ee9bd2c3dff00f3c750cba23:65c331841f8e5d72bf792ee21b16069f32d9f7ab848a6e395c2dc7eaf5e4b92892627ec956e82fdbe7410e3bfc744943881b9635a673f866146be2b8733f0cfd"
+    },
+    "usr_guest_1788770814524_8ba90618": {
+      "id": "usr_guest_1788770814524_8ba90618",
+      "email": "guest_usr_guest_1788770814524_8ba90618@aurora.internal",
+      "fullName": "Khách Tham Quan",
+      "role": "GUEST",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:46:54.524Z",
+      "lastLoginAt": "2026-09-07T08:46:54.524Z",
+      "profilesCount": 0
+    },
+    "usr_1788770814595_8bb1c046": {
+      "id": "usr_1788770814595_8bb1c046",
+      "email": "user_a_1788770814530@aurora.com",
+      "fullName": "User Alpha",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:46:54.595Z",
+      "lastLoginAt": "2026-09-07T08:46:54.595Z",
+      "profilesCount": 0,
+      "passwordHash": "6b9da448f9f989ac7c1a9829c888e192:0a71a59dc69b65acecb7823ce90842bf780182038824efc3fe5d17a1586ec569723135be082b92f5d36ce4862908f0bd6b14c48f818803f747d72465003f6db9"
+    },
+    "usr_1788770814661_18326ceb": {
+      "id": "usr_1788770814661_18326ceb",
+      "email": "user_b_1788770814530@aurora.com",
+      "fullName": "User Beta",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:46:54.661Z",
+      "lastLoginAt": "2026-09-07T08:46:54.661Z",
+      "profilesCount": 0,
+      "passwordHash": "9aaa8f32e944c66f96035aca335c56bc:4490a92226c3d5ed4c53fbc2d2b7b92db95170364123f98b3165322399939b752230f99b537d9da45cc87970cdcc59c9fd28b286ccb18bad77d28b71ce3b59c1"
+    },
+    "usr_1788770814727_1143c63d": {
+      "id": "usr_1788770814727_1143c63d",
+      "email": "attacker_1788770814530@aurora.com",
+      "fullName": "Attacker Account",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:46:54.727Z",
+      "lastLoginAt": "2026-09-07T08:46:54.727Z",
+      "profilesCount": 0,
+      "passwordHash": "d3a1af08663462ca90ea030edb308230:991e84591e6f1e429dc7d7529e9ca541a2c24d0898efc2adb2e256e90336bfb7e53ce9dcde6c814af11ac423cf1f96af013e724ac7d162584866955ba61eed17"
     }
   },
   "preferences": {
     "usr_admin_de1baf51": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788683037931_0ba3604f": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788683038045_df7cfa58": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788683118717_197abc25": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788683118828_31cd9ecb": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788683339009_3cf1f05e": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788683339118_523e3551": {
       "theme": "dark",
       "language": "vi",
       "timezone": "Asia/Ho_Chi_Minh",
@@ -239,6 +388,226 @@
       "highContrast": false
     },
     "usr_1788685125839_216d0cbe": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788767770003_d0173feb": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788767770078_5648446b": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788767770146_2bafa1a3": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788767770216_cd01d1d6": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788770485739_90258092": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770485811_c2c1c786": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770485876_4dde7a5b": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770485942_16586086": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788770536597_440ba6de": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770536668_b6e1ee75": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770536735_810123a7": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770536804_9fafecd0": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770537401_ff35100e": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788770569195_ff276d78": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770569267_92e1b6f5": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770569332_671382d3": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770569398_62febcf7": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770569880_6f70fd50": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788770814524_8ba90618": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770814595_8bb1c046": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770814661_18326ceb": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770814727_1143c63d": {
       "theme": "dark",
       "language": "vi",
       "timezone": "Asia/Ho_Chi_Minh",
@@ -1283,60 +1652,1058 @@
           "Hệ thống mang tính chất tham vấn triết học Đông phương, không thay thế tư vấn y tế, tài chính hoặc pháp lý chuyên nghiệp."
         ]
       }
+    },
+    "calc_a25c4cfb4e42eda9": {
+      "id": "calc_a25c4cfb4e42eda9",
+      "profileId": "prof_1788768540226_a6bafa",
+      "calculationVersion": "calc_v2.5.0",
+      "astrologyRulesVersion": "astrorules_v2.0.0",
+      "analysisModelVersion": "aurora_ensemble_v3.5",
+      "timestamp": "2026-09-07T08:09:00.230Z",
+      "inputSnapshot": {
+        "solarYear": 1987,
+        "solarMonth": 4,
+        "solarDay": 21,
+        "solarHour": 14,
+        "solarMinute": 0,
+        "hasExactHour": true,
+        "birthCity": "TP. Hồ Chí Minh",
+        "birthCountry": "Việt Nam",
+        "timezoneOffset": 7,
+        "timezoneName": "UTC+7",
+        "gender": "Male",
+        "calendarSystem": "solar",
+        "isLateRat": false,
+        "timeConvention": "civil",
+        "longitude": 106.7009,
+        "latitude": 10.7769
+      },
+      "bazi": {
+        "yearPillar": {
+          "stem": "Ding",
+          "branch": "Mao",
+          "stemElement": "Fire",
+          "branchElement": "Wood",
+          "hiddenStems": [
+            {
+              "stem": "Yi",
+              "element": "Wood",
+              "tenGod": "Chính Tài"
+            }
+          ],
+          "naYin": "Lư Trung Hỏa",
+          "tenGod": "Chính Quan",
+          "strength": 72
+        },
+        "monthPillar": {
+          "stem": "Jia",
+          "branch": "Chen",
+          "stemElement": "Wood",
+          "branchElement": "Earth",
+          "hiddenStems": [
+            {
+              "stem": "Wu",
+              "element": "Earth",
+              "tenGod": "Thiên Ấn"
+            },
+            {
+              "stem": "Yi",
+              "element": "Wood",
+              "tenGod": "Chính Tài"
+            },
+            {
+              "stem": "Gui",
+              "element": "Water",
+              "tenGod": "Thương Quan"
+            }
+          ],
+          "naYin": "Phúc Đăng Hỏa",
+          "tenGod": "Thiên Tài",
+          "strength": 78
+        },
+        "dayPillar": {
+          "stem": "Geng",
+          "branch": "Zi",
+          "stemElement": "Metal",
+          "branchElement": "Water",
+          "hiddenStems": [
+            {
+              "stem": "Gui",
+              "element": "Water",
+              "tenGod": "Thương Quan"
+            }
+          ],
+          "naYin": "Bích Thượng Thổ",
+          "tenGod": "Tỷ Kiên",
+          "strength": 60
+        },
+        "hourPillar": {
+          "stem": "Gui",
+          "branch": "Wei",
+          "stemElement": "Water",
+          "branchElement": "Earth",
+          "hiddenStems": [
+            {
+              "stem": "Ji",
+              "element": "Earth",
+              "tenGod": "Chính Ấn"
+            },
+            {
+              "stem": "Ding",
+              "element": "Fire",
+              "tenGod": "Chính Quan"
+            },
+            {
+              "stem": "Yi",
+              "element": "Wood",
+              "tenGod": "Chính Tài"
+            }
+          ],
+          "naYin": "Dương Liễu Mộc",
+          "tenGod": "Thương Quan",
+          "strength": 44
+        },
+        "dayMaster": "Geng",
+        "dayMasterElement": "Metal",
+        "dayMasterStrength": "Weak",
+        "elementBalance": {
+          "Wood": 23,
+          "Fire": 9,
+          "Earth": 36,
+          "Metal": 9,
+          "Water": 23
+        },
+        "favorableElements": [
+          "Earth",
+          "Metal"
+        ],
+        "unfavorableElements": [
+          "Wood",
+          "Fire"
+        ],
+        "structureType": "Thiên Ấn Cách",
+        "tenGodDistribution": {
+          "Chính Quan": 1.5,
+          "Chính Tài": 1.5,
+          "Thiên Tài": 1,
+          "Thiên Ấn": 0.5,
+          "Thương Quan": 2,
+          "Tỷ Kiên": 1,
+          "Chính Ấn": 0.5
+        }
+      },
+      "ziwei": {
+        "palaces": {
+          "life": {
+            "key": "life",
+            "nameVi": "Mệnh",
+            "nameEn": "Life / Destiny",
+            "branch": "You",
+            "stem": "Ji",
+            "majorStars": [
+              {
+                "nameVi": "Liêm Trinh",
+                "nameEn": "Judge / Diplomat (Lian Zhen)",
+                "nameZh": "廉貞",
+                "brightness": "H",
+                "element": "Fire",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Phá Quân",
+                "nameEn": "Army Breaker / Disruptor (Po Jun)",
+                "nameZh": "破軍",
+                "brightness": "H",
+                "element": "Water",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Thiên Việt",
+                "nameEn": "Thiên Việt",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [],
+            "score": 45,
+            "focalTheme": "Bản thể, tư chất bẩm sinh, ý chí và mô hình định mệnh cốt lõi"
+          },
+          "siblings": {
+            "key": "siblings",
+            "nameVi": "Huynh Đệ",
+            "nameEn": "Siblings & Peers",
+            "branch": "Shen",
+            "stem": "Wu",
+            "majorStars": [],
+            "minorStars": [
+              {
+                "nameVi": "Hữu Bật",
+                "nameEn": "Hữu Bật",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Water",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [],
+            "score": 69,
+            "focalTheme": "Mối quan hệ anh em, tri kỷ, mạng lưới đồng nghiệp cộng sự"
+          },
+          "spouse": {
+            "key": "spouse",
+            "nameVi": "Phu Thê",
+            "nameEn": "Spouse & Marriage",
+            "branch": "Wei",
+            "stem": "Ding",
+            "majorStars": [],
+            "minorStars": [
+              {
+                "nameVi": "Kình Dương",
+                "nameEn": "Kình Dương",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Challenging"
+              }
+            ],
+            "transformations": [],
+            "score": 61,
+            "focalTheme": "Hôn nhân phối ngẫu, duyên nợ tình cảm, sự hòa hợp tâm thức"
+          },
+          "children": {
+            "key": "children",
+            "nameVi": "Tử Tức",
+            "nameEn": "Children & Subordinates",
+            "branch": "Wu_B",
+            "stem": "Bing",
+            "majorStars": [],
+            "minorStars": [
+              {
+                "nameVi": "Tả Phụ",
+                "nameEn": "Tả Phụ",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Earth",
+                "type": "Lucky"
+              },
+              {
+                "nameVi": "Lộc Tồn",
+                "nameEn": "Lộc Tồn",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Earth",
+                "type": "Lucky"
+              },
+              {
+                "nameVi": "Địa Kiếp",
+                "nameEn": "Địa Kiếp",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Challenging"
+              }
+            ],
+            "transformations": [],
+            "score": 69,
+            "focalTheme": "Hậu duệ, thế hệ kế cận, truyền thừa và mối nhân duyên con cái"
+          },
+          "wealth": {
+            "key": "wealth",
+            "nameVi": "Tài Bạch",
+            "nameEn": "Wealth & Assets",
+            "branch": "Si",
+            "stem": "Yi",
+            "majorStars": [
+              {
+                "nameVi": "Tử Vi",
+                "nameEn": "Emperor (Zi Wei)",
+                "nameZh": "紫微",
+                "brightness": "V",
+                "element": "Earth",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Thất Sát",
+                "nameEn": "Seven Killings Warrior (Qi Sha)",
+                "nameZh": "七殺",
+                "brightness": "H",
+                "element": "Metal",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Đà La",
+                "nameEn": "Đà La",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Challenging"
+              }
+            ],
+            "transformations": [],
+            "score": 66,
+            "focalTheme": "Dòng tiền, năng lực tạo dựng của cải, tư duy quản trị tài chính"
+          },
+          "health": {
+            "key": "health",
+            "nameVi": "Tật Ách",
+            "nameEn": "Health & Well-being",
+            "branch": "Chen",
+            "stem": "Jia",
+            "majorStars": [
+              {
+                "nameVi": "Thiên Cơ",
+                "nameEn": "Strategist (Tian Ji)",
+                "nameZh": "天機",
+                "brightness": "M",
+                "element": "Wood",
+                "transformation": "Khoa",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Thiên Lương",
+                "nameEn": "Elder Sage (Tian Liang)",
+                "nameZh": "天梁",
+                "brightness": "M",
+                "element": "Earth",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Địa Không",
+                "nameEn": "Địa Không",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Challenging"
+              }
+            ],
+            "transformations": [
+              "Hóa Khoa"
+            ],
+            "score": 99,
+            "focalTheme": "Thể chất, năng lượng sinh học, phòng ngừa rủi ro và bệnh tật"
+          },
+          "travel": {
+            "key": "travel",
+            "nameVi": "Thiên Di",
+            "nameEn": "Travel & Outer World",
+            "branch": "Mao",
+            "stem": "Gui",
+            "majorStars": [
+              {
+                "nameVi": "Thiên Tướng",
+                "nameEn": "Prime Minister (Tian Xiang)",
+                "nameZh": "天相",
+                "brightness": "H",
+                "element": "Water",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Văn Xương",
+                "nameEn": "Văn Xương",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [],
+            "score": 57,
+            "focalTheme": "Môi trường ngoại cảnh, khả năng xuất ngoại, vị thế xã hội bên ngoài"
+          },
+          "friends": {
+            "key": "friends",
+            "nameVi": "Nô Bộc",
+            "nameEn": "Friends & Allies",
+            "branch": "Yin_B",
+            "stem": "Ren",
+            "majorStars": [
+              {
+                "nameVi": "Thái Dương",
+                "nameEn": "Sun (Tai Yang)",
+                "nameZh": "太陽",
+                "brightness": "V",
+                "element": "Fire",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Cự Môn",
+                "nameEn": "Great Gate / Orator (Ju Men)",
+                "nameZh": "巨門",
+                "brightness": "V",
+                "element": "Water",
+                "transformation": "Ky",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [
+              "Hóa Kỵ"
+            ],
+            "score": 89,
+            "focalTheme": "Bạn bè, đối tác hợp tác, cấp dưới và trợ lực xã hội"
+          },
+          "career": {
+            "key": "career",
+            "nameVi": "Quan Lộc",
+            "nameEn": "Career & Authority",
+            "branch": "Chou",
+            "stem": "Gui",
+            "majorStars": [
+              {
+                "nameVi": "Vũ Khúc",
+                "nameEn": "General / Financier (Wu Qu)",
+                "nameZh": "武曲",
+                "brightness": "M",
+                "element": "Metal",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Tham Lang",
+                "nameEn": "Wolf of Desire (Tan Lang)",
+                "nameZh": "貪狼",
+                "brightness": "M",
+                "element": "Wood",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [],
+            "score": 99,
+            "focalTheme": "Sự nghiệp chuyên môn, quyền lực, con đường công danh chức vụ"
+          },
+          "property": {
+            "key": "property",
+            "nameVi": "Điền Trạch",
+            "nameEn": "Property & Real Estate",
+            "branch": "Zi",
+            "stem": "Ren",
+            "majorStars": [
+              {
+                "nameVi": "Thiên Đồng",
+                "nameEn": "Lucky Child (Tian Tong)",
+                "nameZh": "天同",
+                "brightness": "V",
+                "element": "Water",
+                "transformation": "Quan",
+                "type": "Major"
+              },
+              {
+                "nameVi": "Thái Âm",
+                "nameEn": "Moon (Tai Yin)",
+                "nameZh": "太陰",
+                "brightness": "M",
+                "element": "Water",
+                "transformation": "Lu",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [],
+            "transformations": [
+              "Hóa Quyền",
+              "Hóa Lộc"
+            ],
+            "score": 99,
+            "focalTheme": "Bất động sản, tài sản tích lũy, cơ nghiệp tổ phụ và gia trạch"
+          },
+          "karma": {
+            "key": "karma",
+            "nameVi": "Phúc Đức",
+            "nameEn": "Spiritual Well-being & Karma",
+            "branch": "Hai",
+            "stem": "Xin",
+            "majorStars": [
+              {
+                "nameVi": "Thiên Phủ",
+                "nameEn": "Treasury / Empress (Tian Fu)",
+                "nameZh": "天府",
+                "brightness": "D",
+                "element": "Earth",
+                "type": "Major"
+              }
+            ],
+            "minorStars": [
+              {
+                "nameVi": "Văn Khúc",
+                "nameEn": "Văn Khúc",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Water",
+                "type": "Lucky"
+              },
+              {
+                "nameVi": "Thiên Khôi",
+                "nameEn": "Thiên Khôi",
+                "nameZh": "",
+                "brightness": "M",
+                "element": "Fire",
+                "type": "Lucky"
+              }
+            ],
+            "transformations": [],
+            "score": 83,
+            "focalTheme": "Đời sống tinh thần, phúc trạch tổ tiên, nội tâm an nhiên tĩnh tại"
+          },
+          "parents": {
+            "key": "parents",
+            "nameVi": "Phụ Mẫu",
+            "nameEn": "Parents & Mentors",
+            "branch": "Xu",
+            "stem": "Geng",
+            "majorStars": [],
+            "minorStars": [],
+            "transformations": [],
+            "score": 65,
+            "focalTheme": "Cha mẹ, tiền bối nâng đỡ, ân điển gia tộc và nguồn cội che chở"
+          }
+        },
+        "bodyPalaceKey": "karma",
+        "lifePalaceKey": "life",
+        "elementBureau": "Thổ Ngũ Cục (Earth 5)",
+        "majorConfigurations": [
+          "Sát Phá Tham (Dynamic Pioneer & Disrupter Configuration)"
+        ]
+      },
+      "decades": [
+        {
+          "index": 1,
+          "startAge": 4,
+          "endAge": 13,
+          "startYear": 1991,
+          "endYear": 2000,
+          "stem": "Gui",
+          "branch": "Mao",
+          "element": "Water",
+          "tenGod": "Thương Quan",
+          "focalPalace": "life",
+          "harmonyScore": 86,
+          "keyThemes": [
+            "Giai đoạn 4-13 tuổi: Khởi động vận trình Quý Mão",
+            "Cung trọng điểm: LIFE gắn liền với chuyển biến Thương Quan"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Thủy gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 2,
+          "startAge": 14,
+          "endAge": 23,
+          "startYear": 2001,
+          "endYear": 2010,
+          "stem": "Ren",
+          "branch": "Yin_B",
+          "element": "Water",
+          "tenGod": "Thực Thần",
+          "focalPalace": "siblings",
+          "harmonyScore": 86,
+          "keyThemes": [
+            "Giai đoạn 14-23 tuổi: Khởi động vận trình Nhâm Dần",
+            "Cung trọng điểm: SIBLINGS gắn liền với chuyển biến Thực Thần"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Thủy gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 3,
+          "startAge": 24,
+          "endAge": 33,
+          "startYear": 2011,
+          "endYear": 2020,
+          "stem": "Xin",
+          "branch": "Chou",
+          "element": "Metal",
+          "tenGod": "Kiếp Tài",
+          "focalPalace": "spouse",
+          "harmonyScore": 80,
+          "keyThemes": [
+            "Giai đoạn 24-33 tuổi: Khởi động vận trình Tân Sửu",
+            "Cung trọng điểm: SPOUSE gắn liền với chuyển biến Kiếp Tài"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Kim gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 4,
+          "startAge": 34,
+          "endAge": 43,
+          "startYear": 2021,
+          "endYear": 2030,
+          "stem": "Geng",
+          "branch": "Zi",
+          "element": "Metal",
+          "tenGod": "Tỷ Kiên",
+          "focalPalace": "children",
+          "harmonyScore": 80,
+          "keyThemes": [
+            "Giai đoạn 34-43 tuổi: Khởi động vận trình Canh Tý",
+            "Cung trọng điểm: CHILDREN gắn liền với chuyển biến Tỷ Kiên"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Kim gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 5,
+          "startAge": 44,
+          "endAge": 53,
+          "startYear": 2031,
+          "endYear": 2040,
+          "stem": "Ji",
+          "branch": "Hai",
+          "element": "Earth",
+          "tenGod": "Chính Ấn",
+          "focalPalace": "wealth",
+          "harmonyScore": 90,
+          "keyThemes": [
+            "Giai đoạn 44-53 tuổi: Khởi động vận trình Kỷ Hợi",
+            "Cung trọng điểm: WEALTH gắn liền với chuyển biến Chính Ấn"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Thổ gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 6,
+          "startAge": 54,
+          "endAge": 63,
+          "startYear": 2041,
+          "endYear": 2050,
+          "stem": "Wu",
+          "branch": "Xu",
+          "element": "Earth",
+          "tenGod": "Thiên Ấn",
+          "focalPalace": "health",
+          "harmonyScore": 90,
+          "keyThemes": [
+            "Giai đoạn 54-63 tuổi: Khởi động vận trình Mậu Tuất",
+            "Cung trọng điểm: HEALTH gắn liền với chuyển biến Thiên Ấn"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Thổ gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 7,
+          "startAge": 64,
+          "endAge": 73,
+          "startYear": 2051,
+          "endYear": 2060,
+          "stem": "Ding",
+          "branch": "You",
+          "element": "Fire",
+          "tenGod": "Chính Quan",
+          "focalPalace": "travel",
+          "harmonyScore": 65,
+          "keyThemes": [
+            "Giai đoạn 64-73 tuổi: Khởi động vận trình Đinh Dậu",
+            "Cung trọng điểm: TRAVEL gắn liền với chuyển biến Chính Quan"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Hỏa gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        },
+        {
+          "index": 8,
+          "startAge": 74,
+          "endAge": 83,
+          "startYear": 2061,
+          "endYear": 2070,
+          "stem": "Bing",
+          "branch": "Shen",
+          "element": "Fire",
+          "tenGod": "Thất Sát",
+          "focalPalace": "friends",
+          "harmonyScore": 65,
+          "keyThemes": [
+            "Giai đoạn 74-83 tuổi: Khởi động vận trình Bính Thân",
+            "Cung trọng điểm: FRIENDS gắn liền với chuyển biến Thất Sát"
+          ],
+          "opportunitySignals": [
+            "Tương tác năng lượng Hỏa gia tăng sức bền",
+            "Cơ hội mở rộng tầm ảnh hưởng xã hội và sự nghiệp"
+          ],
+          "cautionSignals": [
+            "Tránh mở rộng quy mô vốn vượt quá quản trị kiểm soát",
+            "Cân bằng giữa tốc độ phát triển và sức khỏe tái tạo"
+          ]
+        }
+      ],
+      "annualTransits": [
+        {
+          "year": 2020,
+          "stem": "Geng",
+          "branch": "Zi",
+          "element": "Metal",
+          "tenGod": "Tỷ Kiên",
+          "overallScore": 78,
+          "careerScore": 78,
+          "wealthScore": 71,
+          "relationshipScore": 78,
+          "healthScore": 74,
+          "growthScore": 84,
+          "opportunityWave": 75,
+          "cautionWave": 38,
+          "highlightSummary": "Năm 2020 (Canh Tý - Tỷ Kiên): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2021,
+          "stem": "Xin",
+          "branch": "Chou",
+          "element": "Metal",
+          "tenGod": "Kiếp Tài",
+          "overallScore": 78,
+          "careerScore": 84,
+          "wealthScore": 76,
+          "relationshipScore": 74,
+          "healthScore": 74,
+          "growthScore": 84,
+          "opportunityWave": 80,
+          "cautionWave": 38,
+          "highlightSummary": "Năm 2021 (Tân Sửu - Kiếp Tài): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2022,
+          "stem": "Ren",
+          "branch": "Yin_B",
+          "element": "Water",
+          "tenGod": "Thực Thần",
+          "overallScore": 84,
+          "careerScore": 78,
+          "wealthScore": 87,
+          "relationshipScore": 88,
+          "healthScore": 71,
+          "growthScore": 90,
+          "opportunityWave": 83,
+          "cautionWave": 33,
+          "highlightSummary": "Năm 2022 (Nhâm Dần - Thực Thần): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2023,
+          "stem": "Gui",
+          "branch": "Mao",
+          "element": "Water",
+          "tenGod": "Thương Quan",
+          "overallScore": 84,
+          "careerScore": 84,
+          "wealthScore": 92,
+          "relationshipScore": 84,
+          "healthScore": 71,
+          "growthScore": 90,
+          "opportunityWave": 88,
+          "cautionWave": 33,
+          "highlightSummary": "Năm 2023 (Quý Mão - Thương Quan): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2024,
+          "stem": "Jia",
+          "branch": "Chen",
+          "element": "Wood",
+          "tenGod": "Thiên Tài",
+          "overallScore": 70,
+          "careerScore": 76,
+          "wealthScore": 63,
+          "relationshipScore": 66,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 70,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2024 (Giáp Thìn - Thiên Tài): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2025,
+          "stem": "Yi",
+          "branch": "Si",
+          "element": "Wood",
+          "tenGod": "Chính Tài",
+          "overallScore": 70,
+          "careerScore": 64,
+          "wealthScore": 68,
+          "relationshipScore": 74,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 66,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2025 (Ất Tỵ - Chính Tài): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2026,
+          "stem": "Bing",
+          "branch": "Wu_B",
+          "element": "Fire",
+          "tenGod": "Thất Sát",
+          "overallScore": 64,
+          "careerScore": 64,
+          "wealthScore": 67,
+          "relationshipScore": 64,
+          "healthScore": 71,
+          "growthScore": 70,
+          "opportunityWave": 66,
+          "cautionWave": 49,
+          "highlightSummary": "Năm 2026 (Bính Ngọ - Thất Sát): Thiên can mang hành Hỏa, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2027,
+          "stem": "Ding",
+          "branch": "Wei",
+          "element": "Fire",
+          "tenGod": "Chính Quan",
+          "overallScore": 64,
+          "careerScore": 70,
+          "wealthScore": 72,
+          "relationshipScore": 60,
+          "healthScore": 71,
+          "growthScore": 70,
+          "opportunityWave": 71,
+          "cautionWave": 49,
+          "highlightSummary": "Năm 2027 (Đinh Mùi - Chính Quan): Thiên can mang hành Hỏa, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2028,
+          "stem": "Wu",
+          "branch": "Shen",
+          "element": "Earth",
+          "tenGod": "Thiên Ấn",
+          "overallScore": 88,
+          "careerScore": 82,
+          "wealthScore": 81,
+          "relationshipScore": 92,
+          "healthScore": 70,
+          "growthScore": 94,
+          "opportunityWave": 82,
+          "cautionWave": 30,
+          "highlightSummary": "Năm 2028 (Mậu Thân - Thiên Ấn): Thiên can mang hành Thổ, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2029,
+          "stem": "Ji",
+          "branch": "You",
+          "element": "Earth",
+          "tenGod": "Chính Ấn",
+          "overallScore": 88,
+          "careerScore": 88,
+          "wealthScore": 86,
+          "relationshipScore": 88,
+          "healthScore": 70,
+          "growthScore": 94,
+          "opportunityWave": 87,
+          "cautionWave": 30,
+          "highlightSummary": "Năm 2029 (Kỷ Dậu - Chính Ấn): Thiên can mang hành Thổ, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2030,
+          "stem": "Geng",
+          "branch": "Xu",
+          "element": "Metal",
+          "tenGod": "Tỷ Kiên",
+          "overallScore": 78,
+          "careerScore": 84,
+          "wealthScore": 81,
+          "relationshipScore": 74,
+          "healthScore": 74,
+          "growthScore": 84,
+          "opportunityWave": 83,
+          "cautionWave": 38,
+          "highlightSummary": "Năm 2030 (Canh Tuất - Tỷ Kiên): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2031,
+          "stem": "Xin",
+          "branch": "Hai",
+          "element": "Metal",
+          "tenGod": "Kiếp Tài",
+          "overallScore": 78,
+          "careerScore": 72,
+          "wealthScore": 86,
+          "relationshipScore": 82,
+          "healthScore": 74,
+          "growthScore": 84,
+          "opportunityWave": 79,
+          "cautionWave": 38,
+          "highlightSummary": "Năm 2031 (Tân Hợi - Kiếp Tài): Thiên can mang hành Kim, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2032,
+          "stem": "Ren",
+          "branch": "Zi",
+          "element": "Water",
+          "tenGod": "Thực Thần",
+          "overallScore": 84,
+          "careerScore": 84,
+          "wealthScore": 77,
+          "relationshipScore": 84,
+          "healthScore": 71,
+          "growthScore": 90,
+          "opportunityWave": 81,
+          "cautionWave": 33,
+          "highlightSummary": "Năm 2032 (Nhâm Tý - Thực Thần): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2033,
+          "stem": "Gui",
+          "branch": "Chou",
+          "element": "Water",
+          "tenGod": "Thương Quan",
+          "overallScore": 84,
+          "careerScore": 90,
+          "wealthScore": 82,
+          "relationshipScore": 80,
+          "healthScore": 71,
+          "growthScore": 90,
+          "opportunityWave": 86,
+          "cautionWave": 33,
+          "highlightSummary": "Năm 2033 (Quý Sửu - Thương Quan): Thiên can mang hành Thủy, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn đẩy mạnh quy mô, khai phá dự án mới và liên kết đồng minh"
+        },
+        {
+          "year": 2034,
+          "stem": "Jia",
+          "branch": "Yin_B",
+          "element": "Wood",
+          "tenGod": "Thiên Tài",
+          "overallScore": 70,
+          "careerScore": 64,
+          "wealthScore": 73,
+          "relationshipScore": 74,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 69,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2034 (Giáp Dần - Thiên Tài): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2035,
+          "stem": "Yi",
+          "branch": "Mao",
+          "element": "Wood",
+          "tenGod": "Chính Tài",
+          "overallScore": 70,
+          "careerScore": 70,
+          "wealthScore": 78,
+          "relationshipScore": 70,
+          "healthScore": 73,
+          "growthScore": 76,
+          "opportunityWave": 74,
+          "cautionWave": 44,
+          "highlightSummary": "Năm 2035 (Ất Mão - Chính Tài): Thiên can mang hành Mộc, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        },
+        {
+          "year": 2036,
+          "stem": "Bing",
+          "branch": "Chen",
+          "element": "Fire",
+          "tenGod": "Thất Sát",
+          "overallScore": 64,
+          "careerScore": 70,
+          "wealthScore": 57,
+          "relationshipScore": 60,
+          "healthScore": 71,
+          "growthScore": 70,
+          "opportunityWave": 64,
+          "cautionWave": 49,
+          "highlightSummary": "Năm 2036 (Bính Thìn - Thất Sát): Thiên can mang hành Hỏa, chu kỳ chuyển dịch chiến lược.",
+          "recommendedFocus": "Giai đoạn củng cố nội lực, kiện toàn hệ thống và phòng ngừa rủi ro"
+        }
+      ],
+      "confidence": {
+        "consistencyScore": 82,
+        "dataCompleteness": 100,
+        "historicalFit": 0,
+        "signalStrength": 85,
+        "uncertaintyIndex": 18,
+        "resolutionLevel": "High",
+        "assumptions": [
+          "Giờ sinh xác thực: Chuẩn hóa theo kinh độ múi giờ địa phương.",
+          "Địa điểm sinh: chuẩn hóa tọa độ tại TP. Hồ Chí Minh.",
+          "Hệ lịch thiên văn Tiết khí và Lịch số Hồ Ngọc Đức được áp dụng làm quy chuẩn tính toán."
+        ],
+        "limitations": [
+          "Chỉ số đo lường tính mạch lạc và độ nhất quán nội tại của mô hình, KHÔNG đại diện cho sự tiền định tuyệt đối.",
+          "Sự kiện thực tế trong cuộc sống phụ thuộc chủ đạo vào ý chí tự do, năng lực hành động và hoàn cảnh khách quan.",
+          "Hệ thống mang tính chất tham vấn triết học Đông phương, không thay thế tư vấn y tế, tài chính hoặc pháp lý chuyên nghiệp."
+        ]
+      },
+      "effectiveBirthTime": {
+        "effectiveDate": {
+          "year": 1987,
+          "month": 4,
+          "day": 21
+        },
+        "effectiveHour": 14,
+        "effectiveMinute": 0,
+        "timeConvention": "civil",
+        "equationOfTimeMinutes": 1.16,
+        "longitudeCorrectionMinutes": 6.8,
+        "totalCorrectionMinutes": 7.97,
+        "dayShift": 0
+      }
     }
   },
   "historicalEvents": {},
   "backtestResults": {},
   "chatMessages": {},
   "sessions": {
-    "aurora_00e8c9e91e561ba072668b163cbc3e4c852f17a60297234f714c15bc37efa940": {
-      "token": "aurora_00e8c9e91e561ba072668b163cbc3e4c852f17a60297234f714c15bc37efa940",
-      "userId": "usr_guest_1788683037931_0ba3604f",
-      "expiresAt": 1788769437931,
-      "createdAt": 1788683037931,
-      "lastAccessedAt": 1788683037931,
-      "isGuest": true
-    },
-    "aurora_3ba794ebbc99dd17025089d5e72519055633e19a7a26a26144f30abd2f665736": {
-      "token": "aurora_3ba794ebbc99dd17025089d5e72519055633e19a7a26a26144f30abd2f665736",
-      "userId": "usr_guest_1788683038045_df7cfa58",
-      "expiresAt": 1788769438045,
-      "createdAt": 1788683038045,
-      "lastAccessedAt": 1788685079731,
-      "isGuest": true
-    },
-    "aurora_da29dd9105e1aadc5f5a9c58fceb1505d1799107ac1867ffdcd14f81b850402f": {
-      "token": "aurora_da29dd9105e1aadc5f5a9c58fceb1505d1799107ac1867ffdcd14f81b850402f",
-      "userId": "usr_guest_1788683118717_197abc25",
-      "expiresAt": 1788769518718,
-      "createdAt": 1788683118718,
-      "lastAccessedAt": 1788683118718,
-      "isGuest": true
-    },
-    "aurora_15008b180fe99da1719e3cea472b2ca4f1a003264c6841f75af25765c11827f8": {
-      "token": "aurora_15008b180fe99da1719e3cea472b2ca4f1a003264c6841f75af25765c11827f8",
-      "userId": "usr_guest_1788683118828_31cd9ecb",
-      "expiresAt": 1788769518828,
-      "createdAt": 1788683118828,
-      "lastAccessedAt": 1788683118828,
-      "isGuest": true
-    },
-    "aurora_5614a44090c9b5e2451fe5f48aa754046cb8e02873871f674707823569742409": {
-      "token": "aurora_5614a44090c9b5e2451fe5f48aa754046cb8e02873871f674707823569742409",
-      "userId": "usr_guest_1788683339009_3cf1f05e",
-      "expiresAt": 1788769739009,
-      "createdAt": 1788683339009,
-      "lastAccessedAt": 1788683339009,
-      "isGuest": true
-    },
-    "aurora_c0b96cdea1f61d92ab16e7a0b48bb5ecdaecb22da0b160f49f071ccc855ed42d": {
-      "token": "aurora_c0b96cdea1f61d92ab16e7a0b48bb5ecdaecb22da0b160f49f071ccc855ed42d",
-      "userId": "usr_guest_1788683339118_523e3551",
-      "expiresAt": 1788769739118,
-      "createdAt": 1788683339118,
-      "lastAccessedAt": 1788683339118,
-      "isGuest": true
-    },
     "aurora_98f70e898986dacb6b1dc9238ef11bf14d3fd400a956383129fd6b7eaf03742b": {
       "token": "aurora_98f70e898986dacb6b1dc9238ef11bf14d3fd400a956383129fd6b7eaf03742b",
       "userId": "usr_guest_1788685125636_d7912c80",
@@ -1368,9 +2735,232 @@
       "createdAt": 1788685125839,
       "lastAccessedAt": 1788685125839,
       "isGuest": false
+    },
+    "aurora_09dde129092c7c65c570cac17d5294edb85ae054ae18034dac48c8b6901c998c": {
+      "token": "aurora_09dde129092c7c65c570cac17d5294edb85ae054ae18034dac48c8b6901c998c",
+      "userId": "usr_guest_1788767770003_d0173feb",
+      "expiresAt": 1788854170003,
+      "createdAt": 1788767770003,
+      "lastAccessedAt": 1788767770003,
+      "isGuest": true
+    },
+    "aurora_568d6535e4c6ffbdfef4ef320a44aded27ebc8a8669051c2de42050c04e63b2e": {
+      "token": "aurora_568d6535e4c6ffbdfef4ef320a44aded27ebc8a8669051c2de42050c04e63b2e",
+      "userId": "usr_1788767770078_5648446b",
+      "expiresAt": 1789372570078,
+      "createdAt": 1788767770078,
+      "lastAccessedAt": 1788767770078,
+      "isGuest": false
+    },
+    "aurora_05184a0b8bdca628ed91829511892a6062b905b4096d37247ac1cb93e985e9d5": {
+      "token": "aurora_05184a0b8bdca628ed91829511892a6062b905b4096d37247ac1cb93e985e9d5",
+      "userId": "usr_1788767770146_2bafa1a3",
+      "expiresAt": 1789372570147,
+      "createdAt": 1788767770147,
+      "lastAccessedAt": 1788767770147,
+      "isGuest": false
+    },
+    "aurora_3899701716eef734feccc438f0aaf38fa6dcb94ea2bcac406a3cdb184c9e7ac7": {
+      "token": "aurora_3899701716eef734feccc438f0aaf38fa6dcb94ea2bcac406a3cdb184c9e7ac7",
+      "userId": "usr_1788767770216_cd01d1d6",
+      "expiresAt": 1789372570216,
+      "createdAt": 1788767770216,
+      "lastAccessedAt": 1788767770216,
+      "isGuest": false
+    },
+    "aurora_104817ceba467fca5d8323bbded2dd13b0f9dbe2450f86cdb81102c8d770c9c1": {
+      "token": "aurora_104817ceba467fca5d8323bbded2dd13b0f9dbe2450f86cdb81102c8d770c9c1",
+      "userId": "usr_guest_1788770485739_90258092",
+      "expiresAt": 1788856885740,
+      "createdAt": 1788770485740,
+      "lastAccessedAt": 1788770485740,
+      "isGuest": true
+    },
+    "aurora_957a770b61a7452f7588cbf09383ec886e6a95c9d5e7d5a8aece49eea4e19e78": {
+      "token": "aurora_957a770b61a7452f7588cbf09383ec886e6a95c9d5e7d5a8aece49eea4e19e78",
+      "userId": "usr_1788770485811_c2c1c786",
+      "expiresAt": 1789375285811,
+      "createdAt": 1788770485811,
+      "lastAccessedAt": 1788770485811,
+      "isGuest": false
+    },
+    "aurora_b8925aff142e144ef8c903f7d41ef415b124376e4d01ff47b105eb6dca17fb3d": {
+      "token": "aurora_b8925aff142e144ef8c903f7d41ef415b124376e4d01ff47b105eb6dca17fb3d",
+      "userId": "usr_1788770485876_4dde7a5b",
+      "expiresAt": 1789375285877,
+      "createdAt": 1788770485877,
+      "lastAccessedAt": 1788770485877,
+      "isGuest": false
+    },
+    "aurora_268de4bff6ce442e21c2e1a6343feb60c28b86794007f5427e9802736cd59f3c": {
+      "token": "aurora_268de4bff6ce442e21c2e1a6343feb60c28b86794007f5427e9802736cd59f3c",
+      "userId": "usr_1788770485942_16586086",
+      "expiresAt": 1789375285943,
+      "createdAt": 1788770485943,
+      "lastAccessedAt": 1788770485943,
+      "isGuest": false
+    },
+    "aurora_fd8fcab53b62491fbe1b6120ba54a7c283b6e4aee1dcb2a72de1426ae973c02b": {
+      "token": "aurora_fd8fcab53b62491fbe1b6120ba54a7c283b6e4aee1dcb2a72de1426ae973c02b",
+      "userId": "usr_guest_1788770536597_440ba6de",
+      "expiresAt": 1788856936597,
+      "createdAt": 1788770536597,
+      "lastAccessedAt": 1788770536597,
+      "isGuest": true
+    },
+    "aurora_f0523e2269c5040fcc3d28285ae392cd2fe4b794c3e0eab68449f6b9661fb1c7": {
+      "token": "aurora_f0523e2269c5040fcc3d28285ae392cd2fe4b794c3e0eab68449f6b9661fb1c7",
+      "userId": "usr_1788770536668_b6e1ee75",
+      "expiresAt": 1789375336668,
+      "createdAt": 1788770536668,
+      "lastAccessedAt": 1788770536668,
+      "isGuest": false
+    },
+    "aurora_bf100349e27aae4eacc75247570f048188f067f803bfb17b518d9d502354493a": {
+      "token": "aurora_bf100349e27aae4eacc75247570f048188f067f803bfb17b518d9d502354493a",
+      "userId": "usr_1788770536735_810123a7",
+      "expiresAt": 1789375336735,
+      "createdAt": 1788770536735,
+      "lastAccessedAt": 1788770536735,
+      "isGuest": false
+    },
+    "aurora_bcc886b0990ab5bb8bc2784e177c7cdd92ddfbce36dd7006d6f0f7f30973f3d4": {
+      "token": "aurora_bcc886b0990ab5bb8bc2784e177c7cdd92ddfbce36dd7006d6f0f7f30973f3d4",
+      "userId": "usr_1788770536804_9fafecd0",
+      "expiresAt": 1789375336804,
+      "createdAt": 1788770536804,
+      "lastAccessedAt": 1788770536804,
+      "isGuest": false
+    },
+    "aurora_ae9204c1f399785751dd7b4a9654d1a79e2e6dbcc00c7b7e0bb1a86092bc0504": {
+      "token": "aurora_ae9204c1f399785751dd7b4a9654d1a79e2e6dbcc00c7b7e0bb1a86092bc0504",
+      "userId": "usr_1788770537401_ff35100e",
+      "expiresAt": 1789375337669,
+      "createdAt": 1788770537669,
+      "lastAccessedAt": 1788770537669,
+      "isGuest": false
+    },
+    "aurora_52258d9c0de9f0792c64e489588f3be7fa52949961b9fb4537e719f7dc704c70": {
+      "token": "aurora_52258d9c0de9f0792c64e489588f3be7fa52949961b9fb4537e719f7dc704c70",
+      "userId": "usr_guest_1788770569195_ff276d78",
+      "expiresAt": 1788856969195,
+      "createdAt": 1788770569195,
+      "lastAccessedAt": 1788770569195,
+      "isGuest": true
+    },
+    "aurora_e6f98ac8621e1c2a8b6b1b213cbf979fafa76848b523a6bdccfcd70cfdbe3726": {
+      "token": "aurora_e6f98ac8621e1c2a8b6b1b213cbf979fafa76848b523a6bdccfcd70cfdbe3726",
+      "userId": "usr_1788770569267_92e1b6f5",
+      "expiresAt": 1789375369267,
+      "createdAt": 1788770569267,
+      "lastAccessedAt": 1788770569267,
+      "isGuest": false
+    },
+    "aurora_df584233d718968bf8aa4c8fe33c7fcd7b8124359f311bda4862227282ea7122": {
+      "token": "aurora_df584233d718968bf8aa4c8fe33c7fcd7b8124359f311bda4862227282ea7122",
+      "userId": "usr_1788770569332_671382d3",
+      "expiresAt": 1789375369332,
+      "createdAt": 1788770569332,
+      "lastAccessedAt": 1788770569332,
+      "isGuest": false
+    },
+    "aurora_9305942ad8a8451e2bbd87bb267ad2170b1a189534b91edc366dc4fbc0faf74d": {
+      "token": "aurora_9305942ad8a8451e2bbd87bb267ad2170b1a189534b91edc366dc4fbc0faf74d",
+      "userId": "usr_1788770569398_62febcf7",
+      "expiresAt": 1789375369398,
+      "createdAt": 1788770569398,
+      "lastAccessedAt": 1788770569398,
+      "isGuest": false
+    },
+    "aurora_39443b558c0c77a62cc9032acd6dc185951bea4f5de27e85733de16aef8b03c2": {
+      "token": "aurora_39443b558c0c77a62cc9032acd6dc185951bea4f5de27e85733de16aef8b03c2",
+      "userId": "usr_1788770569880_6f70fd50",
+      "expiresAt": 1789375370143,
+      "createdAt": 1788770570143,
+      "lastAccessedAt": 1788770570143,
+      "isGuest": false
+    },
+    "aurora_ca9bec5b9764af08fc5b509d69a9f091b339986618237467a8d9bac9c68d8833": {
+      "token": "aurora_ca9bec5b9764af08fc5b509d69a9f091b339986618237467a8d9bac9c68d8833",
+      "userId": "usr_guest_1788770814524_8ba90618",
+      "expiresAt": 1788857214524,
+      "createdAt": 1788770814524,
+      "lastAccessedAt": 1788770814524,
+      "isGuest": true
+    },
+    "aurora_b148ab6f15c6fad7ec117e3b4ac6323153ca9bc5fc7fcfa4c934ff6d6dcb355f": {
+      "token": "aurora_b148ab6f15c6fad7ec117e3b4ac6323153ca9bc5fc7fcfa4c934ff6d6dcb355f",
+      "userId": "usr_1788770814595_8bb1c046",
+      "expiresAt": 1789375614596,
+      "createdAt": 1788770814596,
+      "lastAccessedAt": 1788770814596,
+      "isGuest": false
+    },
+    "aurora_0c1a24a1affc51d6583eac8ab0264368c2c45171ceab2e150ae245e36ae4869d": {
+      "token": "aurora_0c1a24a1affc51d6583eac8ab0264368c2c45171ceab2e150ae245e36ae4869d",
+      "userId": "usr_1788770814661_18326ceb",
+      "expiresAt": 1789375614661,
+      "createdAt": 1788770814661,
+      "lastAccessedAt": 1788770814661,
+      "isGuest": false
+    },
+    "aurora_d5e9c8401b1cf15be4b7cb21ee840ba136146dd2bafe6bf38951dde2800d461c": {
+      "token": "aurora_d5e9c8401b1cf15be4b7cb21ee840ba136146dd2bafe6bf38951dde2800d461c",
+      "userId": "usr_1788770814727_1143c63d",
+      "expiresAt": 1789375614727,
+      "createdAt": 1788770814727,
+      "lastAccessedAt": 1788770814727,
+      "isGuest": false
     }
   },
+  "passwordResets": {},
   "auditLogs": [
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788769173157_1e677f1d",
+      "id": "audit_1788769173157_fcd6cb",
+      "timestamp": "2026-09-07T08:19:33.157Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788769172944_719c2a71",
+      "id": "audit_1788769172945_010f2c",
+      "timestamp": "2026-09-07T08:19:32.945Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788769171211_74325193",
+      "id": "audit_1788769171211_fa9a2d",
+      "timestamp": "2026-09-07T08:19:31.211Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788769171018_f30c8a6e",
+      "id": "audit_1788769171018_69aa4c",
+      "timestamp": "2026-09-07T08:19:31.018Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "PROFILE_CREATED",
+      "resource": "profile",
+      "resourceId": "prof_1788768540226_a6bafa",
+      "status": "SUCCESS",
+      "requestId": "req_1788768540219_4306bde3",
+      "id": "audit_1788768540231_1a8921",
+      "timestamp": "2026-09-07T08:09:00.231Z"
+    },
     {
       "userId": "usr_guest_1788683038045_df7cfa58",
       "action": "ADMIN_ACCESS_DENIED",
@@ -1692,5 +3282,5 @@
       "updatedAt": "2026-09-04T03:33:09.718Z"
     }
   },
-  "_checksum": "2ca265370c23ee077a51c1d896c42ef20b735eb294487ca7da50152818e3e4e5"
+  "_checksum": "f9f91dcd3a25b096a5b6323aff3e37d8c72a035b6e0756cdbfdd51ff4daf8592"
 }

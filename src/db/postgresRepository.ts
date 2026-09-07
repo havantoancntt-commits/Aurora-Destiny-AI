@@ -5,6 +5,7 @@
 // Atomicity, Concurrency Isolation, Retry Policy & JSON-to-PostgreSQL Migration
 // ==========================================
 
+import crypto from 'crypto';
 import { IDatabaseRepository, AuditLogEntry, FeatureFlag } from './repository';
 import { UserAccount, UserPreferences, StoredSession, UserProfile } from '../types/user';
 import { CalculationResult } from '../types/destiny';
@@ -297,6 +298,24 @@ export class PostgresDatabaseRepository implements IDatabaseRepository {
       }
     }
     return count;
+  }
+
+  createPasswordReset(userId: string): { token: string; expiresAt: number } {
+    const token = `rst_${crypto.randomBytes(24).toString('hex')}`;
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+    this.fallbackMemoryCache.set(`pwdreset_${token}`, { token, userId, expiresAt, used: false });
+    return { token, expiresAt };
+  }
+
+  verifyAndConsumePasswordReset(token: string): string | null {
+    const record = this.fallbackMemoryCache.get(`pwdreset_${token}`);
+    if (!record || record.used || Date.now() > record.expiresAt) {
+      this.fallbackMemoryCache.delete(`pwdreset_${token}`);
+      return null;
+    }
+    record.used = true;
+    this.fallbackMemoryCache.set(`pwdreset_${token}`, record);
+    return record.userId;
   }
 
   getProfiles(userId: string): UserProfile[] {

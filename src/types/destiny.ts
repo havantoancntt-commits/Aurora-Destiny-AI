@@ -207,6 +207,14 @@ export interface ConfidenceMetrics {
   resolutionLevel: 'High' | 'Medium' | 'Estimated';
   assumptions: string[];
   limitations: string[];
+  // Distinct multi-dimensional confidence layers (Section VIII)
+  calculationConfidence: number; // 0 - 100: Astronomical and ephemeris calculation precision
+  inputQuality: number; // 0 - 100: Completeness and coordinate exactness of user input
+  modelAgreement: number; // 0 - 100: Concordance between BaZi and Zi Wei indicators
+  validationScore: number; // 0 - 100: Internal mathematical and astronomical invariant checks
+  historicalValidation: number; // 0 - 100: Strictly empirical score from verified backtest events
+  interpretiveConfidence: number; // 0 - 100: Bounded qualitative confidence for AI synthesis
+  statisticalDisclaimer: string; // Explicit non-deterministic disclaimer
 }
 
 export interface CalculationResult {

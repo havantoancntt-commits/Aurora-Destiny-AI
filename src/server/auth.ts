@@ -121,7 +121,7 @@ export function registerUser(email: string, password: string, fullName: string, 
   return { user: saved, token };
 }
 
-export function loginUser(email: string, password: string): { user: UserAccount; token: string } {
+export function loginUser(email: string, password: string, currentSessionToken?: string): { user: UserAccount; token: string } {
   const normalizedEmail = email.toLowerCase().trim();
   const existing = repository.getUserByEmail(normalizedEmail);
 
@@ -136,12 +136,47 @@ export function loginUser(email: string, password: string): { user: UserAccount;
     throw new Error('Email hoặc mật khẩu không chính xác');
   }
 
+  // Session rotation: revoke previous session token to prevent session fixation attacks
+  if (currentSessionToken) {
+    repository.deleteSession(currentSessionToken);
+  }
+
   existing.lastLoginAt = new Date().toISOString();
   repository.saveUser(existing);
 
   const { token } = createSession(existing.id, false);
   const { passwordHash: _, ...cleanUser } = existing;
   return { user: cleanUser, token };
+}
+
+// Password Reset workflow (time-bound, single-use token)
+export function requestPasswordReset(email: string): { resetToken: string; expiresAt: number } | null {
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = repository.getUserByEmail(normalizedEmail);
+  if (!user || user.isGuest) {
+    // Constant-time dummy verification prevents account enumeration
+    verifyPassword('dummy_pass', DUMMY_HASH, DUMMY_SALT);
+    return null;
+  }
+  const created = repository.createPasswordReset(user.id);
+  return { resetToken: created.token, expiresAt: created.expiresAt };
+}
+
+export function resetPasswordWithToken(token: string, newPassword: string): boolean {
+  const userId = repository.verifyAndConsumePasswordReset(token);
+  if (!userId) {
+    return false;
+  }
+  const user = repository.getUser(userId);
+  if (!user) {
+    return false;
+  }
+
+  const { hash, salt } = hashPassword(newPassword);
+  repository.saveUser(user, `${salt}:${hash}`);
+  // Invalidate all active sessions for this user upon password reset
+  repository.revokeUserSessions(userId);
+  return true;
 }
 
 // Create an isolated guest session with strict limits
@@ -202,14 +237,28 @@ export function bootstrapAdminIfConfigured(): void {
   }
 }
 
-// Express Middleware: Extract user from Authorization or x-session-token header
+// Express Middleware: Extract user from Cookie, Authorization or x-session-token header
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
   let token = '';
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring(7).trim();
-  } else if (req.headers['x-session-token']) {
-    token = String(req.headers['x-session-token']).trim();
+
+  // 1. Extract from parsed cookies or raw Cookie header
+  if ((req as any).cookies && (req as any).cookies['aurora_session']) {
+    token = (req as any).cookies['aurora_session'];
+  } else if (req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)aurora_session=([^;]+)/);
+    if (match) {
+      token = decodeURIComponent(match[1]);
+    }
+  }
+
+  // 2. Fallback to Authorization Bearer or x-session-token header
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7).trim();
+    } else if (req.headers['x-session-token']) {
+      token = String(req.headers['x-session-token']).trim();
+    }
   }
 
   if (token) {

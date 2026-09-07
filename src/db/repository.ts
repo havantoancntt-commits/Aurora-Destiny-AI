@@ -52,6 +52,10 @@ export interface IDatabaseRepository {
   cleanupExpiredSessions(): number;
   revokeUserSessions(userId: string): number;
 
+  // Password Reset Tokens
+  createPasswordReset(userId: string): { token: string; expiresAt: number };
+  verifyAndConsumePasswordReset(token: string): string | null;
+
   // Profiles (Isolated per User)
   getProfiles(userId: string): UserProfile[];
   getProfile(profileId: string): UserProfile | null;
@@ -124,6 +128,7 @@ interface StoredDatabaseState {
   backtestResults: Record<string, BacktestResult>;
   chatMessages: Record<string, ChatMessage[]>;
   sessions: Record<string, StoredSession>;
+  passwordResets: Record<string, { token: string; userId: string; expiresAt: number; used: boolean }>;
   auditLogs: AuditLogEntry[];
   featureFlags: Record<string, FeatureFlag>;
   _checksum?: string;
@@ -183,6 +188,7 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
           backtestResults: parsed.backtestResults || {},
           chatMessages: parsed.chatMessages || {},
           sessions: parsed.sessions || {},
+          passwordResets: parsed.passwordResets || {},
           auditLogs: parsed.auditLogs || [],
           featureFlags: parsed.featureFlags || this.defaultFeatureFlags()
         };
@@ -202,6 +208,7 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
               backtestResults: backupParsed.backtestResults || {},
               chatMessages: backupParsed.chatMessages || {},
               sessions: backupParsed.sessions || {},
+              passwordResets: backupParsed.passwordResets || {},
               auditLogs: backupParsed.auditLogs || [],
               featureFlags: backupParsed.featureFlags || this.defaultFeatureFlags()
             };
@@ -222,6 +229,7 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
       backtestResults: {},
       chatMessages: {},
       sessions: {},
+      passwordResets: {},
       auditLogs: [],
       featureFlags: this.defaultFeatureFlags()
     };
@@ -404,6 +412,15 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     for (const [profileId] of Object.entries(this.state.chatMessages)) {
       if (!this.state.profiles[profileId]) {
         errors.push(`Orphan chat messages: profile ${profileId} does not exist.`);
+      }
+    }
+
+    // 9. Password Resets -> User FK check
+    if (this.state.passwordResets) {
+      for (const [token, record] of Object.entries(this.state.passwordResets)) {
+        if (!this.state.users[record.userId]) {
+          errors.push(`Orphan password reset ${token.slice(0, 8)}...: user ${record.userId} does not exist.`);
+        }
       }
     }
 
@@ -624,6 +641,40 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
       this.schedulePersist();
     }
     return revoked;
+  }
+
+  // ----------------------------------------------------
+  // PASSWORD RESET TOKENS (Time-limited & Single-use)
+  // ----------------------------------------------------
+  createPasswordReset(userId: string): { token: string; expiresAt: number } {
+    if (!this.state.passwordResets) {
+      this.state.passwordResets = {};
+    }
+    const token = `rst_${crypto.randomBytes(24).toString('hex')}`;
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+    this.state.passwordResets[token] = {
+      token,
+      userId,
+      expiresAt,
+      used: false
+    };
+    this.schedulePersist();
+    return { token, expiresAt };
+  }
+
+  verifyAndConsumePasswordReset(token: string): string | null {
+    if (!this.state.passwordResets || !this.state.passwordResets[token]) {
+      return null;
+    }
+    const record = this.state.passwordResets[token];
+    if (record.used || Date.now() > record.expiresAt) {
+      delete this.state.passwordResets[token];
+      this.schedulePersist();
+      return null;
+    }
+    record.used = true;
+    this.schedulePersist();
+    return record.userId;
   }
 
   // ----------------------------------------------------
