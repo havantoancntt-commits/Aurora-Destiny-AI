@@ -3,7 +3,7 @@
 // "Sách Bản Mệnh Tinh Hoa" - Master Publishing Edition
 // ==========================================
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   BookOpen,
   FileText,
@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Copy,
   Check,
   Palette,
@@ -21,7 +22,10 @@ import {
   Layers,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Download,
+  Info,
+  Share2
 } from 'lucide-react';
 import { CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -66,8 +70,27 @@ export const ReportGeneratorModal: React.FC<Props> = ({
   // Page view mode: 'single' (lật trang) or 'all' (cuộn liên tục)
   const [viewMode, setViewMode] = useState<'single' | 'all'>('single');
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [zoomScale, setZoomScale] = useState<number>(1);
   const [copiedCodexId, setCopiedCodexId] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [showPrintTips, setShowPrintTips] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
+
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    if (isExportMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isExportMenuOpen]);
 
   // Generate deterministic Unique Codex ID
   const codexId = useMemo(() => {
@@ -79,6 +102,7 @@ export const ReportGeneratorModal: React.FC<Props> = ({
   }, [profile]);
 
   const handlePrint = () => {
+    setIsExportMenuOpen(false);
     window.print();
   };
 
@@ -86,6 +110,36 @@ export const ReportGeneratorModal: React.FC<Props> = ({
     navigator.clipboard.writeText(codexId);
     setCopiedCodexId(true);
     setTimeout(() => setCopiedCodexId(false), 2200);
+  };
+
+  const handleCopySummary = () => {
+    const favorableStr = calculation.bazi.favorableElements
+      .map(e => ELEMENT_RELATIONS[e]?.vi || e)
+      .join(', ');
+
+    const text = `📜 SÁCH BẢN MỆNH TINH HOA — AURORA DESTINY AI
+Hồ Sơ: ${profile.name} (Sinh: ${profile.birthData.solarDay}/${profile.birthData.solarMonth}/${profile.birthData.solarYear} lúc ${profile.birthData.solarHour}:${profile.birthData.solarMinute})
+Mã Hồ Sơ Codex: ${codexId}
+Cách Cục Bát Tự: ${calculation.bazi.structureType} (Nhật Chủ: ${calculation.bazi.dayMaster} - ${calculation.bazi.dayMasterStrength})
+Tử Vi Cục: ${calculation.ziwei.elementBureau}
+Điểm Nhất Quán Đa Mô Hình: ${ensemble.overallConsistencyScore}/100
+
+1. TỔNG QUAN CHIẾN LƯỢC VẬN TRÌNH:
+${ensemble.executiveSummary}
+
+2. DỤNG THẦN CÂN BẰNG NĂNG LƯỢNG:
+Hành Bổ Khuyết: ${favorableStr}
+
+3. THẾ MẠNH BẢN MỆNH NỔI BẬT:
+${ensemble.coreStrengths.map(s => `• ${s}`).join('\n')}
+
+"Hiểu quy luật chu kỳ để kiến tạo tương lai tự chủ."
+Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedSummary(true);
+    setTimeout(() => setCopiedSummary(false), 2200);
+    setIsExportMenuOpen(false);
   };
 
   const pageNames = [
@@ -110,48 +164,174 @@ export const ReportGeneratorModal: React.FC<Props> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-1 sm:p-4 bg-slate-950/95 backdrop-blur-xl animate-in fade-in overflow-hidden">
       <div className="w-full max-w-6xl max-h-[96vh] flex flex-col rounded-3xl bg-[#080911] border border-amber-500/30 shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden">
         
-        {/* TOP TOOLBAR & CONTROLS */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3 bg-slate-950/90 border-b border-white/10 z-20">
-          {/* Title & Format Switcher */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-[0_0_15px_rgba(251,191,36,0.3)]">
+        {/* TIER 1: PRIMARY HEADER BAR (Strict 1-Row Responsive Layout, Fixed Close Button) */}
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 bg-slate-950/95 border-b border-white/10 z-30">
+          {/* Left: Luxury Branding & Codex Identity */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center text-slate-950 shadow-[0_0_15px_rgba(251,191,36,0.35)] shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm sm:text-base font-bold text-white font-cinzel tracking-wide">
+                <h3 className="text-sm sm:text-base font-bold text-white font-cinzel tracking-wide truncate">
                   {formatMode === 'book' ? 'Sách Bản Mệnh Tinh Hoa' : 'Hồ Sơ Tóm Tắt Chiến Lược'}
                 </h3>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                  Executive Dossier
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase shrink-0">
+                  Executive Codex
                 </span>
               </div>
-              <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5">
-                <span>Mã số:</span>
+              <div className="text-[10px] text-slate-400 font-mono flex items-center gap-2 truncate">
+                <span className="text-slate-400">Mã số:</span>
                 <button
                   onClick={handleCopyCodexId}
-                  className="text-amber-300 hover:text-amber-200 underline font-bold flex items-center gap-1 cursor-pointer"
+                  className="text-amber-300 hover:text-amber-200 underline font-bold flex items-center gap-1 cursor-pointer truncate"
                   title="Bấm để sao chép mã số hồ sơ"
                 >
-                  <span>{codexId}</span>
+                  <span className="truncate">{codexId}</span>
                   {copiedCodexId ? (
-                    <Check className="w-3 h-3 text-emerald-400" />
+                    <Check className="w-3 h-3 text-emerald-400 shrink-0" />
                   ) : (
-                    <Copy className="w-2.5 h-2.5 text-slate-400" />
+                    <Copy className="w-2.5 h-2.5 text-slate-400 shrink-0" />
                   )}
                 </button>
+                <span className="text-slate-600 hidden md:inline">•</span>
+                <span className="text-slate-400 hidden md:inline">Khổ A4 Chuẩn In Ấn</span>
               </div>
             </div>
           </div>
 
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 text-xs">
+          {/* Right: Smart Publishing Center & Fixed Close Button */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Smart Publishing & Print Hub */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                id="btn-smart-export-hub"
+                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                className="flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-[0_0_20px_rgba(251,191,36,0.3)] transition-all cursor-pointer select-none"
+                title="Mở bảng điều khiển In ấn & Xuất file PDF thông minh"
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-950" />
+                <span className="hidden xs:inline">In Sách / Lưu PDF</span>
+                <span className="xs:hidden">Xuất Sách</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Smart Dropdown Panel */}
+              {isExportMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-neutral-950/95 border border-amber-500/40 shadow-2xl p-2.5 space-y-1.5 backdrop-blur-xl z-50 text-left animate-in fade-in slide-in-from-top-2">
+                  <div className="px-3 py-1.5 border-b border-white/10 flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider font-cinzel">
+                      Trung Tâm Xuất Bản A4
+                    </span>
+                    <span className="text-[9px] font-mono text-slate-400">PDF Ready</span>
+                  </div>
+
+                  {/* Option 1: Direct Print */}
+                  <button
+                    onClick={handlePrint}
+                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                  >
+                    <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      <Printer className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>In Khổ A4 Hoàng Gia</span>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-500/20 text-amber-300 font-normal">Trực tiếp</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Khởi chạy máy in hoặc lưu PDF 6 trang hoàn chỉnh
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 2: Save as PDF Guide */}
+                  <button
+                    onClick={() => {
+                      setIsExportMenuOpen(false);
+                      setShowPrintTips(true);
+                    }}
+                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                  >
+                    <div className="p-1.5 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30 group-hover:bg-teal-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      <Download className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white">
+                        Hướng Dẫn Lưu PDF Đẹp Nhất
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Mẹo bật 'Đồ họa nền' để giữ trọn màu vàng kim
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 3: Copy Text Summary */}
+                  <button
+                    onClick={handleCopySummary}
+                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                  >
+                    <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30 group-hover:bg-purple-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      {copiedSummary ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>{copiedSummary ? 'Đã Sao Chép Tóm Tắt!' : 'Sao Chép Nội Dung Tóm Tắt'}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Trích xuất văn bản luận giải gửi qua tin nhắn / ghi chú
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 4: Quick Continuous Scroll Toggle */}
+                  {formatMode === 'book' && (
+                    <button
+                      onClick={() => {
+                        setViewMode(viewMode === 'all' ? 'single' : 'all');
+                        setIsExportMenuOpen(false);
+                      }}
+                      className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group border-t border-white/10 pt-2"
+                    >
+                      <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 group-hover:bg-blue-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white">
+                          {viewMode === 'all' ? 'Chuyển Sang Lật Từng Trang' : 'Xem Cuộn Liền Mạch 6 Trang'}
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                          {viewMode === 'all' ? 'Tập trung đọc chi tiết từng phần' : 'Xem nhanh toàn bộ sách từ đầu tới cuối'}
+                        </p>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Fixed Close Button - Permanently at Top-Right Corner */}
+            <button
+              id="btn-close-report-modal"
+              onClick={onClose}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              title="Đóng cửa sổ"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* TIER 2: FORMAT SWITCHER & READING CONTROLS STRIP */}
+        <div className="px-4 sm:px-6 py-2 bg-black/60 border-b border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 z-20">
+          {/* Format Mode Switcher Tabs */}
+          <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/10 text-xs w-full sm:w-auto justify-center sm:justify-start">
             <button
               onClick={() => setFormatMode('book')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 formatMode === 'book'
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <BookOpen className="w-3.5 h-3.5" />
@@ -159,10 +339,10 @@ export const ReportGeneratorModal: React.FC<Props> = ({
             </button>
             <button
               onClick={() => setFormatMode('brief')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 formatMode === 'brief'
-                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md font-bold'
-                  : 'text-slate-300 hover:text-white'
+                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm font-bold'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
@@ -170,117 +350,168 @@ export const ReportGeneratorModal: React.FC<Props> = ({
             </button>
           </div>
 
-          {/* Right Controls: Theme Selector, Print & Close */}
-          <div className="flex items-center gap-2">
-            {formatMode === 'book' && (
-              <>
-                {/* Theme Selector */}
-                <div className="hidden md:flex items-center gap-1 bg-black/50 p-1 rounded-xl border border-white/10">
-                  <span className="text-[10px] text-slate-400 px-2 font-mono">Bìa:</span>
-                  {[
-                    { id: 'navy' as DossierTheme, label: 'Lam Dạ', dot: 'bg-blue-600' },
-                    { id: 'obsidian' as DossierTheme, label: 'Huyền Ngọc', dot: 'bg-zinc-800' },
-                    { id: 'jade' as DossierTheme, label: 'Ngọc Bích', dot: 'bg-emerald-600' }
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTheme(t.id)}
-                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer ${
-                        theme === t.id
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                      title={`Tông màu ${t.label}`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${t.dot}`} />
-                      <span>{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* View Mode Toggle: Single vs All */}
-                <div className="hidden sm:flex items-center bg-white/5 p-1 rounded-xl border border-white/10 text-[11px]">
+          {/* Book Mode Customization (Themes, View Mode, Print Tips) */}
+          {formatMode === 'book' && (
+            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto text-xs">
+              {/* Luxury Theme Selector */}
+              <div className="flex items-center gap-1 bg-black/50 px-2 py-1 rounded-xl border border-white/10">
+                <span className="text-[10px] text-slate-400 font-mono hidden md:inline">Bìa:</span>
+                {[
+                  { id: 'navy' as DossierTheme, label: 'Lam Dạ', dot: 'bg-blue-600' },
+                  { id: 'obsidian' as DossierTheme, label: 'Huyền Ngọc', dot: 'bg-zinc-700' },
+                  { id: 'jade' as DossierTheme, label: 'Ngọc Bích', dot: 'bg-emerald-600' }
+                ].map((t) => (
                   <button
-                    onClick={() => setViewMode('single')}
-                    className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
-                      viewMode === 'single' ? 'bg-white/15 text-amber-300 font-bold' : 'text-slate-400'
+                    key={t.id}
+                    onClick={() => setTheme(t.id)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer ${
+                      theme === t.id
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold'
+                        : 'text-slate-400 hover:text-slate-200'
                     }`}
+                    title={`Tông màu ${t.label}`}
                   >
-                    Từng Trang
+                    <span className={`w-2 h-2 rounded-full ${t.dot}`} />
+                    <span className="hidden sm:inline">{t.label}</span>
                   </button>
-                  <button
-                    onClick={() => setViewMode('all')}
-                    className={`px-2 py-1 rounded-lg transition-all cursor-pointer ${
-                      viewMode === 'all' ? 'bg-white/15 text-amber-300 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    Cuộn Toàn Bộ
-                  </button>
-                </div>
-              </>
-            )}
+                ))}
+              </div>
 
-            {/* Print / Export Button */}
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-[0_0_20px_rgba(251,191,36,0.3)] transition-all cursor-pointer"
-              title="In ra giấy A4 hoặc Lưu dưới dạng PDF chuẩn in ấn"
-            >
-              <Printer className="w-3.5 h-3.5 text-slate-950" />
-              <span>In Sách / Lưu PDF</span>
-            </button>
+              {/* View Mode Toggle: Single Page vs All */}
+              <div className="flex items-center bg-white/[0.04] p-1 rounded-xl border border-white/10 text-[11px]">
+                <button
+                  onClick={() => setViewMode('single')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'single' ? 'bg-white/15 text-amber-300 font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Từng Trang
+                </button>
+                <button
+                  onClick={() => setViewMode('all')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    viewMode === 'all' ? 'bg-white/15 text-amber-300 font-bold' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Cuộn 6 Trang
+                </button>
+              </div>
 
-            {/* Close */}
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              title="Đóng cửa sổ"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+              {/* Quick Print Tip Button */}
+              <button
+                onClick={() => setShowPrintTips(true)}
+                className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-white/[0.04] hover:bg-white/10 border border-white/10 text-slate-300 hover:text-amber-300 text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer"
+                title="Xem hướng dẫn in & xuất PDF đẹp chuẩn ấn bản"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden md:inline">Mẹo In</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* SECONDARY BOOK CONTROL STRIP (When in Book Mode & Single View) */}
+        {/* TIER 3: COMPACT ERGONOMIC PAGE NAVIGATOR (When in Book Mode & Single View) */}
         {formatMode === 'book' && viewMode === 'single' && (
-          <div className="px-4 sm:px-6 py-2 bg-black/60 border-b border-white/5 flex items-center justify-between text-xs z-10">
+          <div className="px-4 sm:px-6 py-2 bg-black/75 border-b border-white/5 flex items-center justify-between text-xs z-10">
             {/* Prev Page Button */}
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 text-slate-300 hover:text-white transition-all cursor-pointer text-[11px]"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 text-slate-300 hover:text-white transition-all cursor-pointer text-[11px]"
             >
               <ChevronLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Trang Trước</span>
             </button>
 
-            {/* Page Navigator Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-              {[1, 2, 3, 4, 5, 6].map((pNum) => (
-                <button
-                  key={pNum}
-                  onClick={() => setCurrentPage(pNum)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
-                    currentPage === pNum
-                      ? 'bg-amber-400 text-slate-950 font-black shadow-[0_0_10px_rgba(251,191,36,0.4)]'
-                      : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <span>{pNum}.</span>
-                  <span className="hidden md:inline">{pageNames[pNum - 1]}</span>
-                </button>
-              ))}
+            {/* Current Page Label & Interactive Mini Number Pills */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-amber-300 font-cinzel">
+                Trang {currentPage}/6: <span className="text-white font-sans font-normal">{pageNames[currentPage - 1]}</span>
+              </span>
+              <div className="hidden sm:flex items-center gap-1 ml-2">
+                {[1, 2, 3, 4, 5, 6].map((pNum) => (
+                  <button
+                    key={pNum}
+                    onClick={() => setCurrentPage(pNum)}
+                    className={`w-5 h-5 rounded-full text-[10px] font-mono transition-all cursor-pointer flex items-center justify-center ${
+                      currentPage === pNum
+                        ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
+                        : 'bg-white/10 text-slate-400 hover:text-white'
+                    }`}
+                    title={pageNames[pNum - 1]}
+                  >
+                    {pNum}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Next Page Button */}
             <button
               onClick={() => setCurrentPage((p) => Math.min(6, p + 1))}
               disabled={currentPage === 6}
-              className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-40 text-slate-300 hover:text-white transition-all cursor-pointer text-[11px]"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 text-slate-300 hover:text-white transition-all cursor-pointer text-[11px]"
             >
               <span className="hidden sm:inline">Trang Sau</span>
               <ChevronRight className="w-4 h-4" />
             </button>
+          </div>
+        )}
+
+        {/* PRINT & PDF PRESERVATION TIPS MODAL */}
+        {showPrintTips && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="w-full max-w-md rounded-3xl bg-neutral-950 border border-amber-500/40 p-6 shadow-2xl space-y-4 text-left animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <h4 className="text-sm font-bold text-white font-cinzel">
+                    Mẹo In &amp; Lưu PDF Chuẩn Hoàng Gia
+                  </h4>
+                </div>
+                <button
+                  onClick={() => setShowPrintTips(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs text-slate-300">
+                <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
+                  <span className="font-bold text-amber-300 block">✨ Bước Quan Trọng Nhất:</span>
+                  <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                    Trong cửa sổ Print của trình duyệt, hãy tích chọn <strong className="text-amber-300">"Đồ họa nền" (Background graphics)</strong> để hiển thị đầy đủ hoa văn viền vàng, phong cách hoàng gia và màu sắc cung vị.
+                  </p>
+                </div>
+
+                <ul className="space-y-2 text-[11px] text-slate-300 list-disc list-inside">
+                  <li><strong>Máy in (Destination):</strong> Chọn <em>"Lưu dưới dạng PDF" (Save as PDF)</em>.</li>
+                  <li><strong>Khổ giấy (Paper size):</strong> Chọn <em>A4 (210 x 297 mm)</em>.</li>
+                  <li><strong>Lề (Margins):</strong> Chọn <em>Mặc định (Default)</em> hoặc <em>Không có (None)</em>.</li>
+                  <li><strong>Bố cục (Layout):</strong> Chọn <em>Dọc (Portrait)</em>.</li>
+                </ul>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setShowPrintTips(false)}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-slate-300 font-medium cursor-pointer"
+                >
+                  Đóng
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPrintTips(false);
+                    handlePrint();
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold shadow-md cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Đã hiểu &amp; In Ngay</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
