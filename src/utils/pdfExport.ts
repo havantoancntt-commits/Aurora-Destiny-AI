@@ -5,13 +5,21 @@
 // ========================================================
 
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 
 export interface ExportProgress {
   currentPage: number;
   totalPages: number;
   statusText: string;
   percent: number;
+}
+
+export interface PDFExportResult {
+  success: boolean;
+  error?: string;
+  blob?: Blob;
+  blobUrl?: string;
+  isInApp?: boolean;
 }
 
 /**
@@ -38,15 +46,25 @@ export function isMobileDevice(): boolean {
 }
 
 /**
+ * Detect if running inside an in-app browser sandbox (Facebook, Instagram, Zalo, TikTok, etc.)
+ * In-app browsers often intercept or block direct <a download> clicks on Blob URLs.
+ */
+export function isInAppBrowser(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const ua = (navigator.userAgent || navigator.vendor || '').toLowerCase();
+  return /fban|fbav|fb_iab|instagram|zalo|line|tiktok|micromessenger|snapchat|musical_ly/.test(ua);
+}
+
+/**
  * 1. HIGH-RESOLUTION DIRECT PDF GENERATOR
- * Captures all 6 A4 pages using html2canvas & jsPDF into a downloadable .pdf file.
- * Handles progress callbacks and mobile memory safety.
+ * Captures all 6 A4 pages using html2canvas-pro & jsPDF into a downloadable .pdf file.
+ * Handles modern CSS color models (oklch, lab, color-mix), font readiness, and in-app browser delivery.
  */
 export async function exportDossierToPDF(
   pageContainerElement: HTMLElement,
   fileName: string,
   onProgress?: (progress: ExportProgress) => void
-): Promise<{ success: boolean; error?: string; blob?: Blob }> {
+): Promise<PDFExportResult> {
   try {
     const pageElements = Array.from(
       pageContainerElement.querySelectorAll<HTMLElement>('.a4-page-dossier')
@@ -56,8 +74,20 @@ export async function exportDossierToPDF(
       throw new Error('Không tìm thấy các trang hồ sơ A4 để xuất bản.');
     }
 
+    // Await custom fonts (Cinzel, Plus Jakarta Sans, etc.) to guarantee crisp typographical rendering
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      try {
+        await document.fonts.ready;
+      } catch {
+        // Fallback gracefully if fonts.ready fails or times out
+      }
+    }
+
+    const inApp = isInAppBrowser();
+    const isMobile = isMobileDevice();
     const totalPages = pageElements.length;
-    // Standard A4 dimensions in mm
+
+    // Standard A4 dimensions in mm (210 x 297 mm)
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -78,16 +108,34 @@ export async function exportDossierToPDF(
         });
       }
 
-      // Optimize canvas capture for mobile and desktop
-      // Scale 1.6 gives crisp retina 150-200 DPI while staying under mobile canvas memory limits
+      // Optimize canvas capture for mobile and desktop:
+      // Scale 1.5 gives crisp retina ~150 DPI while staying safely below mobile canvas RAM ceilings.
+      // html2canvas-pro natively resolves oklch(), lab(), color-mix() from Tailwind CSS v4.
       const canvas = await html2canvas(pageEl, {
-        scale: 1.6,
+        scale: isMobile ? 1.5 : 1.8,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#050814',
         logging: false,
-        imageTimeout: 10000,
-        removeContainer: true
+        imageTimeout: 15000,
+        removeContainer: true,
+        onclone: (clonedDoc, clonedEl) => {
+          // Reset offscreen shelf position inside the cloned document so coordinate origins start at (0, 0)
+          const shelf = clonedDoc.getElementById('pdf-offscreen-render-shelf');
+          if (shelf) {
+            shelf.style.position = 'static';
+            shelf.style.left = '0';
+            shelf.style.top = '0';
+            shelf.style.visibility = 'visible';
+          }
+          if (clonedEl) {
+            clonedEl.style.width = '794px';
+            clonedEl.style.minHeight = '1123px';
+            clonedEl.style.height = '1123px';
+            clonedEl.style.margin = '0 auto';
+            clonedEl.style.transform = 'none';
+          }
+        }
       });
 
       const imgData = canvas.toDataURL('image/jpeg', 0.92);
@@ -103,7 +151,7 @@ export async function exportDossierToPDF(
         onProgress({
           currentPage: pageNum,
           totalPages,
-          statusText: `Đã xử lý trang ${pageNum}/${totalPages}`,
+          statusText: `Đã xử lý xong trang ${pageNum}/${totalPages}`,
           percent: Math.round((pageNum / totalPages) * 100)
         });
       }
@@ -113,30 +161,47 @@ export async function exportDossierToPDF(
       onProgress({
         currentPage: totalPages,
         totalPages,
-        statusText: 'Đang lưu file PDF...',
+        statusText: 'Đang đóng gói và lưu tệp PDF...',
         percent: 100
       });
     }
 
     const pdfBlob = pdf.output('blob');
-
-    // Trigger direct download via temporary link
     const blobUrl = URL.createObjectURL(pdfBlob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
-    document.body.appendChild(link);
-    link.click();
 
-    setTimeout(() => {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-    }, 5000);
+    // Standard download trigger via programmatic click
+    try {
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
 
-    return { success: true, blob: pdfBlob };
+      setTimeout(() => {
+        if (link.parentNode) {
+          document.body.removeChild(link);
+        }
+      }, 5000);
+    } catch (downloadErr) {
+      console.warn('Tự động tải file gặp giới hạn trình duyệt:', downloadErr);
+    }
+
+    return { success: true, blob: pdfBlob, blobUrl, isInApp: inApp };
   } catch (err: any) {
     console.error('Lỗi xuất PDF:', err);
-    return { success: false, error: err?.message || 'Không thể tạo file PDF' };
+    let errorMsg = 'Không thể tạo file PDF do lỗi kết xuất trang.';
+    if (err?.message) {
+      if (err.message.includes('unsupported color') || err.message.includes('oklch')) {
+        errorMsg = 'Lỗi tương thích màu sắc trên trình duyệt. Vui lòng thử chọn "Tải Sách Offline (.HTML)" hoặc "Mở Tab Mới Để In".';
+      } else if (err.message.includes('memory') || err.message.includes('out of memory')) {
+        errorMsg = 'Bộ nhớ thiết bị không đủ để kết xuất 6 trang chất lượng cao. Bạn hãy chọn "Tải Sách Offline (.HTML)" hoặc "Mở Tab Mới Để In".';
+      } else {
+        errorMsg = `Lỗi kết xuất PDF: ${err.message}`;
+      }
+    }
+    return { success: false, error: errorMsg };
   }
 }
 

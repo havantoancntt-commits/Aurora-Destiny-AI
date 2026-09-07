@@ -55,6 +55,7 @@ import {
   shareOrCopyDossier,
   sanitizeFileName,
   isMobileDevice,
+  isInAppBrowser,
   ExportProgress
 } from '../utils/pdfExport';
 
@@ -95,10 +96,16 @@ export const ReportGeneratorModal: React.FC<Props> = ({
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccessMessage, setExportSuccessMessage] = useState<string | null>(null);
   const [lastExportedBlob, setLastExportedBlob] = useState<Blob | null>(null);
+  const [lastExportedUrl, setLastExportedUrl] = useState<string | null>(null);
+  const [isInApp, setIsInApp] = useState<boolean>(false);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const pdfRenderRef = useRef<HTMLDivElement>(null);
   const isMobile = useMemo(() => isMobileDevice(), []);
+
+  useEffect(() => {
+    setIsInApp(isInAppBrowser());
+  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -157,8 +164,17 @@ export const ReportGeneratorModal: React.FC<Props> = ({
     setIsExportingPDF(false);
     if (result.success && result.blob) {
       setLastExportedBlob(result.blob);
-      setExportSuccessMessage(`Đã tải thành công file ${fileName} về máy!`);
-      setTimeout(() => setExportSuccessMessage(null), 5000);
+      if (result.blobUrl) {
+        setLastExportedUrl(result.blobUrl);
+      }
+
+      if (result.isInApp) {
+        setExportSuccessMessage(
+          `Đã kết xuất hoàn tất 6 trang PDF A4! Vì bạn đang ở trình duyệt Facebook/Zalo, bạn có thể bấm "Mở Xem PDF" hoặc "Lưu / Gửi Tệp" ngay bên dưới.`
+        );
+      } else {
+        setExportSuccessMessage(`Đã tạo và tải file PDF hoàn chỉnh (${fileName}) về máy!`);
+      }
     } else {
       setExportError(
         result.error ||
@@ -388,6 +404,16 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
                     </span>
                   </div>
 
+                  {/* In-App Browser (Facebook/Zalo) Helpful Advisory */}
+                  {isInApp && (
+                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-[10px] flex items-start gap-2 leading-relaxed">
+                      <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      <span>
+                        Bạn đang mở qua trình duyệt Facebook/Zalo. Sau khi xuất bản, hãy bấm <strong>Mở Xem PDF</strong> hoặc <strong>Lưu / Gửi Tệp</strong> để lưu vào máy trọn vẹn nhất!
+                      </span>
+                    </div>
+                  )}
+
                   {/* Option 1: Direct High-Res PDF Download (PRIMARY FOR MOBILE & DESKTOP) */}
                   <button
                     onClick={handleDirectDownloadPDF}
@@ -523,36 +549,68 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
 
         {/* NOTIFICATION BANNERS */}
         {exportSuccessMessage && (
-          <div className="px-4 py-2 bg-emerald-950/90 border-b border-emerald-500/40 text-emerald-200 text-xs flex items-center justify-between animate-in slide-in-from-top-1 z-30">
-            <div className="flex items-center gap-2">
+          <div className="px-4 py-2.5 bg-emerald-950/95 border-b border-emerald-500/40 text-emerald-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-in slide-in-from-top-1 z-30 shadow-lg">
+            <div className="flex items-center gap-2 min-w-0">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span className="font-medium">{exportSuccessMessage}</span>
+              <span className="font-medium leading-tight">{exportSuccessMessage}</span>
             </div>
-            <button
-              onClick={() => setExportSuccessMessage(null)}
-              className="text-emerald-400 hover:text-white p-1 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+              {lastExportedUrl && (
+                <a
+                  href={lastExportedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 hover:bg-emerald-400 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-sm"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Mở Xem PDF</span>
+                </a>
+              )}
+              {lastExportedBlob && (
+                <button
+                  onClick={handleShareDossier}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 border border-emerald-500/40 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Lưu / Gửi Tệp</span>
+                </button>
+              )}
+              <button
+                onClick={() => setExportSuccessMessage(null)}
+                className="text-emerald-400 hover:text-white p-1 cursor-pointer ml-1"
+                title="Đóng thông báo"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         )}
 
         {exportError && (
-          <div className="px-4 py-2 bg-rose-950/90 border-b border-rose-500/40 text-rose-200 text-xs flex items-center justify-between animate-in slide-in-from-top-1 z-30">
+          <div className="px-4 py-2.5 bg-rose-950/95 border-b border-rose-500/40 text-rose-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 animate-in slide-in-from-top-1 z-30 shadow-lg">
             <div className="flex items-center gap-2 min-w-0">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span className="truncate">{exportError}</span>
+              <span className="leading-tight">{exportError}</span>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
               <button
                 onClick={handleDownloadHtmlBook}
-                className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 text-[10px] font-bold underline cursor-pointer"
+                className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 border border-rose-500/40 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
               >
-                Tải Sách Offline
+                <FileCode className="w-3 h-3 text-rose-300" />
+                <span>Tải Sách Offline (.HTML)</span>
+              </button>
+              <button
+                onClick={handleOpenDedicatedPrint}
+                className="px-2.5 py-1 rounded-lg bg-white/10 text-white hover:bg-white/20 text-[10px] font-medium flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <ExternalLink className="w-3 h-3 text-cyan-300" />
+                <span>Mở Bản In Mới</span>
               </button>
               <button
                 onClick={() => setExportError(null)}
-                className="text-rose-400 hover:text-white p-1 cursor-pointer"
+                className="text-rose-400 hover:text-white p-1 cursor-pointer ml-1"
+                title="Đóng thông báo"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

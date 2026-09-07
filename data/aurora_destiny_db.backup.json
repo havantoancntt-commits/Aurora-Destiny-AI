@@ -11,19 +11,7 @@
       "createdAt": "2026-09-04T03:57:00.379Z",
       "lastLoginAt": "2026-09-04T03:57:00.379Z",
       "profilesCount": 0,
-      "passwordHash": "a676bac45e06f43535a06a729e298e5d:047e39d0457fd51ba20ebb94cc5e23206c8aa09213e282c44a0a581b0c4eabaeacc7c0198d42a979f311b2b56f61b0b50d129060b21746367ec80275753382e8"
-    },
-    "usr_guest_1788685125636_d7912c80": {
-      "id": "usr_guest_1788685125636_d7912c80",
-      "email": "guest_usr_guest_1788685125636_d7912c80@aurora.internal",
-      "fullName": "Khách Tham Quan",
-      "role": "GUEST",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-06T08:58:45.636Z",
-      "lastLoginAt": "2026-09-06T08:58:45.636Z",
-      "profilesCount": 0
+      "passwordHash": "1381dbf54a88cacfc62d35ad14b5192b:6c80973418d3db6490853d2e4ff84ae46e336d0adfb173a47eff6b0612aa8f7ada2795c3c74aead33cc7c65f7c42e2ab32a51ec27031c90bdc0719873ea77a9a"
     },
     "usr_1788685125707_61860a2b": {
       "id": "usr_1788685125707_61860a2b",
@@ -344,20 +332,74 @@
       "lastLoginAt": "2026-09-07T08:46:54.727Z",
       "profilesCount": 0,
       "passwordHash": "d3a1af08663462ca90ea030edb308230:991e84591e6f1e429dc7d7529e9ca541a2c24d0898efc2adb2e256e90336bfb7e53ce9dcde6c814af11ac423cf1f96af013e724ac7d162584866955ba61eed17"
+    },
+    "usr_1788770815211_fd51f3e3": {
+      "id": "usr_1788770815211_fd51f3e3",
+      "email": "rotation_1788770815146@aurora.io",
+      "fullName": "Rotation Test",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T08:46:55.211Z",
+      "lastLoginAt": "2026-09-07T08:46:55.474Z",
+      "profilesCount": 0,
+      "passwordHash": "bfca8383f91b33af930fc8e8c7b91a50:de948a56b6a59279de0114837484f65cfbbe0a67539b52dc4f762916d727aae33539c254b772973f75162e4b2322a1b305e06e7f98eee371947223484e96a18a"
+    },
+    "usr_guest_1788778425099_5053848f": {
+      "id": "usr_guest_1788778425099_5053848f",
+      "email": "guest_usr_guest_1788778425099_5053848f@aurora.internal",
+      "fullName": "Khách Tham Quan",
+      "role": "GUEST",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T10:53:45.099Z",
+      "lastLoginAt": "2026-09-07T10:53:45.099Z",
+      "profilesCount": 0
+    },
+    "usr_1788778425173_c8b6b8ef": {
+      "id": "usr_1788778425173_c8b6b8ef",
+      "email": "user_a_1788778425105@aurora.com",
+      "fullName": "User Alpha",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T10:53:45.173Z",
+      "lastLoginAt": "2026-09-07T10:53:45.173Z",
+      "profilesCount": 0,
+      "passwordHash": "7d230098a5110fd42a0c6ca027feaa80:d0988319b78f8c4aa0aeccdeb393e67a5398cb6fbc8e0d24abd65fead8988b3ec011e9f1b9f053e3d15753e7adcb39c7af0bbf10425374b451e65e1906ac60e4"
+    },
+    "usr_1788778425240_cacb223e": {
+      "id": "usr_1788778425240_cacb223e",
+      "email": "user_b_1788778425105@aurora.com",
+      "fullName": "User Beta",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T10:53:45.240Z",
+      "lastLoginAt": "2026-09-07T10:53:45.240Z",
+      "profilesCount": 0,
+      "passwordHash": "4d0c366dc1d7f8bf1547bf02c97b9b85:5e4998b74a5c6977f99ba6b999bb67b15313efdebe9682484ea1830e919b655deba424b1326c28f8e5096bbe825a0811713bfcd3fb0ea3c6d84d72d67342d64e"
+    },
+    "usr_1788778425308_9b3fccc1": {
+      "id": "usr_1788778425308_9b3fccc1",
+      "email": "attacker_1788778425105@aurora.com",
+      "fullName": "Attacker Account",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-07T10:53:45.308Z",
+      "lastLoginAt": "2026-09-07T10:53:45.308Z",
+      "profilesCount": 0,
+      "passwordHash": "10aee0e530a4fa059c76b72fd7c56027:44c346f1739d45c943a8282f994ddb9e6ebed15ed81cb5bec734f126387435ef2312c400fdd61087ee49128a2dfef1cb892bec312aa0f29bb501b05840d32319"
     }
   },
   "preferences": {
     "usr_admin_de1baf51": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788685125636_d7912c80": {
       "theme": "dark",
       "language": "vi",
       "timezone": "Asia/Ho_Chi_Minh",
@@ -608,6 +650,56 @@
       "highContrast": false
     },
     "usr_1788770814727_1143c63d": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788770815211_fd51f3e3": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788778425099_5053848f": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788778425173_c8b6b8ef": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788778425240_cacb223e": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788778425308_9b3fccc1": {
       "theme": "dark",
       "language": "vi",
       "timezone": "Asia/Ho_Chi_Minh",
@@ -2704,14 +2796,6 @@
   "backtestResults": {},
   "chatMessages": {},
   "sessions": {
-    "aurora_98f70e898986dacb6b1dc9238ef11bf14d3fd400a956383129fd6b7eaf03742b": {
-      "token": "aurora_98f70e898986dacb6b1dc9238ef11bf14d3fd400a956383129fd6b7eaf03742b",
-      "userId": "usr_guest_1788685125636_d7912c80",
-      "expiresAt": 1788771525636,
-      "createdAt": 1788685125636,
-      "lastAccessedAt": 1788685125636,
-      "isGuest": true
-    },
     "aurora_0a3d5fc97fbd963626b59cffa999e4fec5e9934d94c2b15013f2e64c16425cd9": {
       "token": "aurora_0a3d5fc97fbd963626b59cffa999e4fec5e9934d94c2b15013f2e64c16425cd9",
       "userId": "usr_1788685125707_61860a2b",
@@ -2910,6 +2994,46 @@
       "expiresAt": 1789375614727,
       "createdAt": 1788770814727,
       "lastAccessedAt": 1788770814727,
+      "isGuest": false
+    },
+    "aurora_930095f0d521ecc7d479d11b8174e41b82de3ca3a8d1116c5c3c44c4e702cd98": {
+      "token": "aurora_930095f0d521ecc7d479d11b8174e41b82de3ca3a8d1116c5c3c44c4e702cd98",
+      "userId": "usr_1788770815211_fd51f3e3",
+      "expiresAt": 1789375615474,
+      "createdAt": 1788770815474,
+      "lastAccessedAt": 1788770815474,
+      "isGuest": false
+    },
+    "aurora_27e08e06afbd5094fb9b37824c83659288dcdb353305dab4819977b25eae153f": {
+      "token": "aurora_27e08e06afbd5094fb9b37824c83659288dcdb353305dab4819977b25eae153f",
+      "userId": "usr_guest_1788778425099_5053848f",
+      "expiresAt": 1788864825099,
+      "createdAt": 1788778425099,
+      "lastAccessedAt": 1788778425099,
+      "isGuest": true
+    },
+    "aurora_647ffa8b13baae7070709ca773dc1198cb4d40abfc7db9ab7c8c2564b6ba112b": {
+      "token": "aurora_647ffa8b13baae7070709ca773dc1198cb4d40abfc7db9ab7c8c2564b6ba112b",
+      "userId": "usr_1788778425173_c8b6b8ef",
+      "expiresAt": 1789383225173,
+      "createdAt": 1788778425173,
+      "lastAccessedAt": 1788778425173,
+      "isGuest": false
+    },
+    "aurora_1ad4ca97efb2a19af72e49b7880b2eb23184e2043490327b794a3bc08bee42be": {
+      "token": "aurora_1ad4ca97efb2a19af72e49b7880b2eb23184e2043490327b794a3bc08bee42be",
+      "userId": "usr_1788778425240_cacb223e",
+      "expiresAt": 1789383225240,
+      "createdAt": 1788778425240,
+      "lastAccessedAt": 1788778425240,
+      "isGuest": false
+    },
+    "aurora_9cfeb01d98b097997480bb706a7849250f317b52fbfa0e07ead98ea54f14dffe": {
+      "token": "aurora_9cfeb01d98b097997480bb706a7849250f317b52fbfa0e07ead98ea54f14dffe",
+      "userId": "usr_1788778425308_9b3fccc1",
+      "expiresAt": 1789383225308,
+      "createdAt": 1788778425308,
+      "lastAccessedAt": 1788778425308,
       "isGuest": false
     }
   },
@@ -3282,5 +3406,5 @@
       "updatedAt": "2026-09-04T03:33:09.718Z"
     }
   },
-  "_checksum": "f9f91dcd3a25b096a5b6323aff3e37d8c72a035b6e0756cdbfdd51ff4daf8592"
+  "_checksum": "8492409c08b406fa0f101c8b0e24ad46c0363956d66d4e16fa1f06c99b294ad7"
 }
