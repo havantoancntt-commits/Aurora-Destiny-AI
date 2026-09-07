@@ -46,6 +46,7 @@ import { runBacktestAnalysis } from './src/engine/backtesting';
 import { evaluateWhatIfScenario } from './src/engine/scenarios';
 import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/aiSynthesizer';
 import { generateDestinyChatResponse, isCircuitBreakerOpen } from './src/services/geminiService';
+import { DestinyAiPipeline } from './src/services/aiPipeline';
 import { UserProfile } from './src/types/user';
 
 const app = express();
@@ -688,6 +689,40 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
 
     repository.addChatMessage(validated.profileId, assistantMsg);
     res.json(assistantMsg);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ----------------------------------------------------
+// 10B. 13-STAGE MULTI-TIER AI REASONING PIPELINE
+// ----------------------------------------------------
+app.post('/api/ai/pipeline', requireAuth, aiChatRateLimiter, async (req, res, next) => {
+  try {
+    const validated = AiChatSchema.parse(req.body);
+    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    if (!profile) return;
+
+    let calc = repository.getLatestCalculationForProfile(validated.profileId);
+    if (!calc) {
+      calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
+      repository.saveCalculation(calc);
+    }
+
+    let bt = repository.getBacktestResult(validated.profileId);
+    if (!bt) {
+      bt = runBacktestAnalysis([], calc);
+      repository.saveBacktestResult(bt);
+    }
+
+    const pipelineResult = await DestinyAiPipeline.execute({
+      userQuestion: validated.message,
+      profile,
+      calculation: calc,
+      backtest: bt
+    });
+
+    res.json(pipelineResult);
   } catch (err) {
     next(err);
   }

@@ -28,6 +28,7 @@ import { AppFooter } from './components/AppFooter';
 import { SponsorshipModal } from './components/SponsorshipModal';
 import { InternationalizationModal } from './components/InternationalizationModal';
 import { MysticOracleModal } from './components/MysticOracleModal';
+import { SocialShareCardModal } from './components/SocialShareCardModal';
 import { sacredSound } from './services/soundService';
 
 import { UserProfile, UserPreferences } from './types/user';
@@ -62,6 +63,7 @@ export default function App() {
   const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
   const [showInternationalModal, setShowInternationalModal] = useState<boolean>(false);
   const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
+  const [showShareCardModal, setShowShareCardModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -475,6 +477,7 @@ export default function App() {
                   onRecalculate={handleRecalculate}
                   onNavigateTab={setActiveTab}
                   onOpenReportModal={() => setShowReportModal(true)}
+                  onOpenShareCardModal={() => setShowShareCardModal(true)}
                   onOpenOracleModal={() => setShowOracleModal(true)}
                   onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
@@ -654,6 +657,16 @@ export default function App() {
         userName={activeProfile?.name || 'Quý Bạn'}
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
       />
+
+      {/* Social Discovery & Privacy-Safe Share Card Modal */}
+      {showShareCardModal && activeProfile && calculation && ensemble && (
+        <SocialShareCardModal
+          profile={activeProfile}
+          calculation={calculation}
+          ensemble={ensemble}
+          onClose={() => setShowShareCardModal(false)}
+        />
+      )}
     </div>
   );
 }

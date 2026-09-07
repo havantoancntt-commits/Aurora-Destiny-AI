@@ -14,7 +14,8 @@ import {
   Calendar,
   Compass,
   ArrowRight,
-  Zap
+  Zap,
+  BookOpen
 } from 'lucide-react';
 import { DailyDestiny } from '../types/ai';
 import { CalculationResult } from '../types/destiny';
@@ -23,6 +24,7 @@ import { ELEMENT_RELATIONS } from '../engine/canchi';
 import { LanguageCode } from '../types/destiny';
 import { t } from '../i18n/translations';
 import { Radio } from 'lucide-react';
+import { ReflectionJournal } from './ReflectionJournal';
 
 interface Props {
   calculation: CalculationResult;
@@ -32,6 +34,7 @@ interface Props {
 
 export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpenAlertCenter }) => {
   const [dailyData, setDailyData] = useState<DailyDestiny>(() => computeDailyDestiny(calculation));
+  const [subView, setSubView] = useState<'daily' | 'journal'>('daily');
 
   useEffect(() => {
     setDailyData(computeDailyDestiny(calculation));
@@ -61,6 +64,31 @@ export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpe
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center p-1 rounded-full bg-black/60 border border-white/15 shadow-inner">
+            <button
+              onClick={() => setSubView('daily')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                subView === 'daily'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5" />
+              <span>Chỉ Dẫn Ngày</span>
+            </button>
+            <button
+              onClick={() => setSubView('journal')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                subView === 'journal'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Nhật Ký & Lưu Trữ</span>
+            </button>
+          </div>
+
           <span className="px-3.5 py-1 rounded-full text-xs font-mono bg-amber-950/80 border border-amber-500/40 text-amber-300 shadow-sm">
             {dailyData.dailyStemBranch} • Hành {ELEMENT_RELATIONS[dailyData.dailyElement]?.vi || dailyData.dailyElement}
           </span>
@@ -76,7 +104,11 @@ export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpe
         </div>
       </motion.div>
 
-      {/* 1. TODAY'S THEME & HARMONY SCORE CARD */}
+      {subView === 'journal' ? (
+        <ReflectionJournal calculation={calculation} language={language} />
+      ) : (
+        <>
+          {/* 1. TODAY'S THEME & HARMONY SCORE CARD */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -221,6 +253,8 @@ export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpe
           </div>
         </motion.div>
       </div>
+        </>
+      )}
     </div>
   );
 };

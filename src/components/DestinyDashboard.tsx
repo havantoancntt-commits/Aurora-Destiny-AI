@@ -20,7 +20,8 @@ import {
   MapPin,
   CheckCircle2,
   RefreshCw,
-  BookOpen
+  BookOpen,
+  Share2
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -40,6 +41,7 @@ interface Props {
   onRecalculate?: () => void;
   onNavigateTab?: (tab: any) => void;
   onOpenReportModal?: () => void;
+  onOpenShareCardModal?: () => void;
   onOpenOracleModal?: () => void;
   onOpenSponsorshipModal?: () => void;
   onOpenAlertCenter?: () => void;
@@ -53,6 +55,7 @@ export const DestinyDashboard: React.FC<Props> = ({
   onRecalculate,
   onNavigateTab,
   onOpenReportModal,
+  onOpenShareCardModal,
   onOpenOracleModal = () => {},
   onOpenSponsorshipModal = () => {},
   onOpenAlertCenter = () => {}
@@ -226,14 +229,27 @@ export const DestinyDashboard: React.FC<Props> = ({
               </div>
             </div>
 
-            <button
-              id="btn-open-executive-dossier"
-              onClick={onOpenReportModal}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(251,191,36,0.3)] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
-            >
-              <BookOpen className="w-4 h-4 text-slate-950" />
-              <span>Xem &amp; Xuất Bản Sách</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              {onOpenShareCardModal && (
+                <button
+                  id="btn-open-share-card"
+                  onClick={onOpenShareCardModal}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/10 border border-white/15 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4 text-amber-400" />
+                  <span>Thẻ Chia Sẻ</span>
+                </button>
+              )}
+
+              <button
+                id="btn-open-executive-dossier"
+                onClick={onOpenReportModal}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(251,191,36,0.3)] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4 text-slate-950" />
+                <span>Xem &amp; Xuất Bản Sách</span>
+              </button>
+            </div>
           </div>
         )}
       </motion.div>
