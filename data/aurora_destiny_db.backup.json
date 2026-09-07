@@ -1,53 +1,5 @@
 {
   "users": {
-    "usr_guest_1788492797110_55772016": {
-      "id": "usr_guest_1788492797110_55772016",
-      "email": "guest_usr_guest_1788492797110_55772016@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-04T03:33:17.110Z",
-      "lastLoginAt": "2026-09-04T03:33:17.110Z",
-      "profilesCount": 1
-    },
-    "usr_guest_1788492804321_df7cc05b": {
-      "id": "usr_guest_1788492804321_df7cc05b",
-      "email": "guest_usr_guest_1788492804321_df7cc05b@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-04T03:33:24.321Z",
-      "lastLoginAt": "2026-09-04T03:33:24.321Z",
-      "profilesCount": 0
-    },
-    "usr_guest_1788492855316_33304e02": {
-      "id": "usr_guest_1788492855316_33304e02",
-      "email": "guest_usr_guest_1788492855316_33304e02@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-04T03:34:15.316Z",
-      "lastLoginAt": "2026-09-04T03:34:15.316Z",
-      "profilesCount": 0
-    },
-    "usr_guest_1788492855318_4408bd47": {
-      "id": "usr_guest_1788492855318_4408bd47",
-      "email": "guest_usr_guest_1788492855318_4408bd47@aurora.internal",
-      "fullName": "Nhà Khám Phá Định Mệnh",
-      "role": "USER",
-      "subscriptionTier": "Free",
-      "language": "vi",
-      "emailVerified": false,
-      "createdAt": "2026-09-04T03:34:15.319Z",
-      "lastLoginAt": "2026-09-04T03:34:15.319Z",
-      "profilesCount": 0
-    },
     "usr_admin_de1baf51": {
       "id": "usr_admin_de1baf51",
       "email": "havantoancntt@gmail.com",
@@ -59,62 +11,133 @@
       "createdAt": "2026-09-04T03:57:00.379Z",
       "lastLoginAt": "2026-09-04T03:57:00.379Z",
       "profilesCount": 0,
-      "passwordHash": "cec7b8ec8b181ffda4e525e23530e8f0:cae169e10fdda53e37d6cd590c22267b20e5d53d421a47726bea9bc098f035889d0642a1392923849b6270ee34411f4cb80af5dddc9ee40b7ce2fb7fde29ce32"
+      "passwordHash": "072c54d42e75b840082d2af2a6282c69:b051a9d144f79b44261894530b542182d63d0877260c96fbddc1956a9294c2c364c854dfa6bce65dee6f5dd5278627f86994dd946b192d9394f7a2f630e7c75c"
     },
-    "usr_guest_1788494488741_588d6f9e": {
-      "id": "usr_guest_1788494488741_588d6f9e",
-      "email": "guest_usr_guest_1788494488741_588d6f9e@aurora.internal",
+    "usr_guest_1788683037931_0ba3604f": {
+      "id": "usr_guest_1788683037931_0ba3604f",
+      "email": "guest_usr_guest_1788683037931_0ba3604f@aurora.internal",
       "fullName": "Nhà Khám Phá Định Mệnh",
       "role": "USER",
       "subscriptionTier": "Free",
       "language": "vi",
       "emailVerified": false,
-      "createdAt": "2026-09-04T04:01:28.741Z",
-      "lastLoginAt": "2026-09-04T04:01:28.741Z",
+      "createdAt": "2026-09-06T08:23:57.931Z",
+      "lastLoginAt": "2026-09-06T08:23:57.931Z",
       "profilesCount": 0
+    },
+    "usr_guest_1788683038045_df7cfa58": {
+      "id": "usr_guest_1788683038045_df7cfa58",
+      "email": "guest_usr_guest_1788683038045_df7cfa58@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:23:58.045Z",
+      "lastLoginAt": "2026-09-06T08:23:58.045Z",
+      "profilesCount": 0
+    },
+    "usr_guest_1788683118717_197abc25": {
+      "id": "usr_guest_1788683118717_197abc25",
+      "email": "guest_usr_guest_1788683118717_197abc25@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:25:18.718Z",
+      "lastLoginAt": "2026-09-06T08:25:18.718Z",
+      "profilesCount": 0
+    },
+    "usr_guest_1788683118828_31cd9ecb": {
+      "id": "usr_guest_1788683118828_31cd9ecb",
+      "email": "guest_usr_guest_1788683118828_31cd9ecb@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:25:18.828Z",
+      "lastLoginAt": "2026-09-06T08:25:18.828Z",
+      "profilesCount": 0
+    },
+    "usr_guest_1788683339009_3cf1f05e": {
+      "id": "usr_guest_1788683339009_3cf1f05e",
+      "email": "guest_usr_guest_1788683339009_3cf1f05e@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:28:59.009Z",
+      "lastLoginAt": "2026-09-06T08:28:59.009Z",
+      "profilesCount": 0
+    },
+    "usr_guest_1788683339118_523e3551": {
+      "id": "usr_guest_1788683339118_523e3551",
+      "email": "guest_usr_guest_1788683339118_523e3551@aurora.internal",
+      "fullName": "Nhà Khám Phá Định Mệnh",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:28:59.118Z",
+      "lastLoginAt": "2026-09-06T08:28:59.118Z",
+      "profilesCount": 0
+    },
+    "usr_guest_1788685125636_d7912c80": {
+      "id": "usr_guest_1788685125636_d7912c80",
+      "email": "guest_usr_guest_1788685125636_d7912c80@aurora.internal",
+      "fullName": "Khách Tham Quan",
+      "role": "GUEST",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:58:45.636Z",
+      "lastLoginAt": "2026-09-06T08:58:45.636Z",
+      "profilesCount": 0
+    },
+    "usr_1788685125707_61860a2b": {
+      "id": "usr_1788685125707_61860a2b",
+      "email": "user_a_1788685125642@aurora.com",
+      "fullName": "User Alpha",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:58:45.707Z",
+      "lastLoginAt": "2026-09-06T08:58:45.707Z",
+      "profilesCount": 0,
+      "passwordHash": "54a76cb490a4a050e1b567771c1e0ade:5f0d29a673448e0394a72859925eeaf46a6b338b2fefbe56b2d964a3ff027ab7891b18b8b903f6172776b2e31b8d4b77906346db5ba7d5cecd8ec7c383d2d2f0"
+    },
+    "usr_1788685125773_64358d90": {
+      "id": "usr_1788685125773_64358d90",
+      "email": "user_b_1788685125642@aurora.com",
+      "fullName": "User Beta",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:58:45.773Z",
+      "lastLoginAt": "2026-09-06T08:58:45.773Z",
+      "profilesCount": 0,
+      "passwordHash": "32c7af495a6e00474fc85bd75824924d:e1ddcfc6cc2bcdc416127b751ab32d8579bdef8d6d32fac78c9471ac25c74322fd30fdba9a770ba5df8367593708977f30e08a1c710023e9315932a98470b6d2"
+    },
+    "usr_1788685125839_216d0cbe": {
+      "id": "usr_1788685125839_216d0cbe",
+      "email": "attacker_1788685125642@aurora.com",
+      "fullName": "Attacker Account",
+      "role": "USER",
+      "subscriptionTier": "Free",
+      "language": "vi",
+      "emailVerified": false,
+      "createdAt": "2026-09-06T08:58:45.839Z",
+      "lastLoginAt": "2026-09-06T08:58:45.839Z",
+      "profilesCount": 0,
+      "passwordHash": "4cdbafdcb1386bafeb4b9dc33fdfbb1a:df975a30601b667632590e0cc14e98b6ce1d6fdaf819f21a8449c9b3039bbd2e2d28a89cd4488a4755c91911c6376c406aecb4448f6757c77f496c5722d17d6e"
     }
   },
   "preferences": {
-    "usr_guest_1788492797110_55772016": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788492804321_df7cc05b": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788492855316_33304e02": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
-    "usr_guest_1788492855318_4408bd47": {
-      "theme": "dark",
-      "language": "vi",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "enableNotifications": true,
-      "enableAILearning": false,
-      "anonymizeData": false,
-      "scientificConfidenceMode": true,
-      "highContrast": false
-    },
     "usr_admin_de1baf51": {
       "theme": "dark",
       "language": "vi",
@@ -125,7 +148,97 @@
       "scientificConfidenceMode": true,
       "highContrast": false
     },
-    "usr_guest_1788494488741_588d6f9e": {
+    "usr_guest_1788683037931_0ba3604f": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788683038045_df7cfa58": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788683118717_197abc25": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788683118828_31cd9ecb": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788683339009_3cf1f05e": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788683339118_523e3551": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_guest_1788685125636_d7912c80": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788685125707_61860a2b": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788685125773_64358d90": {
+      "theme": "dark",
+      "language": "vi",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "enableNotifications": true,
+      "enableAILearning": false,
+      "anonymizeData": false,
+      "scientificConfidenceMode": true,
+      "highContrast": false
+    },
+    "usr_1788685125839_216d0cbe": {
       "theme": "dark",
       "language": "vi",
       "timezone": "Asia/Ho_Chi_Minh",
@@ -136,40 +249,7 @@
       "highContrast": false
     }
   },
-  "profiles": {
-    "prof_1788492801498_46fa09": {
-      "id": "prof_1788492801498_46fa09",
-      "userId": "usr_guest_1788492797110_55772016",
-      "name": "Hà Văn Toàn",
-      "isPrimary": false,
-      "avatarSeed": "hà_văn_toàn",
-      "birthData": {
-        "solarYear": 1996,
-        "solarMonth": 6,
-        "solarDay": 18,
-        "solarHour": 9,
-        "solarMinute": 30,
-        "hasExactHour": true,
-        "birthCity": "Hà Nội",
-        "birthCountry": "Vietnam",
-        "timezoneOffset": 7,
-        "timezoneName": "Asia/Bangkok",
-        "gender": "Male",
-        "calendarSystem": "solar"
-      },
-      "behavioralContext": {
-        "careerField": "",
-        "employmentStatus": "",
-        "financialGoal": "",
-        "relationshipStatus": "",
-        "topPriority": "",
-        "personalNotes": ""
-      },
-      "createdAt": "2026-09-04T03:33:21.498Z",
-      "updatedAt": "2026-09-04T03:33:21.502Z",
-      "latestCalculationId": "calc_1788492801502_7d2rc"
-    }
-  },
+  "profiles": {},
   "calculations": {
     "calc_1788492801502_7d2rc": {
       "id": "calc_1788492801502_7d2rc",
@@ -1206,50 +1286,353 @@
     }
   },
   "historicalEvents": {},
-  "backtestResults": {
-    "prof_1788492801498_46fa09": {
-      "id": "bt_1788492801502",
-      "profileId": "prof_1788492801498_46fa09",
-      "calculationId": "calc_1788492801502_7d2rc",
-      "timestamp": "2026-09-04T03:33:21.502Z",
-      "totalEventsAnalyzed": 0,
-      "destinyConsistencyScore": 0,
-      "matchedEventsCount": 0,
-      "divergentEventsCount": 0,
-      "neutralEventsCount": 0,
-      "confidenceBand": "Sparse Data Fit",
-      "comparisons": [],
-      "strengthsSummary": [
-        "Chưa có sự kiện quá khứ nào được nạp để kiểm chứng mẫu."
-      ],
-      "anomaliesSummary": [
-        "Vui lòng nạp tối thiểu 2-3 sự kiện bước ngoặt để mở khóa chỉ số đối sánh lịch sử."
-      ],
-      "uncertaintyFactors": [
-        "Chưa đủ dữ liệu thực chứng lịch sử cá nhân."
-      ]
-    }
-  },
+  "backtestResults": {},
   "chatMessages": {},
   "sessions": {
-    "aurora_3563a9656dbf199c3b0bf2ebf465c40c263c89bee69ea03b80e460e644ec5f8e": {
-      "token": "aurora_3563a9656dbf199c3b0bf2ebf465c40c263c89bee69ea03b80e460e644ec5f8e",
-      "userId": "usr_guest_1788494488741_588d6f9e",
-      "expiresAt": 1788580888742,
-      "createdAt": 1788494488742,
-      "lastAccessedAt": 1788494488753,
+    "aurora_00e8c9e91e561ba072668b163cbc3e4c852f17a60297234f714c15bc37efa940": {
+      "token": "aurora_00e8c9e91e561ba072668b163cbc3e4c852f17a60297234f714c15bc37efa940",
+      "userId": "usr_guest_1788683037931_0ba3604f",
+      "expiresAt": 1788769437931,
+      "createdAt": 1788683037931,
+      "lastAccessedAt": 1788683037931,
       "isGuest": true
     },
-    "test_token_1788494586828": {
-      "token": "test_token_1788494586828",
-      "userId": "usr_guest_1788492797110_55772016",
-      "expiresAt": 1788580986828,
-      "createdAt": 1788494586828,
-      "lastAccessedAt": 1788494586828,
+    "aurora_3ba794ebbc99dd17025089d5e72519055633e19a7a26a26144f30abd2f665736": {
+      "token": "aurora_3ba794ebbc99dd17025089d5e72519055633e19a7a26a26144f30abd2f665736",
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "expiresAt": 1788769438045,
+      "createdAt": 1788683038045,
+      "lastAccessedAt": 1788685079731,
       "isGuest": true
+    },
+    "aurora_da29dd9105e1aadc5f5a9c58fceb1505d1799107ac1867ffdcd14f81b850402f": {
+      "token": "aurora_da29dd9105e1aadc5f5a9c58fceb1505d1799107ac1867ffdcd14f81b850402f",
+      "userId": "usr_guest_1788683118717_197abc25",
+      "expiresAt": 1788769518718,
+      "createdAt": 1788683118718,
+      "lastAccessedAt": 1788683118718,
+      "isGuest": true
+    },
+    "aurora_15008b180fe99da1719e3cea472b2ca4f1a003264c6841f75af25765c11827f8": {
+      "token": "aurora_15008b180fe99da1719e3cea472b2ca4f1a003264c6841f75af25765c11827f8",
+      "userId": "usr_guest_1788683118828_31cd9ecb",
+      "expiresAt": 1788769518828,
+      "createdAt": 1788683118828,
+      "lastAccessedAt": 1788683118828,
+      "isGuest": true
+    },
+    "aurora_5614a44090c9b5e2451fe5f48aa754046cb8e02873871f674707823569742409": {
+      "token": "aurora_5614a44090c9b5e2451fe5f48aa754046cb8e02873871f674707823569742409",
+      "userId": "usr_guest_1788683339009_3cf1f05e",
+      "expiresAt": 1788769739009,
+      "createdAt": 1788683339009,
+      "lastAccessedAt": 1788683339009,
+      "isGuest": true
+    },
+    "aurora_c0b96cdea1f61d92ab16e7a0b48bb5ecdaecb22da0b160f49f071ccc855ed42d": {
+      "token": "aurora_c0b96cdea1f61d92ab16e7a0b48bb5ecdaecb22da0b160f49f071ccc855ed42d",
+      "userId": "usr_guest_1788683339118_523e3551",
+      "expiresAt": 1788769739118,
+      "createdAt": 1788683339118,
+      "lastAccessedAt": 1788683339118,
+      "isGuest": true
+    },
+    "aurora_98f70e898986dacb6b1dc9238ef11bf14d3fd400a956383129fd6b7eaf03742b": {
+      "token": "aurora_98f70e898986dacb6b1dc9238ef11bf14d3fd400a956383129fd6b7eaf03742b",
+      "userId": "usr_guest_1788685125636_d7912c80",
+      "expiresAt": 1788771525636,
+      "createdAt": 1788685125636,
+      "lastAccessedAt": 1788685125636,
+      "isGuest": true
+    },
+    "aurora_0a3d5fc97fbd963626b59cffa999e4fec5e9934d94c2b15013f2e64c16425cd9": {
+      "token": "aurora_0a3d5fc97fbd963626b59cffa999e4fec5e9934d94c2b15013f2e64c16425cd9",
+      "userId": "usr_1788685125707_61860a2b",
+      "expiresAt": 1789289925708,
+      "createdAt": 1788685125708,
+      "lastAccessedAt": 1788685125708,
+      "isGuest": false
+    },
+    "aurora_728e324b5174d7f0a0f4608c0a8719cc46ca58c6e8c23ea3868623163291c292": {
+      "token": "aurora_728e324b5174d7f0a0f4608c0a8719cc46ca58c6e8c23ea3868623163291c292",
+      "userId": "usr_1788685125773_64358d90",
+      "expiresAt": 1789289925773,
+      "createdAt": 1788685125773,
+      "lastAccessedAt": 1788685125773,
+      "isGuest": false
+    },
+    "aurora_2299a6d82aaa2bce23e416c3d7f185109a4e9544bf4a7ec226d83e4885168058": {
+      "token": "aurora_2299a6d82aaa2bce23e416c3d7f185109a4e9544bf4a7ec226d83e4885168058",
+      "userId": "usr_1788685125839_216d0cbe",
+      "expiresAt": 1789289925839,
+      "createdAt": 1788685125839,
+      "lastAccessedAt": 1788685125839,
+      "isGuest": false
     }
   },
   "auditLogs": [
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788685079727_7fd2f7af",
+      "id": "audit_1788685079728_3c5023",
+      "timestamp": "2026-09-06T08:57:59.728Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788685079683_4b5fe015",
+      "id": "audit_1788685079683_5f088b",
+      "timestamp": "2026-09-06T08:57:59.683Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788685079591_107d9114",
+      "id": "audit_1788685079591_f8e7ca",
+      "timestamp": "2026-09-06T08:57:59.591Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788685079570_41c81735",
+      "id": "audit_1788685079570_bede41",
+      "timestamp": "2026-09-06T08:57:59.570Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788684893657_09d2fffb",
+      "id": "audit_1788684893657_807416",
+      "timestamp": "2026-09-06T08:54:53.657Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788684893616_65fb8d8c",
+      "id": "audit_1788684893617_b7128a",
+      "timestamp": "2026-09-06T08:54:53.617Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788684893554_17f40030",
+      "id": "audit_1788684893554_5b262e",
+      "timestamp": "2026-09-06T08:54:53.554Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788684893512_66d0c6ed",
+      "id": "audit_1788684893512_be03e9",
+      "timestamp": "2026-09-06T08:54:53.512Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788684760179_f26e0869",
+      "id": "audit_1788684760179_333656",
+      "timestamp": "2026-09-06T08:52:40.179Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788684760066_22ab977c",
+      "id": "audit_1788684760066_c55b0e",
+      "timestamp": "2026-09-06T08:52:40.066Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788684759931_8e807de6",
+      "id": "audit_1788684759931_fec6e1",
+      "timestamp": "2026-09-06T08:52:39.931Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788684759761_d597dcba",
+      "id": "audit_1788684759762_b934fa",
+      "timestamp": "2026-09-06T08:52:39.762Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788684280007_cc5774fd",
+      "id": "audit_1788684280007_15f755",
+      "timestamp": "2026-09-06T08:44:40.007Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788684279946_c4ccdab1",
+      "id": "audit_1788684279946_6fba56",
+      "timestamp": "2026-09-06T08:44:39.946Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788684279881_33963914",
+      "id": "audit_1788684279881_f6ea8e",
+      "timestamp": "2026-09-06T08:44:39.881Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788684279826_b3ffac4d",
+      "id": "audit_1788684279827_72d66a",
+      "timestamp": "2026-09-06T08:44:39.827Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788683565327_821041ab",
+      "id": "audit_1788683565327_c210aa",
+      "timestamp": "2026-09-06T08:32:45.327Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788683565217_f1aae350",
+      "id": "audit_1788683565218_bed6d6",
+      "timestamp": "2026-09-06T08:32:45.218Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788683565134_9b71dcbd",
+      "id": "audit_1788683565134_5f8c7c",
+      "timestamp": "2026-09-06T08:32:45.134Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788683565020_85c17445",
+      "id": "audit_1788683565021_6ecd50",
+      "timestamp": "2026-09-06T08:32:45.021Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788683338861_d9cb33e2",
+      "id": "audit_1788683338861_8aaa58",
+      "timestamp": "2026-09-06T08:28:58.861Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788683338812_81b44e81",
+      "id": "audit_1788683338812_897e26",
+      "timestamp": "2026-09-06T08:28:58.812Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788683338678_ecedba65",
+      "id": "audit_1788683338678_d3f923",
+      "timestamp": "2026-09-06T08:28:58.678Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788683338661_3f3c5fa6",
+      "id": "audit_1788683338661_f229bd",
+      "timestamp": "2026-09-06T08:28:58.661Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788683118694_76ae2d1f",
+      "id": "audit_1788683118694_e63b91",
+      "timestamp": "2026-09-06T08:25:18.694Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788683118643_d2d0791d",
+      "id": "audit_1788683118643_68c687",
+      "timestamp": "2026-09-06T08:25:18.644Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/audit-logs",
+      "status": "BLOCKED",
+      "requestId": "req_1788683118532_badb2a66",
+      "id": "audit_1788683118532_e0ffd4",
+      "timestamp": "2026-09-06T08:25:18.532Z"
+    },
+    {
+      "userId": "usr_guest_1788683038045_df7cfa58",
+      "action": "ADMIN_ACCESS_DENIED",
+      "resource": "/api/metrics",
+      "status": "BLOCKED",
+      "requestId": "req_1788683118529_62bff155",
+      "id": "audit_1788683118529_222f4b",
+      "timestamp": "2026-09-06T08:25:18.529Z"
+    },
+    {
+      "userId": "usr_guest_1788494488741_588d6f9e",
+      "action": "CROSS_USER_PROFILE_ACCESS_BLOCKED",
+      "resource": "profile",
+      "resourceId": "prof_1788492801498_46fa09",
+      "status": "BLOCKED",
+      "requestId": "req_1788494714714_2936cab5",
+      "id": "audit_1788494714715_ef5f5d",
+      "timestamp": "2026-09-04T04:05:14.715Z"
+    },
     {
       "userId": "usr_admin_master",
       "action": "USER_LOGIN",
@@ -1309,5 +1692,5 @@
       "updatedAt": "2026-09-04T03:33:09.718Z"
     }
   },
-  "_checksum": "4474071b8802c18074f3bb6876057ef41b2f19e35bfccb99e0f9fadb4b72cc22"
+  "_checksum": "2ca265370c23ee077a51c1d896c42ef20b735eb294487ca7da50152818e3e4e5"
 }

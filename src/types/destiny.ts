@@ -186,6 +186,7 @@ export interface BirthData {
   isLateRat?: boolean; // Configuration for hour 23 (Dạ Tý)
   timeConvention?: 'civil' | 'trueSolar'; // Astronomical time convention
   longitude?: number; // Geographic longitude in degrees for True Solar Time (e.g. 105.85 for Hanoi)
+  latitude?: number; // Geographic latitude in degrees (-90 to +90)
 }
 
 export interface BehavioralContext {
@@ -221,4 +222,14 @@ export interface CalculationResult {
   decades: DecadeCycle[];
   annualTransits: AnnualTransit[];
   confidence: ConfidenceMetrics;
+  effectiveBirthTime?: {
+    effectiveDate: { year: number; month: number; day: number };
+    effectiveHour: number;
+    effectiveMinute: number;
+    timeConvention: 'civil' | 'trueSolar';
+    equationOfTimeMinutes: number;
+    longitudeCorrectionMinutes: number;
+    totalCorrectionMinutes: number;
+    dayShift: number;
+  };
 }

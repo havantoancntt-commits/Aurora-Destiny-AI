@@ -35,6 +35,8 @@ export function runBacktestAnalysis(
       timestamp: new Date().toISOString(),
       totalEventsAnalyzed: 0,
       destinyConsistencyScore: 0, // No events = 0 empirical score
+      historicalHitRate: 0,
+      statisticalSignificanceDisclaimer: 'Chỉ số tương hợp là điểm kinh nghiệm định lượng dựa trên mẫu dữ liệu cá nhân, không cấu thành xác suất thống kê khách quan tần suất (frequentist probability).',
       matchedEventsCount: 0,
       divergentEventsCount: 0,
       neutralEventsCount: 0,
@@ -122,6 +124,8 @@ export function runBacktestAnalysis(
 
   const rawScore = Math.round(totalMatchPoints / validPastEvents.length);
   const destinyConsistencyScore = Math.min(96, Math.max(30, rawScore));
+  const historicalHitRate = Math.round((matchedCount / validPastEvents.length) * 100);
+  const statisticalSignificanceDisclaimer = 'Chỉ số tương hợp là điểm kinh nghiệm định lượng dựa trên mẫu dữ liệu cá nhân, không cấu thành xác suất thống kê khách quan tần suất (frequentist probability).';
 
   let confidenceBand: BacktestResult['confidenceBand'] = 'Moderate Coherence';
   if (validPastEvents.length >= 3 && destinyConsistencyScore >= 80) {
@@ -131,7 +135,7 @@ export function runBacktestAnalysis(
   }
 
   const strengthsSummary = [
-    `Tỷ lệ tương hợp mẫu lịch sử đạt ${Math.round((matchedCount / validPastEvents.length) * 100)}% trên ${validPastEvents.length} sự kiện thực tế.`,
+    `Tỷ lệ tương hợp mẫu lịch sử đạt ${historicalHitRate}% trên ${validPastEvents.length} sự kiện thực tế.`,
     `Các bước ngoặt lĩnh vực ${validPastEvents[0]?.category || 'Sự nghiệp'} có mức liên kết rõ rệt với quy luật Dụng Thần (${calculation.bazi.favorableElements.join(', ')}).`
   ];
 
@@ -152,6 +156,8 @@ export function runBacktestAnalysis(
     timestamp: new Date().toISOString(),
     totalEventsAnalyzed: validPastEvents.length,
     destinyConsistencyScore,
+    historicalHitRate,
+    statisticalSignificanceDisclaimer,
     matchedEventsCount: matchedCount,
     divergentEventsCount: divergentCount,
     neutralEventsCount: neutralCount,

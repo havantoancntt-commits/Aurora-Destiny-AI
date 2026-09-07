@@ -25,7 +25,8 @@ export const BirthDataSchema = z.object({
   calendarSystem: z.enum(['solar', 'lunar']),
   isLateRat: z.boolean().optional().default(false),
   timeConvention: z.enum(['civil', 'trueSolar']).optional().default('civil'),
-  longitude: z.number().min(-180).max(180).optional()
+  longitude: z.number().min(-180).max(180).optional(),
+  latitude: z.number().min(-90).max(90).optional()
 }).refine((data) => {
   // Validate real calendar days per month (including leap years)
   const daysInMonth = new Date(data.solarYear, data.solarMonth, 0).getDate();

@@ -7,7 +7,7 @@ import { calculateBaZiChart } from './bazi';
 import { calculateZiWeiChart } from './ziwei';
 import { calculateDecadeCycles, calculateAnnualTransits } from './temporal';
 import { evaluateConfidence } from './confidence';
-import { calculateTrueSolarTime } from './lunarSolar';
+import { resolveEffectiveBirthTime } from './temporalCorrection';
 
 export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
 export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
@@ -34,22 +34,19 @@ export function runFullDestinyCalculation(
   profileId: string = 'prof_default',
   eventsCount: number = 0
 ): CalculationResult {
-  let effectiveBirthData: BirthData = { ...birthData };
+  // Canonical Resolution of Birth Time (Single Source of Truth)
+  const canonicalTime = resolveEffectiveBirthTime(birthData);
 
-  // If user selected True Solar Time convention, compute astronomical solar hour & minute
-  if (birthData.timeConvention === 'trueSolar') {
-    const tst = calculateTrueSolarTime(
-      birthData.solarYear,
-      birthData.solarMonth,
-      birthData.solarDay,
-      birthData.solarHour,
-      birthData.solarMinute || 0,
-      birthData.timezoneOffset,
-      birthData.longitude ?? (birthData.timezoneOffset * 15)
-    );
-    effectiveBirthData.solarHour = tst.trueSolarHour;
-    effectiveBirthData.solarMinute = tst.trueSolarMinute;
-  }
+  const effectiveBirthData: BirthData = {
+    ...birthData,
+    solarYear: canonicalTime.effectiveDate.year,
+    solarMonth: canonicalTime.effectiveDate.month,
+    solarDay: canonicalTime.effectiveDate.day,
+    solarHour: canonicalTime.effectiveHour,
+    solarMinute: canonicalTime.effectiveMinute,
+    longitude: canonicalTime.longitude,
+    latitude: canonicalTime.latitude
+  };
 
   const bazi = calculateBaZiChart(effectiveBirthData);
   const ziwei = calculateZiWeiChart(effectiveBirthData);
@@ -58,7 +55,22 @@ export function runFullDestinyCalculation(
   const annualTransits = calculateAnnualTransits(effectiveBirthData, currentYear - 6, currentYear + 10);
   const confidence = evaluateConfidence(effectiveBirthData, eventsCount);
 
-  const inputSignature = `${profileId}_${birthData.solarYear}_${birthData.solarMonth}_${birthData.solarDay}_${birthData.solarHour}_${birthData.solarMinute}_${birthData.gender}_${birthData.isLateRat ? 'lateRat' : 'standard'}_${birthData.timeConvention || 'civil'}_${CALCULATION_ENGINE_VERSION}`;
+  // Deterministic Idempotent Signature across all astronomical and user coordinates
+  const inputSignature = [
+    profileId,
+    birthData.solarYear,
+    birthData.solarMonth,
+    birthData.solarDay,
+    birthData.solarHour,
+    birthData.solarMinute ?? 0,
+    birthData.timezoneOffset,
+    canonicalTime.longitude.toFixed(4),
+    birthData.gender,
+    birthData.isLateRat ? 'lateRat' : 'standard',
+    birthData.timeConvention || 'civil',
+    CALCULATION_ENGINE_VERSION
+  ].join('_');
+
   const deterministicId = `calc_${deterministicHash(inputSignature)}`;
 
   return {
@@ -73,6 +85,16 @@ export function runFullDestinyCalculation(
     ziwei,
     decades,
     annualTransits,
-    confidence
+    confidence,
+    effectiveBirthTime: {
+      effectiveDate: canonicalTime.effectiveDate,
+      effectiveHour: canonicalTime.effectiveHour,
+      effectiveMinute: canonicalTime.effectiveMinute,
+      timeConvention: canonicalTime.timeConvention,
+      equationOfTimeMinutes: canonicalTime.equationOfTimeMinutes,
+      longitudeCorrectionMinutes: canonicalTime.longitudeCorrectionMinutes,
+      totalCorrectionMinutes: canonicalTime.totalCorrectionMinutes,
+      dayShift: canonicalTime.dayShift
+    }
   };
 }

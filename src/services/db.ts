@@ -158,6 +158,8 @@ class DatabaseAdapter {
       timestamp: new Date().toISOString(),
       totalEventsAnalyzed: 0,
       destinyConsistencyScore: 0,
+      historicalHitRate: 0,
+      statisticalSignificanceDisclaimer: '',
       matchedEventsCount: 0,
       divergentEventsCount: 0,
       neutralEventsCount: 0,

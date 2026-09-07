@@ -52,7 +52,9 @@ export interface BacktestResult {
   calculationId: string;
   timestamp: string;
   totalEventsAnalyzed: number;
-  destinyConsistencyScore: number; // 0 - 100
+  destinyConsistencyScore: number; // 0 - 100 (Heuristic model fit score)
+  historicalHitRate: number; // 0 - 100% (Percentage of actual events matching calculated direction)
+  statisticalSignificanceDisclaimer: string; // Explicit distinction between personal empirical fit and frequentist statistical probability
   matchedEventsCount: number;
   divergentEventsCount: number;
   neutralEventsCount: number;

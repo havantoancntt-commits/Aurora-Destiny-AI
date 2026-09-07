@@ -64,6 +64,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
 
@@ -293,22 +295,19 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, (req, res, next) 
     const validated = ProfileCreateSchema.parse(req.body);
     const userId = req.user!.id;
 
-    // Enforce guest quota: Guest users limited to max 2 profiles
-    if (req.user!.role === 'GUEST' || userId.startsWith('usr_guest_')) {
-      const existingProfiles = repository.getProfiles(userId);
-      if (existingProfiles.length >= 2) {
-        return res.status(403).json({
-          error: {
-            code: 'GUEST_QUOTA_EXCEEDED',
-            message: 'Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.',
-            requestId: req.requestId
-          }
-        });
-      }
-    }
-
-    // Atomic transaction for profile, calculation & initial backtest creation
+    // Atomic transaction for guest quota check, profile, calculation & initial backtest creation
     const { newProfile, calc } = repository.runTransaction((repo) => {
+      // Enforce guest quota atomically: role === 'GUEST' is single source of truth
+      if (req.user!.role === 'GUEST') {
+        const existingProfiles = repo.getProfiles(userId);
+        if (existingProfiles.length >= 2) {
+          const quotaErr = new Error('Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.');
+          (quotaErr as any).code = 'GUEST_QUOTA_EXCEEDED';
+          (quotaErr as any).statusCode = 403;
+          throw quotaErr;
+        }
+      }
+
       const createdProfile: UserProfile = {
         id: `prof_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
         userId,
@@ -495,34 +494,36 @@ app.post(['/api/events', '/api/backtests/event'], requireAuth, (req, res, next) 
     const profile = verifyProfileOwnership(req, res, validated.profileId);
     if (!profile) return;
 
-    // Enforce guest quota: Guest users limited to max 5 historical events
-    if (req.user!.role === 'GUEST' || req.user!.id.startsWith('usr_guest_')) {
-      const existingEvents = repository.getHistoricalEvents(validated.profileId);
-      if (existingEvents.length >= 5) {
-        return res.status(403).json({
-          error: {
-            code: 'GUEST_EVENT_QUOTA_EXCEEDED',
-            message: 'Phiên khách tạm thời giới hạn tối đa 5 sự kiện đối chiếu. Vui lòng đăng ký tài khoản chính thức miễn phí để lưu trữ toàn bộ lịch sử.',
-            requestId: req.requestId
-          }
-        });
+    // Atomic transaction for guest quota enforcement, event creation & backtest calculation
+    const { event, updatedBt } = repository.runTransaction((repo) => {
+      // Enforce guest quota atomically: role === 'GUEST' is single source of truth
+      if (req.user!.role === 'GUEST') {
+        const existingEvents = repo.getHistoricalEvents(validated.profileId);
+        if (existingEvents.length >= 5) {
+          const quotaErr = new Error('Phiên khách tạm thời giới hạn tối đa 5 sự kiện đối chiếu. Vui lòng đăng ký tài khoản chính thức miễn phí để lưu trữ toàn bộ lịch sử.');
+          (quotaErr as any).code = 'GUEST_EVENT_QUOTA_EXCEEDED';
+          (quotaErr as any).statusCode = 403;
+          throw quotaErr;
+        }
       }
-    }
 
-    const event = {
-      id: `evt_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
-      ...validated,
-      createdAt: new Date().toISOString()
-    };
+      const createdEvent = {
+        id: `evt_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+        ...validated,
+        createdAt: new Date().toISOString()
+      };
 
-    repository.addHistoricalEvent(event);
+      repo.addHistoricalEvent(createdEvent);
 
-    const allEvents = repository.getHistoricalEvents(validated.profileId);
-    const calc = repository.getLatestCalculationForProfile(validated.profileId) ||
-      runFullDestinyCalculation(profile.birthData, profile.id, allEvents.length);
+      const allEvents = repo.getHistoricalEvents(validated.profileId);
+      const calc = repo.getLatestCalculationForProfile(validated.profileId) ||
+        runFullDestinyCalculation(profile.birthData, profile.id, allEvents.length);
 
-    const updatedBt = runBacktestAnalysis(allEvents, calc);
-    repository.saveBacktestResult(updatedBt);
+      const computedBt = runBacktestAnalysis(allEvents, calc);
+      repo.saveBacktestResult(computedBt);
+
+      return { event: createdEvent, updatedBt: computedBt };
+    });
 
     res.status(201).json({ event, backtestResult: updatedBt });
   } catch (err) {

@@ -31,6 +31,7 @@ import { calculateYearPillar, calculateMonthPillar, calculateDayPillar, calculat
 import { convertSolarToLunar } from '../engine/lunarSolar';
 import { UserProfile } from '../types/user';
 import { WORLD_LOCATIONS, WorldLocation } from '../services/internationalization';
+import { locationProvider } from '../services/locationProvider';
 
 interface Props {
   language: LanguageCode;
@@ -187,7 +188,8 @@ export const OnboardingWizard: React.FC<Props> = ({
         calendarSystem: 'solar',
         isLateRat,
         timeConvention,
-        longitude: birthCity.includes('Hồ Chí Minh') ? 106.66 : 105.85
+        longitude: locationProvider.resolveLocation(birthCity, birthCountry)?.longitude ?? (timezoneOffset * 15),
+        latitude: locationProvider.resolveLocation(birthCity, birthCountry)?.latitude
       };
 
       const behavioral: BehavioralContext = {

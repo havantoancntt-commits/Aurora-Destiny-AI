@@ -1,7 +1,13 @@
 // ==========================================
 // AURORA DESTINY AI — AUTHENTICATION & AUTHORIZATION
-// Multi-user isolation, durable sessions, PBKDF2 (100k rounds),
+// Multi-user isolation, durable sessions, PBKDF2 (100,000 rounds, SHA-512),
 // timing-safe verification, RBAC, and dynamic admin bootstrap.
+// 
+// ARCHITECTURAL RATIONALE FOR PBKDF2:
+// 1. Native Node.js crypto module integration without external C/C++ bindings (no node-gyp or prebuild issues on Alpine/Docker containers).
+// 2. 100,000 rounds with HMAC-SHA-512 ensures FIPS-compliance and high computational cost against offline GPU/ASIC rainbow table brute-forcing.
+// 3. Constant-time timing-safe comparisons via crypto.timingSafeEqual prevent side-channel timing attacks.
+// 4. Zero third-party attack surface or native runtime memory leaks.
 // ==========================================
 
 import { Request, Response, NextFunction } from 'express';
@@ -145,7 +151,7 @@ export function createGuestSession(): { user: UserAccount; token: string } {
     id: guestId,
     email: `guest_${guestId}@aurora.internal`,
     fullName: 'Khách Tham Quan',
-    role: 'USER',
+    role: 'GUEST',
     subscriptionTier: 'Free',
     language: 'vi',
     emailVerified: false,
