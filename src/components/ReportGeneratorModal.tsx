@@ -25,7 +25,12 @@ import {
   Maximize2,
   Download,
   Info,
-  Share2
+  Share2,
+  ExternalLink,
+  FileCode,
+  Loader2,
+  Smartphone,
+  AlertCircle
 } from 'lucide-react';
 import { CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -43,6 +48,15 @@ import {
   DossierPage5FengShui,
   DossierPage6Epilogue
 } from './ExecutiveDossierPages';
+import {
+  exportDossierToPDF,
+  exportOfflineHtmlBook,
+  openInDedicatedPrintWindow,
+  shareOrCopyDossier,
+  sanitizeFileName,
+  isMobileDevice,
+  ExportProgress
+} from '../utils/pdfExport';
 
 interface Props {
   profile: UserProfile;
@@ -75,7 +89,16 @@ export const ReportGeneratorModal: React.FC<Props> = ({
   const [showPrintTips, setShowPrintTips] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
 
+  // PDF Export Engine States
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportSuccessMessage, setExportSuccessMessage] = useState<string | null>(null);
+  const [lastExportedBlob, setLastExportedBlob] = useState<Blob | null>(null);
+
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const pdfRenderRef = useRef<HTMLDivElement>(null);
+  const isMobile = useMemo(() => isMobileDevice(), []);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -104,6 +127,126 @@ export const ReportGeneratorModal: React.FC<Props> = ({
   const handlePrint = () => {
     setIsExportMenuOpen(false);
     window.print();
+  };
+
+  /**
+   * 1. Direct PDF Download Handler (Smart Mobile & Desktop)
+   */
+  const handleDirectDownloadPDF = async () => {
+    setIsExportMenuOpen(false);
+    if (!pdfRenderRef.current) {
+      setExportError('Không thể khởi tạo vùng xuất bản PDF.');
+      return;
+    }
+    setIsExportingPDF(true);
+    setExportError(null);
+    setExportProgress({
+      currentPage: 1,
+      totalPages: 6,
+      statusText: 'Đang chuẩn bị trang 1/6 (Bìa Hoàng Gia)...',
+      percent: 10
+    });
+
+    const cleanName = sanitizeFileName(profile.name || 'Ban_Menh');
+    const fileName = `Sach_Ban_Menh_${cleanName}_${codexId}.pdf`;
+
+    const result = await exportDossierToPDF(pdfRenderRef.current, fileName, (p) => {
+      setExportProgress(p);
+    });
+
+    setIsExportingPDF(false);
+    if (result.success && result.blob) {
+      setLastExportedBlob(result.blob);
+      setExportSuccessMessage(`Đã tải thành công file ${fileName} về máy!`);
+      setTimeout(() => setExportSuccessMessage(null), 5000);
+    } else {
+      setExportError(
+        result.error ||
+          'Có lỗi khi tạo file PDF. Bạn có thể chọn "Tải Sách Offline (.HTML)" hoặc "Mở Tab Mới Để In".'
+      );
+    }
+  };
+
+  /**
+   * 2. Standalone Offline HTML E-Book Handler
+   */
+  const handleDownloadHtmlBook = () => {
+    setIsExportMenuOpen(false);
+    if (!pdfRenderRef.current) return;
+    const cleanName = sanitizeFileName(profile.name || 'Ban_Menh');
+    const fileName = `Sach_Ban_Menh_${cleanName}_${codexId}.html`;
+    const ok = exportOfflineHtmlBook(
+      pdfRenderRef.current,
+      `Sách Bản Mệnh — ${profile.name}`,
+      fileName
+    );
+    if (ok) {
+      setExportSuccessMessage(
+        `Đã tải file Sách Offline (${fileName}) về máy! Mở xem mọi lúc không cần mạng.`
+      );
+      setTimeout(() => setExportSuccessMessage(null), 5000);
+    } else {
+      setExportError('Không thể tạo file HTML offline.');
+    }
+  };
+
+  /**
+   * 3. Dedicated Tab Print Window (Bypasses Iframe Sandbox)
+   */
+  const handleOpenDedicatedPrint = () => {
+    setIsExportMenuOpen(false);
+    if (!pdfRenderRef.current) return;
+    const ok = openInDedicatedPrintWindow(
+      pdfRenderRef.current,
+      `Sách Bản Mệnh — ${profile.name}`
+    );
+    if (!ok) {
+      setExportError(
+        'Trình duyệt đang chặn mở tab mới (Pop-up). Hãy cho phép Pop-up hoặc bấm "Tải File PDF Về Máy".'
+      );
+    }
+  };
+
+  /**
+   * 4. Web Share API & Summary
+   */
+  const handleShareDossier = async () => {
+    setIsExportMenuOpen(false);
+    const favorableStr = calculation.bazi.favorableElements
+      .map((e) => ELEMENT_RELATIONS[e]?.vi || e)
+      .join(', ');
+
+    const summary = `📜 SÁCH BẢN MỆNH TINH HOA — AURORA DESTINY AI
+Hồ Sơ: ${profile.name} (Sinh: ${profile.birthData.solarDay}/${profile.birthData.solarMonth}/${profile.birthData.solarYear})
+Mã Hồ Sơ Codex: ${codexId}
+Cách Cục: ${calculation.bazi.structureType}
+Dụng Thần: ${favorableStr}
+Điểm Nhất Quán: ${ensemble.overallConsistencyScore}/100
+
+"Hiểu quy luật chu kỳ để kiến tạo tương lai tự chủ."
+Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
+
+    const cleanName = sanitizeFileName(profile.name || 'Ban_Menh');
+    const fileName = `Sach_Ban_Menh_${cleanName}_${codexId}.pdf`;
+
+    const result = await shareOrCopyDossier(
+      `Sách Bản Mệnh — ${profile.name}`,
+      summary,
+      lastExportedBlob || undefined,
+      fileName
+    );
+
+    if (result.shared) {
+      setExportSuccessMessage('Đã chia sẻ thành công!');
+      setTimeout(() => setExportSuccessMessage(null), 3000);
+    } else if (result.copied) {
+      setCopiedSummary(true);
+      setExportSuccessMessage('Đã sao chép nội dung luận giải vào bộ nhớ tạm!');
+      setTimeout(() => {
+        setCopiedSummary(false);
+        setExportSuccessMessage(null);
+      }, 3000);
+    }
   };
 
   const handleCopyCodexId = () => {
@@ -202,7 +345,23 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
 
           {/* Right: Smart Publishing Center & Fixed Close Button */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Smart Publishing & Print Hub */}
+            {/* Quick Direct PDF Download Button for Mobile Devices */}
+            <button
+              id="btn-quick-download-mobile"
+              onClick={handleDirectDownloadPDF}
+              disabled={isExportingPDF}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:hidden rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(251,191,36,0.4)] transition-all cursor-pointer disabled:opacity-50 select-none"
+              title="Tải trực tiếp file PDF về điện thoại"
+            >
+              {isExportingPDF ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-950" />
+              ) : (
+                <Download className="w-3.5 h-3.5 text-slate-950" />
+              )}
+              <span>Tải PDF</span>
+            </button>
+
+            {/* Smart Publishing & Print Hub Dropdown */}
             <div className="relative" ref={exportMenuRef}>
               <button
                 id="btn-smart-export-hub"
@@ -211,101 +370,141 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
                 title="Mở bảng điều khiển In ấn & Xuất file PDF thông minh"
               >
                 <Printer className="w-3.5 h-3.5 text-slate-950" />
-                <span className="hidden xs:inline">In Sách / Lưu PDF</span>
-                <span className="xs:hidden">Xuất Sách</span>
+                <span className="hidden sm:inline">Xuất Sách &amp; Lưu PDF</span>
+                <span className="sm:hidden">Tùy Chọn</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Smart Dropdown Panel */}
               {isExportMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl bg-neutral-950/95 border border-amber-500/40 shadow-2xl p-2.5 space-y-1.5 backdrop-blur-xl z-50 text-left animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-2xl bg-neutral-950/98 border border-amber-500/40 shadow-[0_20px_60px_rgba(0,0,0,0.95)] p-2.5 space-y-1.5 backdrop-blur-2xl z-50 text-left animate-in fade-in slide-in-from-top-2">
                   <div className="px-3 py-1.5 border-b border-white/10 flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider font-cinzel">
-                      Trung Tâm Xuất Bản A4
+                    <span className="text-[10px] uppercase font-bold text-amber-300 tracking-wider font-cinzel flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      Trung Tâm Xuất Bản A4 Thông Minh
                     </span>
-                    <span className="text-[9px] font-mono text-slate-400">PDF Ready</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      Mobile &amp; Desktop
+                    </span>
                   </div>
 
-                  {/* Option 1: Direct Print */}
+                  {/* Option 1: Direct High-Res PDF Download (PRIMARY FOR MOBILE & DESKTOP) */}
                   <button
-                    onClick={handlePrint}
-                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                    onClick={handleDirectDownloadPDF}
+                    disabled={isExportingPDF}
+                    className="w-full flex items-start gap-3 p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-transparent hover:from-amber-500/25 border border-amber-500/40 text-slate-200 hover:text-white transition-all text-left cursor-pointer group disabled:opacity-50"
                   >
-                    <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
-                      <Printer className="w-4 h-4" />
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-bold shadow-md shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                      {isExportingPDF ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
                     </div>
-                    <div>
-                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <span>In Khổ A4 Hoàng Gia</span>
-                        <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-500/20 text-amber-300 font-normal">Trực tiếp</span>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5 flex-wrap">
+                        <span>Tải File PDF Về Máy (A4)</span>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] bg-amber-500/30 text-amber-200 font-medium">Khuyên dùng</span>
                       </div>
-                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                        Khởi chạy máy in hoặc lưu PDF 6 trang hoàn chỉnh
+                      <p className="text-[11px] text-slate-300 leading-tight mt-0.5">
+                        Tải trực tiếp file .PDF 6 trang hoàn chỉnh vào bộ nhớ máy / mục Tệp điện thoại
                       </p>
                     </div>
                   </button>
 
-                  {/* Option 2: Save as PDF Guide */}
+                  {/* Option 2: Standalone Offline HTML E-Book (INSTANT & 100% RELIABLE) */}
+                  <button
+                    onClick={handleDownloadHtmlBook}
+                    className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                  >
+                    <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      <FileCode className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Tải Sách Offline (.HTML)</span>
+                        <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-300 font-normal">Cực nhanh 1s</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Đọc toàn bộ 6 trang ngoại tuyến trên điện thoại không cần mạng, có sẵn nút in
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 3: Dedicated Browser Tab (Bypasses Iframe Sandbox) */}
+                  <button
+                    onClick={handleOpenDedicatedPrint}
+                    className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                  >
+                    <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      <ExternalLink className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Mở Bản In Trong Tab Mới</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Tránh lỗi chặn iFrame, kích hoạt lệnh Lưu PDF hệ thống của điện thoại / máy tính
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 4: Direct System Print */}
+                  <button
+                    onClick={handlePrint}
+                    className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                  >
+                    <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 group-hover:bg-blue-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      <Printer className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>In Trực Tiếp (A4 Máy Tính / Wi-Fi)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Khởi chạy lệnh in tiêu chuẩn khi kết nối máy in văn phòng
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 5: Web Share API & Copy Summary */}
+                  <button
+                    onClick={handleShareDossier}
+                    className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                  >
+                    <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 group-hover:bg-purple-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      <Share2 className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Chia Sẻ / Sao Chép Tóm Tắt</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                        Gửi qua Zalo, Tin nhắn, Drive hoặc chép văn bản luận giải
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Option 6: Print & PDF Preservation Tips */}
                   <button
                     onClick={() => {
                       setIsExportMenuOpen(false);
                       setShowPrintTips(true);
                     }}
-                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
+                    className="w-full flex items-start gap-3 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group border-t border-white/10 pt-2"
                   >
-                    <div className="p-1.5 rounded-lg bg-teal-500/20 text-teal-400 border border-teal-500/30 group-hover:bg-teal-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
-                      <Download className="w-4 h-4" />
+                    <div className="p-2 rounded-xl bg-teal-500/20 text-teal-400 border border-teal-500/30 group-hover:bg-teal-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
+                      <Info className="w-4 h-4" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-xs font-bold text-white">
                         Hướng Dẫn Lưu PDF Đẹp Nhất
                       </div>
                       <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                        Mẹo bật 'Đồ họa nền' để giữ trọn màu vàng kim
+                        Mẹo bật 'Đồ họa nền' để giữ trọn màu vàng kim hoàng gia
                       </p>
                     </div>
                   </button>
-
-                  {/* Option 3: Copy Text Summary */}
-                  <button
-                    onClick={handleCopySummary}
-                    className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group"
-                  >
-                    <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30 group-hover:bg-purple-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
-                      {copiedSummary ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <span>{copiedSummary ? 'Đã Sao Chép Tóm Tắt!' : 'Sao Chép Nội Dung Tóm Tắt'}</span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                        Trích xuất văn bản luận giải gửi qua tin nhắn / ghi chú
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* Option 4: Quick Continuous Scroll Toggle */}
-                  {formatMode === 'book' && (
-                    <button
-                      onClick={() => {
-                        setViewMode(viewMode === 'all' ? 'single' : 'all');
-                        setIsExportMenuOpen(false);
-                      }}
-                      className="w-full flex items-start gap-2.5 p-2 rounded-xl hover:bg-white/[0.08] text-slate-200 hover:text-white transition-all text-left cursor-pointer group border-t border-white/10 pt-2"
-                    >
-                      <div className="p-1.5 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 group-hover:bg-blue-500 group-hover:text-slate-950 transition-colors shrink-0 mt-0.5">
-                        <Layers className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white">
-                          {viewMode === 'all' ? 'Chuyển Sang Lật Từng Trang' : 'Xem Cuộn Liền Mạch 6 Trang'}
-                        </div>
-                        <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                          {viewMode === 'all' ? 'Tập trung đọc chi tiết từng phần' : 'Xem nhanh toàn bộ sách từ đầu tới cuối'}
-                        </p>
-                      </div>
-                    </button>
-                  )}
                 </div>
               )}
             </div>
@@ -321,6 +520,81 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
             </button>
           </div>
         </div>
+
+        {/* NOTIFICATION BANNERS */}
+        {exportSuccessMessage && (
+          <div className="px-4 py-2 bg-emerald-950/90 border-b border-emerald-500/40 text-emerald-200 text-xs flex items-center justify-between animate-in slide-in-from-top-1 z-30">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="font-medium">{exportSuccessMessage}</span>
+            </div>
+            <button
+              onClick={() => setExportSuccessMessage(null)}
+              className="text-emerald-400 hover:text-white p-1 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {exportError && (
+          <div className="px-4 py-2 bg-rose-950/90 border-b border-rose-500/40 text-rose-200 text-xs flex items-center justify-between animate-in slide-in-from-top-1 z-30">
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="truncate">{exportError}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handleDownloadHtmlBook}
+                className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-200 hover:bg-rose-500/30 text-[10px] font-bold underline cursor-pointer"
+              >
+                Tải Sách Offline
+              </button>
+              <button
+                onClick={() => setExportError(null)}
+                className="text-rose-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FULLSCREEN PROGRESS OVERLAY FOR HIGH-RES PDF GENERATION */}
+        {isExportingPDF && exportProgress && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+            <div className="w-full max-w-sm rounded-3xl bg-[#0a0c16] border border-amber-500/50 p-6 shadow-[0_0_50px_rgba(251,191,36,0.25)] space-y-4 text-center">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-inner">
+                <Loader2 className="w-7 h-7 animate-spin" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-bold text-white font-cinzel">
+                  Đang Xuất Bản Sách PDF
+                </h4>
+                <p className="text-xs text-amber-300 font-medium">
+                  {exportProgress.statusText}
+                </p>
+              </div>
+
+              {/* High-End Progress Bar */}
+              <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden p-0.5 border border-white/10">
+                <div
+                  className="bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 h-full transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(251,191,36,0.5)]"
+                  style={{ width: `${exportProgress.percent}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                <span>Trang {exportProgress.currentPage} / {exportProgress.totalPages}</span>
+                <span className="text-amber-300 font-bold">{exportProgress.percent}%</span>
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Hệ thống đang kết xuất đồ họa vector và tự động tải file .pdf về máy điện thoại / máy tính của bạn...
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* TIER 2: FORMAT SWITCHER & READING CONTROLS STRIP */}
         <div className="px-4 sm:px-6 py-2 bg-black/60 border-b border-white/10 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 z-20">
@@ -682,6 +956,21 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
         {/* HIDDEN PRINT-ONLY CONTAINER FOR PERFECT A4 PRINTING
             Ensures all 6 publishing pages are sent to printer regardless of screen view mode */}
         <div className="print-dossier-root hidden print:block">
+          <DossierPage1Cover {...pageProps} />
+          <DossierPage2Bazi {...pageProps} />
+          <DossierPage3Decades {...pageProps} />
+          <DossierPage4ZiWei {...pageProps} />
+          <DossierPage5FengShui {...pageProps} />
+          <DossierPage6Epilogue {...pageProps} />
+        </div>
+
+        {/* OFFSCREEN A4 PUBLISHING SHELF FOR DIRECT HIGH-DPI PDF & OFFLINE HTML EXPORT
+            Fixed at 794px width (standard 210mm A4) to prevent mobile screens from squishing layout */}
+        <div
+          ref={pdfRenderRef}
+          id="pdf-offscreen-render-shelf"
+          aria-hidden="true"
+        >
           <DossierPage1Cover {...pageProps} />
           <DossierPage2Bazi {...pageProps} />
           <DossierPage3Decades {...pageProps} />

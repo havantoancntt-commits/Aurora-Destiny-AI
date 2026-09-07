@@ -138,22 +138,36 @@
     color: #e2e8f0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* Hide everything except the print dossier */
-  header, nav, footer, .no-print, button, #root > *:not(.print-dossier-root) {
+  /* Hide navigation, buttons and screen-only controls */
+  header, nav, footer, .no-print, button {
     display: none !important;
   }
 
+  /* Target print container via visibility to preserve nested DOM hierarchy */
+  body * {
+    visibility: hidden;
+  }
+
+  .print-dossier-root,
+  .print-dossier-root * {
+    visibility: visible !important;
+  }
+
   .print-dossier-root {
+    display: block !important;
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
-    width: 100% !important;
+    width: 210mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: transparent !important;
     overflow: visible !important;
+    z-index: 999999 !important;
   }
 
   .a4-page-dossier {
@@ -163,7 +177,7 @@
     page-break-after: always !important;
     break-after: page !important;
     margin: 0 auto !important;
-    padding: 12mm !important;
+    padding: 10mm !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
     -webkit-print-color-adjust: exact !important;
@@ -184,4 +198,27 @@
     min-height: auto;
     height: auto;
   }
+}
+
+/* Offscreen container for mobile-safe, high-DPI A4 PDF export */
+#pdf-offscreen-render-shelf {
+  position: fixed !important;
+  left: -9999px !important;
+  top: 0 !important;
+  width: 794px !important;
+  min-width: 794px !important;
+  max-width: 794px !important;
+  pointer-events: none !important;
+  opacity: 1 !important;
+  z-index: -9999 !important;
+}
+
+#pdf-offscreen-render-shelf .a4-page-dossier,
+#pdf-offscreen-render-shelf .a4-screen-preview {
+  width: 794px !important;
+  min-height: 1123px !important;
+  height: 1123px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  margin: 0 !important;
 }
