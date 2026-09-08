@@ -179,6 +179,16 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
           }
         }
 
+        // Clean out any orphan calculations whose profile does not exist
+        if (parsed.calculations && parsed.profiles) {
+          for (const [calcId, calc] of Object.entries(parsed.calculations as Record<string, any>)) {
+            if (calc && calc.profileId && !parsed.profiles[calc.profileId]) {
+              console.log(`🧹 [Data Sanitization] Purging orphan calculation ${calcId} with missing profile ${calc.profileId}`);
+              delete parsed.calculations[calcId];
+            }
+          }
+        }
+
         return {
           users: parsed.users || {},
           preferences: parsed.preferences || {},

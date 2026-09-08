@@ -53,6 +53,7 @@ import {
   exportOfflineHtmlBook,
   openInDedicatedPrintWindow,
   shareOrCopyDossier,
+  triggerDirectDownload,
   sanitizeFileName,
   isMobileDevice,
   isInAppBrowser,
@@ -97,6 +98,9 @@ export const ReportGeneratorModal: React.FC<Props> = ({
   const [exportSuccessMessage, setExportSuccessMessage] = useState<string | null>(null);
   const [lastExportedBlob, setLastExportedBlob] = useState<Blob | null>(null);
   const [lastExportedUrl, setLastExportedUrl] = useState<string | null>(null);
+  const [stagedDownloadUrl, setStagedDownloadUrl] = useState<string | null>(null);
+  const [stagedViewUrl, setStagedViewUrl] = useState<string | null>(null);
+  const [lastFileName, setLastFileName] = useState<string | null>(null);
   const [isInApp, setIsInApp] = useState<boolean>(false);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -164,16 +168,22 @@ export const ReportGeneratorModal: React.FC<Props> = ({
     setIsExportingPDF(false);
     if (result.success && result.blob) {
       setLastExportedBlob(result.blob);
-      if (result.blobUrl) {
-        setLastExportedUrl(result.blobUrl);
-      }
+      if (result.blobUrl) setLastExportedUrl(result.blobUrl);
+      if (result.stagedDownloadUrl) setStagedDownloadUrl(result.stagedDownloadUrl);
+      if (result.stagedViewUrl) setStagedViewUrl(result.stagedViewUrl);
+      const chosenFileName = result.fileName || fileName;
+      setLastFileName(chosenFileName);
 
       if (result.isInApp) {
         setExportSuccessMessage(
-          `Đã kết xuất hoàn tất 6 trang PDF A4! Vì bạn đang ở trình duyệt Facebook/Zalo, bạn có thể bấm "Mở Xem PDF" hoặc "Lưu / Gửi Tệp" ngay bên dưới.`
+          `Đã đóng gói 6 trang PDF hoàn chỉnh! Vì bạn đang ở trình duyệt Facebook/Zalo, bạn có thể bấm "Lưu Vào Tệp / Gửi" hoặc "Mở Xem PDF" ngay bên dưới.`
+        );
+      } else if (isMobile) {
+        setExportSuccessMessage(
+          `Đã kích hoạt tải PDF về điện thoại! Bạn có thể kiểm tra thanh thông báo tải xuống hoặc bấm các nút thao tác nhanh bên dưới.`
         );
       } else {
-        setExportSuccessMessage(`Đã tạo và tải file PDF hoàn chỉnh (${fileName}) về máy!`);
+        setExportSuccessMessage(`Đã tạo và tải file PDF (${chosenFileName}) thành công về máy!`);
       }
     } else {
       setExportError(
@@ -554,13 +564,24 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="font-medium leading-tight">{exportSuccessMessage}</span>
             </div>
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-              {lastExportedUrl && (
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
+              {stagedDownloadUrl && (
+                <button
+                  onClick={() => triggerDirectDownload(stagedDownloadUrl, lastFileName || 'Sach_Ban_Menh.pdf')}
+                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-300 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
+                  title="Tải trực tiếp lại tệp PDF về máy qua giao thức HTTP chuẩn"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tải Xuống Lại</span>
+                </button>
+              )}
+              {(stagedViewUrl || lastExportedUrl) && (
                 <a
-                  href={lastExportedUrl}
+                  href={stagedViewUrl || lastExportedUrl!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 hover:bg-emerald-400 text-[11px] font-bold flex items-center gap-1 transition-colors shadow-sm"
+                  title="Mở toàn màn hình xem 6 trang PDF"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Mở Xem PDF</span>
@@ -570,9 +591,10 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
                 <button
                   onClick={handleShareDossier}
                   className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 border border-emerald-500/40 text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Lưu vào Tệp (Files) trên iPhone/Android hoặc gửi qua Zalo/Drive"
                 >
                   <Share2 className="w-3.5 h-3.5" />
-                  <span>Lưu / Gửi Tệp</span>
+                  <span>Lưu Vào Tệp / Gửi</span>
                 </button>
               )}
               <button

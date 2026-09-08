@@ -947,6 +947,97 @@ app.get('/api/export/:profileId', requireAuth, (req, res) => {
 });
 
 // ----------------------------------------------------
+// 11B. NATIVE MOBILE PDF DOWNLOAD & STREAMING STAGING
+// Provides standard HTTP attachment responses to guarantee native Android & iOS downloads
+// ----------------------------------------------------
+interface StagedPdfItem {
+  buffer: Buffer;
+  fileName: string;
+  expiresAt: number;
+}
+
+const pdfStagingCache = new Map<string, StagedPdfItem>();
+
+// Clean up expired PDF staging files periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, item] of pdfStagingCache.entries()) {
+    if (item.expiresAt < now) {
+      pdfStagingCache.delete(id);
+    }
+  }
+}, 60 * 1000);
+
+// Stage a generated PDF for robust native mobile OS download
+app.post(
+  '/api/pdf/prepare-download',
+  express.raw({ type: ['application/pdf', 'application/octet-stream'], limit: '30mb' }),
+  (req: Request, res: Response) => {
+    let buffer: Buffer | null = null;
+    if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+      buffer = req.body;
+    } else if (typeof req.body === 'string' && req.body.length > 0) {
+      buffer = Buffer.from(req.body, 'base64');
+    }
+
+    if (!buffer || buffer.length === 0) {
+      return res.status(400).json({ error: 'Không nhận được dữ liệu tệp PDF.' });
+    }
+
+    const downloadId = crypto.randomBytes(16).toString('hex');
+    const rawFileName = (req.query.filename as string) || 'Sach_Ban_Menh_A4.pdf';
+    const safeFileName = rawFileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+
+    pdfStagingCache.set(downloadId, {
+      buffer,
+      fileName: safeFileName,
+      expiresAt: Date.now() + 20 * 60 * 1000 // 20 minutes expiration
+    });
+
+    const downloadUrl = `/api/pdf/download/${downloadId}?filename=${encodeURIComponent(safeFileName)}`;
+    res.json({
+      success: true,
+      downloadUrl,
+      id: downloadId,
+      size: buffer.length
+    });
+  }
+);
+
+// Stream the staged PDF with standard HTTP attachment headers for native mobile DownloadManager
+app.get('/api/pdf/download/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const staged = pdfStagingCache.get(id);
+
+  if (!staged || staged.expiresAt < Date.now()) {
+    return res
+      .status(404)
+      .send(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu tạm.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
+      );
+  }
+
+  const fileName = (req.query.filename as string) || staged.fileName || 'Sach_Ban_Menh_A4.pdf';
+  const isView = req.query.view === '1';
+  const encodedFileName = encodeURIComponent(fileName);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Length', staged.buffer.length);
+
+  if (isView) {
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
+  } else {
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
+  }
+
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  return res.end(staged.buffer);
+});
+
+// ----------------------------------------------------
 // 12. CENTRALIZED ERROR HANDLING MIDDLEWARE
 // ----------------------------------------------------
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

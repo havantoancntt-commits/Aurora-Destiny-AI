@@ -19,7 +19,31 @@ export interface PDFExportResult {
   error?: string;
   blob?: Blob;
   blobUrl?: string;
+  stagedDownloadUrl?: string;
+  stagedViewUrl?: string;
+  fileName?: string;
   isInApp?: boolean;
+}
+
+/**
+ * Trigger immediate native browser download without opening blank tabs
+ */
+export function triggerDirectDownload(url: string, fileName: string): void {
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+    link.target = '_self';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (link.parentNode) {
+        document.body.removeChild(link);
+      }
+    }, 2000);
+  } catch (err) {
+    console.warn('triggerDirectDownload error:', err);
+  }
 }
 
 /**
@@ -123,17 +147,19 @@ export async function exportDossierToPDF(
           // Reset offscreen shelf position inside the cloned document so coordinate origins start at (0, 0)
           const shelf = clonedDoc.getElementById('pdf-offscreen-render-shelf');
           if (shelf) {
-            shelf.style.position = 'static';
-            shelf.style.left = '0';
-            shelf.style.top = '0';
-            shelf.style.visibility = 'visible';
+            shelf.style.setProperty('position', 'static', 'important');
+            shelf.style.setProperty('left', '0', 'important');
+            shelf.style.setProperty('top', '0', 'important');
+            shelf.style.setProperty('visibility', 'visible', 'important');
+            shelf.style.setProperty('opacity', '1', 'important');
           }
           if (clonedEl) {
-            clonedEl.style.width = '794px';
-            clonedEl.style.minHeight = '1123px';
-            clonedEl.style.height = '1123px';
-            clonedEl.style.margin = '0 auto';
-            clonedEl.style.transform = 'none';
+            clonedEl.style.setProperty('width', '794px', 'important');
+            clonedEl.style.setProperty('min-height', '1123px', 'important');
+            clonedEl.style.setProperty('height', '1123px', 'important');
+            clonedEl.style.setProperty('margin', '0 auto', 'important');
+            clonedEl.style.setProperty('transform', 'none', 'important');
+            clonedEl.style.setProperty('opacity', '1', 'important');
           }
         }
       });
@@ -146,6 +172,10 @@ export async function exportDossierToPDF(
 
       // 210mm x 297mm exact A4
       pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297, undefined, 'FAST');
+
+      // Immediately release GPU back-buffer memory on mobile devices
+      canvas.width = 0;
+      canvas.height = 0;
 
       if (onProgress) {
         onProgress({
@@ -168,14 +198,42 @@ export async function exportDossierToPDF(
 
     const pdfBlob = pdf.output('blob');
     const blobUrl = URL.createObjectURL(pdfBlob);
+    const finalFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
 
-    // Standard download trigger via programmatic click
+    let stagedDownloadUrl: string | undefined;
+    let stagedViewUrl: string | undefined;
+
+    // Stage PDF to backend streaming endpoint for guaranteed mobile OS DownloadManager interception
+    try {
+      const response = await fetch(`/api/pdf/prepare-download?filename=${encodeURIComponent(finalFileName)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/pdf'
+        },
+        body: pdfBlob
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.downloadUrl) {
+          stagedDownloadUrl = data.downloadUrl;
+          stagedViewUrl = `/api/pdf/download/${data.id}?filename=${encodeURIComponent(finalFileName)}&view=1`;
+        }
+      }
+    } catch (stageErr) {
+      console.warn('Không thể tạo liên kết tải qua máy chủ, tiếp tục với phương thức cục bộ:', stageErr);
+    }
+
+    // Trigger download:
+    // If stagedDownloadUrl is available, a real HTTP link with Content-Disposition: attachment works on ALL mobile platforms:
+    // - Android: Download Manager receives HTTP attachment header and saves to /Download/ folder directly.
+    // - iOS Safari: Prompts native "Bạn có muốn tải về tệp này không?" -> Saves to Files/Downloads.
+    const effectiveDownloadUrl = stagedDownloadUrl || blobUrl;
+
     try {
       const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
+      link.href = effectiveDownloadUrl;
+      link.download = finalFileName;
+      link.target = '_self'; // CRITICAL: NEVER use _blank for downloads (triggers popup blockers & blank tabs on mobile)
       document.body.appendChild(link);
       link.click();
 
@@ -183,12 +241,20 @@ export async function exportDossierToPDF(
         if (link.parentNode) {
           document.body.removeChild(link);
         }
-      }, 5000);
+      }, 2000);
     } catch (downloadErr) {
       console.warn('Tự động tải file gặp giới hạn trình duyệt:', downloadErr);
     }
 
-    return { success: true, blob: pdfBlob, blobUrl, isInApp: inApp };
+    return {
+      success: true,
+      blob: pdfBlob,
+      blobUrl,
+      stagedDownloadUrl,
+      stagedViewUrl,
+      fileName: finalFileName,
+      isInApp: inApp
+    };
   } catch (err: any) {
     console.error('Lỗi xuất PDF:', err);
     let errorMsg = 'Không thể tạo file PDF do lỗi kết xuất trang.';
