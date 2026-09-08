@@ -159,7 +159,7 @@ app.get('/api/health', (req, res) => {
       application: { status: 'pass' },
       database: {
         status: integrity.valid ? 'pass' : 'fail',
-        storageMode: 'durable_atomic_file_adapter',
+        storageMode: (repository.getMetrics() as any).storageMode || (process.env.DATABASE_URL ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
         integrityErrors: integrity.errors
       },
       ai: {

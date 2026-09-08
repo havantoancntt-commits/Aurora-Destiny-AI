@@ -13,6 +13,7 @@ import { UserAccount, UserProfile, UserPreferences, StoredSession } from '../typ
 import { CalculationResult } from '../types/destiny';
 import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { ChatMessage } from '../types/ai';
+import { PostgresDatabaseRepository } from './postgresRepository';
 
 export interface AuditLogEntry {
   id: string;
@@ -1060,5 +1061,13 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
   }
 }
 
-// Global Singleton Repository instance
-export const repository: IDatabaseRepository = new PersistentDatabaseRepository();
+// Global Singleton Repository instance with dynamic PostgreSQL scaling support
+export function initializeRepository(): IDatabaseRepository {
+  if (process.env.DATABASE_URL) {
+    console.log('🐘 [Database] PostgreSQL DATABASE_URL detected. Initializing PostgresDatabaseRepository...');
+    return new PostgresDatabaseRepository({ connectionString: process.env.DATABASE_URL });
+  }
+  return new PersistentDatabaseRepository();
+}
+
+export const repository: IDatabaseRepository = initializeRepository();
