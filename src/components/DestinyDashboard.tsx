@@ -127,6 +127,9 @@ export const DestinyDashboard: React.FC<Props> = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono tracking-wider shadow-sm">
+                Kênh Huyền Phong Phật Đạo
+              </span>
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/15 border border-purple-500/40 text-purple-300 font-mono tracking-wider shadow-sm">
                 {bazi.structureType}
               </span>

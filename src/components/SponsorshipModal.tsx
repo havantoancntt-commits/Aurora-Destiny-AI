@@ -138,7 +138,7 @@ export const SponsorshipModal: React.FC<Props> = ({
                 </span>
               </div>
               <h2 className="text-lg sm:text-2xl font-serif font-bold text-white tracking-wide mt-0.5">
-                {isVi ? 'Ủng Hộ Kênh & Đồng Hành Cùng Dự Án' : 'Support the Channel & Research'}
+                {isVi ? 'Ủng Hộ Kênh Huyền Phong Phật Đạo & Dự Án' : 'Support Huyền Phong Phật Đạo & Research'}
               </h2>
             </div>
           </div>
@@ -159,12 +159,12 @@ export const SponsorshipModal: React.FC<Props> = ({
             <p>
               {isVi ? (
                 <>
-                  <strong className="text-amber-200">Kính gửi Quý Huynh Đệ & Bạn Đọc Hữu Duyên:</strong> Nền tảng <span className="text-teal-300 font-medium">Aurora Destiny AI</span> được phát triển bởi <strong className="text-amber-200">Giáo Sư - Prof.TOAN</strong> với tâm nguyện phụng sự cộng đồng, chuẩn hóa khoa học lý số cổ học và bài trừ triệt để mê tín dị đoan. 
-                  Sự ủng hộ tự nguyện của Quý vị — dù chỉ là một <span className="text-amber-300 font-medium">tách trà ấm</span> hay <span className="text-amber-300 font-medium">tách cà phê</span> — chính là nguồn trợ lực quý giá giúp đội ngũ duy trì máy chủ điện toán AI và liên tục nâng cấp thuật toán ngày một chuẩn xác hơn.
+                  <strong className="text-amber-200">Kính gửi Quý Huynh Đệ & Bạn Đọc Hữu Duyên:</strong> Nền tảng <span className="text-teal-300 font-medium">Aurora Destiny AI</span> là ứng dụng chính thức trực thuộc <strong className="text-amber-300 font-semibold">kênh Huyền Phong Phật Đạo</strong>, được phát triển bởi <strong className="text-amber-200">Giáo Sư - Prof.TOAN</strong> với tâm nguyện phụng sự cộng đồng, chuẩn hóa khoa học lý số cổ học và bài trừ triệt để mê tín dị đoan. 
+                  Sự ủng hộ tự nguyện của Quý vị — dù chỉ là một <span className="text-amber-300 font-medium">tách trà ấm</span> hay <span className="text-amber-300 font-medium">tách cà phê</span> — chính là nguồn trợ lực quý giá giúp kênh duy trì máy chủ điện toán AI và liên tục nâng cấp thuật toán ngày một chuẩn xác hơn.
                 </>
               ) : (
                 <>
-                  <strong className="text-amber-200">Dear Friends & Patrons:</strong> Aurora Destiny AI is created and curated by <strong className="text-amber-200">Professor Prof.TOAN</strong> to make astronomical and destiny wisdom accessible, rigorous, and completely free of superstition. Your voluntary patronage directly fuels our high-performance AI GPU servers and continuous open-access research.
+                  <strong className="text-amber-200">Dear Friends & Patrons:</strong> Aurora Destiny AI is the official platform of the <strong className="text-amber-300">Huyền Phong Phật Đạo</strong> channel, created and curated by <strong className="text-amber-200">Professor Prof.TOAN</strong> to make astronomical and destiny wisdom accessible, rigorous, and completely free of superstition. Your voluntary patronage directly fuels our high-performance AI GPU servers and continuous open-access research.
                 </>
               )}
             </p>

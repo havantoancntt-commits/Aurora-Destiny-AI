@@ -117,9 +117,12 @@ export const Navbar: React.FC<Props> = ({
                 <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-mono tracking-widest uppercase bg-purple-950/60 border border-purple-500/30 text-purple-300">
                   PRO 4.2
                 </span>
+                <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono tracking-wider font-semibold uppercase bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                  Kênh Huyền Phong Phật Đạo
+                </span>
               </div>
               <p className="text-[9px] sm:text-[10px] uppercase tracking-wider sm:tracking-widest text-teal-400/80 font-medium">
-                Universal Analysis Engine
+                Kênh Huyền Phong Phật Đạo • Universal Analysis Engine
               </p>
             </div>
           </div>

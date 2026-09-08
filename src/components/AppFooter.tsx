@@ -126,6 +126,9 @@ export const AppFooter: React.FC<Props> = ({
                     <Award className="w-3 h-3 text-amber-300" />
                     {isVi ? 'Tổng Công Trình Sư & Tác Giả Hệ Thống' : 'Lead Architect & Chief Researcher'}
                   </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-purple-400/15 border border-purple-400/30 text-purple-300 text-[10px] sm:text-xs font-mono font-semibold uppercase tracking-wider">
+                    {isVi ? 'Kênh Huyền Phong Phật Đạo' : 'Huyền Phong Phật Đạo Channel'}
+                  </span>
                   <span className="px-2 py-0.5 rounded-full bg-teal-400/15 border border-teal-400/30 text-teal-300 text-[10px] sm:text-xs font-mono">
                     AI & Computer Science
                   </span>
@@ -140,11 +143,11 @@ export const AppFooter: React.FC<Props> = ({
                 <p className="text-xs sm:text-sm text-slate-300/90 font-light mt-1 max-w-2xl leading-relaxed">
                   {isVi ? (
                     <>
-                      Ứng dụng được nghiên cứu, kiến tạo và phát triển chuyên sâu bởi <strong className="text-amber-200 font-semibold">Giáo Sư - Prof.TOAN</strong>. Hệ thống là sự kết tinh giữa phương pháp vi tích phân lượng tử, thuật toán thiên văn Tiết Khí chính xác cùng mô hình Multi-Agent AI nhằm mang lại la bàn năng lượng chân thực và giá trị nhất cho người dùng.
+                      Ứng dụng chính thức trực thuộc kênh <strong className="text-amber-300 font-semibold">Huyền Phong Phật Đạo</strong>, được nghiên cứu, kiến tạo và phát triển chuyên sâu bởi <strong className="text-amber-200 font-semibold">Giáo Sư - Prof.TOAN</strong>. Hệ thống là sự kết tinh giữa phương pháp vi tích phân lượng tử, thuật toán thiên văn Tiết Khí chính xác cùng mô hình Multi-Agent AI nhằm mang lại la bàn năng lượng chân thực và giá trị nhất cho người dùng.
                     </>
                   ) : (
                     <>
-                      Conceived, designed, and engineered by <strong className="text-amber-200 font-semibold">Professor Prof.TOAN</strong>. An elite convergence of astronomical astrodynamics, 24 solar terms, and Multi-Agent AI systems for personal empowerment and strategic foresight.
+                      Official platform of the <strong className="text-amber-300 font-semibold">Huyền Phong Phật Đạo</strong> channel, conceived, designed, and engineered by <strong className="text-amber-200 font-semibold">Professor Prof.TOAN</strong>. An elite convergence of astronomical astrodynamics, 24 solar terms, and Multi-Agent AI systems for personal empowerment and strategic foresight.
                     </>
                   )}
                 </p>
@@ -206,7 +209,7 @@ export const AppFooter: React.FC<Props> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-[10px] sm:text-xs font-mono font-semibold uppercase tracking-wider flex items-center gap-1.5">
                   <Heart className="w-3 h-3 text-rose-400 fill-rose-400/40" />
-                  {isVi ? 'Góc Đồng Hành & Ủng Hộ Kênh' : 'Patronage & Channel Support'}
+                  {isVi ? 'Góc Đồng Hành & Ủng Hộ Kênh Huyền Phong Phật Đạo' : 'Patronage & Channel Support'}
                 </span>
                 <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
                   Vietcombank • HA VAN TOAN
@@ -214,17 +217,17 @@ export const AppFooter: React.FC<Props> = ({
               </div>
 
               <h4 className="text-base sm:text-lg font-serif font-bold text-white tracking-wide">
-                {isVi ? 'Tiếp Lửa Tri Thức — Đồng Hành Cùng Giáo Sư - Prof.TOAN' : 'Support Scientific Open-Access Research'}
+                {isVi ? 'Tiếp Lửa Tri Thức — Đồng Hành Cùng Kênh Huyền Phong Phật Đạo & Giáo Sư - Prof.TOAN' : 'Support Scientific Open-Access Research'}
               </h4>
 
               <p className="text-xs text-slate-300 leading-relaxed font-light">
                 {isVi ? (
                   <>
-                    Mọi đóng góp, mời tách trà ấm hay cà phê từ Quý vị là nguồn động lực to lớn giúp duy trì máy chủ điện toán AI và liên tục nâng cấp thuật toán Bát Tự & Tử Vi phụng sự cộng đồng phi thương mại.
+                    Mọi đóng góp, mời tách trà ấm hay cà phê từ Quý vị là nguồn động lực to lớn giúp kênh <strong className="text-amber-200 font-medium">Huyền Phong Phật Đạo</strong> duy trì máy chủ điện toán AI và liên tục nâng cấp thuật toán Bát Tự & Tử Vi phụng sự cộng đồng phi thương mại.
                   </>
                 ) : (
                   <>
-                    Your voluntary support helps cover server infrastructure costs and allows Professor Prof.TOAN to keep expanding this research platform for the global community.
+                    Your voluntary support helps cover server infrastructure costs and allows Professor Prof.TOAN and the Huyền Phong Phật Đạo channel to keep expanding this research platform for the global community.
                   </>
                 )}
               </p>
@@ -282,16 +285,16 @@ export const AppFooter: React.FC<Props> = ({
                 <span className="text-sm font-bold tracking-wider text-white uppercase block">
                   Aurora Destiny <span className="text-teal-400">AI</span>
                 </span>
-                <span className="text-[10px] font-mono text-purple-300/80 uppercase tracking-widest">
-                  Universal Analysis Core
+                <span className="text-[10px] font-mono text-amber-300/90 uppercase tracking-widest">
+                  Kênh Huyền Phong Phật Đạo
                 </span>
               </div>
             </div>
 
             <p className="text-xs text-slate-400 font-light leading-relaxed">
               {isVi
-                ? 'Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý kết hợp giữa kho tàng tri thức Bát Tự Hà Lạc, Tử Vi Đẩu Số 108 Tinh Bàn và hệ thống phân tích xác suất đa tác tử.'
-                : 'Next-generation personal destiny & life pattern analysis platform combining traditional wisdom, data analytics, backtesting, and multi-agent AI.'}
+                ? 'Ứng dụng chính thức trực thuộc kênh Huyền Phong Phật Đạo. Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý kết hợp giữa kho tàng tri thức Bát Tự Hà Lạc, Tử Vi Đẩu Số 108 Tinh Bàn và hệ thống phân tích xác suất đa tác tử chuyên sâu.'
+                : 'Official platform of the Huyền Phong Phật Đạo channel. Next-generation personal destiny & life pattern analysis platform combining traditional wisdom, data analytics, backtesting, and multi-agent AI.'}
             </p>
 
             <div className="pt-1 flex items-center gap-2 text-[11px] font-mono text-teal-300">
@@ -405,8 +408,8 @@ export const AppFooter: React.FC<Props> = ({
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <div className="text-center md:text-left leading-relaxed">
             <p>
-              Bản quyền © 2024–2026 <span className="text-white font-semibold">Aurora Destiny AI</span>. 
-              Ứng dụng được nghiên cứu & phát triển bởi <strong className="text-amber-300 font-semibold">Giáo Sư - Prof.TOAN</strong>.
+              Bản quyền © 2024–2026 <span className="text-white font-semibold">Aurora Destiny AI</span> — Ứng dụng chính thức của kênh <strong className="text-amber-300 font-semibold">Huyền Phong Phật Đạo</strong>. 
+              Được nghiên cứu & phát triển bởi <strong className="text-amber-300 font-semibold">Giáo Sư - Prof.TOAN</strong>.
             </p>
             <p className="text-[11px] text-slate-500 mt-0.5">
               Hộp thư học thuật & công nghệ: <a href={`mailto:${email}`} className="text-teal-400 hover:underline">{email}</a> • Mọi quyền được bảo lưu trên toàn cầu.

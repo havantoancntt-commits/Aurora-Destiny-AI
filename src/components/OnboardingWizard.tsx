@@ -231,7 +231,7 @@ export const OnboardingWizard: React.FC<Props> = ({
                   Thiết Lập Thông Tin Sinh & Bản Mệnh
                 </h2>
                 <p className="text-xs sm:text-sm text-teal-200/90 mt-1 font-medium">
-                  Vui lòng nhập thông tin để AI tính toán Tứ Trụ, 12 Cung Tử Vi và Bản Đồ Vận Mệnh
+                  Ứng dụng chính thức của kênh <strong className="text-amber-300 font-semibold">Huyền Phong Phật Đạo</strong> • Vui lòng nhập thông tin để AI tính toán Tứ Trụ, 12 Cung Tử Vi và Bản Đồ Vận Mệnh
                 </p>
               </div>
             </div>

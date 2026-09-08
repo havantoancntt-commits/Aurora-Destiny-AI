@@ -1,6 +1,6 @@
 {
   "name": "Aurora Destiny AI",
-  "description": "Next-generation personal destiny & life pattern analysis platform combining traditional wisdom, data analytics, backtesting, and multi-agent AI.",
+  "description": "Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý trực thuộc kênh Huyền Phong Phật Đạo, kết hợp tinh hoa Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn và hệ thống phân tích xác suất đa tác tử chuyên sâu.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

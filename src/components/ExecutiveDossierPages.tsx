@@ -145,8 +145,8 @@ export const DossierPage1Cover: React.FC<PageProps> = ({
         </div>
 
         {/* Book Title */}
-        <h3 className="text-xs sm:text-sm uppercase tracking-[0.3em] font-mono text-amber-300/90 font-semibold mb-2">
-          AURORA DESTINY AI • EXECUTIVE CODEX
+        <h3 className="text-xs sm:text-sm uppercase tracking-[0.25em] font-mono text-amber-300/90 font-semibold mb-2">
+          KÊNH HUYỀN PHONG PHẬT ĐẠO • AURORA DESTINY AI
         </h3>
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-wider font-cinzel text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-200 drop-shadow-md">
           SÁCH BẢN MỆNH TINH HOA
@@ -788,8 +788,8 @@ export const DossierPage6Epilogue: React.FC<PageProps> = ({
             <div className="text-[9px] text-amber-300 font-mono">
               THIÊN ĐỊA TINH HOA SỐ HÓA
             </div>
-            <div className="text-[8px] text-slate-400 font-mono mt-0.5">
-              Hệ thống Aurora Destiny AI v4.2
+            <div className="text-[8px] text-amber-300/90 font-mono mt-0.5">
+              Kênh Huyền Phong Phật Đạo • Aurora Destiny AI v4.2
             </div>
           </div>
         </div>
@@ -802,7 +802,7 @@ export const DossierPage6Epilogue: React.FC<PageProps> = ({
 
       {/* Running Footer */}
       <div className="border-t border-amber-500/20 pt-2 flex items-center justify-between text-[9px] font-mono text-slate-500">
-        <span>Bản quyền © Aurora Destiny AI • Thẩm định bởi Prof.TOAN</span>
+        <span>Bản quyền © Aurora Destiny AI • Kênh Huyền Phong Phật Đạo • Thẩm định bởi Prof.TOAN</span>
         <span>Trang 6 / 6 • HOÀN TẤT ẤN BẢN</span>
       </div>
     </div>

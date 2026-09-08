@@ -30,7 +30,7 @@ export const ResponsibleAIBanner: React.FC<Props> = ({
             <ShieldCheck className="w-3.5 h-3.5" />
           </div>
           <p className="leading-tight text-xs text-slate-300">
-            <span className="font-semibold text-teal-300">Nguyên Tắc Trí Tuệ Nhân Tạo:</span>{' '}
+            <span className="font-semibold text-teal-300">Kênh Huyền Phong Phật Đạo • Chuẩn Mực AI:</span>{' '}
             {t('disclaimerText', language)}
           </p>
         </div>
