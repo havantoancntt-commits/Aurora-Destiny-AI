@@ -713,6 +713,19 @@ export const DestinyDashboard: React.FC<Props> = ({
                     Tam Phương: {sanFangTuChinh.trine1Palace?.nameVi || '...'} • {sanFangTuChinh.trine2Palace?.nameVi || '...'} | Đối Chiếu: {sanFangTuChinh.oppositePalace?.nameVi || '...'}
                   </div>
                 </div>
+
+                {/* Cryptographic Authenticity Provenance Seal */}
+                {calculation.cryptographicSignature && (
+                  <div className="mt-1 pt-1.5 border-t border-white/10 flex items-center justify-between text-[9px] text-slate-400 font-mono">
+                    <div className="flex items-center gap-1 text-emerald-400 font-semibold">
+                      <Shield className="w-2.5 h-2.5 text-emerald-400" />
+                      <span>BẢN QUYỀN THUẬT TOÁN ĐÃ KÝ SỐ</span>
+                    </div>
+                    <span className="truncate max-w-[130px] text-slate-400 opacity-80" title={calculation.cryptographicSignature.signature}>
+                      Mã ấn: {calculation.cryptographicSignature.signature.substring(0, 10)}...
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

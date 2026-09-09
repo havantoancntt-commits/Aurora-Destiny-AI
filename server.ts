@@ -52,6 +52,12 @@ import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/
 import { generateDestinyChatResponse, isCircuitBreakerOpen } from './src/services/geminiService';
 import { DestinyAiPipeline } from './src/services/aiPipeline';
 import { UserProfile } from './src/types/user';
+import { enterpriseSecurityFirewall, getSecurityAnalytics } from './src/server/securityFirewall';
+import {
+  generateAlgorithmSignature,
+  verifyAlgorithmSignature,
+  antiScrapingSweeperMiddleware
+} from './src/server/algorithmProtection';
 
 const app = express();
 const PORT = 3000;
@@ -106,8 +112,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Request-Id', reqId);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('X-Download-Options', 'noopen');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
   
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
@@ -120,6 +128,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   );
   next();
 });
+
+// ENTERPRISE HARDENED WAF & INTRUSION PREVENTION SHIELD
+// Stops SQLi, NoSQL/Prototype Pollution, XSS, Path Traversal, and Scanners
+app.use(enterpriseSecurityFirewall);
 
 // Authentication middleware extracts user from bearer token or x-session-token
 app.use(authMiddleware);
@@ -399,7 +411,7 @@ app.get('/api/profiles', (req, res) => {
   res.json(profiles);
 });
 
-app.post('/api/profiles', requireAuth, calculationRateLimiter, (req, res, next) => {
+app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweeperMiddleware, (req, res, next) => {
   try {
     const validated = ProfileCreateSchema.parse(req.body);
     const userId = req.user!.id;
@@ -437,6 +449,7 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, (req, res, next) 
       };
 
       const computedCalc = runFullDestinyCalculation(createdProfile.birthData, createdProfile.id, 0);
+      computedCalc.cryptographicSignature = generateAlgorithmSignature(computedCalc);
       createdProfile.latestCalculationId = computedCalc.id;
 
       repo.saveCalculation(computedCalc);
@@ -530,6 +543,7 @@ app.delete('/api/profiles/:id', requireAuth, (req, res) => {
 
 // ----------------------------------------------------
 // 5. CALCULATIONS (DETERMINISTIC SINGLE SOURCE OF TRUTH)
+// Protected with Cryptographic Provenance & Anti-Scraping Sweeper
 // ----------------------------------------------------
 app.get(['/api/calculations/latest/:profileId', '/api/calculations/:profileId'], requireAuth, (req, res) => {
   const { profileId } = req.params;
@@ -540,6 +554,10 @@ app.get(['/api/calculations/latest/:profileId', '/api/calculations/:profileId'],
   if (!calc) {
     const events = repository.getHistoricalEvents(profileId);
     calc = runFullDestinyCalculation(profile.birthData, profile.id, events.length);
+    calc.cryptographicSignature = generateAlgorithmSignature(calc);
+    repository.saveCalculation(calc);
+  } else if (!calc.cryptographicSignature) {
+    calc.cryptographicSignature = generateAlgorithmSignature(calc);
     repository.saveCalculation(calc);
   }
 
@@ -552,10 +570,11 @@ app.get(['/api/calculations/latest/:profileId', '/api/calculations/:profileId'],
 
   const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
 
+  res.setHeader('X-Algorithm-Seal', calc.cryptographicSignature?.signature || 'unsealed');
   res.json({ calculation: calc, ensemble, backtest: bt });
 });
 
-app.post(['/api/calculations/recalculate/:profileId', '/api/calculations/recalculate'], requireAuth, calculationRateLimiter, (req, res) => {
+app.post(['/api/calculations/recalculate/:profileId', '/api/calculations/recalculate'], requireAuth, calculationRateLimiter, antiScrapingSweeperMiddleware, (req, res) => {
   const profileId = req.params.profileId || req.body?.profileId;
   if (!profileId) {
     res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Thiếu profileId' } });
@@ -566,6 +585,7 @@ app.post(['/api/calculations/recalculate/:profileId', '/api/calculations/recalcu
 
   const events = repository.getHistoricalEvents(profileId);
   const calc = runFullDestinyCalculation(profile.birthData, profile.id, events.length);
+  calc.cryptographicSignature = generateAlgorithmSignature(calc);
   repository.saveCalculation(calc);
 
   const bt = runBacktestAnalysis(events, calc);
@@ -582,6 +602,7 @@ app.post(['/api/calculations/recalculate/:profileId', '/api/calculations/recalcu
     requestId: req.requestId
   });
 
+  res.setHeader('X-Algorithm-Seal', calc.cryptographicSignature.signature);
   res.json({ calculation: calc, ensemble, backtest: bt });
 });
 
@@ -865,8 +886,40 @@ app.post('/api/ai/pipeline', requireAuth, aiChatRateLimiter, async (req, res, ne
 });
 
 // ----------------------------------------------------
+// 10C. ALGORITHM PROVENANCE & AUTHENTICITY VERIFICATION
+// Cryptographic validation of calculation seals
+// ----------------------------------------------------
+app.post('/api/algorithm/verify-seal', (req, res) => {
+  const calc = req.body;
+  if (!calc || !calc.cryptographicSignature) {
+    return res.status(400).json({
+      valid: false,
+      message: 'Thiếu thông tin chữ ký số hoặc con dấu mật mã bản quyền của thuật toán.'
+    });
+  }
+
+  const isValid = verifyAlgorithmSignature(calc);
+  return res.json({
+    valid: isValid,
+    signature: calc.cryptographicSignature.signature,
+    sealTimestamp: calc.cryptographicSignature.sealTimestamp,
+    issuer: calc.cryptographicSignature.issuer,
+    algorithmHash: calc.cryptographicSignature.algorithmHash,
+    intellectualPropertyOwner: 'Prof.TOAN & Huyen Phong Phat Dao',
+    message: isValid
+      ? 'Chữ ký mật mã hợp lệ. Toàn bộ thông số tinh bàn và tứ trụ được xác thực nguyên bản từ hệ thống độc quyền.'
+      : 'CẢNH BÁO: Dữ liệu tính toán đã bị can thiệp, sai lệch cấu trúc hoặc không xuất phát từ lõi thuật toán chính thống.'
+  });
+});
+
+// ----------------------------------------------------
 // 11. AUDIT LOGS, ADMIN & POSTGRESQL MIGRATION
 // ----------------------------------------------------
+app.get('/api/admin/security-threats', requireAdmin, adminRateLimiter, (req, res) => {
+  const analytics = getSecurityAnalytics();
+  res.json(analytics);
+});
+
 app.get('/api/audit-logs', requireAdmin, adminRateLimiter, (req, res) => {
   const logs = repository.getAuditLogs(100);
   res.json(logs);

@@ -298,4 +298,11 @@ export interface CalculationResult {
     totalCorrectionMinutes: number;
     dayShift: number;
   };
+  cryptographicSignature?: {
+    signature: string;
+    sealTimestamp: string;
+    algorithmHash: string;
+    issuer: string;
+    verified: boolean;
+  };
 }

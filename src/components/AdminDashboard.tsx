@@ -15,7 +15,11 @@ import {
   X,
   RefreshCw,
   Server,
-  Zap
+  Zap,
+  Lock,
+  Fingerprint,
+  Ban,
+  Key
 } from 'lucide-react';
 import { ObservabilityMetrics, AuditLog, SystemFeatureFlag } from '../types/admin';
 import { runAllEngineTests, TestReport } from '../engine/engine.test';
@@ -31,6 +35,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
   const [flags, setFlags] = useState<SystemFeatureFlag[]>([]);
   const [testReport, setTestReport] = useState<TestReport | null>(null);
   const [isRunningTests, setIsRunningTests] = useState(false);
+  const [securityData, setSecurityData] = useState<any>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [adminEmailInput, setAdminEmailInput] = useState('');
@@ -43,7 +48,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
       const token = api.getToken();
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-      const [resMetrics, resLogs, resFlags] = await Promise.all([
+      const [resMetrics, resLogs, resFlags, resSec] = await Promise.all([
         fetch('/api/metrics', { headers }).then(r => {
           if (r.status === 401 || r.status === 403) throw new Error('Cần quyền Quản trị viên (Admin/Super Admin)');
           return r.json();
@@ -52,11 +57,16 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
           if (r.status === 401 || r.status === 403) return [];
           return r.json();
         }),
-        fetch('/api/feature-flags', { headers }).then(r => r.json())
+        fetch('/api/feature-flags', { headers }).then(r => r.json()),
+        fetch('/api/admin/security-threats', { headers }).then(r => {
+          if (r.ok) return r.json();
+          return null;
+        }).catch(() => null)
       ]);
       setMetrics(resMetrics);
       setAuditLogs(Array.isArray(resLogs) ? resLogs : []);
       setFlags(Array.isArray(resFlags) ? resFlags : []);
+      if (resSec) setSecurityData(resSec);
     } catch (e: any) {
       setAuthError(e?.message || 'Không có quyền truy cập');
       // Fetch feature flags even if not admin
@@ -311,6 +321,69 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* 3B. ENTERPRISE WAF & ALGORITHM INTELLECTUAL PROPERTY SHIELD */}
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-amber-400" />
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                  Tường Lửa WAF & Hệ Thống Bảo Vệ Bản Quyền Thuật Toán
+                </h4>
+              </div>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-800/60 text-emerald-400 font-mono text-[10px]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>ARMORED PROVENANCE ACTIVE</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 space-y-1">
+                <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                  <span>Con Dấu Mật Mã Thuật Toán</span>
+                  <Fingerprint className="w-3.5 h-3.5 text-cyan-400" />
+                </div>
+                <div className="font-semibold text-slate-200">HMAC-SHA256 Canonical Seal</div>
+                <div className="text-[10px] text-emerald-400">Bảo vệ chống làm giả & trích xuất 100%</div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 space-y-1">
+                <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                  <span>Bộ Phát Hiện Quét Tham Số</span>
+                  <Shield className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <div className="font-semibold text-slate-200">Anti-Scraping Sweeper</div>
+                <div className="text-[10px] text-amber-300">Chặn dò bảng sao & giải mã đảo ngược</div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 space-y-1">
+                <div className="flex items-center justify-between text-slate-400 text-[10px]">
+                  <span>Cách Ly IP Tự Động (Auto-Ban)</span>
+                  <Ban className="w-3.5 h-3.5 text-rose-400" />
+                </div>
+                <div className="font-semibold text-slate-200">
+                  {securityData?.activeQuarantinedIpsCount ?? 0} IP Đang Bị Cách Ly
+                </div>
+                <div className="text-[10px] text-slate-400">
+                  {securityData?.totalThreatsDetected ?? 0} đợt tấn công đã vô hiệu hóa
+                </div>
+              </div>
+            </div>
+
+            {securityData?.quarantinedIps && securityData.quarantinedIps.length > 0 && (
+              <div className="p-2.5 rounded-lg bg-rose-950/20 border border-rose-900/40 space-y-1.5">
+                <div className="text-[11px] font-semibold text-rose-300">Danh Sách IP Đang Bị Cách Ly Tự Động:</div>
+                <div className="space-y-1 font-mono text-[10px]">
+                  {securityData.quarantinedIps.map((ban: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between text-rose-400/90">
+                      <span>Hash: {ban.ipHash} ({ban.reason})</span>
+                      <span>Còn {ban.remainingSeconds}s</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 4. AUDIT LOGS */}
