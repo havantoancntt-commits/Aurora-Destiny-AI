@@ -119,6 +119,14 @@ export interface ZiWeiPalace {
   transformations: string[];
   score: number; // 0 - 100
   focalTheme: string;
+  startAge?: number; // Đại vận bắt đầu từ tuổi
+  endAge?: number; // Đại vận kết thúc ở tuổi
+  decadeRangeStr?: string; // Chuỗi đại vận (vd: "24 - 33")
+  trangSinhStar?: string; // Vòng Tràng Sinh (Tràng Sinh, Mộc Dục, Lâm Quan, Đế Vượng...)
+  thaiTueStar?: string; // Vòng Thái Tuế (Thái Tuế, Tang Môn, Bạch Hổ...)
+  bacSyStar?: string; // Vòng Bác Sĩ (Bác Sĩ, Lực Sĩ, Tướng Quân...)
+  tuanTriet?: ('Tuần' | 'Triệt')[]; // Tuần/Triệt ngộ cung
+  isBodyPalace?: boolean; // Thân cư tại cung này
 }
 
 export interface ZiWeiChart {
@@ -126,7 +134,57 @@ export interface ZiWeiChart {
   bodyPalaceKey: PalaceKey; // Thân Cung
   lifePalaceKey: PalaceKey; // Mệnh Cung
   elementBureau: string; // Cục (Hỏa Lục Cục, Thủy Nhị Cục...)
-  majorConfigurations: string[]; // Các cách cục đặc biệt
+  cucNumber?: number; // 2, 3, 4, 5, 6
+  majorConfigurations: string[]; // Các cách cục đặc biệt xác thực
+  yinYangGenderHarmony?: {
+    yinYangNature: string; // vd: Dương Nam / Âm Nữ
+    isHarmonious: boolean; // Âm Dương Thuận Lý hay Nghịch Lý
+    direction: 'Thuận Lý' | 'Nghịch Lý';
+    decadeDirection: 'Thuận' | 'Nghịch';
+    explanation: string;
+  };
+  elementDestinyBureauHarmony?: {
+    birthYearNaYin: string;
+    elementBureau: string;
+    relation: 'Cục Sinh Mệnh' | 'Mệnh Cục Tỷ Hòa' | 'Mệnh Sinh Cục' | 'Mệnh Khắc Cục' | 'Cục Khắc Mệnh';
+    quality: 'Cát Lợi' | 'Bình Hòa' | 'Hao Tổn' | 'Thử Thách' | 'Nghịch Cảnh';
+    explanation: string;
+  };
+  bodyPalaceAnalysis?: {
+    palaceKey: PalaceKey;
+    palaceName: string;
+    meaning: string;
+    lifeImpact: string;
+  };
+  currentDecade?: {
+    palaceKey: PalaceKey;
+    palaceName: string;
+    startAge: number;
+    endAge: number;
+    stem: HeavenlyStem;
+    branch: EarthlyBranch;
+    majorStars: string[];
+    evaluation: string;
+  };
+  currentYearTransit?: {
+    year: number;
+    stem: HeavenlyStem;
+    branch: EarthlyBranch;
+    palaceKey: PalaceKey;
+    palaceName: string;
+    liuStars: string[];
+    summary: string;
+  };
+  tuanPalaces?: EarthlyBranch[];
+  trietPalaces?: EarthlyBranch[];
+  authenticAnalysis?: {
+    coreEssence: string;
+    personalityAndTalents: string;
+    careerAndWealthTrajectory: string;
+    relationshipsAndFamily: string;
+    decadeAndCurrentYearGuidance: string;
+    strategicAdvice: string;
+  };
 }
 
 export interface DecadeCycle {

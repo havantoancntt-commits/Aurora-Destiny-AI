@@ -183,17 +183,17 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Người Dùng 24h</div>
                   <div className="text-xl font-bold font-mono text-cyan-400">
-                    {(metrics.activeUsers24h ?? metrics.totalUsers ?? 1).toLocaleString()}
+                    {(metrics.activeUsers24h ?? metrics.totalUsers ?? 0).toLocaleString()}
                   </div>
                   <div className="text-[10px] text-emerald-400">
-                    {metrics.totalActiveSessions ? `${metrics.totalActiveSessions} phiên hoạt động` : '+18% so với tuần trước'}
+                    {metrics.totalActiveSessions !== undefined ? `${metrics.totalActiveSessions} phiên hoạt động` : 'Telemetry tích cực'}
                   </div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Độ Chuẩn Định Thuật Toán</div>
                   <div className="text-xl font-bold font-mono text-emerald-400">
-                    {metrics.calculationDeterministicRate ?? 100}%
+                    {metrics.calculationDeterministicRate !== undefined ? `${metrics.calculationDeterministicRate}%` : '100%'}
                   </div>
                   <div className="text-[10px] text-emerald-400">Tỷ lệ sai lệch 0%</div>
                 </div>
@@ -201,7 +201,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Độ Trễ Phân Tích AI</div>
                   <div className="text-xl font-bold font-mono text-purple-400">
-                    {metrics.aiLatencyAvgMs ?? 420}ms
+                    {metrics.aiLatencyAvgMs !== undefined && metrics.aiLatencyAvgMs > 0 ? `${metrics.aiLatencyAvgMs}ms` : 'Đang ghi nhận'}
                   </div>
                   <div className="text-[10px] text-slate-400">Gemini 2.5 Flash Server-Side</div>
                 </div>
@@ -209,7 +209,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Tỷ Lệ Cache Hit</div>
                   <div className="text-xl font-bold font-mono text-amber-400">
-                    {metrics.cacheHitRatio ?? 98.6}%
+                    {metrics.cacheHitRatio !== undefined ? `${metrics.cacheHitRatio}%` : '0%'}
                   </div>
                   <div className="text-[10px] text-slate-400">Ephemeris Đã Lập Chỉ Mục</div>
                 </div>

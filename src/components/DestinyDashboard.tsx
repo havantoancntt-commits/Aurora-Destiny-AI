@@ -402,59 +402,116 @@ export const DestinyDashboard: React.FC<Props> = ({
         transition={{ duration: 0.5, delay: 0.1 }}
         className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 sm:p-6 space-y-4 backdrop-blur-md shadow-xl"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-4 bg-gradient-to-b from-teal-400 to-cyan-500 rounded-full shadow-[0_0_8px_#2dd4bf]"></span>
-            <h3 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
-              Tử Vi Đẩu Số — 12 Cung Vị Bản Mệnh
-            </h3>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-white/10 pb-3.5">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-gradient-to-b from-teal-400 to-cyan-500 rounded-full shadow-[0_0_8px_#2dd4bf]"></span>
+              <h3 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
+                Tử Vi Đẩu Số — 12 Cung Vị Chính Tông
+              </h3>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Phân tích tinh bàn chân xác theo Cục số, Âm Dương thuận nghịch lý, Vòng Thái Tuế, Tràng Sinh & Tuần Triệt
+            </p>
           </div>
-          <span className="text-xs text-slate-400">
-            Chọn cung vị để xem chi tiết sao & Tứ Hóa
-          </span>
+
+          {/* Core Zi Wei Parameters Summary Pills */}
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            <span className="px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-300 font-mono">
+              {ziwei.elementBureau}
+            </span>
+            {ziwei.yinYangGenderHarmony && (
+              <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300">
+                {ziwei.yinYangGenderHarmony.yinYangNature} ({ziwei.yinYangGenderHarmony.direction})
+              </span>
+            )}
+            {ziwei.elementDestinyBureauHarmony && (
+              <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">
+                {ziwei.elementDestinyBureauHarmony.relation}
+              </span>
+            )}
+            <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
+              Thân cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'}
+            </span>
+          </div>
         </div>
 
         {/* 12 Palaces Selector Grid */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {PALACE_DEFS.map((def) => {
             const pal = ziwei.palaces[def.key];
             const isSelected = selectedPalaceKey === def.key;
             return (
               <motion.button
                 key={def.key}
-                whileHover={{ scale: 1.03, y: -2 }}
+                whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSelectedPalaceKey(def.key)}
-                className={`flex flex-col p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                className={`relative flex flex-col p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                   isSelected
                     ? 'bg-purple-500/20 border-purple-500/60 shadow-[0_0_20px_rgba(124,58,237,0.3)] ring-1 ring-purple-500/40'
                     : 'bg-black/40 border-white/10 hover:border-white/20 text-slate-300'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold ${isSelected ? 'text-teal-300' : 'text-slate-200'}`}>
-                    {def.nameVi}
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-400 font-bold">
-                    {pal?.score || 70}đ
+                {/* Header: Palace Name & Badges */}
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-bold ${isSelected ? 'text-teal-300' : 'text-slate-100'}`}>
+                      {def.nameVi}
+                    </span>
+                    {pal?.isBodyPalace && (
+                      <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        Thân
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {pal?.tuanTriet?.map((tt, i) => (
+                      <span key={i} className={`px-1 py-0.2 rounded text-[8px] font-bold ${tt === 'Triệt' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'}`}>
+                        {tt}
+                      </span>
+                    ))}
+                    <span className="text-[10px] font-mono text-slate-400 font-bold">
+                      {pal?.score || 70}đ
+                    </span>
+                  </div>
+                </div>
+
+                {/* Branch, Stem & Decade Range */}
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                  <span>{pal?.stem} {pal?.branch}</span>
+                  <span className="font-mono text-purple-300/90 font-medium">
+                    {pal?.decadeRangeStr}t
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-400 truncate mt-0.5">
-                  Cung {def.nameVi}
-                </span>
 
-                {/* Stars Mini Pills */}
+                {/* Major Stars Mini Pills */}
                 <div className="mt-2 flex flex-wrap gap-1">
-                  {pal?.majorStars.slice(0, 1).map((s, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-purple-300 border border-white/10 truncate">
-                      {s.nameVi}
+                  {pal?.majorStars.slice(0, 2).map((s, i) => (
+                    <span key={i} className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-purple-200 border border-white/10 truncate">
+                      {s.nameVi} <span className="text-teal-400 text-[8px]">({s.brightness})</span>
                     </span>
                   ))}
+                  {pal?.majorStars.length === 0 && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-slate-400 italic">
+                      Vô chính diệu
+                    </span>
+                  )}
                   {pal?.transformations && pal.transformations.length > 0 && (
-                    <span className="px-1 py-0.5 rounded text-[9px] bg-rose-500/20 text-rose-300 font-mono font-bold border border-rose-500/30">
+                    <span className="px-1 py-0.5 rounded text-[8px] bg-rose-500/20 text-rose-300 font-mono font-bold border border-rose-500/30">
                       {pal.transformations[0]}
                     </span>
                   )}
+                </div>
+
+                {/* Auxiliary Rings: Thai Tue & Trang Sinh */}
+                <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[9px]">
+                  <span className="text-teal-400/90 font-medium truncate max-w-[55%]">
+                    {pal?.thaiTueStar}
+                  </span>
+                  <span className="text-amber-400/80 truncate">
+                    {pal?.trangSinhStar}
+                  </span>
                 </div>
               </motion.button>
             );
@@ -468,19 +525,32 @@ export const DestinyDashboard: React.FC<Props> = ({
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
-            className="p-4 sm:p-5 rounded-2xl bg-black/60 border border-purple-500/40 space-y-3.5 shadow-2xl backdrop-blur-xl"
+            className="p-4 sm:p-5 rounded-2xl bg-black/60 border border-purple-500/40 space-y-4 shadow-2xl backdrop-blur-xl"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-base font-medium text-white">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-base font-semibold text-white">
                     Cung {selectedPalace.nameVi}
                   </h4>
                   <span className="px-2 py-0.5 rounded-lg text-xs font-mono bg-purple-500/20 border border-purple-500/30 text-purple-300">
-                    Chi {selectedPalace.branch} / Can {selectedPalace.stem}
+                    Can {selectedPalace.stem} / Chi {selectedPalace.branch}
                   </span>
+                  <span className="px-2 py-0.5 rounded-lg text-xs font-mono bg-white/5 border border-white/10 text-teal-300">
+                    Đại Vận: {selectedPalace.decadeRangeStr} tuổi
+                  </span>
+                  {selectedPalace.isBodyPalace && (
+                    <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-500/20 border border-amber-500/40 text-amber-300">
+                      Cung Thân Tọa Thủ
+                    </span>
+                  )}
+                  {selectedPalace.tuanTriet?.map((tt, i) => (
+                    <span key={i} className={`px-2 py-0.5 rounded-lg text-xs font-bold ${tt === 'Triệt' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'}`}>
+                      Ngộ {tt} Không
+                    </span>
+                  ))}
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">{selectedPalace.focalTheme}</p>
+                <p className="text-xs text-slate-400 mt-1">{selectedPalace.focalTheme}</p>
               </div>
 
               <div className="flex items-center gap-3 self-end sm:self-auto">
@@ -493,17 +563,38 @@ export const DestinyDashboard: React.FC<Props> = ({
               </div>
             </div>
 
+            {/* Aux Ring Badges for Selected Palace */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                <span className="text-slate-400">Vòng Tràng Sinh:</span>
+                <span className="font-semibold text-amber-300">{selectedPalace.trangSinhStar || 'Tràng Sinh'}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                <span className="text-slate-400">Vòng Thái Tuế:</span>
+                <span className="font-semibold text-teal-300">{selectedPalace.thaiTueStar || 'Thái Tuế'}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                <span className="text-slate-400">Vòng Bác Sĩ:</span>
+                <span className="font-semibold text-purple-300">{selectedPalace.bacSyStar || 'Bác Sĩ'}</span>
+              </div>
+            </div>
+
             {/* Stars List */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Major Stars */}
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-slate-300">Chính Tinh Chủ Quản</div>
+                <div className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                  <span>Chính Tinh Chủ Quản ({selectedPalace.majorStars.length})</span>
+                  <span className="text-[10px] text-slate-400">Miếu • Vượng • Đắc • Bình • Hãm</span>
+                </div>
                 <div className="space-y-1.5">
                   {selectedPalace.majorStars.map((star, idx) => (
                     <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/5 text-xs">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-white">{star.nameVi}</span>
-                        <span className="text-[10px] text-slate-400">({star.brightness === 'M' ? 'Miếu Địa' : star.brightness === 'V' ? 'Vượng Địa' : star.brightness === 'D' ? 'Đắc Địa' : star.brightness === 'B' ? 'Bình Hòa' : 'Hãm Địa'})</span>
+                        <span className="text-[10px] text-slate-400">
+                          ({star.brightness === 'M' ? 'Miếu Địa' : star.brightness === 'V' ? 'Vượng Địa' : star.brightness === 'D' ? 'Đắc Địa' : star.brightness === 'B' ? 'Bình Hòa' : 'Hãm Địa'})
+                        </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 text-purple-300 border border-purple-800/60">
@@ -517,18 +608,27 @@ export const DestinyDashboard: React.FC<Props> = ({
                       </div>
                     </div>
                   ))}
+                  {selectedPalace.majorStars.length === 0 && (
+                    <div className="p-3 rounded-xl bg-white/[0.01] border border-dashed border-white/10 text-xs text-slate-400 text-center italic">
+                      Cung Vô Chính Diệu — Hấp thụ tính chất và ánh sáng từ cung đối chiếu ({PALACE_DEFS.find(d => d.key !== selectedPalace.key)?.nameVi})
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Minor Stars */}
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-slate-300">Phụ Tinh & Trợ Tinh Cát Lợi</div>
-                <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-slate-300">
+                  Phụ Tinh & Sát Hung Trợ Tinh ({selectedPalace.minorStars.length})
+                </div>
+                <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
                   {selectedPalace.minorStars.map((star, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/5 text-xs">
-                      <span className="font-medium text-slate-200">{star.nameVi}</span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/5 text-teal-300 border border-white/5">
-                        {star.type}
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5 text-xs">
+                      <span className={`font-medium ${star.type === 'Lucky' ? 'text-teal-200' : 'text-rose-300'}`}>
+                        {star.nameVi}
+                      </span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${star.type === 'Lucky' ? 'bg-teal-500/10 text-teal-300 border border-teal-500/20' : 'bg-rose-500/10 text-rose-300 border border-rose-500/20'}`}>
+                        {star.type === 'Lucky' ? 'Cát Tinh' : 'Sát Tinh'}
                       </span>
                     </div>
                   ))}
@@ -536,6 +636,100 @@ export const DestinyDashboard: React.FC<Props> = ({
               </div>
             </div>
           </motion.div>
+        )}
+
+        {/* AUTHENTIC IN-DEPTH PERSONALIZED ZI WEI ANALYSIS */}
+        {ziwei.authenticAnalysis && (
+          <div className="mt-4 pt-4 border-t border-white/10 space-y-3.5">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-4 bg-purple-400 rounded-full shadow-[0_0_8px_#c084fc]"></span>
+              <h4 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
+                Luận Giải Tử Vi Đẩu Số Chính Tông (Bản Mệnh Cá Nhân)
+              </h4>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* I. Core Essence & Yin-Yang */}
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-300">1. Bản Thể & Tương Phối Mệnh - Cục</span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {ziwei.yinYangGenderHarmony?.direction}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {ziwei.authenticAnalysis.coreEssence}
+                </p>
+                {ziwei.elementDestinyBureauHarmony && (
+                  <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5">
+                    <span className="text-slate-300 font-medium">{ziwei.elementDestinyBureauHarmony.relation}:</span> {ziwei.elementDestinyBureauHarmony.explanation}
+                  </div>
+                )}
+              </div>
+
+              {/* II. Body Palace Dynamics */}
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-300">
+                    2. Cung Thân & Trọng Tâm Hậu Vận (Sau 30 Tuổi)
+                  </span>
+                  <span className="text-[10px] font-mono text-amber-400/90">
+                    Cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi}
+                  </span>
+                </div>
+                {ziwei.bodyPalaceAnalysis ? (
+                  <>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      {ziwei.bodyPalaceAnalysis.meaning}
+                    </p>
+                    <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5">
+                      <span className="text-slate-300 font-medium">Tác động thực tiễn:</span> {ziwei.bodyPalaceAnalysis.lifeImpact}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {ziwei.authenticAnalysis.relationshipsAndFamily}
+                  </p>
+                )}
+              </div>
+
+              {/* III. San Fang Si Zheng & Configurations */}
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300">3. Tam Phương Tứ Chính & Cách Cục</span>
+                  <span className="text-[10px] font-mono text-slate-400">Chính Tông</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 mb-1">
+                  {ziwei.majorConfigurations.map((cfg, i) => (
+                    <span key={i} className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-200 border border-purple-500/30">
+                      {cfg}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {ziwei.authenticAnalysis.careerAndWealthTrajectory}
+                </p>
+              </div>
+
+              {/* IV. Decades & Guidance */}
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-300">4. Vận Trình & Định Hướng Hành Động</span>
+                  {ziwei.currentDecade && (
+                    <span className="text-[10px] font-mono text-slate-400">
+                      Đại Vận {ziwei.currentDecade.decadeRange}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  {ziwei.authenticAnalysis.decadeAndCurrentYearGuidance}
+                </p>
+                <div className="text-[11px] text-teal-300/90 pt-1 border-t border-white/5 font-medium">
+                  💡 {ziwei.authenticAnalysis.strategicAdvice}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </motion.div>
 

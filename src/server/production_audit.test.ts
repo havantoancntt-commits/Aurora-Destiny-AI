@@ -103,50 +103,73 @@ assert.throws(() => {
 console.log('  ✔ Password reset lifecycle verified: single-use, rotated credentials.');
 
 // ----------------------------------------------------
-// TEST 4: POSTGRES DATABASE REPOSITORY PARITY
+// TEST 4: POSTGRES DATABASE REPOSITORY PARITY & REAL SQL
 // ----------------------------------------------------
-console.log('▶ Test 4: PostgresDatabaseRepository Interface Parity');
+console.log('▶ Test 4: PostgresDatabaseRepository Interface Parity & Real SQL');
 
-const pgRepo = new PostgresDatabaseRepository();
-const testUser = {
-  id: `pg_usr_${Date.now()}`,
-  email: 'pg_test@aurora.io',
-  fullName: 'Postgres User',
-  role: 'USER' as const,
-  subscriptionTier: 'Free' as const,
-  language: 'vi',
-  emailVerified: false,
-  createdAt: new Date().toISOString(),
-  lastLoginAt: new Date().toISOString(),
-  profilesCount: 0
-};
+async function testPostgresRepository() {
+  let poolToUse: any = undefined;
+  if (!process.env.DATABASE_URL) {
+    const { newDb } = await import('pg-mem');
+    const memDb = newDb();
+    const memPg = memDb.adapters.createPg();
+    poolToUse = new memPg.Pool();
+  }
 
-pgRepo.saveUser(testUser, 'dummy_salt:dummy_hash');
-const retrievedUser = pgRepo.getUser(testUser.id);
-assert.strictEqual(retrievedUser?.email, testUser.email, 'User retrieved from Postgres repository');
+  const pgRepo = new PostgresDatabaseRepository(undefined, poolToUse);
+  await pgRepo.ensureInitialized();
 
-// Test transaction rollback in Postgres repo
-let rollbackOccurred = false;
-try {
-  pgRepo.runTransaction((tx) => {
-    tx.saveProfile({
-      id: 'tx_prof_1',
-      userId: testUser.id,
-      name: 'Temp Profile',
-      isPrimary: false,
-      avatarSeed: 'temp',
-      birthData: exactBirthData,
-      behavioralContext: { careerField: '', employmentStatus: '', financialGoal: '', relationshipStatus: '', topPriority: '', personalNotes: '' },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  const testUser = {
+    id: `pg_usr_${Date.now()}`,
+    email: 'pg_test@aurora.io',
+    fullName: 'Postgres User',
+    role: 'USER' as const,
+    subscriptionTier: 'Free' as const,
+    language: 'vi',
+    emailVerified: false,
+    createdAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+    profilesCount: 0
+  };
+
+  await pgRepo.saveUser(testUser, 'dummy_salt:dummy_hash');
+  const retrievedUser = await pgRepo.getUser(testUser.id);
+  assert.strictEqual(retrievedUser?.email, testUser.email, 'User retrieved from Postgres repository');
+
+  // Test integrity verification
+  const integrity = await pgRepo.verifyDatabaseIntegrity();
+  assert.strictEqual(integrity.valid, true, 'Postgres database integrity verified');
+
+  // Test metrics computation
+  const metrics = await pgRepo.getMetrics();
+  assert.strictEqual(metrics.storageMode, 'postgresql_production_adapter', 'Correct storage mode reported');
+  assert.strictEqual(typeof metrics.totalUsers, 'number', 'Metrics returned real user count');
+
+  // Test transaction error handling
+  let rollbackOccurred = false;
+  try {
+    await pgRepo.runTransaction(async (tx) => {
+      await tx.saveProfile({
+        id: 'tx_prof_1',
+        userId: testUser.id,
+        name: 'Temp Profile',
+        isPrimary: false,
+        avatarSeed: 'temp',
+        birthData: exactBirthData,
+        behavioralContext: { careerField: '', employmentStatus: '', financialGoal: '', relationshipStatus: '', topPriority: '', personalNotes: '' },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      throw new Error('Forced transaction failure');
     });
-    throw new Error('Forced transaction failure');
-  });
-} catch (e) {
-  rollbackOccurred = true;
+  } catch (e) {
+    rollbackOccurred = true;
+  }
+  assert.strictEqual(rollbackOccurred, true, 'Transaction error caught');
+  console.log('  ✔ Postgres repository interface, real SQL migrations & transactions verified.');
 }
-assert.strictEqual(rollbackOccurred, true, 'Transaction error caught');
-console.log('  ✔ Postgres repository interface and transactions verified.');
+
+await testPostgresRepository();
 
 console.log('==================================================');
 console.log('🎉 ALL PRODUCTION UPGRADE VERIFICATION TESTS PASSED!');

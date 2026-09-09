@@ -90,19 +90,22 @@ export function generateMultiAgentEnsemble(
   const ziweiAnalystAgent = {
     agentName: 'Agent 3 — Zi Wei Dou Shu Palace Master',
     agentRole: 'Tử Vi Đẩu Số & Tứ Hóa Tinh Tú Học',
-    confidenceScore: 95,
+    confidenceScore: 96,
     keyFindings: [
-      `Cung Mệnh tại ${ziwei.palaces.life.branch} (${ziwei.palaces.life.stem}) tọa thủ: ${lifeStarStr} (Điểm số cung: ${ziwei.palaces.life.score}/100).`,
-      `Cục: ${ziwei.elementBureau}. Cung Thân cư ${bodyPalaceName}: Phản ánh trọng tâm hậu vận chuyển biến mạnh mẽ theo phương vị này.`,
-      `Tam Phương Tứ Chính: Quan Lộc (${careerStarStr} - ${ziwei.palaces.career.score}đ), Tài Bạch (${wealthStarStr} - ${ziwei.palaces.wealth.score}đ), Thiên Di (${ziwei.palaces.travel.score}đ).`,
-      `Cách Cục Hội Tụ: ${ziwei.majorConfigurations.join('; ')}.`
+      `Cung Mệnh tại ${ziwei.palaces.life.branch} (${ziwei.palaces.life.stem}) tọa thủ: ${lifeStarStr} (Vòng Tràng Sinh: ${ziwei.palaces.life?.trangSinhStar || ''}, Vòng Thái Tuế: ${ziwei.palaces.life?.thaiTueStar || ''}).`,
+      `Bản Thể: ${ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). Cục Số: ${ziwei.elementBureau} (${ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} - ${ziwei.elementDestinyBureauHarmony?.quality || 'Bình Hòa'}).`,
+      `Cung Thân cư ${bodyPalaceName}: ${ziwei.bodyPalaceAnalysis?.meaning || ''} — ${ziwei.bodyPalaceAnalysis?.lifeImpact || ''}`,
+      `Tam Phương Tứ Chính: Quan Lộc (${careerStarStr}), Tài Bạch (${wealthStarStr}), Thiên Di (${ziwei.palaces.travel.score}đ). Cách Cục: ${ziwei.majorConfigurations.join('; ')}.`,
+      `${ziwei.currentDecade?.evaluation || ''}`
     ],
     recommendations: [
-      `Phát huy tối đa thế mạnh cung Quan Lộc và Tài Bạch để mở rộng tầm ảnh hưởng lãnh đạo chuyên môn.`,
-      `Tận dụng cung Thiên Di thông qua việc mở rộng mạng lưới giao lưu đối ngoại và học hỏi môi trường mới.`
+      `Phát huy tối đa thế mạnh cung Quan Lộc (${careerStarStr}) và Tài Bạch (${wealthStarStr}) để xây dựng thành tựu chuyên môn vững chắc.`,
+      `Tận dụng cung Thiên Di và mạng lưới xã hội để thích ứng linh hoạt với các biến chuyển của thời cuộc.`,
+      ...(ziwei.authenticAnalysis?.strategicAdvice ? [ziwei.authenticAnalysis.strategicAdvice.split('. ')[0] + '.'] : [])
     ],
     riskNotations: [
-      `Cung Tật Ách (${ziwei.palaces.health.score}đ) khuyến nghị chú ý cân bằng giấc ngủ, hệ tiêu hóa và kiểm tra sức khỏe định kỳ.`
+      `Cung Tật Ách (${ziwei.palaces.health.score}đ) khuyến nghị chú ý cân bằng giấc ngủ, hệ tiêu hóa và duy trì thể chất đều đặn.`,
+      ...(ziwei.palaces.life?.tuanTriet ? [`Cung Mệnh ngộ ${ziwei.palaces.life.tuanTriet.join(' & ')}: đòi hỏi sự bền chí và tôi luyện qua thử thách trước khi phát huy trọn vẹn tiềm năng.`] : [])
     ]
   };
 

@@ -97,26 +97,58 @@ export interface IDatabaseRepository {
   exportToPostgresSql(): string;
 
   // Observability & Stats
-  getMetrics(): {
-    activeUsers24h: number;
-    totalUsers: number;
-    totalProfiles: number;
-    totalProfilesStored: number;
-    totalCalculations: number;
-    totalEvents: number;
-    totalActiveSessions: number;
-    totalAuditLogs: number;
-    aiRequestsCount: number;
-    aiLatencyAvgMs: number;
-    aiSuccessRate: number;
-    calculationDeterministicRate: number;
-    dbLatencyMs: number;
-    cacheHitRatio: number;
-    totalBacktestRuns: number;
-    totalScenariosEvaluated: number;
-    uptimeSeconds: number;
-    storageMode: string;
-  };
+  getMetrics(): any;
+}
+
+export interface IAsyncDatabaseRepository {
+  getUser(userId: string): Promise<UserAccount | null>;
+  getAllUsers(): Promise<UserAccount[]>;
+  getUserByEmail(email: string): Promise<(UserAccount & { passwordHash?: string }) | null>;
+  saveUser(user: UserAccount, passwordHash?: string): Promise<UserAccount>;
+  deleteUser(userId: string): Promise<boolean>;
+  getAllUserData(userId: string): Promise<any>;
+  getPreferences(userId: string): Promise<UserPreferences>;
+  updatePreferences(userId: string, prefs: Partial<UserPreferences>): Promise<UserPreferences>;
+
+  saveSession(session: StoredSession): Promise<void>;
+  getSession(token: string): Promise<StoredSession | null>;
+  deleteSession(token: string): Promise<boolean>;
+  cleanupExpiredSessions(): Promise<number>;
+  revokeUserSessions(userId: string): Promise<number>;
+
+  createPasswordReset(userId: string): Promise<{ token: string; expiresAt: number }>;
+  verifyAndConsumePasswordReset(token: string): Promise<string | null>;
+
+  getProfiles(userId: string): Promise<UserProfile[]>;
+  getProfile(profileId: string): Promise<UserProfile | null>;
+  saveProfile(profile: UserProfile): Promise<UserProfile>;
+  deleteProfile(profileId: string, userId: string): Promise<boolean>;
+
+  getCalculation(calculationId: string): Promise<CalculationResult | null>;
+  getLatestCalculationForProfile(profileId: string): Promise<CalculationResult | null>;
+  saveCalculation(calc: CalculationResult): Promise<CalculationResult>;
+
+  getHistoricalEvents(profileId: string): Promise<HistoricalEvent[]>;
+  addHistoricalEvent(event: HistoricalEvent): Promise<HistoricalEvent>;
+  deleteHistoricalEvent(profileId: string, eventId: string): Promise<boolean>;
+
+  getBacktestResult(profileId: string): Promise<BacktestResult | null>;
+  saveBacktestResult(result: BacktestResult): Promise<BacktestResult>;
+
+  getChatMessages(profileId: string): Promise<ChatMessage[]>;
+  addChatMessage(profileId: string, message: ChatMessage): Promise<ChatMessage>;
+  clearChatMessages(profileId: string): Promise<boolean>;
+
+  logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void>;
+  getAuditLogs(limit?: number): Promise<AuditLogEntry[]>;
+
+  getFeatureFlags(): Promise<FeatureFlag[]>;
+  getFeatureFlag(key: string): Promise<FeatureFlag | null>;
+  toggleFeatureFlag(key: string, enabled: boolean): Promise<FeatureFlag | null>;
+
+  runTransaction<T>(action: (repo: IAsyncDatabaseRepository) => Promise<T>): Promise<T>;
+  verifyDatabaseIntegrity(): Promise<{ valid: boolean; errors: string[]; checksum: string }>;
+  getMetrics(): Promise<any>;
 }
 
 // Durable File-backed Database Schema representation
@@ -1061,13 +1093,11 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
   }
 }
 
-// Global Singleton Repository instance with dynamic PostgreSQL scaling support
+// Global Singleton Repository instances
+export const persistentRepository: IDatabaseRepository = new PersistentDatabaseRepository();
+
 export function initializeRepository(): IDatabaseRepository {
-  if (process.env.DATABASE_URL) {
-    console.log('🐘 [Database] PostgreSQL DATABASE_URL detected. Initializing PostgresDatabaseRepository...');
-    return new PostgresDatabaseRepository({ connectionString: process.env.DATABASE_URL });
-  }
-  return new PersistentDatabaseRepository();
+  return persistentRepository;
 }
 
 export const repository: IDatabaseRepository = initializeRepository();

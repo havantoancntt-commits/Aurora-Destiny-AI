@@ -1,16 +1,21 @@
 // ==========================================
 // AURORA DESTINY AI — POSTGRESQL PRODUCTION REPOSITORY
-// Enterprise-Grade Relational Storage Engine
-// Implements IDatabaseRepository with Connection Pooling, Parameterized Queries,
-// Atomicity, Concurrency Isolation, Retry Policy & JSON-to-PostgreSQL Migration
+// Enterprise Relational Storage Engine
+// Implements IDatabaseRepository with Connection Pooling, Parameterized SQL Queries,
+// Real Transactions (BEGIN/COMMIT/ROLLBACK), Schema Migrations & Zero Silent Fallback.
 // ==========================================
 
+import pg from 'pg';
 import crypto from 'crypto';
-import { IDatabaseRepository, AuditLogEntry, FeatureFlag } from './repository';
+import { IAsyncDatabaseRepository, AuditLogEntry, FeatureFlag } from './repository';
 import { UserAccount, UserPreferences, StoredSession, UserProfile } from '../types/user';
 import { CalculationResult } from '../types/destiny';
 import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { ChatMessage } from '../types/ai';
+import { telemetry } from '../telemetry/telemetryService';
+import { DatabaseMigrator } from './migrator';
+
+const { Pool } = pg;
 
 export interface PostgresConfig {
   connectionString?: string;
@@ -19,223 +24,187 @@ export interface PostgresConfig {
   database?: string;
   user?: string;
   password?: string;
-  maxConnections?: number;
+  max?: number;
   idleTimeoutMillis?: number;
   connectionTimeoutMillis?: number;
+  statement_timeout?: number;
 }
 
-export interface SqlQueryRunner {
-  query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number }>;
-  transaction<T>(action: (client: SqlQueryRunner) => Promise<T>): Promise<T>;
-  close(): Promise<void>;
-}
-
-/**
- * Robust, production-grade PostgreSQL Repository Adapter
- * Designed to seamlessly replace PersistentDatabaseRepository when DATABASE_URL is configured.
- */
-export class PostgresDatabaseRepository implements IDatabaseRepository {
-  private config: PostgresConfig;
+export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
+  private pool: pg.Pool;
   private isConnected: boolean = false;
-  private client: SqlQueryRunner | null = null;
-  private fallbackMemoryCache: Map<string, any> = new Map();
+  private clientOverride: { query: (sql: string, params?: any[]) => Promise<any> } | null = null;
+  private migrator: DatabaseMigrator;
+  private migrationPromise: Promise<any> | null = null;
 
-  constructor(config?: PostgresConfig) {
-    this.config = config || {
-      connectionString: process.env.DATABASE_URL,
-      maxConnections: parseInt(process.env.DB_POOL_MAX || '20', 10),
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000
-    };
+  constructor(config?: PostgresConfig, injectedPool?: pg.Pool) {
+    if (injectedPool) {
+      this.pool = injectedPool;
+    } else {
+      const connStr = config?.connectionString || process.env.DATABASE_URL;
+      if (!connStr && process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: DATABASE_URL is strictly required in production mode for PostgreSQL repository.');
+      }
+      this.pool = new Pool({
+        connectionString: connStr,
+        max: config?.max || parseInt(process.env.DB_POOL_MAX || '20', 10),
+        idleTimeoutMillis: config?.idleTimeoutMillis || 30000,
+        connectionTimeoutMillis: config?.connectionTimeoutMillis || 5000,
+        statement_timeout: config?.statement_timeout || 10000
+      });
+    }
+
+    this.migrator = new DatabaseMigrator(this);
+    
+    // Test connectivity and run migrations on startup
+    this.migrationPromise = this.init();
   }
 
-  public setRunner(runner: SqlQueryRunner): void {
-    this.client = runner;
-    this.isConnected = true;
+  // Transaction client constructor
+  private constructorForTransaction(client: { query: (sql: string, params?: any[]) => Promise<any> }) {
+    this.pool = null as any;
+    this.clientOverride = client;
+    this.migrator = null as any;
   }
 
-  // --- MIGRATION DDL ---
-  public static getMigrationDdl(): string {
-    return `
-      CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(64) PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        full_name VARCHAR(255) NOT NULL,
-        role VARCHAR(32) NOT NULL DEFAULT 'USER',
-        subscription_tier VARCHAR(32) NOT NULL DEFAULT 'Free',
-        language VARCHAR(10) NOT NULL DEFAULT 'vi',
-        email_verified BOOLEAN NOT NULL DEFAULT FALSE,
-        password_hash TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        last_login_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS user_preferences (
-        user_id VARCHAR(64) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        theme VARCHAR(32) NOT NULL DEFAULT 'dark',
-        language VARCHAR(10) NOT NULL DEFAULT 'vi',
-        timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
-        enable_notifications BOOLEAN NOT NULL DEFAULT TRUE,
-        enable_ai_learning BOOLEAN NOT NULL DEFAULT FALSE,
-        anonymize_data BOOLEAN NOT NULL DEFAULT FALSE,
-        scientific_confidence_mode BOOLEAN NOT NULL DEFAULT TRUE,
-        high_contrast BOOLEAN NOT NULL DEFAULT FALSE
-      );
-
-      CREATE TABLE IF NOT EXISTS sessions (
-        token VARCHAR(128) PRIMARY KEY,
-        user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        expires_at TIMESTAMPTZ NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        last_accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        is_guest BOOLEAN NOT NULL DEFAULT FALSE
-      );
-      CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-      CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
-
-      CREATE TABLE IF NOT EXISTS profiles (
-        id VARCHAR(64) PRIMARY KEY,
-        user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        name VARCHAR(255) NOT NULL,
-        is_primary BOOLEAN NOT NULL DEFAULT FALSE,
-        avatar_seed VARCHAR(255),
-        birth_data JSONB NOT NULL,
-        behavioral_context JSONB NOT NULL,
-        latest_calculation_id VARCHAR(64),
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
-
-      CREATE TABLE IF NOT EXISTS calculations (
-        id VARCHAR(64) PRIMARY KEY,
-        profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-        calculation_version VARCHAR(32) NOT NULL,
-        astrology_rules_version VARCHAR(32) NOT NULL,
-        analysis_model_version VARCHAR(32) NOT NULL,
-        input_snapshot JSONB NOT NULL,
-        bazi JSONB NOT NULL,
-        ziwei JSONB NOT NULL,
-        decades JSONB NOT NULL,
-        annual_transits JSONB NOT NULL,
-        confidence JSONB NOT NULL,
-        timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_calc_profile ON calculations(profile_id);
-
-      CREATE TABLE IF NOT EXISTS historical_events (
-        id VARCHAR(64) PRIMARY KEY,
-        profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-        year INTEGER NOT NULL,
-        month INTEGER,
-        title VARCHAR(255) NOT NULL,
-        category VARCHAR(64) NOT NULL,
-        impact VARCHAR(32) NOT NULL,
-        intensity INTEGER NOT NULL,
-        description TEXT NOT NULL,
-        user_confidence INTEGER NOT NULL,
-        evidence_note TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_events_profile ON historical_events(profile_id);
-
-      CREATE TABLE IF NOT EXISTS backtest_results (
-        id VARCHAR(64) PRIMARY KEY,
-        profile_id VARCHAR(64) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-        calculation_id VARCHAR(64) REFERENCES calculations(id) ON DELETE CASCADE,
-        destiny_consistency_score INTEGER NOT NULL,
-        historical_hit_rate INTEGER NOT NULL DEFAULT 0,
-        statistical_disclaimer TEXT,
-        confidence_band VARCHAR(64) NOT NULL,
-        total_events_analyzed INTEGER NOT NULL,
-        matched_events_count INTEGER NOT NULL,
-        divergent_events_count INTEGER NOT NULL,
-        neutral_events_count INTEGER NOT NULL,
-        comparisons JSONB NOT NULL,
-        strengths_summary JSONB NOT NULL,
-        anomalies_summary JSONB NOT NULL,
-        uncertainty_factors JSONB NOT NULL,
-        timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_backtest_profile ON backtest_results(profile_id);
-
-      CREATE TABLE IF NOT EXISTS audit_logs (
-        id VARCHAR(64) PRIMARY KEY,
-        user_id VARCHAR(64),
-        action VARCHAR(128) NOT NULL,
-        resource VARCHAR(128) NOT NULL,
-        resource_id VARCHAR(64),
-        ip_hash VARCHAR(64),
-        status VARCHAR(32) NOT NULL,
-        request_id VARCHAR(64),
-        timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
-
-      CREATE TABLE IF NOT EXISTS feature_flags (
-        key VARCHAR(128) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        description TEXT NOT NULL,
-        enabled BOOLEAN NOT NULL DEFAULT FALSE,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `;
-  }
-
-  // --- IDatabaseRepository Implementation ---
-  getUser(id: string): UserAccount | null {
-    return this.fallbackMemoryCache.get(`user_${id}`) || null;
-  }
-
-  getAllUsers(): UserAccount[] {
-    const users: UserAccount[] = [];
-    for (const [key, value] of this.fallbackMemoryCache.entries()) {
-      if (key.startsWith('user_')) {
-        const { passwordHash: _, ...clean } = value;
-        users.push(clean);
+  private async init(): Promise<void> {
+    try {
+      const res = await this.query('SELECT 1 as connected');
+      if (res.rows?.[0]?.connected === 1) {
+        this.isConnected = true;
+        console.log('🐘 [PostgreSQL] Connected successfully to database pool.');
+        // Run migrations
+        await this.migrator.runPendingMigrations();
+      }
+    } catch (err: any) {
+      this.isConnected = false;
+      console.error('❌ [PostgreSQL] Connection initialization or migration failed:', err.message);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`PostgreSQL production initialization failure: ${err.message}`);
       }
     }
-    return users;
   }
 
-  getUserByEmail(email: string): (UserAccount & { passwordHash?: string }) | null {
-    return this.fallbackMemoryCache.get(`email_${email.toLowerCase().trim()}`) || null;
+  public async ensureInitialized(): Promise<void> {
+    if (this.migrationPromise) {
+      await this.migrationPromise;
+    }
   }
 
-  saveUser(user: UserAccount, passwordRecord?: string): UserAccount {
-    const fullUser = {
-      ...user,
-      passwordHash: passwordRecord || (this.fallbackMemoryCache.get(`user_${user.id}`)?.passwordHash)
-    };
-    this.fallbackMemoryCache.set(`user_${user.id}`, fullUser);
-    this.fallbackMemoryCache.set(`email_${user.email.toLowerCase().trim()}`, fullUser);
-    const { passwordHash: _, ...cleanUser } = fullUser;
-    return cleanUser;
+  public async query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number }> {
+    const start = Date.now();
+    try {
+      const runner = this.clientOverride || this.pool;
+      if (!runner) {
+        throw new Error('PostgreSQL client pool is not initialized');
+      }
+      const result = await runner.query(sql, params);
+      const duration = Date.now() - start;
+      telemetry.recordDbQuery(duration, true);
+      return {
+        rows: result.rows || [],
+        rowCount: result.rowCount || 0
+      };
+    } catch (err: any) {
+      const duration = Date.now() - start;
+      telemetry.recordDbQuery(duration, false);
+      console.error(`❌ [PostgreSQL Error] Query failed: "${sql.slice(0, 80)}..."`, err.message);
+      throw err;
+    }
   }
 
-  deleteUser(userId: string): boolean {
-    const user = this.getUser(userId);
-    if (!user) return false;
-    this.fallbackMemoryCache.delete(`user_${userId}`);
-    this.fallbackMemoryCache.delete(`email_${user.email.toLowerCase().trim()}`);
-    return true;
+  // --- USERS & AUTH ---
+  async getUser(userId: string): Promise<UserAccount | null> {
+    const res = await this.query(
+      `SELECT id, email, full_name as "fullName", role, subscription_tier as "subscriptionTier", 
+              language, email_verified as "emailVerified", created_at as "createdAt", last_login_at as "lastLoginAt"
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    return res.rows[0] || null;
   }
 
-  getAllUserData(userId: string): any {
+  async getAllUsers(): Promise<UserAccount[]> {
+    const res = await this.query(
+      `SELECT id, email, full_name as "fullName", role, subscription_tier as "subscriptionTier", 
+              language, email_verified as "emailVerified", created_at as "createdAt", last_login_at as "lastLoginAt"
+       FROM users ORDER BY created_at DESC`
+    );
+    return res.rows;
+  }
+
+  async getUserByEmail(email: string): Promise<(UserAccount & { passwordHash?: string }) | null> {
+    const res = await this.query(
+      `SELECT id, email, full_name as "fullName", role, subscription_tier as "subscriptionTier", 
+              language, email_verified as "emailVerified", password_hash as "passwordHash", 
+              created_at as "createdAt", last_login_at as "lastLoginAt"
+       FROM users WHERE LOWER(email) = LOWER($1)`,
+      [email.trim()]
+    );
+    return res.rows[0] || null;
+  }
+
+  async saveUser(user: UserAccount, passwordHash?: string): Promise<UserAccount> {
+    const res = await this.query(
+      `INSERT INTO users (id, email, full_name, role, subscription_tier, language, email_verified, password_hash, created_at, last_login_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (id) DO UPDATE SET
+         email = EXCLUDED.email,
+         full_name = EXCLUDED.full_name,
+         role = EXCLUDED.role,
+         subscription_tier = EXCLUDED.subscription_tier,
+         language = EXCLUDED.language,
+         email_verified = EXCLUDED.email_verified,
+         password_hash = COALESCE(EXCLUDED.password_hash, users.password_hash),
+         last_login_at = EXCLUDED.last_login_at
+       RETURNING id, email, full_name as "fullName", role, subscription_tier as "subscriptionTier", 
+                 language, email_verified as "emailVerified", created_at as "createdAt", last_login_at as "lastLoginAt"`,
+      [
+        user.id,
+        user.email.toLowerCase().trim(),
+        user.fullName,
+        user.role,
+        user.subscriptionTier || 'Free',
+        user.language || 'vi',
+        !!user.emailVerified,
+        passwordHash || null,
+        user.createdAt || new Date().toISOString(),
+        user.lastLoginAt || new Date().toISOString()
+      ]
+    );
+    return res.rows[0];
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    const res = await this.query('DELETE FROM users WHERE id = $1', [userId]);
+    return (res.rowCount || 0) > 0;
+  }
+
+  async getAllUserData(userId: string): Promise<any> {
+    const [user, preferences, profiles] = await Promise.all([
+      this.getUser(userId),
+      this.getPreferences(userId),
+      this.getProfiles(userId)
+    ]);
+    return { user, preferences, profiles };
+  }
+
+  // --- PREFERENCES ---
+  async getPreferences(userId: string): Promise<UserPreferences> {
+    const res = await this.query(
+      `SELECT user_id as "userId", theme, language, timezone, 
+              enable_notifications as "enableNotifications", 
+              enable_ai_learning as "enableAILearning", 
+              anonymize_data as "anonymizeData", 
+              scientific_confidence_mode as "scientificConfidenceMode", 
+              high_contrast as "highContrast"
+       FROM user_preferences WHERE user_id = $1`,
+      [userId]
+    );
+    if (res.rows[0]) {
+      return res.rows[0];
+    }
     return {
-      user: this.getUser(userId),
-      preferences: this.getPreferences(userId),
-      profiles: this.getProfiles(userId)
-    };
-  }
-
-  getPreferences(userId: string): UserPreferences {
-    return this.getUserPreferences(userId);
-  }
-
-  getUserPreferences(userId: string): UserPreferences {
-    return this.fallbackMemoryCache.get(`pref_${userId}`) || {
-      userId,
       theme: 'dark',
       language: 'vi',
       timezone: 'Asia/Ho_Chi_Minh',
@@ -247,230 +216,588 @@ export class PostgresDatabaseRepository implements IDatabaseRepository {
     };
   }
 
-  updatePreferences(userId: string, prefs: Partial<UserPreferences>): UserPreferences {
-    const existing = this.getUserPreferences(userId);
-    const updated: UserPreferences = {
-      ...existing,
-      ...prefs,
-      theme: prefs.theme || existing.theme || 'dark'
+  async updatePreferences(userId: string, prefs: Partial<UserPreferences>): Promise<UserPreferences> {
+    const current = await this.getPreferences(userId);
+    const merged = { ...current, ...prefs };
+    const res = await this.query(
+      `INSERT INTO user_preferences (user_id, theme, language, timezone, enable_notifications, enable_ai_learning, anonymize_data, scientific_confidence_mode, high_contrast)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (user_id) DO UPDATE SET
+         theme = EXCLUDED.theme,
+         language = EXCLUDED.language,
+         timezone = EXCLUDED.timezone,
+         enable_notifications = EXCLUDED.enable_notifications,
+         enable_ai_learning = EXCLUDED.enable_ai_learning,
+         anonymize_data = EXCLUDED.anonymize_data,
+         scientific_confidence_mode = EXCLUDED.scientific_confidence_mode,
+         high_contrast = EXCLUDED.high_contrast
+       RETURNING user_id as "userId", theme, language, timezone, 
+                 enable_notifications as "enableNotifications", 
+                 enable_ai_learning as "enableAILearning", 
+                 anonymize_data as "anonymizeData", 
+                 scientific_confidence_mode as "scientificConfidenceMode", 
+                 high_contrast as "highContrast"`,
+      [
+        userId,
+        merged.theme,
+        merged.language,
+        merged.timezone,
+        merged.enableNotifications,
+        merged.enableAILearning,
+        merged.anonymizeData,
+        merged.scientificConfidenceMode,
+        merged.highContrast
+      ]
+    );
+    return res.rows[0];
+  }
+
+  // --- SESSIONS ---
+  async saveSession(session: StoredSession): Promise<void> {
+    await this.query(
+      `INSERT INTO sessions (token, user_id, expires_at, created_at, last_accessed_at, is_guest)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (token) DO UPDATE SET
+         last_accessed_at = EXCLUDED.last_accessed_at,
+         expires_at = EXCLUDED.expires_at`,
+      [
+        session.token,
+        session.userId,
+        new Date(session.expiresAt).toISOString(),
+        new Date(session.createdAt).toISOString(),
+        new Date(session.lastAccessedAt).toISOString(),
+        !!session.isGuest
+      ]
+    );
+  }
+
+  async getSession(token: string): Promise<StoredSession | null> {
+    const res = await this.query(
+      `SELECT token, user_id as "userId", expires_at, created_at, last_accessed_at, is_guest as "isGuest"
+       FROM sessions WHERE token = $1`,
+      [token]
+    );
+    if (!res.rows[0]) return null;
+    const r = res.rows[0];
+    return {
+      token: r.token,
+      userId: r.userId,
+      expiresAt: new Date(r.expires_at).getTime(),
+      createdAt: new Date(r.created_at).getTime(),
+      lastAccessedAt: new Date(r.last_accessed_at).getTime(),
+      isGuest: r.isGuest
     };
-    this.fallbackMemoryCache.set(`pref_${userId}`, updated);
-    return updated;
   }
 
-  saveSession(session: StoredSession): void {
-    this.fallbackMemoryCache.set(`session_${session.token}`, session);
+  async deleteSession(token: string): Promise<boolean> {
+    const res = await this.query('DELETE FROM sessions WHERE token = $1', [token]);
+    return (res.rowCount || 0) > 0;
   }
 
-  getSession(token: string): StoredSession | null {
-    const s = this.fallbackMemoryCache.get(`session_${token}`);
-    if (!s) return null;
-    if (Date.now() > s.expiresAt) {
-      this.deleteSession(token);
-      return null;
-    }
-    s.lastAccessedAt = Date.now();
-    return s;
+  async cleanupExpiredSessions(): Promise<number> {
+    const res = await this.query('DELETE FROM sessions WHERE expires_at <= NOW()');
+    return res.rowCount || 0;
   }
 
-  deleteSession(token: string): boolean {
-    return this.fallbackMemoryCache.delete(`session_${token}`);
+  async revokeUserSessions(userId: string): Promise<number> {
+    const res = await this.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+    return res.rowCount || 0;
   }
 
-  cleanupExpiredSessions(): number {
-    let count = 0;
-    const now = Date.now();
-    for (const [key, value] of this.fallbackMemoryCache.entries()) {
-      if (key.startsWith('session_') && value.expiresAt && now > value.expiresAt) {
-        this.fallbackMemoryCache.delete(key);
-        count++;
-      }
-    }
-    return count;
-  }
-
-  revokeUserSessions(userId: string): number {
-    let count = 0;
-    for (const [key, value] of this.fallbackMemoryCache.entries()) {
-      if (key.startsWith('session_') && value.userId === userId) {
-        this.fallbackMemoryCache.delete(key);
-        count++;
-      }
-    }
-    return count;
-  }
-
-  createPasswordReset(userId: string): { token: string; expiresAt: number } {
-    const token = `rst_${crypto.randomBytes(24).toString('hex')}`;
-    const expiresAt = Date.now() + 15 * 60 * 1000;
-    this.fallbackMemoryCache.set(`pwdreset_${token}`, { token, userId, expiresAt, used: false });
+  // --- PASSWORD RESET ---
+  async createPasswordReset(userId: string): Promise<{ token: string; expiresAt: number }> {
+    const token = `rst_${crypto.randomBytes(32).toString('hex')}`;
+    const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
+    await this.query(
+      `INSERT INTO password_reset_tokens (token, user_id, expires_at, used, created_at)
+       VALUES ($1, $2, $3, false, NOW())`,
+      [token, userId, new Date(expiresAt).toISOString()]
+    );
     return { token, expiresAt };
   }
 
-  verifyAndConsumePasswordReset(token: string): string | null {
-    const record = this.fallbackMemoryCache.get(`pwdreset_${token}`);
-    if (!record || record.used || Date.now() > record.expiresAt) {
-      this.fallbackMemoryCache.delete(`pwdreset_${token}`);
-      return null;
-    }
-    record.used = true;
-    this.fallbackMemoryCache.set(`pwdreset_${token}`, record);
-    return record.userId;
+  async verifyAndConsumePasswordReset(token: string): Promise<string | null> {
+    const res = await this.query(
+      `UPDATE password_reset_tokens 
+       SET used = true 
+       WHERE token = $1 AND used = false AND expires_at > NOW()
+       RETURNING user_id as "userId"`,
+      [token]
+    );
+    return res.rows[0]?.userId || null;
   }
 
-  getProfiles(userId: string): UserProfile[] {
-    const profiles: UserProfile[] = [];
-    for (const [key, value] of this.fallbackMemoryCache.entries()) {
-      if (key.startsWith('prof_') && value.userId === userId) {
-        profiles.push(value);
+  // --- PROFILES ---
+  async getProfiles(userId: string): Promise<UserProfile[]> {
+    const res = await this.query(
+      `SELECT id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
+              birth_data as "birthData", behavioral_context as "behavioralContext", 
+              latest_calculation_id as "latestCalculationId", created_at as "createdAt", updated_at as "updatedAt"
+       FROM profiles WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    return res.rows;
+  }
+
+  async getProfile(profileId: string): Promise<UserProfile | null> {
+    const res = await this.query(
+      `SELECT id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
+              birth_data as "birthData", behavioral_context as "behavioralContext", 
+              latest_calculation_id as "latestCalculationId", created_at as "createdAt", updated_at as "updatedAt"
+       FROM profiles WHERE id = $1`,
+      [profileId]
+    );
+    return res.rows[0] || null;
+  }
+
+  async saveProfile(profile: UserProfile): Promise<UserProfile> {
+    const res = await this.query(
+      `INSERT INTO profiles (id, user_id, name, is_primary, avatar_seed, birth_data, behavioral_context, latest_calculation_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         is_primary = EXCLUDED.is_primary,
+         avatar_seed = EXCLUDED.avatar_seed,
+         birth_data = EXCLUDED.birth_data,
+         behavioral_context = EXCLUDED.behavioral_context,
+         latest_calculation_id = EXCLUDED.latest_calculation_id,
+         updated_at = EXCLUDED.updated_at
+       RETURNING id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
+                 birth_data as "birthData", behavioral_context as "behavioralContext", 
+                 latest_calculation_id as "latestCalculationId", created_at as "createdAt", updated_at as "updatedAt"`,
+      [
+        profile.id,
+        profile.userId,
+        profile.name,
+        !!profile.isPrimary,
+        profile.avatarSeed || null,
+        JSON.stringify(profile.birthData),
+        JSON.stringify(profile.behavioralContext || {}),
+        profile.latestCalculationId || null,
+        profile.createdAt || new Date().toISOString(),
+        profile.updatedAt || new Date().toISOString()
+      ]
+    );
+    return res.rows[0];
+  }
+
+  async deleteProfile(profileId: string, userId: string): Promise<boolean> {
+    const res = await this.query('DELETE FROM profiles WHERE id = $1 AND user_id = $2', [profileId, userId]);
+    return (res.rowCount || 0) > 0;
+  }
+
+  // --- CALCULATIONS ---
+  async getCalculation(calculationId: string): Promise<CalculationResult | null> {
+    const res = await this.query(
+      `SELECT id, profile_id as "profileId", calculation_version as "calculationVersion", 
+              astrology_rules_version as "astrologyRulesVersion", analysis_model_version as "analysisModelVersion",
+              input_snapshot as "inputSnapshot", bazi, ziwei, decades, annual_transits as "annualTransits",
+              confidence, timestamp
+       FROM calculations WHERE id = $1`,
+      [calculationId]
+    );
+    return res.rows[0] || null;
+  }
+
+  async getLatestCalculationForProfile(profileId: string): Promise<CalculationResult | null> {
+    const res = await this.query(
+      `SELECT id, profile_id as "profileId", calculation_version as "calculationVersion", 
+              astrology_rules_version as "astrologyRulesVersion", analysis_model_version as "analysisModelVersion",
+              input_snapshot as "inputSnapshot", bazi, ziwei, decades, annual_transits as "annualTransits",
+              confidence, timestamp
+       FROM calculations WHERE profile_id = $1 ORDER BY timestamp DESC LIMIT 1`,
+      [profileId]
+    );
+    return res.rows[0] || null;
+  }
+
+  async saveCalculation(calc: CalculationResult): Promise<CalculationResult> {
+    const res = await this.query(
+      `INSERT INTO calculations (id, profile_id, calculation_version, astrology_rules_version, analysis_model_version, input_snapshot, bazi, ziwei, decades, annual_transits, confidence, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       ON CONFLICT (id) DO UPDATE SET
+         calculation_version = EXCLUDED.calculation_version,
+         astrology_rules_version = EXCLUDED.astrology_rules_version,
+         analysis_model_version = EXCLUDED.analysis_model_version,
+         input_snapshot = EXCLUDED.input_snapshot,
+         bazi = EXCLUDED.bazi,
+         ziwei = EXCLUDED.ziwei,
+         decades = EXCLUDED.decades,
+         annual_transits = EXCLUDED.annual_transits,
+         confidence = EXCLUDED.confidence,
+         timestamp = EXCLUDED.timestamp
+       RETURNING id, profile_id as "profileId", calculation_version as "calculationVersion", 
+                 astrology_rules_version as "astrologyRulesVersion", analysis_model_version as "analysisModelVersion",
+                 input_snapshot as "inputSnapshot", bazi, ziwei, decades, annual_transits as "annualTransits",
+                 confidence, timestamp`,
+      [
+        calc.id,
+        calc.profileId,
+        calc.calculationVersion,
+        calc.astrologyRulesVersion,
+        calc.analysisModelVersion,
+        JSON.stringify(calc.inputSnapshot),
+        JSON.stringify(calc.bazi),
+        JSON.stringify(calc.ziwei),
+        JSON.stringify(calc.decades),
+        JSON.stringify(calc.annualTransits),
+        JSON.stringify(calc.confidence),
+        calc.timestamp || new Date().toISOString()
+      ]
+    );
+    return res.rows[0];
+  }
+
+  // --- HISTORICAL EVENTS ---
+  async getHistoricalEvents(profileId: string): Promise<HistoricalEvent[]> {
+    const res = await this.query(
+      `SELECT id, profile_id as "profileId", year, month, title, category, impact, intensity,
+              description, evidence_note as "evidenceNote", user_confidence as "userConfidence",
+              created_at as "createdAt"
+       FROM historical_events WHERE profile_id = $1 ORDER BY year ASC`,
+      [profileId]
+    );
+    return res.rows;
+  }
+
+  async addHistoricalEvent(event: HistoricalEvent): Promise<HistoricalEvent> {
+    const res = await this.query(
+      `INSERT INTO historical_events (id, profile_id, year, month, title, category, impact, intensity, description, evidence_note, user_confidence, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, profile_id as "profileId", year, month, title, category, impact, intensity,
+                 description, evidence_note as "evidenceNote", user_confidence as "userConfidence",
+                 created_at as "createdAt"`,
+      [
+        event.id,
+        event.profileId,
+        event.year,
+        event.month || null,
+        event.title,
+        event.category,
+        event.impact,
+        event.intensity,
+        event.description || '',
+        event.evidenceNote || null,
+        event.userConfidence || 5,
+        event.createdAt || new Date().toISOString()
+      ]
+    );
+    return res.rows[0];
+  }
+
+  async deleteHistoricalEvent(profileId: string, eventId: string): Promise<boolean> {
+    const res = await this.query(
+      'DELETE FROM historical_events WHERE id = $1 AND profile_id = $2',
+      [eventId, profileId]
+    );
+    return (res.rowCount || 0) > 0;
+  }
+
+  // --- BACKTEST RESULTS ---
+  async getBacktestResult(profileId: string): Promise<BacktestResult | null> {
+    const res = await this.query(
+      `SELECT id, profile_id as "profileId", calculation_id as "calculationId", 
+              destiny_consistency_score as "destinyConsistencyScore", historical_hit_rate as "historicalHitRate",
+              statistical_disclaimer as "statisticalDisclaimer", confidence_band as "confidenceBand",
+              total_events_analyzed as "totalEventsAnalyzed", matched_events_count as "matchedEventsCount",
+              divergent_events_count as "divergentEventsCount", neutral_events_count as "neutralEventsCount",
+              comparisons, strengths_summary as "strengthsSummary", anomalies_summary as "anomaliesSummary",
+              uncertainty_factors as "uncertaintyFactors", timestamp
+       FROM backtest_results WHERE profile_id = $1 ORDER BY timestamp DESC LIMIT 1`,
+      [profileId]
+    );
+    return res.rows[0] || null;
+  }
+
+  async saveBacktestResult(result: BacktestResult): Promise<BacktestResult> {
+    const res = await this.query(
+      `INSERT INTO backtest_results (id, profile_id, calculation_id, destiny_consistency_score, historical_hit_rate, statistical_disclaimer, confidence_band, total_events_analyzed, matched_events_count, divergent_events_count, neutral_events_count, comparisons, strengths_summary, anomalies_summary, uncertainty_factors, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       ON CONFLICT (id) DO UPDATE SET
+         destiny_consistency_score = EXCLUDED.destiny_consistency_score,
+         historical_hit_rate = EXCLUDED.historical_hit_rate,
+         statistical_disclaimer = EXCLUDED.statistical_disclaimer,
+         confidence_band = EXCLUDED.confidence_band,
+         total_events_analyzed = EXCLUDED.total_events_analyzed,
+         matched_events_count = EXCLUDED.matched_events_count,
+         divergent_events_count = EXCLUDED.divergent_events_count,
+         neutral_events_count = EXCLUDED.neutral_events_count,
+         comparisons = EXCLUDED.comparisons,
+         strengths_summary = EXCLUDED.strengths_summary,
+         anomalies_summary = EXCLUDED.anomalies_summary,
+         uncertainty_factors = EXCLUDED.uncertainty_factors,
+         timestamp = EXCLUDED.timestamp
+       RETURNING id, profile_id as "profileId", calculation_id as "calculationId", 
+                 destiny_consistency_score as "destinyConsistencyScore", historical_hit_rate as "historicalHitRate",
+                 statistical_disclaimer as "statisticalDisclaimer", confidence_band as "confidenceBand",
+                 total_events_analyzed as "totalEventsAnalyzed", matched_events_count as "matchedEventsCount",
+                 divergent_events_count as "divergentEventsCount", neutral_events_count as "neutralEventsCount",
+                 comparisons, strengths_summary as "strengthsSummary", anomalies_summary as "anomaliesSummary",
+                 uncertainty_factors as "uncertaintyFactors", timestamp`,
+      [
+        result.id,
+        result.profileId,
+        result.calculationId || null,
+        result.destinyConsistencyScore,
+        result.historicalHitRate || 0,
+        result.statisticalSignificanceDisclaimer || (result as any).statisticalDisclaimer || null,
+        result.confidenceBand,
+        result.totalEventsAnalyzed,
+        result.matchedEventsCount,
+        result.divergentEventsCount,
+        result.neutralEventsCount,
+        JSON.stringify(result.comparisons || []),
+        JSON.stringify(result.strengthsSummary || []),
+        JSON.stringify(result.anomaliesSummary || []),
+        JSON.stringify(result.uncertaintyFactors || []),
+        result.timestamp || new Date().toISOString()
+      ]
+    );
+    return res.rows[0];
+  }
+
+  // --- CHAT MESSAGES ---
+  async getChatMessages(profileId: string): Promise<ChatMessage[]> {
+    const res = await this.query(
+      `SELECT id, role as sender, content, timestamp
+       FROM chat_messages WHERE profile_id = $1 ORDER BY timestamp ASC`,
+      [profileId]
+    );
+    return res.rows;
+  }
+
+  async addChatMessage(profileId: string, message: ChatMessage): Promise<ChatMessage> {
+    const res = await this.query(
+      `INSERT INTO chat_messages (id, profile_id, role, content, timestamp, tokens, model)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, role as sender, content, timestamp`,
+      [
+        message.id,
+        profileId,
+        message.sender,
+        message.content,
+        message.timestamp || new Date().toISOString(),
+        null,
+        message.agentRef || null
+      ]
+    );
+    return res.rows[0];
+  }
+
+  async clearChatMessages(profileId: string): Promise<boolean> {
+    const res = await this.query('DELETE FROM chat_messages WHERE profile_id = $1', [profileId]);
+    return (res.rowCount || 0) >= 0;
+  }
+
+  // --- AUDIT LOGS ---
+  async logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void> {
+    const id = `aud_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+    await this.query(
+      `INSERT INTO audit_logs (id, user_id, action, resource, resource_id, ip_hash, status, request_id, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+      [
+        id,
+        entry.userId || null,
+        entry.action,
+        entry.resource,
+        entry.resourceId || null,
+        entry.ipHash || null,
+        entry.status,
+        entry.requestId || null
+      ]
+    );
+  }
+
+  async getAuditLogs(limit: number = 100): Promise<AuditLogEntry[]> {
+    const res = await this.query(
+      `SELECT id, user_id as "userId", action, resource, resource_id as "resourceId",
+              ip_hash as "ipHash", status, request_id as "requestId", timestamp
+       FROM audit_logs ORDER BY timestamp DESC LIMIT $1`,
+      [limit]
+    );
+    return res.rows;
+  }
+
+  // --- FEATURE FLAGS ---
+  async getFeatureFlags(): Promise<FeatureFlag[]> {
+    const res = await this.query('SELECT key, name, description, enabled, updated_at as "updatedAt" FROM feature_flags ORDER BY key ASC');
+    return res.rows;
+  }
+
+  async getFeatureFlag(key: string): Promise<FeatureFlag | null> {
+    const res = await this.query(
+      'SELECT key, name, description, enabled, updated_at as "updatedAt" FROM feature_flags WHERE key = $1',
+      [key]
+    );
+    return res.rows[0] || null;
+  }
+
+  async toggleFeatureFlag(key: string, enabled: boolean): Promise<FeatureFlag | null> {
+    const res = await this.query(
+      `UPDATE feature_flags 
+       SET enabled = $1, updated_at = NOW() 
+       WHERE key = $2 
+       RETURNING key, name, description, enabled, updated_at as "updatedAt"`,
+      [enabled, key]
+    );
+    return res.rows[0] || null;
+  }
+
+  public static createTransactional(client: { query: (sql: string, params?: any[]) => Promise<any> }): PostgresDatabaseRepository {
+    const txRepo = Object.create(PostgresDatabaseRepository.prototype) as PostgresDatabaseRepository;
+    (txRepo as any).pool = null;
+    (txRepo as any).clientOverride = client;
+    (txRepo as any).migrator = null;
+    (txRepo as any).isConnected = true;
+    return txRepo;
+  }
+
+  // --- REAL TRANSACTIONS (BEGIN, COMMIT, ROLLBACK) ---
+  async runTransaction<T>(action: (repo: IAsyncDatabaseRepository) => Promise<T>): Promise<T> {
+    const runner = this.clientOverride || this.pool;
+    if (!runner) {
+      throw new Error('Cannot start transaction without an active PostgreSQL connection.');
+    }
+    if (this.clientOverride) {
+      return await action(this);
+    }
+
+    const client = await (this.pool as pg.Pool).connect();
+    try {
+      await client.query('BEGIN');
+      const txRepo = PostgresDatabaseRepository.createTransactional(client);
+      const result = await action(txRepo);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackErr) {
+        console.error('Failed to execute ROLLBACK:', rollbackErr);
       }
+      throw err;
+    } finally {
+      client.release();
     }
-    return profiles;
   }
 
-  getProfile(profileId: string): UserProfile | null {
-    return this.fallbackMemoryCache.get(`prof_${profileId}`) || null;
-  }
+  // --- INTEGRITY VERIFICATION ---
+  async verifyDatabaseIntegrity(): Promise<{ valid: boolean; errors: string[]; checksum: string }> {
+    const errors: string[] = [];
+    try {
+      // 1. Connection test
+      await this.query('SELECT 1');
 
-  saveProfile(profile: UserProfile): UserProfile {
-    const updated = { ...profile, updatedAt: new Date().toISOString() };
-    this.fallbackMemoryCache.set(`prof_${profile.id}`, updated);
-    return updated;
-  }
+      // 2. Check for orphaned profiles
+      const orphanProfiles = await this.query(`
+        SELECT p.id, p.user_id FROM profiles p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE u.id IS NULL
+      `);
+      if (orphanProfiles.rows.length > 0) {
+        errors.push(`Found ${orphanProfiles.rows.length} orphaned profiles with non-existent users.`);
+      }
 
-  deleteProfile(profileId: string, userId?: string): boolean {
-    const p = this.getProfile(profileId);
-    if (!p) return false;
-    if (userId && p.userId !== userId) return false;
-    return this.fallbackMemoryCache.delete(`prof_${profileId}`);
-  }
+      // 3. Check for orphaned calculations
+      const orphanCalcs = await this.query(`
+        SELECT c.id, c.profile_id FROM calculations c
+        LEFT JOIN profiles p ON c.profile_id = p.id
+        WHERE p.id IS NULL
+      `);
+      if (orphanCalcs.rows.length > 0) {
+        errors.push(`Found ${orphanCalcs.rows.length} orphaned calculations with non-existent profiles.`);
+      }
 
-  saveCalculation(calc: CalculationResult): CalculationResult {
-    this.fallbackMemoryCache.set(`calc_${calc.id}`, calc);
-    this.fallbackMemoryCache.set(`latest_calc_${calc.profileId}`, calc);
-    return calc;
-  }
+      // 4. Check for orphaned historical events
+      const orphanEvents = await this.query(`
+        SELECT h.id, h.profile_id FROM historical_events h
+        LEFT JOIN profiles p ON h.profile_id = p.id
+        WHERE p.id IS NULL
+      `);
+      if (orphanEvents.rows.length > 0) {
+        errors.push(`Found ${orphanEvents.rows.length} orphaned historical events.`);
+      }
 
-  getCalculation(calculationId: string): CalculationResult | null {
-    return this.fallbackMemoryCache.get(`calc_${calculationId}`) || null;
-  }
+      const hash = crypto.createHash('sha256')
+        .update(`postgres_integrity_${Date.now()}_${errors.length}`)
+        .digest('hex');
 
-  getLatestCalculationForProfile(profileId: string): CalculationResult | null {
-    return this.fallbackMemoryCache.get(`latest_calc_${profileId}`) || null;
-  }
-
-  getHistoricalEvents(profileId: string): HistoricalEvent[] {
-    return this.fallbackMemoryCache.get(`events_${profileId}`) || [];
-  }
-
-  addHistoricalEvent(event: HistoricalEvent): HistoricalEvent {
-    const list = this.getHistoricalEvents(event.profileId);
-    list.push(event);
-    this.fallbackMemoryCache.set(`events_${event.profileId}`, list);
-    return event;
-  }
-
-  deleteHistoricalEvent(profileId: string, eventId: string): boolean {
-    const list = this.getHistoricalEvents(profileId);
-    const filtered = list.filter(e => e.id !== eventId);
-    if (filtered.length !== list.length) {
-      this.fallbackMemoryCache.set(`events_${profileId}`, filtered);
-      return true;
+      return {
+        valid: errors.length === 0,
+        errors,
+        checksum: hash
+      };
+    } catch (err: any) {
+      return {
+        valid: false,
+        errors: [`PostgreSQL Database Integrity Check Error: ${err.message}`],
+        checksum: 'error'
+      };
     }
-    return false;
-  }
-
-  saveBacktestResult(result: BacktestResult): BacktestResult {
-    this.fallbackMemoryCache.set(`backtest_${result.profileId}`, result);
-    return result;
-  }
-
-  getBacktestResult(profileId: string): BacktestResult | null {
-    return this.fallbackMemoryCache.get(`backtest_${profileId}`) || null;
-  }
-
-  getChatMessages(profileId: string): ChatMessage[] {
-    return this.fallbackMemoryCache.get(`chat_${profileId}`) || [];
-  }
-
-  addChatMessage(profileId: string, message: ChatMessage): ChatMessage {
-    const history = this.getChatMessages(profileId);
-    history.push(message);
-    this.fallbackMemoryCache.set(`chat_${profileId}`, history);
-    return message;
-  }
-
-  clearChatMessages(profileId: string): boolean {
-    return this.fallbackMemoryCache.delete(`chat_${profileId}`);
-  }
-
-  logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): void {
-    const log: AuditLogEntry = {
-      ...entry,
-      id: `audit_${Date.now()}`,
-      timestamp: new Date().toISOString()
-    };
-    const logs = this.getAuditLogs(999);
-    logs.unshift(log);
-    this.fallbackMemoryCache.set('audit_logs', logs);
-  }
-
-  getAuditLogs(limit: number = 100): AuditLogEntry[] {
-    const logs = this.fallbackMemoryCache.get('audit_logs') || [];
-    return logs.slice(0, limit);
-  }
-
-  getFeatureFlags(): FeatureFlag[] {
-    return this.fallbackMemoryCache.get('feature_flags') || [];
-  }
-
-  getFeatureFlag(key: string): FeatureFlag | null {
-    const flags = this.getFeatureFlags();
-    return flags.find(f => f.key === key) || null;
-  }
-
-  toggleFeatureFlag(key: string, enabled: boolean): FeatureFlag | null {
-    const flags = this.getFeatureFlags();
-    const flag = flags.find(f => f.key === key);
-    if (!flag) return null;
-    flag.enabled = enabled;
-    flag.updatedAt = new Date().toISOString();
-    return flag;
-  }
-
-  runTransaction<T>(action: (repo: IDatabaseRepository) => T): T {
-    // Transaction wrapper with state snapshot and rollback guarantees
-    return action(this);
-  }
-
-  verifyDatabaseIntegrity(): { valid: boolean; errors: string[]; checksum: string } {
-    return { valid: true, errors: [], checksum: 'pg_checksum_verified' };
   }
 
   exportToPostgresSql(): string {
-    return PostgresDatabaseRepository.getMigrationDdl();
+    return '-- Current database engine is already native PostgreSQL.';
   }
 
-  getMetrics() {
+  // --- REAL METRICS (ZERO HARDCODED VALUES) ---
+  async getMetrics(): Promise<any> {
+    const snap = telemetry.getSnapshot();
+    
+    let userCount = 0;
+    let profileCount = 0;
+    let calcCount = 0;
+    let eventCount = 0;
+    let sessionCount = 0;
+    let auditCount = 0;
+
+    try {
+      const [uRes, pRes, cRes, eRes, sRes, aRes] = await Promise.all([
+        this.query('SELECT COUNT(*) as c FROM users'),
+        this.query('SELECT COUNT(*) as c FROM profiles'),
+        this.query('SELECT COUNT(*) as c FROM calculations'),
+        this.query('SELECT COUNT(*) as c FROM historical_events'),
+        this.query('SELECT COUNT(*) as c FROM sessions WHERE expires_at > NOW()'),
+        this.query('SELECT COUNT(*) as c FROM audit_logs')
+      ]);
+
+      userCount = parseInt(uRes.rows[0]?.c || '0', 10);
+      profileCount = parseInt(pRes.rows[0]?.c || '0', 10);
+      calcCount = parseInt(cRes.rows[0]?.c || '0', 10);
+      eventCount = parseInt(eRes.rows[0]?.c || '0', 10);
+      sessionCount = parseInt(sRes.rows[0]?.c || '0', 10);
+      auditCount = parseInt(aRes.rows[0]?.c || '0', 10);
+    } catch (err: any) {
+      console.warn('[Metrics] Could not fetch real counts from PostgreSQL:', err.message);
+    }
+
     return {
-      activeUsers24h: 1,
-      totalUsers: 1,
-      totalProfiles: 1,
-      totalProfilesStored: 1,
-      totalCalculations: 1,
-      totalEvents: 0,
-      totalActiveSessions: 1,
-      totalAuditLogs: 0,
-      aiRequestsCount: 0,
-      aiLatencyAvgMs: 0,
-      aiSuccessRate: 100,
-      calculationDeterministicRate: 100,
-      dbLatencyMs: 2,
-      cacheHitRatio: 98,
-      totalBacktestRuns: 0,
-      totalScenariosEvaluated: 0,
-      uptimeSeconds: process.uptime(),
+      activeUsers24h: Math.max(sessionCount, userCount, 0),
+      totalUsers: userCount,
+      totalProfiles: profileCount,
+      totalProfilesStored: profileCount,
+      totalCalculations: calcCount,
+      totalEvents: eventCount,
+      totalActiveSessions: sessionCount,
+      totalAuditLogs: auditCount,
+      aiRequestsCount: snap.aiRequestsTotal,
+      aiLatencyAvgMs: snap.aiLatencyAvgMs,
+      aiSuccessRate: snap.aiSuccessRate,
+      aiMetricStatus: snap.aiMetricStatus,
+      calculationDeterministicRate: snap.calculationDeterministicRate,
+      calculationMetricStatus: snap.calculationMetricStatus,
+      dbLatencyMs: snap.dbLatencyAvgMs,
+      dbMetricStatus: snap.dbMetricStatus,
+      cacheHitRatio: snap.cacheHitRatio,
+      cacheMetricStatus: snap.cacheMetricStatus,
+      uptimeSeconds: snap.uptimeSeconds,
       storageMode: 'postgresql_production_adapter'
     };
+  }
+
+  async close(): Promise<void> {
+    if (this.pool) {
+      await this.pool.end();
+    }
   }
 }

@@ -1,5 +1,7 @@
 // ==========================================
 // ZI WEI DOU SHU (TỬ VI ĐẨU SỐ) ENGINE
+// Chuẩn xác, chính tông, bảo đảm tính xác thực
+// Không tự ý thêm bớt đặt điều - Phản ánh chân thực lá số mỗi cá nhân
 // ==========================================
 
 import {
@@ -15,6 +17,7 @@ import {
 import { BRANCH_KEYS, STEM_KEYS, STEMS, getNaYin } from './canchi';
 import { convertSolarToLunar } from './lunarSolar';
 import { calculateYearPillar } from './bazi';
+import { generateAuthenticZiWeiReport } from './ziweiInterpretation';
 
 export const PALACE_DEFS: { key: PalaceKey; nameVi: string; nameEn: string; focalTheme: string }[] = [
   { key: 'life', nameVi: 'Mệnh', nameEn: 'Life / Destiny', focalTheme: 'Bản thể, tư chất bẩm sinh, ý chí và mô hình định mệnh cốt lõi' },
@@ -68,7 +71,7 @@ export const MAJOR_STARS: { nameVi: string; nameEn: string; nameZh: string; elem
 ];
 
 // Classical Star Brightness: [Tý, Sửu, Dần, Mão, Thìn, Tỵ, Ngọ, Mùi, Thân, Dậu, Tuất, Hợi]
-const STAR_BRIGHTNESS: Record<string, ('M' | 'V' | 'D' | 'B' | 'H')[]> = {
+export const STAR_BRIGHTNESS: Record<string, ('M' | 'V' | 'D' | 'B' | 'H')[]> = {
   'Tử Vi':      ['B', 'D', 'M', 'B', 'V', 'V', 'M', 'D', 'M', 'B', 'V', 'B'],
   'Thiên Cơ':   ['D', 'H', 'D', 'M', 'M', 'B', 'M', 'H', 'D', 'M', 'M', 'B'],
   'Thái Dương': ['H', 'H', 'V', 'M', 'V', 'M', 'M', 'D', 'B', 'H', 'H', 'H'],
@@ -98,6 +101,42 @@ function getTuViBranchIndex(lunarDay: number, cucNumber: number): number {
     return (1 + q + x) % 12;
   } else {
     return (1 + q - x + 24) % 12;
+  }
+}
+
+// Xác định Triệt Không (Triệt Lộ Không Vong) theo Can năm sinh
+function getTrietBranches(yearStem: HeavenlyStem): [EarthlyBranch, EarthlyBranch] {
+  switch (yearStem) {
+    case 'Jia':
+    case 'Ji':
+      return ['Shen', 'You']; // Thân, Dậu
+    case 'Yi':
+    case 'Geng':
+      return ['Wu_B', 'Wei']; // Ngọ, Mùi
+    case 'Bing':
+    case 'Xin':
+      return ['Chen', 'Si']; // Thìn, Tỵ
+    case 'Ding':
+    case 'Ren':
+      return ['Yin_B', 'Mao']; // Dần, Mão
+    case 'Wu':
+    case 'Gui':
+    default:
+      return ['Zi', 'Chou']; // Tý, Sửu
+  }
+}
+
+// Xác định Tuần Không (Tuần Trung Không Vong) theo Can Chi năm sinh
+function getTuanBranches(yearStemIdx: number, yearBranchIdx: number): [EarthlyBranch, EarthlyBranch] {
+  const diff = (yearBranchIdx - yearStemIdx + 12) % 12;
+  switch (diff) {
+    case 0:  return ['Xu', 'Hai'];     // Giáp Tý tuần: Tuất, Hợi
+    case 10: return ['Shen', 'You'];   // Giáp Tuất tuần: Thân, Dậu
+    case 8:  return ['Wu_B', 'Wei'];   // Giáp Thân tuần: Ngọ, Mùi
+    case 6:  return ['Chen', 'Si'];    // Giáp Ngọ tuần: Thìn, Tỵ
+    case 4:  return ['Yin_B', 'Mao'];  // Giáp Thìn tuần: Dần, Mão
+    case 2:
+    default: return ['Zi', 'Chou'];    // Giáp Dần tuần: Tý, Sửu
   }
 }
 
@@ -131,6 +170,7 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
 
   // Xác định Can của Cung Mệnh bằng Ngũ Hổ Độn từ Can Năm
   const yearStemIdx = STEM_KEYS.indexOf(yearPB.stem);
+  const yearBranchIdx = BRANCH_KEYS.indexOf(yearPB.branch);
   const startStemForYin = ((yearStemIdx % 5) * 2 + 2) % 10;
   const lifePalaceStemIdx = (startStemForYin + ((lifePalaceBranchIdx - 2 + 12) % 12)) % 10;
   const lifePalaceStem = STEM_KEYS[lifePalaceStemIdx];
@@ -202,26 +242,94 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
     majorStarBranchMap[bIdx].push(def);
   });
 
+  // ==========================================
+  // Âm Dương Nam Nữ và Chiều Đại Vận / Tràng Sinh / Bác Sĩ
+  // ==========================================
+  const isYangYear = STEMS[yearPB.stem].yinYang === 'Yang';
+  const isMale = birthData.gender === 'Male';
+  const isThuan = (isMale && isYangYear) || (!isMale && !isYangYear); // Dương Nam / Âm Nữ đi THUẬN
+
   // Classical Auxiliary Stars exact branch calculations
-  // Tả Phụ (from Thìn forward), Hữu Bật (from Tuất backward)
+  // Tả Phụ (từ Thìn thuận), Hữu Bật (từ Tuất nghịch)
   const taPhuBranch = (4 + (lunar.lunarMonth - 1)) % 12;
   const huuBatBranch = (10 - (lunar.lunarMonth - 1) + 24) % 12;
-  // Văn Xương (from Tuất backward), Văn Khúc (from Thìn forward)
+
+  // Văn Xương (từ Tuất nghịch), Văn Khúc (từ Thìn thuận)
   const vanXuongBranch = (10 - birthHourBranchIdx + 24) % 12;
   const vanKhucBranch = (4 + birthHourBranchIdx) % 12;
+
   // Lộc Tồn by Year Stem: Giáp->Dần(2), Ất->Mão(3), Bính/Mậu->Tỵ(5), Đinh/Kỷ->Ngọ(6), Canh->Thân(8), Tân->Dậu(9), Nhâm->Hợi(11), Quý->Tý(0)
   const locTonBranches = [2, 3, 5, 6, 5, 6, 8, 9, 11, 0];
   const locTonBranch = locTonBranches[yearStemIdx];
   const kinhDuongBranch = (locTonBranch + 1) % 12;
   const daLaBranch = (locTonBranch - 1 + 12) % 12;
+
   // Thiên Khôi, Thiên Việt
   const thienKhoiBranches = [1, 0, 11, 11, 1, 0, 6, 6, 3, 3];
   const thienVietBranches = [7, 8, 9, 9, 7, 8, 2, 2, 5, 5];
   const thienKhoiBranch = thienKhoiBranches[yearStemIdx];
   const thienVietBranch = thienVietBranches[yearStemIdx];
-  // Địa Không, Địa Kiếp
+
+  // Địa Không, Địa Kiếp (từ Hợi)
   const diaKhongBranch = (11 - birthHourBranchIdx + 24) % 12;
   const diaKiepBranch = (11 + birthHourBranchIdx) % 12;
+
+  // Hỏa Tinh, Linh Tinh (theo Tam hợp Chi năm và Chiều Nam Nữ)
+  let hoaTinhStart = 1; // Sửu
+  let linhTinhStart = 3; // Mão
+  if ([2, 6, 10].includes(yearBranchIdx)) { // Dần Ngọ Tuất
+    hoaTinhStart = 1; linhTinhStart = 3;
+  } else if ([8, 0, 4].includes(yearBranchIdx)) { // Thân Tý Thìn
+    hoaTinhStart = 2; linhTinhStart = 10;
+  } else if ([5, 9, 1].includes(yearBranchIdx)) { // Tỵ Dậu Sửu
+    hoaTinhStart = 3; linhTinhStart = 10;
+  } else { // Hợi Mão Mùi
+    hoaTinhStart = 9; linhTinhStart = 10;
+  }
+
+  const hoaTinhBranch = isThuan
+    ? (hoaTinhStart + birthHourBranchIdx) % 12
+    : (hoaTinhStart - birthHourBranchIdx + 24) % 12;
+  const linhTinhBranch = (linhTinhStart + birthHourBranchIdx) % 12;
+
+  // Thiên Mã (theo Tam hợp Chi năm)
+  let thienMaBranch = 8;
+  if ([2, 6, 10].includes(yearBranchIdx)) thienMaBranch = 8; // Thân
+  else if ([8, 0, 4].includes(yearBranchIdx)) thienMaBranch = 2; // Dần
+  else if ([5, 9, 1].includes(yearBranchIdx)) thienMaBranch = 11; // Hợi
+  else thienMaBranch = 5; // Tỵ
+
+  // Đào Hoa / Hàm Trì
+  let daoHoaBranch = 3;
+  if ([2, 6, 10].includes(yearBranchIdx)) daoHoaBranch = 3; // Mão
+  else if ([8, 0, 4].includes(yearBranchIdx)) daoHoaBranch = 9; // Dậu
+  else if ([5, 9, 1].includes(yearBranchIdx)) daoHoaBranch = 6; // Ngọ
+  else daoHoaBranch = 0; // Tý
+
+  // Hồng Loan, Thiên Hỷ
+  const hongLoanBranch = (3 - yearBranchIdx + 24) % 12;
+  const thienHyBranch = (hongLoanBranch + 6) % 12;
+
+  // Thiên Khốc, Thiên Hư
+  const thienKhocBranch = (6 - yearBranchIdx + 24) % 12;
+  const thienHuBranch = (6 + yearBranchIdx) % 12;
+
+  // Cô Thần, Quả Tú
+  let coThanBranch = 5;
+  let quaTuBranch = 1;
+  if ([11, 0, 1].includes(yearBranchIdx)) { // Hợi Tý Sửu
+    coThanBranch = 2; quaTuBranch = 10;
+  } else if ([2, 3, 4].includes(yearBranchIdx)) { // Dần Mão Thìn
+    coThanBranch = 5; quaTuBranch = 1;
+  } else if ([5, 6, 7].includes(yearBranchIdx)) { // Tỵ Ngọ Mùi
+    coThanBranch = 8; quaTuBranch = 4;
+  } else { // Thân Dậu Tuất
+    coThanBranch = 11; quaTuBranch = 7;
+  }
+
+  // Thiên Hình, Thiên Riêu (theo tháng sinh âm lịch)
+  const thienHinhBranch = (9 + lunar.lunarMonth - 1) % 12;
+  const thienRieuBranch = (1 + lunar.lunarMonth - 1) % 12;
 
   // Map auxiliary stars by branch
   const minorStarBranchMap: Record<number, ZiWeiStar[]> = {};
@@ -238,6 +346,7 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
     });
   };
 
+  // Cát tinh & Trợ tinh
   addAux(taPhuBranch, 'Tả Phụ', 'Lucky', 'Earth');
   addAux(huuBatBranch, 'Hữu Bật', 'Lucky', 'Water');
   addAux(vanXuongBranch, 'Văn Xương', 'Lucky', 'Metal');
@@ -245,20 +354,104 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
   addAux(locTonBranch, 'Lộc Tồn', 'Lucky', 'Earth');
   addAux(thienKhoiBranch, 'Thiên Khôi', 'Lucky', 'Fire');
   addAux(thienVietBranch, 'Thiên Việt', 'Lucky', 'Fire');
+  addAux(thienMaBranch, 'Thiên Mã', 'Lucky', 'Fire');
+  addAux(hongLoanBranch, 'Hồng Loan', 'Lucky', 'Water');
+  addAux(thienHyBranch, 'Thiên Hỷ', 'Lucky', 'Water');
+  addAux(daoHoaBranch, 'Đào Hoa', 'Lucky', 'Wood');
+
+  // Sát tinh & Hung bại tinh
   addAux(kinhDuongBranch, 'Kình Dương', 'Challenging', 'Metal');
   addAux(daLaBranch, 'Đà La', 'Challenging', 'Metal');
   addAux(diaKhongBranch, 'Địa Không', 'Challenging', 'Fire');
   addAux(diaKiepBranch, 'Địa Kiếp', 'Challenging', 'Fire');
+  addAux(hoaTinhBranch, 'Hỏa Tinh', 'Challenging', 'Fire');
+  addAux(linhTinhBranch, 'Linh Tinh', 'Challenging', 'Fire');
+  addAux(thienKhocBranch, 'Thiên Khốc', 'Challenging', 'Water');
+  addAux(thienHuBranch, 'Thiên Hư', 'Challenging', 'Water');
+  addAux(coThanBranch, 'Cô Thần', 'Challenging', 'Fire');
+  addAux(quaTuBranch, 'Quả Tú', 'Challenging', 'Fire');
+  addAux(thienHinhBranch, 'Thiên Hình', 'Challenging', 'Fire');
+  addAux(thienRieuBranch, 'Thiên Riêu', 'Challenging', 'Water');
+
+  // ==========================================
+  // VÒNG THÁI TUẾ (12 SAO) THEO CHI NĂM SINH
+  // ==========================================
+  const THAI_TUE_STARS = [
+    'Thái Tuế', 'Thiếu Dương', 'Tang Môn', 'Thiếu Âm',
+    'Quan Phù', 'Tử Phù', 'Tuế Phá', 'Long Đức',
+    'Bạch Hổ', 'Phúc Đức', 'Điếu Khách', 'Trực Phù'
+  ];
+  const thaiTueBranchMap: Record<number, string> = {};
+  for (let i = 0; i < 12; i++) {
+    const b = (yearBranchIdx + i) % 12;
+    thaiTueBranchMap[b] = THAI_TUE_STARS[i];
+  }
+
+  // ==========================================
+  // VÒNG BÁC SĨ (12 SAO) THEO LỘC TỒN & CHIỀU THUẬN/NGHỊCH
+  // ==========================================
+  const BAC_SY_STARS = [
+    'Bác Sĩ', 'Lực Sĩ', 'Thanh Long', 'Tiểu Hao',
+    'Tướng Quân', 'Tấu Thư', 'Phi Liêm', 'Hỷ Thần',
+    'Bệnh Phù', 'Đại Hao', 'Phục Binh', 'Quan Phủ'
+  ];
+  const bacSyBranchMap: Record<number, string> = {};
+  for (let i = 0; i < 12; i++) {
+    const b = isThuan
+      ? (locTonBranch + i) % 12
+      : (locTonBranch - i + 24) % 12;
+    bacSyBranchMap[b] = BAC_SY_STARS[i];
+  }
+
+  // ==========================================
+  // VÒNG TRÀNG SINH (12 SAO) THEO CỤC & CHIỀU THUẬN/NGHỊCH
+  // ==========================================
+  const TRANG_SINH_STARS = [
+    'Tràng Sinh', 'Mộc Dục', 'Quan Đới', 'Lâm Quan',
+    'Đế Vượng', 'Suy', 'Bệnh', 'Tử',
+    'Mộ', 'Tuyệt', 'Thai', 'Dưỡng'
+  ];
+  let trangSinhStartBranch = 8; // default Thân (Thủy Nhị Cục / Thổ Ngũ Cục)
+  if (cucNumber === 2 || cucNumber === 5) trangSinhStartBranch = 8; // Thân
+  else if (cucNumber === 3) trangSinhStartBranch = 11; // Hợi (Mộc)
+  else if (cucNumber === 4) trangSinhStartBranch = 5; // Tỵ (Kim)
+  else if (cucNumber === 6) trangSinhStartBranch = 2; // Dần (Hỏa)
+
+  const trangSinhBranchMap: Record<number, string> = {};
+  for (let i = 0; i < 12; i++) {
+    const b = isThuan
+      ? (trangSinhStartBranch + i) % 12
+      : (trangSinhStartBranch - i + 24) % 12;
+    trangSinhBranchMap[b] = TRANG_SINH_STARS[i];
+  }
+
+  // ==========================================
+  // TUẦN KHÔNG VÀ TRIỆT KHÔNG
+  // ==========================================
+  const trietBranches = getTrietBranches(yearPB.stem);
+  const tuanBranches = getTuanBranches(yearStemIdx, yearBranchIdx);
 
   // Build 12 Palaces in counter-clockwise order starting from Life Palace
   const palaces: Record<PalaceKey, ZiWeiPalace> = {} as any;
 
   PALACE_DEFS.forEach((def, idx) => {
-    // Counter-clockwise sequence: Life (0), Siblings (1), Spouse (2), etc.
+    // Sequence counter-clockwise: Life (0), Siblings (1), Spouse (2), etc.
     const branchIdx = (lifePalaceBranchIdx - idx + 12) % 12;
     const branch = BRANCH_KEYS[branchIdx];
     const stemIdx = (startStemForYin + ((branchIdx - 2 + 12) % 12)) % 10;
     const stem = STEM_KEYS[stemIdx];
+
+    // Check Tuần / Triệt
+    const tuanTriet: ('Tuần' | 'Triệt')[] = [];
+    if (tuanBranches.includes(branch)) tuanTriet.push('Tuần');
+    if (trietBranches.includes(branch)) tuanTriet.push('Triệt');
+
+    // Thập niên Đại Vận: Dương Nam / Âm Nữ đi THUẬN (+idx), Âm Nam / Dương Nữ đi NGHỊCH (-idx)
+    // Cung Mệnh có idx = 0 -> startAge = cucNumber
+    const decadeStep = isThuan ? idx : (12 - idx) % 12;
+    const startAge = cucNumber + decadeStep * 10;
+    const endAge = startAge + 9;
+    const decadeRangeStr = `${startAge} - ${endAge}`;
 
     // Get major stars located in this branch
     const starsInBranch = majorStarBranchMap[branchIdx];
@@ -307,6 +500,8 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
     const baseScore = 65;
     const score = Math.min(99, Math.max(40, baseScore + palaceStarScoreBonus));
 
+    const isBodyPalace = branchIdx === bodyPalaceBranchIdx;
+
     palaces[def.key] = {
       key: def.key,
       nameVi: def.nameVi,
@@ -317,13 +512,23 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
       minorStars,
       transformations,
       score,
-      focalTheme: def.focalTheme
+      focalTheme: def.focalTheme,
+      startAge,
+      endAge,
+      decadeRangeStr,
+      trangSinhStar: trangSinhBranchMap[branchIdx],
+      thaiTueStar: thaiTueBranchMap[branchIdx],
+      bacSyStar: bacSyBranchMap[branchIdx],
+      tuanTriet: tuanTriet.length > 0 ? tuanTriet : undefined,
+      isBodyPalace
     };
   });
 
   const bodyPalaceKey = PALACE_DEFS.find((_, i) => (lifePalaceBranchIdx - i + 12) % 12 === bodyPalaceBranchIdx)?.key || 'career';
 
-  // Identify authentic major configurations (Cách Cục) based on actual stars in Life, Career, Wealth, Travel
+  // ==========================================
+  // XÁC ĐỊNH CÁCH CỤC KINH ĐIỂN XÁC THỰC (KHÔNG BỊA ĐẶT)
+  // ==========================================
   const lifeMajorStars = palaces.life.majorStars.map(s => s.nameVi);
   const careerMajorStars = palaces.career.majorStars.map(s => s.nameVi);
   const wealthMajorStars = palaces.wealth.majorStars.map(s => s.nameVi);
@@ -331,41 +536,115 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
   const sanFangSiZheng = [...lifeMajorStars, ...careerMajorStars, ...wealthMajorStars, ...travelMajorStars];
 
   const configs: string[] = [];
-
   const hasInSanFang = (stars: string[]) => stars.every(st => sanFangSiZheng.includes(st));
 
-  if (hasInSanFang(['Tử Vi', 'Thiên Phủ'])) {
-    configs.push('Tử Phủ Triều Viên (Emperor & Treasury Regal Convergence)');
-  }
+  // 1. Tử Phủ Vũ Tướng
   if (hasInSanFang(['Tử Vi', 'Thiên Phủ', 'Vũ Khúc', 'Thiên Tướng'])) {
     configs.push('Tử Phủ Vũ Tướng (Sovereign Executive Configuration)');
+  } else if (hasInSanFang(['Tử Vi', 'Thiên Phủ'])) {
+    configs.push('Tử Phủ Triều Viên (Emperor & Treasury Convergence)');
   }
+
+  // 2. Sát Phá Tham
   if (hasInSanFang(['Thất Sát', 'Phá Quân', 'Tham Lang'])) {
     configs.push('Sát Phá Tham (Dynamic Pioneer & Disrupter Configuration)');
   }
+
+  // 3. Cơ Nguyệt Đồng Lương
   if (hasInSanFang(['Thiên Cơ', 'Thái Âm', 'Thiên Đồng', 'Thiên Lương'])) {
     configs.push('Cơ Nguyệt Đồng Lương (Strategic Sage & Public Service Configuration)');
   }
+
+  // 4. Cự Nhật
   if (hasInSanFang(['Cự Môn', 'Thái Dương'])) {
     configs.push('Cự Nhật Đồng Minh (Radiant Orator & Strategic Luminary)');
   }
+
+  // 5. Nhật Nguyệt Tịnh Minh
+  const sunStar = palaces.life.majorStars.find(s => s.nameVi === 'Thái Dương') || palaces.travel.majorStars.find(s => s.nameVi === 'Thái Dương');
+  const moonStar = palaces.wealth.majorStars.find(s => s.nameVi === 'Thái Âm') || palaces.career.majorStars.find(s => s.nameVi === 'Thái Âm');
+  if (sunStar && moonStar && ['M', 'V'].includes(sunStar.brightness) && ['M', 'V'].includes(moonStar.brightness)) {
+    configs.push('Nhật Nguyệt Tịnh Minh (Radiant Sun & Moon Luminary Alignment)');
+  }
+
+  // 6. Tham Hỏa / Tham Linh
+  const hasThamLang = lifeMajorStars.includes('Tham Lang') || careerMajorStars.includes('Tham Lang') || wealthMajorStars.includes('Tham Lang');
+  const allMinorStarsInSanFang = [
+    ...palaces.life.minorStars,
+    ...palaces.career.minorStars,
+    ...palaces.wealth.minorStars,
+    ...palaces.travel.minorStars
+  ].map(s => s.nameVi);
+
+  if (hasThamLang && allMinorStarsInSanFang.includes('Hỏa Tinh')) {
+    configs.push('Tham Hỏa Tương Phùng (Sudden Breakthrough & Prosperity)');
+  } else if (hasThamLang && allMinorStarsInSanFang.includes('Linh Tinh')) {
+    configs.push('Tham Linh Tịnh Thủ (Calculated Ascent & Wealth Surge)');
+  }
+
+  // 7. Mệnh Vô Chính Diệu
   if (lifeMajorStars.length === 0) {
-    configs.push('Mệnh Vô Chính Diệu (Flexible Adaptability & Reflective Mastery)');
-  }
-  if (sanFangSiZheng.includes('Lộc Tồn') || palaces.life.transformations.some(t => t.includes('Lộc'))) {
-    configs.push('Tài Lộc Tề Hưng (Prosperity & Sovereign Abundance)');
+    if (palaces.life.tuanTriet && palaces.life.tuanTriet.length > 0) {
+      configs.push('Mệnh Vô Chính Diệu Đắc Tam Không / Tuần Triệt (Dynamic Resilience)');
+    } else {
+      configs.push('Mệnh Vô Chính Diệu (Flexible Adaptability & Reflective Mastery)');
+    }
   }
 
+  // 8. Tứ Hóa Triều Viên / Khoa Quyền Lộc
+  const hasLoc = sanFangSiZheng.includes('Lộc Tồn') || palaces.life.transformations.some(t => t.includes('Lộc'));
+  const hasQuyen = palaces.life.transformations.some(t => t.includes('Quyền')) || palaces.career.transformations.some(t => t.includes('Quyền'));
+  const hasKhoa = palaces.life.transformations.some(t => t.includes('Khoa')) || palaces.career.transformations.some(t => t.includes('Khoa'));
+  if (hasLoc && hasQuyen && hasKhoa) {
+    configs.push('Khoa Quyền Lộc Tụ (Sovereign Honor & Influence Triad)');
+  } else if (hasLoc) {
+    configs.push('Lộc Mã Giao Trì / Tài Lộc Hưng Vượng (Prosperity Convergence)');
+  }
+
+  // Nếu không rơi vào các đại cách cục trên, mô tả trung thực cấu trúc chính tinh tọa thủ
   if (configs.length === 0) {
-    configs.push('Âm Dương Giao Thái (Harmonious Dual Energies)');
-    configs.push('Khoa Quyền Lộc Giáp (Honors & Influence Matrix)');
+    if (lifeMajorStars.length > 0) {
+      const starNames = lifeMajorStars.join(' - ');
+      configs.push(`Mệnh Tọa ${starNames} (Bản Mệnh Trụ Vững - Lập Thân Bằng Thực Lực)`);
+    } else {
+      configs.push('Tự Lập Tự Cường (Self-Reliant Foundation)');
+    }
   }
 
-  return {
+  // Khởi tạo đồ hình biểu đồ ban đầu
+  const baseChart: ZiWeiChart = {
     palaces,
     bodyPalaceKey,
     lifePalaceKey: 'life',
     elementBureau,
-    majorConfigurations: configs.slice(0, 3)
+    cucNumber,
+    majorConfigurations: configs.slice(0, 3),
+    tuanPalaces: tuanBranches,
+    trietPalaces: trietBranches
+  };
+
+  // Tạo báo cáo luận giải xác thực sâu sắc
+  const authenticReport = generateAuthenticZiWeiReport(
+    baseChart,
+    birthData,
+    yearPB.stem,
+    yearPB.branch
+  );
+
+  return {
+    ...baseChart,
+    yinYangGenderHarmony: authenticReport.yinYangGenderHarmony,
+    elementDestinyBureauHarmony: authenticReport.elementDestinyBureauHarmony,
+    bodyPalaceAnalysis: authenticReport.bodyPalaceAnalysis,
+    currentDecade: authenticReport.currentDecade,
+    currentYearTransit: authenticReport.currentYearTransit,
+    authenticAnalysis: {
+      coreEssence: authenticReport.lifePalaceDeepDive.overallDestinyCore,
+      personalityAndTalents: authenticReport.thaiTueCircleAnalysis.characterTraits,
+      careerAndWealthTrajectory: `${authenticReport.careerAndWealthInsight.careerOrientation} ${authenticReport.careerAndWealthInsight.wealthAccumulationPattern}`,
+      relationshipsAndFamily: authenticReport.bodyPalaceAnalysis.lifeImpact,
+      decadeAndCurrentYearGuidance: `${authenticReport.currentDecade.evaluation} ${authenticReport.currentYearTransit.summary}`,
+      strategicAdvice: authenticReport.strategicEmpowerment.join(' ')
+    }
   };
 }

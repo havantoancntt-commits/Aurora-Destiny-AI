@@ -148,11 +148,16 @@ export async function generateDestinyChatResponse(
   const careerStars = calc.ziwei.palaces.career?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Quan Lộc Vô Chính Diệu';
   const wealthStars = calc.ziwei.palaces.wealth?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Tài Bạch Vô Chính Diệu';
 
-  const ziweiDetails = `Cục: ${calc.ziwei.elementBureau}, Cung Thân: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'}. ` +
-    `Mệnh tại ${calc.ziwei.palaces.life?.branch} (${lifeStars} - Điểm: ${calc.ziwei.palaces.life?.score}/100). ` +
+  const ziweiDetails = `Cục: ${calc.ziwei.elementBureau} (Số Cục: ${calc.ziwei.cucNumber || 4}). ` +
+    `Âm Dương Thể Chất: ${calc.ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${calc.ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). ` +
+    `Tương Phối Mệnh - Cục: ${calc.ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} (${calc.ziwei.elementDestinyBureauHarmony?.quality || 'Bình Hòa'}). ` +
+    `Cung Thân: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'} (${calc.ziwei.bodyPalaceAnalysis?.meaning || ''}). ` +
+    `Mệnh tại ${calc.ziwei.palaces.life?.branch} (${lifeStars} - Điểm: ${calc.ziwei.palaces.life?.score}/100, Vòng Tràng Sinh: ${calc.ziwei.palaces.life?.trangSinhStar || ''}, Vòng Thái Tuế: ${calc.ziwei.palaces.life?.thaiTueStar || ''}). ` +
     `Quan Lộc tại ${calc.ziwei.palaces.career?.branch} (${careerStars} - Điểm: ${calc.ziwei.palaces.career?.score}/100). ` +
     `Tài Bạch tại ${calc.ziwei.palaces.wealth?.branch} (${wealthStars} - Điểm: ${calc.ziwei.palaces.wealth?.score}/100). ` +
-    `Cách Cục Tử Vi: ${calc.ziwei.majorConfigurations.join('; ')}`;
+    `Cách Cục Tử Vi Xác Thực: ${calc.ziwei.majorConfigurations.join('; ')}. ` +
+    `Đại Vận Hiện Tại: ${calc.ziwei.currentDecade?.evaluation || ''}. ` +
+    `Lưu Niên Tác Động: ${calc.ziwei.currentYearTransit?.summary || ''}`;
 
   const currentYear = new Date().getFullYear();
   const currentTransit = calc.annualTransits.find(t => t.year === currentYear) || calc.annualTransits[0];
@@ -232,10 +237,15 @@ HƯỚNG DẪN TRẢ LỜI:
     ? `Năm ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị hành động: ${currentTransit.recommendedFocus}.`
     : `Lưu Niên ${currentYear} đang trong chu kỳ tích lũy năng lượng ổn định.`;
 
+  const authenticZiWei = calc.ziwei.authenticAnalysis;
   const fallbackContent = `Dựa trên kết quả tính toán xác thực từ Bát Tự và Tử Vi Đẩu Số:\n\n` +
     `1. **Căn Cứ Bản Mệnh & Bát Tự**: Bạn mang Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), đắc Cách Cục **${calc.bazi.structureType}**. Dụng Thần tối ưu là hành **${calc.bazi.favorableElements.join(', ')}**, giúp điều hòa dòng năng lượng và gia tăng sức bật trong lĩnh vực "${profile.behavioralContext?.careerField || 'sự nghiệp'}".\n\n` +
-    `2. **Thế Tinh Bàn Tử Vi**: Cung Mệnh tại ${calc.ziwei.palaces.life?.branch} tọa thủ ${lifeStars}, hội tụ cùng Cung Quan Lộc (${careerStars}) và Cung Tài Bạch (${wealthStars}). Bố cục tinh hoa (${calc.ziwei.majorConfigurations.join(', ')}) tạo nền móng vững chắc cho tư duy chiến lược dài hạn.\n\n` +
-    `3. **Lưu Niên ${currentYear} & Định Hướng Hành Động**: ${transitDesc} Hãy chủ động phân bổ nguồn lực, quản trị rủi ro tại các thời điểm thận trọng và phát huy thế mạnh Dụng Thần để tạo đột phá.`;
+    `2. **Thế Tinh Bàn Tử Vi Đẩu Số Chính Tông**:\n` +
+    `   - **Âm Dương & Mệnh Cục**: Thể chất ${calc.ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${calc.ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). Bản Mệnh tương phối ${calc.ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} (${calc.ziwei.elementDestinyBureauHarmony?.explanation || ''}).\n` +
+    `   - **Cung Thân Hậu Vận**: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'} — ${calc.ziwei.bodyPalaceAnalysis?.lifeImpact || 'Hậu vận phát huy mạnh mẽ bản lĩnh tự chủ.'}\n` +
+    `   - **Tam Phương Tứ Chính**: Cung Mệnh tọa thủ ${lifeStars}, hội tụ cùng Quan Lộc (${careerStars}) và Tài Bạch (${wealthStars}). Cách Cục: ${calc.ziwei.majorConfigurations.join(', ')}.\n` +
+    `   - **Đại Vận Đang Đi Qua**: ${calc.ziwei.currentDecade?.evaluation || 'Đang trong chu kỳ củng cố nguồn lực.'}\n\n` +
+    `3. **Lưu Niên ${currentYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}`;
 
   return {
     content: fallbackContent,
