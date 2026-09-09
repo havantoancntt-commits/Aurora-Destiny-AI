@@ -29,6 +29,7 @@ import { SponsorshipModal } from './components/SponsorshipModal';
 import { InternationalizationModal } from './components/InternationalizationModal';
 import { MysticOracleModal } from './components/MysticOracleModal';
 import { SocialShareCardModal } from './components/SocialShareCardModal';
+import { SeoKnowledgeModal } from './components/SeoKnowledgeModal';
 import { sacredSound } from './services/soundService';
 
 import { UserProfile, UserPreferences } from './types/user';
@@ -64,6 +65,7 @@ export default function App() {
   const [showInternationalModal, setShowInternationalModal] = useState<boolean>(false);
   const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
   const [showShareCardModal, setShowShareCardModal] = useState<boolean>(false);
+  const [showSeoModal, setShowSeoModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -556,6 +558,7 @@ export default function App() {
         onOpenAdminModal={() => setShowAdminModal(true)}
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         onOpenInternationalModal={() => setShowInternationalModal(true)}
+        onOpenSeoKnowledgeModal={() => setShowSeoModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -667,6 +670,13 @@ export default function App() {
           onClose={() => setShowShareCardModal(false)}
         />
       )}
+
+      {/* Global SEO & Astrological Knowledge Architecture Modal */}
+      <SeoKnowledgeModal
+        isOpen={showSeoModal}
+        onClose={() => setShowSeoModal(false)}
+        language={language}
+      />
     </div>
   );
 }

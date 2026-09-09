@@ -1,0 +1,53 @@
+{
+  "short_name": "Aurora Destiny",
+  "name": "Aurora Destiny AI — Huyền Phong Phật Đạo",
+  "description": "Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý trực thuộc kênh Huyền Phong Phật Đạo, kết hợp tinh hoa Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn và hệ thống phân tích xác suất đa tác tử chuyên sâu.",
+  "icons": [
+    {
+      "src": "/og-image.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512 192x192 128x128 64x64",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "theme_color": "#050508",
+  "background_color": "#050508",
+  "orientation": "portrait-primary",
+  "categories": [
+    "lifestyle",
+    "education",
+    "utilities"
+  ],
+  "lang": "vi-VN",
+  "dir": "ltr",
+  "screenshots": [
+    {
+      "src": "/og-image.svg",
+      "type": "image/svg+xml",
+      "sizes": "1200x630",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Lập Lá Số Tử Vi 108 Sao",
+      "short_name": "Tử Vi 108 Sao",
+      "description": "Lập lá số Tử Vi Đẩu Số 108 Tinh Bàn chuẩn xác",
+      "url": "/?tab=dashboard"
+    },
+    {
+      "name": "Bát Tự Tứ Trụ & Dụng Thần",
+      "short_name": "Bát Tự Tứ Trụ",
+      "description": "Phân tích Thập Thần, Dụng Thần, Hỷ Thần Bát Tự",
+      "url": "/?tab=timeline"
+    },
+    {
+      "name": "Hợp Xướng Đa Tác Tử AI",
+      "short_name": "Multi-Agent AI",
+      "description": "7 Chuyên gia AI đồng thuận luận giải đa chiều",
+      "url": "/?tab=dashboard"
+    }
+  ]
+}

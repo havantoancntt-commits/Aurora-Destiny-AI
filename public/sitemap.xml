@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Trang Chủ: Luận Giải Tử Vi & Bát Tự Siêu AI -->
+  <url>
+    <loc>https://auroradestiny.ai/</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://auroradestiny.ai/?lang=en" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://auroradestiny.ai/" />
+    <image:image>
+      <image:loc>https://auroradestiny.ai/og-image.svg</image:loc>
+      <image:title>Aurora Destiny AI — Huyền Phong Phật Đạo &amp; Giáo Sư Prof.TOAN</image:title>
+      <image:caption>Nền tảng Siêu Trí Tuệ Nhân Tạo &amp; Thiên Văn Mệnh Lý Tử Vi 108 Tinh Bàn</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Lập Lá Số Bát Tự Tứ Trụ Chuẩn Thiên Văn -->
+  <url>
+    <loc>https://auroradestiny.ai/bazi-tu-tru</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/bazi-tu-tru" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://auroradestiny.ai/bazi-tu-tru?lang=en" />
+  </url>
+
+  <!-- Lập Lá Số Tử Vi Đẩu Số 108 Tinh Bàn Toàn Diện -->
+  <url>
+    <loc>https://auroradestiny.ai/tu-vi-108-tinh-ban</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/tu-vi-108-tinh-ban" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://auroradestiny.ai/tu-vi-108-tinh-ban?lang=en" />
+  </url>
+
+  <!-- Hiệu Chỉnh Giờ Sinh Chân Mặt Trời (True Solar Time & Equation of Time) -->
+  <url>
+    <loc>https://auroradestiny.ai/gio-sinh-chan-mat-troi</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/gio-sinh-chan-mat-troi" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://auroradestiny.ai/gio-sinh-chan-mat-troi?lang=en" />
+  </url>
+
+  <!-- Hợp Xướng Đa Tác Tử AI (7 Multi-Agent Consensus System) -->
+  <url>
+    <loc>https://auroradestiny.ai/multi-agent-ai</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/multi-agent-ai" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://auroradestiny.ai/multi-agent-ai?lang=en" />
+  </url>
+
+  <!-- Tra Cứu Đại Vận, Lưu Niên, Dụng Thần & Năng Lượng Vũ Trụ Hàng Ngày -->
+  <url>
+    <loc>https://auroradestiny.ai/tra-cuu-dai-van</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.88</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/tra-cuu-dai-van" />
+  </url>
+
+  <!-- Phòng Thí Nghiệm Kiểm Chứng Lịch Sử (Empirical Backtesting Engine) -->
+  <url>
+    <loc>https://auroradestiny.ai/kiem-chung-backtest</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/kiem-chung-backtest" />
+  </url>
+
+  <!-- Mô Phỏng Kịch Bản Giả Lập What-If (Monte Carlo Stochastic Simulation) -->
+  <url>
+    <loc>https://auroradestiny.ai/mo-phong-kich-ban</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/mo-phong-kich-ban" />
+  </url>
+
+  <!-- Giới Thiệu Kênh Huyền Phong Phật Đạo & Giáo Sư Prof.TOAN -->
+  <url>
+    <loc>https://auroradestiny.ai/gioi-thieu-huyen-phong-phat-dao</loc>
+    <lastmod>2026-09-09T08:00:00+07:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+    <xhtml:link rel="alternate" hreflang="vi" href="https://auroradestiny.ai/gioi-thieu-huyen-phong-phat-dao" />
+  </url>
+</urlset>

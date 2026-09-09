@@ -1,6 +1,6 @@
 {
   "name": "Aurora Destiny AI",
-  "description": "Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý trực thuộc kênh Huyền Phong Phật Đạo, kết hợp tinh hoa Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn và hệ thống phân tích xác suất đa tác tử chuyên sâu.",
+  "description": "Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý trực thuộc kênh Huyền Phong Phật Đạo do Giáo Sư - Prof.TOAN phát triển. Lập lá số Tử Vi Đẩu Số 108 Tinh Bàn, Bát Tự Tứ Trụ, Giờ Sinh Chân Mặt Trời, 24 Tiết Khí VSOP87 và phân tích đa tác tử Multi-Agent AI chuẩn xác tuyệt đối.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

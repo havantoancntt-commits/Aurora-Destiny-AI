@@ -1,0 +1,56 @@
+# ==========================================================
+# AURORA DESTINY AI — ROBOTS.TXT
+# Official Platform: Kênh Huyền Phong Phật Đạo
+# Conceived & Engineered by: Giáo Sư - Prof.TOAN
+# Canonical URL: https://auroradestiny.ai
+# ==========================================================
+
+User-agent: *
+Allow: /
+Allow: /bazi-tu-tru
+Allow: /tu-vi-108-tinh-ban
+Allow: /gio-sinh-chan-mat-troi
+Allow: /multi-agent-ai
+Allow: /tra-cuu-dai-van
+Allow: /kiem-chung-backtest
+Allow: /mo-phong-kich-ban
+Allow: /gioi-thieu-huyen-phong-phat-dao
+Allow: /sitemap.xml
+Allow: /manifest.webmanifest
+Allow: /og-image.svg
+
+# Protect internal APIs and private admin endpoints from search indexing
+Disallow: /api/admin/
+Disallow: /api/auth/
+Disallow: /api/internal/
+
+# Priority Crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+# Canonical Sitemap Location
+Sitemap: https://auroradestiny.ai/sitemap.xml

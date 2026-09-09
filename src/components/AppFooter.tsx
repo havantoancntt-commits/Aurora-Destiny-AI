@@ -20,7 +20,8 @@ import {
   Atom,
   Binary,
   Heart,
-  QrCode
+  QrCode,
+  Search
 } from 'lucide-react';
 import { LanguageCode } from '../types/destiny';
 
@@ -31,6 +32,7 @@ interface Props {
   onOpenAdminModal?: () => void;
   onOpenSponsorshipModal?: () => void;
   onOpenInternationalModal?: () => void;
+  onOpenSeoKnowledgeModal?: () => void;
   hasFloatingDock?: boolean;
 }
 
@@ -41,6 +43,7 @@ export const AppFooter: React.FC<Props> = ({
   onOpenAdminModal,
   onOpenSponsorshipModal,
   onOpenInternationalModal,
+  onOpenSeoKnowledgeModal,
   hasFloatingDock = false
 }) => {
   const [copied, setCopied] = useState(false);
@@ -310,6 +313,17 @@ export const AppFooter: React.FC<Props> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+            {onOpenSeoKnowledgeModal && (
+              <button
+                id="btn-footer-seo-center"
+                onClick={onOpenSeoKnowledgeModal}
+                className="text-amber-300 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-medium"
+                title="Khám phá Trung tâm Tối ưu SEO, Sơ đồ Web và JSON-LD"
+              >
+                <Search className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isVi ? 'Tối Ưu SEO & Sơ Đồ Web' : 'SEO & Sitemaps'}</span>
+              </button>
+            )}
             {onOpenInternationalModal && (
               <button
                 id="btn-footer-international-settings"

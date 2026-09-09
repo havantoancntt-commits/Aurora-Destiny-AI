@@ -5,6 +5,7 @@
 
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import { ZodError } from 'zod';
 
@@ -1088,6 +1089,96 @@ app.get('/api/pdf/download/:id', (req: Request, res: Response) => {
   res.setHeader('Expires', '0');
 
   return res.end(staged.buffer);
+});
+
+// ----------------------------------------------------
+// 11B. ENTERPRISE SEO, SITEMAP, ROBOTS.TXT & SOCIAL CRAWLER ROUTES
+// High-performance search engine indexing & rich snippets
+// ----------------------------------------------------
+
+app.get('/robots.txt', (req: Request, res: Response) => {
+  const robotsPath = path.join(process.cwd(), 'public', 'robots.txt');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=43200');
+  res.setHeader('X-Robots-Tag', 'all');
+
+  if (fs.existsSync(robotsPath)) {
+    return res.sendFile(robotsPath);
+  }
+
+  // Guaranteed resilient fallback
+  const fallbackRobots = `User-agent: *\nAllow: /\nDisallow: /api/admin/\nDisallow: /api/auth/\n\nSitemap: https://auroradestiny.ai/sitemap.xml\n`;
+  return res.send(fallbackRobots);
+});
+
+app.get('/sitemap.xml', (req: Request, res: Response) => {
+  const sitemapPath = path.join(process.cwd(), 'public', 'sitemap.xml');
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=43200');
+  res.setHeader('X-Robots-Tag', 'all');
+
+  if (fs.existsSync(sitemapPath)) {
+    return res.sendFile(sitemapPath);
+  }
+
+  const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://auroradestiny.ai/</loc><lastmod>${new Date().toISOString()}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>`;
+  return res.send(fallbackSitemap);
+});
+
+app.get(['/manifest.webmanifest', '/manifest.json'], (req: Request, res: Response) => {
+  const manifestPath = path.join(process.cwd(), 'public', 'manifest.webmanifest');
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+
+  if (fs.existsSync(manifestPath)) {
+    return res.sendFile(manifestPath);
+  }
+  return res.status(404).json({ error: 'Manifest not found' });
+});
+
+app.get('/og-image.svg', (req: Request, res: Response) => {
+  const ogPath = path.join(process.cwd(), 'public', 'og-image.svg');
+  res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+
+  if (fs.existsSync(ogPath)) {
+    return res.sendFile(ogPath);
+  }
+  return res.status(404).send('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#050508"/><text x="50%" y="50%" fill="#ffffff" text-anchor="middle" font-size="40">Aurora Destiny AI</text></svg>');
+});
+
+app.get('/api/seo/metadata', (req: Request, res: Response) => {
+  res.json({
+    platform: 'Aurora Destiny AI',
+    channel: 'Kênh Huyền Phong Phật Đạo',
+    author: 'Giáo Sư - Prof.TOAN',
+    email: 'havantoancntt@gmail.com',
+    canonicalUrl: 'https://auroradestiny.ai/',
+    sitemapUrl: 'https://auroradestiny.ai/sitemap.xml',
+    robotsUrl: 'https://auroradestiny.ai/robots.txt',
+    ogImageUrl: 'https://auroradestiny.ai/og-image.svg',
+    title: 'Aurora Destiny AI — Luận Giải Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn & Siêu Trí Tuệ Nhân Tạo',
+    keywords: [
+      'Tử Vi Đẩu Số 108 Tinh Bàn',
+      'Bát Tự Tứ Trụ',
+      'Giờ Sinh Chân Mặt Trời',
+      'Huyền Phong Phật Đạo',
+      'Giáo Sư Prof TOAN',
+      'Multi-Agent AI',
+      '24 Tiết Khí VSOP87',
+      'Dụng Thần Bát Tự',
+      'Kiểm Chứng Ngược Lịch Sử'
+    ],
+    structuredDataTypes: [
+      'WebApplication',
+      'Organization',
+      'WebSite',
+      'BreadcrumbList',
+      'FAQPage',
+      'HowTo'
+    ],
+    status: 'OPTIMIZED_TOP_RANKING'
+  });
 });
 
 // ----------------------------------------------------
