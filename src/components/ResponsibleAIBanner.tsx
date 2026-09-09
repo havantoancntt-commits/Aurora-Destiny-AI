@@ -1,9 +1,10 @@
 // ==========================================
 // RESPONSIBLE AI & ETHICAL BOUNDARY BANNER
+// Ultra-sleek, unobtrusive, international standard
 // ==========================================
 
-import React, { useState } from 'react';
-import { ShieldCheck, Info, X, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, X } from 'lucide-react';
 import { t } from '../i18n/translations';
 import { LanguageCode } from '../types/destiny';
 
@@ -18,40 +19,57 @@ export const ResponsibleAIBanner: React.FC<Props> = ({
   consistencyScore = 88,
   uncertaintyIndex = 12
 }) => {
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('aurora_responsible_ai_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      sessionStorage.setItem('aurora_responsible_ai_dismissed', 'true');
+    } catch (e) {
+      console.error('Session storage unavailable', e);
+    }
+  };
 
   if (dismissed) return null;
 
   return (
-    <div className="w-full bg-white/[0.02] backdrop-blur-md border-b border-white/10 px-3 py-2 text-xs text-slate-300">
-      <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="p-1 rounded-lg bg-teal-500/10 text-teal-400">
+    <aside aria-label="Responsible AI & Ethical Boundary Banner" className="w-full bg-[#090b14]/90 backdrop-blur-md border-b border-white/[0.08] px-3 sm:px-6 py-1.5 text-xs text-slate-300 transition-all">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-1 rounded-md bg-teal-500/10 text-teal-400 shrink-0">
             <ShieldCheck className="w-3.5 h-3.5" />
           </div>
-          <p className="leading-tight text-xs text-slate-300">
-            <span className="font-semibold text-teal-300">Kênh Huyền Phong Phật Đạo • Chuẩn Mực AI:</span>{' '}
-            {t('disclaimerText', language)}
+          <p className="leading-normal text-[11px] sm:text-xs text-slate-300/90 truncate sm:whitespace-normal font-light">
+            <span className="font-medium text-teal-300">Chuẩn Mực Khoa Học &amp; Chiêm Nghiệm:</span>{' '}
+            <span className="text-slate-400">{t('disclaimerText', language)}</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-[11px] text-purple-300 font-mono">
-            <Sparkles className="w-3 h-3 text-purple-400" />
-            <span>Độ Nhất Quán Mô Hình: {consistencyScore}/100</span>
-          </div>
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-[11px] text-slate-400 font-mono">
-            <span>Độ Bất Định: {uncertaintyIndex}%</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden md:flex items-center gap-2 text-[10px] font-mono text-slate-400">
+            <span className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-teal-300">
+              Độ Nhất Quán {consistencyScore}%
+            </span>
+            <span className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-slate-400">
+              Bất Định {uncertaintyIndex}%
+            </span>
           </div>
           <button
-            onClick={() => setDismissed(true)}
-            className="p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            onClick={handleDismiss}
+            className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Đóng thông báo"
+            aria-label="Đóng thông báo chuẩn mực AI"
           >
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 };

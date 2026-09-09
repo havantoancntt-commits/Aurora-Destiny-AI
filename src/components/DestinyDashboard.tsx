@@ -1,9 +1,10 @@
 // ==========================================
 // CORE DESTINY DASHBOARD COMPONENT
-// Ultra-luxury animated Destiny Dashboard
+// International Top-Tier Authentic Destiny Dashboard
+// Chuẩn xác Tử Vi Đẩu Số 12 Cung & Tứ Trụ Bát Tự
 // ==========================================
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import {
   Sparkles,
@@ -21,12 +22,16 @@ import {
   CheckCircle2,
   RefreshCw,
   BookOpen,
-  Share2
+  Share2,
+  Grid3X3,
+  LayoutGrid,
+  Eye,
+  Sliders
 } from 'lucide-react';
-import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement } from '../types/destiny';
+import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { MultiAgentEnsemble } from '../types/ai';
-import { STEMS, BRANCHES, ELEMENT_RELATIONS } from '../engine/canchi';
+import { STEMS, BRANCHES, BRANCH_KEYS, ELEMENT_RELATIONS } from '../engine/canchi';
 import { PALACE_DEFS } from '../engine/ziwei';
 import { t } from '../i18n/translations';
 import { LanguageCode } from '../types/destiny';
@@ -47,6 +52,36 @@ interface Props {
   onOpenAlertCenter?: () => void;
 }
 
+// 4x4 Classical Celestial Grid Coordinate Definition (12 Earthly Branches clockwise perimeter)
+interface BoardCellDef {
+  branch: EarthlyBranch;
+  colStart: string;
+  rowStart: string;
+  quadrantName: string;
+}
+
+const CELESTIAL_BOARD_CELLS: BoardCellDef[] = [
+  // Row 1 (Top edge: Tỵ -> Ngọ -> Mùi -> Thân)
+  { branch: 'Si', colStart: 'col-start-1', rowStart: 'row-start-1', quadrantName: 'Đông Nam' },
+  { branch: 'Wu_B', colStart: 'col-start-2', rowStart: 'row-start-1', quadrantName: 'Chính Nam' },
+  { branch: 'Wei', colStart: 'col-start-3', rowStart: 'row-start-1', quadrantName: 'Tây Nam' },
+  { branch: 'Shen', colStart: 'col-start-4', rowStart: 'row-start-1', quadrantName: 'Tây Nam' },
+
+  // Row 2 (Right edge: Dậu) and (Left edge: Thìn)
+  { branch: 'Chen', colStart: 'col-start-1', rowStart: 'row-start-2', quadrantName: 'Đông Nam' },
+  { branch: 'You', colStart: 'col-start-4', rowStart: 'row-start-2', quadrantName: 'Chính Tây' },
+
+  // Row 3 (Right edge: Tuất) and (Left edge: Mão)
+  { branch: 'Mao', colStart: 'col-start-1', rowStart: 'row-start-3', quadrantName: 'Chính Đông' },
+  { branch: 'Xu', colStart: 'col-start-4', rowStart: 'row-start-3', quadrantName: 'Tây Bắc' },
+
+  // Row 4 (Bottom edge: Dần <- Sửu <- Tý <- Hợi)
+  { branch: 'Yin_B', colStart: 'col-start-1', rowStart: 'row-start-4', quadrantName: 'Đông Bắc' },
+  { branch: 'Chou', colStart: 'col-start-2', rowStart: 'row-start-4', quadrantName: 'Đông Bắc' },
+  { branch: 'Zi', colStart: 'col-start-3', rowStart: 'row-start-4', quadrantName: 'Chính Bắc' },
+  { branch: 'Hai', colStart: 'col-start-4', rowStart: 'row-start-4', quadrantName: 'Tây Bắc' },
+];
+
 export const DestinyDashboard: React.FC<Props> = ({
   profile,
   calculation,
@@ -61,11 +96,44 @@ export const DestinyDashboard: React.FC<Props> = ({
   onOpenAlertCenter = () => {}
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
+  const [ziweiViewMode, setZiweiViewMode] = useState<'board4x4' | 'cardList'>('board4x4');
+  const [analysisTab, setAnalysisTab] = useState<'essence' | 'body' | 'sanfang' | 'transit'>('essence');
   const [isRecalculating, setIsRecalculating] = useState(false);
 
   const { bazi, ziwei, confidence } = calculation;
   const dm = STEMS[bazi.dayMaster];
   const selectedPalace = ziwei.palaces[selectedPalaceKey] || ziwei.palaces.life;
+
+  // Map each Earthly Branch to its assigned Zi Wei Palace
+  const palaceByBranch = useMemo(() => {
+    const map: Record<string, ZiWeiPalace> = {};
+    (Object.values(ziwei.palaces) as ZiWeiPalace[]).forEach((p) => {
+      map[p.branch] = p;
+    });
+    return map;
+  }, [ziwei.palaces]);
+
+  // Calculate Tam Phuong Tu Chinh for the selected palace
+  const sanFangTuChinh = useMemo(() => {
+    if (!selectedPalace) return { opposite: null, trine1: null, trine2: null };
+    const selIdx = BRANCH_KEYS.indexOf(selectedPalace.branch);
+    const oppIdx = (selIdx + 6) % 12;
+    const trine1Idx = (selIdx + 4) % 12;
+    const trine2Idx = (selIdx + 8) % 12;
+
+    const oppBranch = BRANCH_KEYS[oppIdx];
+    const trine1Branch = BRANCH_KEYS[trine1Idx];
+    const trine2Branch = BRANCH_KEYS[trine2Idx];
+
+    return {
+      oppositeBranch: oppBranch,
+      trine1Branch,
+      trine2Branch,
+      oppositePalace: palaceByBranch[oppBranch],
+      trine1Palace: palaceByBranch[trine1Branch],
+      trine2Palace: palaceByBranch[trine2Branch]
+    };
+  }, [selectedPalace, palaceByBranch]);
 
   const currentYear = new Date().getFullYear();
   const currentTransit = calculation.annualTransits?.find((t) => t.year === currentYear) || calculation.annualTransits?.[0] || {
@@ -82,7 +150,7 @@ export const DestinyDashboard: React.FC<Props> = ({
     growthScore: 70,
     opportunityWave: 70,
     cautionWave: 30,
-    highlightSummary: 'Vận trình năm hiện tại',
+    highlightSummary: 'Vận trình năm hiện tại hội tụ năng lượng phát triển',
     recommendedFocus: 'Cân bằng và kiên định'
   };
 
@@ -96,65 +164,80 @@ export const DestinyDashboard: React.FC<Props> = ({
 
   const getElementBadgeColor = (el: FiveElement) => {
     switch (el) {
-      case 'Wood': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-      case 'Fire': return 'bg-rose-500/20 text-rose-300 border-rose-500/40';
-      case 'Earth': return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-      case 'Metal': return 'bg-slate-300/20 text-slate-200 border-slate-400/40';
-      case 'Water': return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+      case 'Wood': return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
+      case 'Fire': return 'bg-rose-500/15 text-rose-300 border-rose-500/40';
+      case 'Earth': return 'bg-amber-500/15 text-amber-300 border-amber-500/40';
+      case 'Metal': return 'bg-slate-300/15 text-slate-200 border-slate-400/40';
+      case 'Water': return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40';
       default: return 'bg-slate-800 text-slate-300 border-slate-700';
     }
   };
 
+  const getBrightnessColor = (b: 'M' | 'V' | 'D' | 'B' | 'H') => {
+    switch (b) {
+      case 'M': return 'text-amber-400 font-bold'; // Miếu Địa
+      case 'V': return 'text-emerald-400 font-bold'; // Vượng Địa
+      case 'D': return 'text-cyan-300 font-semibold'; // Đắc Địa
+      case 'B': return 'text-slate-300'; // Bình Hòa
+      case 'H': return 'text-rose-400 font-medium'; // Hãm Địa
+      default: return 'text-slate-300';
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* 0. LIVE REAL-TIME LUCK & FORTUNE RADAR MONITOR */}
       <RealTimeLuckRadarBar
         calculation={calculation}
         onOpenFullRadar={onOpenAlertCenter}
       />
 
-      {/* 1. HERO EXECUTIVE SUMMARY CARD WITH DYNAMIC LIGHTING */}
+      {/* 1. EXECUTIVE DOSSIER HERO CARD */}
       <motion.div
-        initial={{ opacity: 0, y: 15 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/[0.06] via-white/[0.03] to-white/[0.01] border border-white/15 p-5 sm:p-7 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.2)]"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/[0.05] via-white/[0.02] to-black/40 border border-white/10 p-5 sm:p-7 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)]"
       >
-        {/* Specular Ambient Glow Rings */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Subtle Ambient Radial Lighting */}
+        <div className="absolute top-0 right-0 -mr-24 -mt-24 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-24 -mb-24 w-96 h-96 bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-2.5">
+            {/* Academic Credential & Bureau Badges */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono tracking-wider shadow-sm">
-                Kênh Huyền Phong Phật Đạo
+              <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono tracking-wide">
+                Huyền Phong Phật Đạo
               </span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/15 border border-purple-500/40 text-purple-300 font-mono tracking-wider shadow-sm">
+              <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono">
                 {bazi.structureType}
               </span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-teal-500/15 border border-teal-500/40 text-teal-300 shadow-sm">
+              <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-teal-500/10 border border-teal-500/30 text-teal-300">
                 {ziwei.elementBureau}
               </span>
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-slate-300">
-                <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shadow-[0_0_8px_#2dd4bf]"></span>
-                <span>Chuẩn Định Thuật Toán v4.2</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-white/5 border border-white/10 text-slate-300">
+                {ziwei.yinYangGenderHarmony?.yinYangNature || (profile.birthData.gender === 'Male' ? 'Nam Mệnh' : 'Nữ Mệnh')}
               </span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-light tracking-wide text-white uppercase font-sans flex items-center gap-2">
-              <span>{profile.name}</span>
-              <Sparkles className="w-5 h-5 text-teal-300 animate-pulse" />
-            </h2>
+            {/* Native Name Header */}
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl sm:text-3xl font-light tracking-wide text-white uppercase font-sans">
+                {profile.name}
+              </h2>
+              <Sparkles className="w-5 h-5 text-teal-300" />
+            </div>
 
+            {/* Astronomical Birth Coordinates */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-400">
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-teal-400" />
-                {profile.birthData.solarDay}/{profile.birthData.solarMonth}/{profile.birthData.solarYear} (Dương lịch)
+                Dương lịch: {profile.birthData.solarDay}/{profile.birthData.solarMonth}/{profile.birthData.solarYear}
               </span>
               <span className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-purple-400" />
-                {profile.birthData.solarHour.toString().padStart(2, '0')}:{profile.birthData.solarMinute.toString().padStart(2, '0')} ({profile.birthData.timezoneName})
+                Giờ: {profile.birthData.solarHour.toString().padStart(2, '0')}:{profile.birthData.solarMinute.toString().padStart(2, '0')} ({profile.birthData.timezoneName})
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
@@ -163,98 +246,95 @@ export const DestinyDashboard: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <motion.div
-              whileHover={{ scale: 1.03 }}
-              className="flex flex-col items-end p-4 rounded-2xl bg-black/60 border border-white/15 shadow-[0_8px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.1)] backdrop-blur-xl"
-            >
+          {/* Right Action & Confidence Rating */}
+          <div className="flex items-center gap-3 self-start md:self-auto">
+            <div className="flex flex-col items-end p-3.5 rounded-2xl bg-black/50 border border-white/10 shadow-lg backdrop-blur-xl">
               <div className="text-[10px] text-teal-400 uppercase tracking-widest font-semibold flex items-center gap-1">
-                <span>Độ Tin Cậy Phân Tích</span>
+                <span>Độ Xác Thực Lá Số</span>
                 <Shield className="w-3 h-3 text-teal-400" />
               </div>
               <div className="flex items-baseline gap-1.5 mt-0.5">
-                <span className="text-3xl sm:text-4xl font-light text-white tracking-tighter">
+                <span className="text-2xl sm:text-3xl font-light text-white font-mono">
                   {ensemble.overallConsistencyScore}
                 </span>
-                <span className="text-xs opacity-60 text-slate-400">/ 100</span>
+                <span className="text-xs opacity-50 text-slate-400">/ 100</span>
               </div>
-              <div className="w-28 h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${ensemble.overallConsistencyScore}%` }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  className="h-full bg-gradient-to-r from-purple-500 via-teal-400 to-cyan-300 shadow-[0_0_8px_#2dd4bf]"
+              <div className="w-24 h-1 bg-white/10 rounded-full mt-1.5 overflow-hidden">
+                <div
+                  style={{ width: `${ensemble.overallConsistencyScore}%` }}
+                  className="h-full bg-gradient-to-r from-teal-400 to-cyan-300"
                 />
               </div>
-            </motion.div>
+            </div>
 
-            <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleRefresh}
-              disabled={isRecalculating}
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/15 transition-all shadow-md cursor-pointer"
-              title="Tính toán lại lá số"
-            >
-              <RefreshCw className={`w-5 h-5 ${isRecalculating ? 'animate-spin text-teal-400' : ''}`} />
-            </motion.button>
+            {onRecalculate && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleRefresh}
+                disabled={isRecalculating}
+                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 transition-all shadow-md cursor-pointer"
+                title="Tính toán lại theo dữ liệu mới"
+              >
+                <RefreshCw className={`w-5 h-5 ${isRecalculating ? 'animate-spin text-teal-400' : ''}`} />
+              </motion.button>
+            )}
           </div>
         </div>
 
-        {/* Master Intelligence Quote Box */}
-        <div className="mt-5 pt-4 border-t border-white/10">
-          <div className="p-4 bg-purple-500/10 rounded-2xl border-l-3 border-purple-500 shadow-inner">
-            <p className="text-xs sm:text-sm italic leading-relaxed text-slate-200">
+        {/* Master Synthesis Insight */}
+        <div className="mt-4 pt-3.5 border-t border-white/10">
+          <div className="p-3.5 bg-white/[0.02] rounded-xl border-l-2 border-purple-400">
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-200 italic">
               "{ensemble.executiveSummary}"
             </p>
           </div>
         </div>
 
         {/* Executive Dossier Callout Banner */}
-        {onOpenReportModal && (
-          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-[#0a0d1c] to-amber-950/40 border border-amber-500/40 shadow-[0_4px_25px_rgba(251,191,36,0.15)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-[0_0_20px_rgba(251,191,36,0.4)] shrink-0">
-                <BookOpen className="w-6 h-6 text-slate-950" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs sm:text-sm font-bold text-amber-200 uppercase tracking-wide font-cinzel">
-                    Sách Bản Mệnh Tinh Hoa • Executive Dossier PDF
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    6 TRANG A4
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  Ấn phẩm cẩm nang bìa mạ vàng tiêu chuẩn in ấn, tích hợp dấu mộc triện thư, chữ ký bảo chứng của Giáo Sư - Prof.TOAN &amp; cẩm nang phong thủy cá nhân trọn đời.
-                </p>
-              </div>
+        <div className="mt-4 p-3.5 rounded-xl bg-white/[0.02] border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-bold shadow-md shrink-0">
+              <BookOpen className="w-5 h-5 text-slate-950" />
             </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-amber-200 uppercase tracking-wider">
+                  Sách Bản Mệnh Tinh Hoa • Executive Dossier PDF
+                </span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  CHÍNH TÔNG
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                Ấn phẩm cẩm nang mạ vàng tiêu chuẩn in ấn, triện thư bảo chứng từ Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo.
+              </p>
+            </div>
+          </div>
 
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-              {onOpenShareCardModal && (
-                <button
-                  id="btn-open-share-card"
-                  onClick={onOpenShareCardModal}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/10 border border-white/15 text-slate-200 font-semibold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
-                >
-                  <Share2 className="w-4 h-4 text-amber-400" />
-                  <span>Thẻ Chia Sẻ</span>
-                </button>
-              )}
-
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+            {onOpenShareCardModal && (
+              <button
+                id="btn-open-share-card"
+                onClick={onOpenShareCardModal}
+                className="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-medium text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Thẻ Chia Sẻ</span>
+              </button>
+            )}
+            {onOpenReportModal && (
               <button
                 id="btn-open-executive-dossier"
                 onClick={onOpenReportModal}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(251,191,36,0.3)] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                className="flex-1 sm:flex-initial px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <BookOpen className="w-4 h-4 text-slate-950" />
-                <span>Xem &amp; Xuất Bản Sách</span>
+                <BookOpen className="w-3.5 h-3.5 text-slate-950" />
+                <span>Xuất Bản Sách PDF</span>
               </button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </motion.div>
 
       {/* 2. SACRED BAGUA COMPASS & LUCKY DIRECTIONS PORTAL */}
@@ -267,21 +347,21 @@ export const DestinyDashboard: React.FC<Props> = ({
 
       {/* 3. BAZI FOUR PILLARS (TỨ TRỤ BÁT TỰ) INTERACTIVE GRID */}
       <motion.div
-        initial={{ opacity: 0, y: 15 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.05 }}
-        className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 sm:p-6 space-y-4 backdrop-blur-md shadow-xl"
+        className="rounded-2xl bg-white/[0.02] border border-white/10 p-5 sm:p-6 space-y-4 backdrop-blur-md shadow-xl"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-4 bg-gradient-to-b from-purple-400 to-indigo-500 rounded-full shadow-[0_0_8px_#a855f7]"></span>
             <h3 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
-              Tứ Trụ Bát Tự Nguyên Bản
+              Tứ Trụ Bát Tự Nguyên Bản (Bazi Pillars)
             </h3>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">Nhật Chủ:</span>
-            <span className={`px-2.5 py-1 rounded-xl text-xs font-semibold font-mono border ${getElementBadgeColor(bazi.dayMasterElement)} shadow-sm`}>
+            <span className={`px-2.5 py-0.5 rounded-lg text-xs font-semibold font-mono border ${getElementBadgeColor(bazi.dayMasterElement)}`}>
               {dm.nameVi} ({dm.yinYang} {ELEMENT_RELATIONS[bazi.dayMasterElement]?.vi || bazi.dayMasterElement}) — {bazi.dayMasterStrength}
             </span>
           </div>
@@ -297,11 +377,10 @@ export const DestinyDashboard: React.FC<Props> = ({
           ].map(({ label, pillar, note, isDayMaster }, idx) => (
             <motion.div
               key={idx}
-              whileHover={{ y: -3, scale: 1.01 }}
-              transition={{ duration: 0.2 }}
-              className={`relative flex flex-col items-center rounded-2xl p-3.5 border text-center transition-all ${
+              whileHover={{ y: -2 }}
+              className={`relative flex flex-col items-center rounded-xl p-3.5 border text-center transition-all ${
                 isDayMaster
-                  ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_25px_rgba(124,58,237,0.2)] ring-1 ring-purple-500/30'
+                  ? 'bg-purple-500/10 border-purple-500/40 shadow-[0_0_20px_rgba(124,58,237,0.15)] ring-1 ring-purple-500/30'
                   : 'bg-black/40 border-white/10 hover:border-white/20'
               }`}
             >
@@ -310,13 +389,13 @@ export const DestinyDashboard: React.FC<Props> = ({
               </span>
 
               {/* Ten God Badge */}
-              <span className="mt-1 px-2 py-0.5 rounded-lg text-[10px] font-mono bg-white/5 text-teal-300 border border-white/10 truncate max-w-full font-semibold">
+              <span className="mt-1 px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-teal-300 border border-white/10 truncate max-w-full font-medium">
                 {pillar.tenGod}
               </span>
 
               {/* Stem & Branch Display */}
-              <div className="my-2.5 space-y-0.5">
-                <div className="text-xl sm:text-2xl font-bold text-white tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              <div className="my-2 space-y-0.5">
+                <div className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                   {STEMS[pillar.stem]?.nameVi || pillar.stem}
                 </div>
                 <div className="text-sm sm:text-base font-medium text-slate-300">
@@ -325,7 +404,7 @@ export const DestinyDashboard: React.FC<Props> = ({
               </div>
 
               {/* Element Tag */}
-              <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-medium border ${getElementBadgeColor(pillar.stemElement)}`}>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${getElementBadgeColor(pillar.stemElement)}`}>
                 {ELEMENT_RELATIONS[pillar.stemElement]?.vi || pillar.stemElement}
               </span>
 
@@ -345,14 +424,14 @@ export const DestinyDashboard: React.FC<Props> = ({
         {/* Five Elements Balance Bar & Dụng Thần Recommendation */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
           {/* Elements Bar */}
-          <div className="md:col-span-2 p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2.5">
+          <div className="md:col-span-2 p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-2">
             <div className="flex items-center justify-between text-xs text-slate-300">
               <span className="font-semibold tracking-wide">Cân Bằng Năng Lượng Ngũ Hành</span>
-              <span className="text-[10px] text-teal-400 font-mono">100%</span>
+              <span className="text-[10px] text-teal-400 font-mono">Tổng: 100%</span>
             </div>
 
-            {/* Visual stacked percentage bar with gradient */}
-            <div className="h-3 w-full rounded-full overflow-hidden flex bg-white/5 border border-white/10 shadow-inner">
+            {/* Visual stacked percentage bar */}
+            <div className="h-2.5 w-full rounded-full overflow-hidden flex bg-white/5 border border-white/10 shadow-inner">
               <div style={{ width: `${bazi.elementBalance.Wood}%` }} className="bg-emerald-500 h-full transition-all duration-500" title={`Mộc: ${bazi.elementBalance.Wood}%`} />
               <div style={{ width: `${bazi.elementBalance.Fire}%` }} className="bg-rose-500 h-full transition-all duration-500" title={`Hỏa: ${bazi.elementBalance.Fire}%`} />
               <div style={{ width: `${bazi.elementBalance.Earth}%` }} className="bg-amber-500 h-full transition-all duration-500" title={`Thổ: ${bazi.elementBalance.Earth}%`} />
@@ -370,7 +449,7 @@ export const DestinyDashboard: React.FC<Props> = ({
           </div>
 
           {/* Dụng Thần & Hỷ Thần */}
-          <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col justify-between space-y-1.5">
+          <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 flex flex-col justify-between space-y-1.5">
             <div className="text-xs font-semibold uppercase tracking-wider text-slate-300">
               {t('favorableElements', language)}
             </div>
@@ -389,136 +468,312 @@ export const DestinyDashboard: React.FC<Props> = ({
               </div>
             </div>
             <div className="text-[10px] text-slate-400 border-t border-white/10 pt-1.5 opacity-70">
-              Khuyến nghị tăng cường yếu tố mang hành Dụng Thần để cân bằng khí lực.
+              Ứng dụng phong thủy bổ khuyết theo hành Dụng Thần để dung hòa khí vận.
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* 3. ZI WEI DOU SHU 12 PALACES INTERACTIVE MATRIX */}
+      {/* 4. ZI WEI DOU SHU 12 PALACES CELESTIAL MASTER BOARD (THIÊN BÀN 12 CUNG CHÍNH TÔNG) */}
       <motion.div
-        initial={{ opacity: 0, y: 15 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="rounded-2xl bg-white/[0.03] border border-white/10 p-5 sm:p-6 space-y-4 backdrop-blur-md shadow-xl"
+        className="rounded-2xl bg-white/[0.02] border border-white/10 p-5 sm:p-6 space-y-5 backdrop-blur-md shadow-2xl"
       >
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-white/10 pb-3.5">
+        {/* Section Header with View Mode Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-4 bg-gradient-to-b from-teal-400 to-cyan-500 rounded-full shadow-[0_0_8px_#2dd4bf]"></span>
               <h3 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
-                Tử Vi Đẩu Số — 12 Cung Vị Chính Tông
+                Tử Vi Đẩu Số — Thiên Bàn 12 Cung Chính Tông
               </h3>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Phân tích tinh bàn chân xác theo Cục số, Âm Dương thuận nghịch lý, Vòng Thái Tuế, Tràng Sinh & Tuần Triệt
+            <p className="text-xs text-slate-400 mt-0.5">
+              Toàn đồ tinh bàn chuẩn hóa theo Cục Số, Âm Dương Thuận Nghịch, Vòng Thái Tuế, Tràng Sinh & Tuần Triệt
             </p>
           </div>
 
-          {/* Core Zi Wei Parameters Summary Pills */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-300 font-mono">
-              {ziwei.elementBureau}
-            </span>
-            {ziwei.yinYangGenderHarmony && (
-              <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300">
-                {ziwei.yinYangGenderHarmony.yinYangNature} ({ziwei.yinYangGenderHarmony.direction})
-              </span>
-            )}
-            {ziwei.elementDestinyBureauHarmony && (
-              <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300">
-                {ziwei.elementDestinyBureauHarmony.relation}
-              </span>
-            )}
-            <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
-              Thân cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'}
-            </span>
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/60 border border-white/10 self-start sm:self-auto">
+            <button
+              onClick={() => setZiweiViewMode('board4x4')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                ziweiViewMode === 'board4x4'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Grid3X3 className="w-3.5 h-3.5" />
+              <span>Thiên Bàn 4x4</span>
+            </button>
+            <button
+              onClick={() => setZiweiViewMode('cardList')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                ziweiViewMode === 'cardList'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Danh Sách 12 Cung</span>
+            </button>
           </div>
         </div>
 
-        {/* 12 Palaces Selector Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {PALACE_DEFS.map((def) => {
-            const pal = ziwei.palaces[def.key];
-            const isSelected = selectedPalaceKey === def.key;
-            return (
-              <motion.button
-                key={def.key}
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setSelectedPalaceKey(def.key)}
-                className={`relative flex flex-col p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-purple-500/20 border-purple-500/60 shadow-[0_0_20px_rgba(124,58,237,0.3)] ring-1 ring-purple-500/40'
-                    : 'bg-black/40 border-white/10 hover:border-white/20 text-slate-300'
-                }`}
-              >
-                {/* Header: Palace Name & Badges */}
-                <div className="flex items-center justify-between gap-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-xs font-bold ${isSelected ? 'text-teal-300' : 'text-slate-100'}`}>
-                      {def.nameVi}
+        {/* VIEW 1: TRADITIONAL 4x4 CELESTIAL SQUARE MATRIX (THIÊN BÀN CHUẨN) */}
+        {ziweiViewMode === 'board4x4' ? (
+          <div className="overflow-x-auto pb-2">
+            <div className="min-w-[780px] grid grid-cols-4 gap-2.5">
+              {/* Render 12 Perimeter Celestial Cells */}
+              {CELESTIAL_BOARD_CELLS.map((cell) => {
+                const pal = palaceByBranch[cell.branch];
+                if (!pal) return null;
+
+                const isSelected = selectedPalaceKey === pal.key;
+                const isOpposite = sanFangTuChinh.oppositeBranch === cell.branch;
+                const isTrine = sanFangTuChinh.trine1Branch === cell.branch || sanFangTuChinh.trine2Branch === cell.branch;
+
+                let borderStyle = 'border-white/10 hover:border-white/25 bg-black/40 text-slate-300';
+                let relationshipBadge = null;
+
+                if (isSelected) {
+                  borderStyle = 'border-amber-500/80 bg-purple-950/40 ring-2 ring-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.25)]';
+                  relationshipBadge = (
+                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/50">
+                      TỌA THỦ
                     </span>
-                    {pal?.isBodyPalace && (
-                      <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                        Thân
+                  );
+                } else if (isOpposite) {
+                  borderStyle = 'border-sky-500/60 bg-sky-950/20 ring-1 ring-sky-400/30';
+                  relationshipBadge = (
+                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/40">
+                      XUNG CHIẾU
+                    </span>
+                  );
+                } else if (isTrine) {
+                  borderStyle = 'border-emerald-500/60 bg-emerald-950/20 ring-1 ring-emerald-400/30';
+                  relationshipBadge = (
+                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                      TAM HỢP
+                    </span>
+                  );
+                }
+
+                return (
+                  <motion.div
+                    key={cell.branch}
+                    onClick={() => setSelectedPalaceKey(pal.key)}
+                    whileHover={{ scale: 1.01 }}
+                    className={`${cell.colStart} ${cell.rowStart} rounded-xl border p-2.5 flex flex-col justify-between min-h-[140px] cursor-pointer transition-all ${borderStyle}`}
+                  >
+                    {/* Top strip: Palace Name & Badges */}
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-xs font-bold ${isSelected ? 'text-amber-300' : 'text-white'}`}>
+                            {pal.nameVi}
+                          </span>
+                          {pal.isBodyPalace && (
+                            <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-amber-500/25 text-amber-300 border border-amber-500/40">
+                              THÂN
+                            </span>
+                          )}
+                          {relationshipBadge}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {pal.tuanTriet?.map((tt, i) => (
+                            <span
+                              key={i}
+                              className={`px-1 py-0.2 rounded text-[8px] font-bold ${
+                                tt === 'Triệt'
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                  : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                              }`}
+                            >
+                              {tt}
+                            </span>
+                          ))}
+                          <span className="text-[9px] font-mono text-slate-400 font-semibold">
+                            {pal.score}đ
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Can Chi & Decade Range */}
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+                        <span>{pal.stem} {BRANCHES[pal.branch]?.nameVi || pal.branch}</span>
+                        <span className="font-mono text-purple-300 font-medium">{pal.decadeRangeStr}t</span>
+                      </div>
+
+                      {/* Major Stars (Chính tinh) */}
+                      <div className="mt-1.5 space-y-0.5">
+                        {pal.majorStars.map((star, sIdx) => (
+                          <div key={sIdx} className="flex items-center justify-between text-[10px]">
+                            <span className="font-semibold text-slate-100 truncate">
+                              {star.nameVi}
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className={`text-[9px] ${getBrightnessColor(star.brightness)}`}>
+                                ({star.brightness === 'M' ? 'Miếu' : star.brightness === 'V' ? 'Vượng' : star.brightness === 'D' ? 'Đắc' : star.brightness === 'B' ? 'Bình' : 'Hãm'})
+                              </span>
+                              {star.transformation && (
+                                <span className="px-1 py-0.2 rounded text-[8px] font-mono bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30">
+                                  Hóa {star.transformation === 'Lu' ? 'Lộc' : star.transformation === 'Quan' ? 'Quyền' : star.transformation === 'Khoa' ? 'Khoa' : 'Kỵ'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {pal.majorStars.length === 0 && (
+                          <div className="text-[10px] text-slate-400 italic">
+                            Vô chính diệu
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom strip: Minor stars count & Auxiliary rings */}
+                    <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[9px] text-slate-400">
+                      <span className="text-teal-400 truncate max-w-[48%]">
+                        {pal.thaiTueStar || 'Thái Tuế'}
                       </span>
-                    )}
+                      <span className="text-amber-400 truncate max-w-[48%]">
+                        {pal.trangSinhStar || 'Tràng Sinh'}
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+
+              {/* TRUNG CUNG (The Heart of the Celestial Board - 2x2 merged central matrix) */}
+              <div className="col-start-2 col-span-2 row-start-2 row-span-2 rounded-2xl bg-gradient-to-b from-black/80 via-purple-950/20 to-black/90 border border-white/15 p-4 sm:p-5 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+                {/* Header of Trung Cung */}
+                <div className="text-center space-y-1 border-b border-white/10 pb-3">
+                  <div className="text-[10px] uppercase tracking-widest text-amber-300 font-semibold flex items-center justify-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>THIÊN BÀN TỬ VI ĐẨU SỐ • BẢN MỆNH CHÍNH TÔNG</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {pal?.tuanTriet?.map((tt, i) => (
-                      <span key={i} className={`px-1 py-0.2 rounded text-[8px] font-bold ${tt === 'Triệt' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'}`}>
-                        {tt}
+                  <h4 className="text-lg font-bold text-white uppercase tracking-wider">
+                    {profile.name}
+                  </h4>
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-300">
+                    <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 font-mono">
+                      {ziwei.yinYangGenderHarmony?.yinYangNature || (profile.birthData.gender === 'Male' ? 'Dương Nam' : 'Âm Nữ')}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30 font-medium">
+                      {ziwei.elementBureau}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+                      Thân cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Core Astrological Natal Matrix */}
+                <div className="grid grid-cols-2 gap-2 text-xs py-2">
+                  <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
+                    <div className="text-[10px] text-slate-400">Bản Mệnh Nạp Âm:</div>
+                    <div className="font-bold text-teal-300 truncate">
+                      {ziwei.elementDestinyBureauHarmony?.birthYearNaYin || bazi.yearPillar.naYin}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
+                    <div className="text-[10px] text-slate-400">Tương Phối Mệnh - Cục:</div>
+                    <div className="font-bold text-purple-300 truncate">
+                      {ziwei.elementDestinyBureauHarmony?.relation || 'Tỷ Hòa'} ({ziwei.elementDestinyBureauHarmony?.quality || 'Cát Lợi'})
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
+                    <div className="text-[10px] text-slate-400">Âm Dương Lý:</div>
+                    <div className="font-bold text-amber-300 truncate">
+                      {ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'} ({ziwei.yinYangGenderHarmony?.decadeDirection || 'Vận Thuận'})
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
+                    <div className="text-[10px] text-slate-400">Cách Cục Chính Tông:</div>
+                    <div className="font-bold text-slate-200 truncate">
+                      {ziwei.majorConfigurations[0] || 'Chính Cách'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Selected Palace Focus Indicator */}
+                <div className="pt-2 border-t border-white/10 text-center space-y-1">
+                  <div className="text-[10px] uppercase text-slate-400 tracking-wider">
+                    Tiêu Điểm Cung Vị Đang Chọn:
+                  </div>
+                  <div className="text-xs font-bold text-amber-300 flex items-center justify-center gap-1.5">
+                    <span>Cung {selectedPalace.nameVi}</span>
+                    <span className="text-slate-400 font-mono">({selectedPalace.stem} {BRANCHES[selectedPalace.branch]?.nameVi})</span>
+                    <span className="text-teal-400 font-mono">Đại vận {selectedPalace.decadeRangeStr}t</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">
+                    Tam Phương: {sanFangTuChinh.trine1Palace?.nameVi || '...'} • {sanFangTuChinh.trine2Palace?.nameVi || '...'} | Đối Chiếu: {sanFangTuChinh.oppositePalace?.nameVi || '...'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* VIEW 2: MODERN RESPONSIVE CARDS GRID (DANH SÁCH 12 CUNG) */
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {PALACE_DEFS.map((def) => {
+              const pal = ziwei.palaces[def.key];
+              const isSelected = selectedPalaceKey === def.key;
+              return (
+                <motion.button
+                  key={def.key}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedPalaceKey(def.key)}
+                  className={`relative flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-purple-500/20 border-purple-500/60 shadow-[0_0_20px_rgba(124,58,237,0.3)] ring-1 ring-purple-500/40'
+                      : 'bg-black/40 border-white/10 hover:border-white/20 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs font-bold ${isSelected ? 'text-teal-300' : 'text-slate-100'}`}>
+                        {def.nameVi}
                       </span>
-                    ))}
+                      {pal?.isBodyPalace && (
+                        <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          Thân
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[10px] font-mono text-slate-400 font-bold">
                       {pal?.score || 70}đ
                     </span>
                   </div>
-                </div>
 
-                {/* Branch, Stem & Decade Range */}
-                <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
-                  <span>{pal?.stem} {pal?.branch}</span>
-                  <span className="font-mono text-purple-300/90 font-medium">
-                    {pal?.decadeRangeStr}t
-                  </span>
-                </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                    <span>{pal?.stem} {BRANCHES[pal?.branch]?.nameVi}</span>
+                    <span className="font-mono text-purple-300 font-medium">{pal?.decadeRangeStr}t</span>
+                  </div>
 
-                {/* Major Stars Mini Pills */}
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {pal?.majorStars.slice(0, 2).map((s, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-purple-200 border border-white/10 truncate">
-                      {s.nameVi} <span className="text-teal-400 text-[8px]">({s.brightness})</span>
-                    </span>
-                  ))}
-                  {pal?.majorStars.length === 0 && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-slate-400 italic">
-                      Vô chính diệu
-                    </span>
-                  )}
-                  {pal?.transformations && pal.transformations.length > 0 && (
-                    <span className="px-1 py-0.5 rounded text-[8px] bg-rose-500/20 text-rose-300 font-mono font-bold border border-rose-500/30">
-                      {pal.transformations[0]}
-                    </span>
-                  )}
-                </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {pal?.majorStars.slice(0, 2).map((s, i) => (
+                      <span key={i} className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-purple-200 border border-white/10 truncate">
+                        {s.nameVi} <span className="text-teal-400 text-[8px]">({s.brightness})</span>
+                      </span>
+                    ))}
+                    {pal?.majorStars.length === 0 && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-slate-400 italic">
+                        Vô chính diệu
+                      </span>
+                    )}
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
+        )}
 
-                {/* Auxiliary Rings: Thai Tue & Trang Sinh */}
-                <div className="mt-2 pt-1.5 border-t border-white/5 flex items-center justify-between text-[9px]">
-                  <span className="text-teal-400/90 font-medium truncate max-w-[55%]">
-                    {pal?.thaiTueStar}
-                  </span>
-                  <span className="text-amber-400/80 truncate">
-                    {pal?.trangSinhStar}
-                  </span>
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Selected Palace Detailed Breakdown */}
+        {/* SELECTED PALACE DETAILED DOSSIER CARD */}
         {selectedPalace && (
           <motion.div
             key={selectedPalaceKey}
@@ -534,7 +789,7 @@ export const DestinyDashboard: React.FC<Props> = ({
                     Cung {selectedPalace.nameVi}
                   </h4>
                   <span className="px-2 py-0.5 rounded-lg text-xs font-mono bg-purple-500/20 border border-purple-500/30 text-purple-300">
-                    Can {selectedPalace.stem} / Chi {selectedPalace.branch}
+                    Can {selectedPalace.stem} • Chi {BRANCHES[selectedPalace.branch]?.nameVi || selectedPalace.branch}
                   </span>
                   <span className="px-2 py-0.5 rounded-lg text-xs font-mono bg-white/5 border border-white/10 text-teal-300">
                     Đại Vận: {selectedPalace.decadeRangeStr} tuổi
@@ -545,7 +800,14 @@ export const DestinyDashboard: React.FC<Props> = ({
                     </span>
                   )}
                   {selectedPalace.tuanTriet?.map((tt, i) => (
-                    <span key={i} className={`px-2 py-0.5 rounded-lg text-xs font-bold ${tt === 'Triệt' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'}`}>
+                    <span
+                      key={i}
+                      className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
+                        tt === 'Triệt'
+                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                          : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                      }`}
+                    >
                       Ngộ {tt} Không
                     </span>
                   ))}
@@ -553,12 +815,10 @@ export const DestinyDashboard: React.FC<Props> = ({
                 <p className="text-xs text-slate-400 mt-1">{selectedPalace.focalTheme}</p>
               </div>
 
-              <div className="flex items-center gap-3 self-end sm:self-auto">
-                <div className="text-right">
-                  <div className="text-[10px] text-teal-400 uppercase tracking-wider">Năng Lượng Cung</div>
-                  <div className="text-xl font-light font-mono text-white">
-                    {selectedPalace.score}/100
-                  </div>
+              <div className="text-right shrink-0">
+                <div className="text-[10px] text-teal-400 uppercase tracking-wider">Năng Lượng Cung</div>
+                <div className="text-xl font-light font-mono text-white">
+                  {selectedPalace.score}/100
                 </div>
               </div>
             </div>
@@ -597,12 +857,12 @@ export const DestinyDashboard: React.FC<Props> = ({
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 text-purple-300 border border-purple-800/60">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${getBrightnessColor(star.brightness)}`}>
                           {star.brightness === 'M' ? 'Miếu' : star.brightness === 'V' ? 'Vượng' : star.brightness === 'D' ? 'Đắc' : star.brightness === 'B' ? 'Bình' : 'Hãm'}
                         </span>
                         {star.transformation && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-rose-950/60 text-rose-300 border border-rose-800/60 font-bold">
-                            Hóa {star.transformation}
+                            Hóa {star.transformation === 'Lu' ? 'Lộc' : star.transformation === 'Quan' ? 'Quyền' : star.transformation === 'Khoa' ? 'Khoa' : 'Kỵ'}
                           </span>
                         )}
                       </div>
@@ -610,7 +870,7 @@ export const DestinyDashboard: React.FC<Props> = ({
                   ))}
                   {selectedPalace.majorStars.length === 0 && (
                     <div className="p-3 rounded-xl bg-white/[0.01] border border-dashed border-white/10 text-xs text-slate-400 text-center italic">
-                      Cung Vô Chính Diệu — Hấp thụ tính chất và ánh sáng từ cung đối chiếu ({PALACE_DEFS.find(d => d.key !== selectedPalace.key)?.nameVi})
+                      Cung Vô Chính Diệu — Hấp thụ năng lượng và cát hung từ cung chính chiếu ({sanFangTuChinh.oppositePalace?.nameVi || 'Thiên Di'}).
                     </div>
                   )}
                 </div>
@@ -638,115 +898,155 @@ export const DestinyDashboard: React.FC<Props> = ({
           </motion.div>
         )}
 
-        {/* AUTHENTIC IN-DEPTH PERSONALIZED ZI WEI ANALYSIS */}
+        {/* AUTHENTIC IN-DEPTH PERSONALIZED ZI WEI ANALYSIS (LUẬN GIẢI CHÍNH TÔNG) */}
         {ziwei.authenticAnalysis && (
-          <div className="mt-4 pt-4 border-t border-white/10 space-y-3.5">
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-4 bg-purple-400 rounded-full shadow-[0_0_8px_#c084fc]"></span>
-              <h4 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
-                Luận Giải Tử Vi Đẩu Số Chính Tông (Bản Mệnh Cá Nhân)
-              </h4>
+          <div className="mt-4 pt-4 border-t border-white/10 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-4 bg-purple-400 rounded-full shadow-[0_0_8px_#c084fc]"></span>
+                <h4 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
+                  Luận Giải Tử Vi Đẩu Số Chính Tông (Bản Mệnh Cá Nhân)
+                </h4>
+              </div>
+
+              {/* Analysis Tabs */}
+              <div className="flex items-center gap-1 text-xs">
+                {[
+                  { key: 'essence', label: '1. Bản Thể' },
+                  { key: 'body', label: '2. Cung Thân' },
+                  { key: 'sanfang', label: '3. Cách Cục' },
+                  { key: 'transit', label: '4. Vận Trình' },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setAnalysisTab(tab.key as any)}
+                    className={`px-2.5 py-1 rounded-lg text-xs transition-all cursor-pointer ${
+                      analysisTab === tab.key
+                        ? 'bg-purple-600/30 text-purple-200 border border-purple-500/50 font-medium'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {/* I. Core Essence & Yin-Yang */}
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-teal-300">1. Bản Thể & Tương Phối Mệnh - Cục</span>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    {ziwei.yinYangGenderHarmony?.direction}
-                  </span>
+            {/* Tab 1: Bản Thể & Tương Phối Mệnh - Cục */}
+            {analysisTab === 'essence' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2.5 text-xs"
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold text-teal-300">Bản Thể & Tương Phối Mệnh - Cục</span>
+                  <span className="font-mono text-slate-400">{ziwei.yinYangGenderHarmony?.direction}</span>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-slate-300 leading-relaxed">
                   {ziwei.authenticAnalysis.coreEssence}
                 </p>
                 {ziwei.elementDestinyBureauHarmony && (
-                  <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5">
-                    <span className="text-slate-300 font-medium">{ziwei.elementDestinyBureauHarmony.relation}:</span> {ziwei.elementDestinyBureauHarmony.explanation}
+                  <div className="p-2.5 rounded-lg bg-teal-500/5 border border-teal-500/20 text-slate-300">
+                    <span className="font-bold text-teal-300">{ziwei.elementDestinyBureauHarmony.relation}:</span>{' '}
+                    {ziwei.elementDestinyBureauHarmony.explanation}
                   </div>
                 )}
-              </div>
+              </motion.div>
+            )}
 
-              {/* II. Body Palace Dynamics */}
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-300">
-                    2. Cung Thân & Trọng Tâm Hậu Vận (Sau 30 Tuổi)
-                  </span>
-                  <span className="text-[10px] font-mono text-amber-400/90">
-                    Cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi}
-                  </span>
+            {/* Tab 2: Cung Thân & Trọng Tâm Hậu Vận */}
+            {analysisTab === 'body' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2.5 text-xs"
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold text-amber-300">Cung Thân & Trọng Tâm Hậu Vận (Sau 30 Tuổi)</span>
+                  <span className="font-mono text-amber-400">Cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi}</span>
                 </div>
                 {ziwei.bodyPalaceAnalysis ? (
                   <>
-                    <p className="text-xs text-slate-300 leading-relaxed">
+                    <p className="text-slate-300 leading-relaxed">
                       {ziwei.bodyPalaceAnalysis.meaning}
                     </p>
-                    <div className="text-[11px] text-slate-400 pt-1 border-t border-white/5">
-                      <span className="text-slate-300 font-medium">Tác động thực tiễn:</span> {ziwei.bodyPalaceAnalysis.lifeImpact}
+                    <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 text-slate-300">
+                      <span className="font-bold text-amber-300">Tác động thực tiễn:</span>{' '}
+                      {ziwei.bodyPalaceAnalysis.lifeImpact}
                     </div>
                   </>
                 ) : (
-                  <p className="text-xs text-slate-300 leading-relaxed">
+                  <p className="text-slate-300 leading-relaxed">
                     {ziwei.authenticAnalysis.relationshipsAndFamily}
                   </p>
                 )}
-              </div>
+              </motion.div>
+            )}
 
-              {/* III. San Fang Si Zheng & Configurations */}
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-300">3. Tam Phương Tứ Chính & Cách Cục</span>
-                  <span className="text-[10px] font-mono text-slate-400">Chính Tông</span>
+            {/* Tab 3: Tam Phương Tứ Chính & Cách Cục */}
+            {analysisTab === 'sanfang' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2.5 text-xs"
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold text-indigo-300">Tam Phương Tứ Chính & Cách Cục Định Mệnh</span>
+                  <span className="font-mono text-slate-400">Chính Tông</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mb-1">
+                <div className="flex flex-wrap gap-1.5">
                   {ziwei.majorConfigurations.map((cfg, i) => (
-                    <span key={i} className="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-500/20 text-purple-200 border border-purple-500/30">
+                    <span key={i} className="px-2.5 py-1 rounded text-xs font-semibold bg-purple-500/20 text-purple-200 border border-purple-500/30">
                       {cfg}
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-slate-300 leading-relaxed pt-1">
                   {ziwei.authenticAnalysis.careerAndWealthTrajectory}
                 </p>
-              </div>
+              </motion.div>
+            )}
 
-              {/* IV. Decades & Guidance */}
-              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-rose-300">4. Vận Trình & Định Hướng Hành Động</span>
+            {/* Tab 4: Vận Trình & Định Hướng Hành Động */}
+            {analysisTab === 'transit' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2.5 text-xs"
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold text-rose-300">Vận Trình Đại Vận & Lưu Niên</span>
                   {ziwei.currentDecade && (
-                    <span className="text-[10px] font-mono text-slate-400">
-                      Đại Vận {ziwei.currentDecade.decadeRange}
-                    </span>
+                    <span className="font-mono text-slate-400">Đại Vận {ziwei.currentDecade.decadeRange}</span>
                   )}
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-slate-300 leading-relaxed">
                   {ziwei.authenticAnalysis.decadeAndCurrentYearGuidance}
                 </p>
-                <div className="text-[11px] text-teal-300/90 pt-1 border-t border-white/5 font-medium">
+                <div className="p-2.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-300 font-medium">
                   💡 {ziwei.authenticAnalysis.strategicAdvice}
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            )}
           </div>
         )}
       </motion.div>
 
-      {/* 4. CURRENT TRANSIT & STRATEGIC RECOMMENDATIONS */}
+      {/* 5. CURRENT TRANSIT & STRATEGIC RECOMMENDATIONS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Transit Energy */}
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3 backdrop-blur-md shadow-xl"
+          className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3 backdrop-blur-md shadow-xl"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-4 bg-teal-400 rounded-full shadow-[0_0_8px_#2dd4bf]"></span>
               <h4 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
-                Lưu Niên Năm {currentYear} ({currentTransit.stem} {currentTransit.branch})
+                Lưu Niên Năm {currentYear} ({currentTransit.stem} {BRANCHES[currentTransit.branch]?.nameVi || currentTransit.branch})
               </h4>
             </div>
             <span className="text-xs font-mono font-bold text-teal-400">
@@ -775,10 +1075,10 @@ export const DestinyDashboard: React.FC<Props> = ({
 
         {/* Strategic Timing Windows */}
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-3 backdrop-blur-md shadow-xl"
+          className="p-5 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3 backdrop-blur-md shadow-xl"
         >
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-4 bg-purple-500 rounded-full shadow-[0_0_8px_#a855f7]"></span>

@@ -318,13 +318,13 @@ export const SacredCosmicCipher3D: React.FC<Props> = ({ size = 'lg', onActivate 
         </div>
 
         {/* Live Status Pill Under Emblem */}
-        <div className="flex justify-center mt-3.5">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0a0c16]/90 border border-teal-500/40 text-[10px] sm:text-xs font-mono tracking-wider text-teal-300 shadow-[0_4px_15px_rgba(0,0,0,0.5)] group-hover:border-teal-300 group-hover:text-white transition-all">
-            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-ping" />
-            <span className="font-semibold uppercase tracking-widest bg-gradient-to-r from-teal-300 via-white to-amber-300 bg-clip-text text-transparent">
-              MẬT MÃ THIÊN CƠ VÔ CỰC
+        <div className="flex justify-center mt-3">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[10px] sm:text-xs font-mono tracking-wider text-slate-300 shadow-sm group-hover:border-teal-400/50 group-hover:text-white transition-all">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+            <span className="font-medium uppercase tracking-widest text-slate-300 group-hover:text-teal-200">
+              Bát Quái Thiên Đồ • Quantum Matrix
             </span>
-            <Sparkles className="w-3 h-3 text-amber-300 group-hover:rotate-45 transition-transform" />
+            <Sparkles className="w-3 h-3 text-amber-400/80" />
           </div>
         </div>
       </motion.div>
