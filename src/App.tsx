@@ -30,6 +30,7 @@ import { InternationalizationModal } from './components/InternationalizationModa
 import { MysticOracleModal } from './components/MysticOracleModal';
 import { SocialShareCardModal } from './components/SocialShareCardModal';
 import { SeoKnowledgeModal } from './components/SeoKnowledgeModal';
+import { CelestialTalismanModal } from './components/CelestialTalismanModal';
 import { sacredSound } from './services/soundService';
 
 import { UserProfile, UserPreferences } from './types/user';
@@ -66,6 +67,7 @@ export default function App() {
   const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
   const [showShareCardModal, setShowShareCardModal] = useState<boolean>(false);
   const [showSeoModal, setShowSeoModal] = useState<boolean>(false);
+  const [showTalismanModal, setShowTalismanModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -390,6 +392,7 @@ export default function App() {
           onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
           onOpenInternationalModal={() => setShowInternationalModal(true)}
           onOpenOracleModal={() => setShowOracleModal(true)}
+          onOpenTalismanModal={() => setShowTalismanModal(true)}
         />
       </div>
 
@@ -483,6 +486,7 @@ export default function App() {
                   onOpenOracleModal={() => setShowOracleModal(true)}
                   onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
+                  onOpenTalismanModal={() => setShowTalismanModal(true)}
                 />
               )}
 
@@ -559,6 +563,7 @@ export default function App() {
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         onOpenInternationalModal={() => setShowInternationalModal(true)}
         onOpenSeoKnowledgeModal={() => setShowSeoModal(true)}
+        onOpenTalismanModal={() => setShowTalismanModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -677,6 +682,17 @@ export default function App() {
         onClose={() => setShowSeoModal(false)}
         language={language}
       />
+
+      {/* Thiên Bản Khai Mệnh & Pháp Bảo Vận Hạn Độc Bản (Golden Talisman & Hall of Patrons) */}
+      {showTalismanModal && activeProfile && calculation && (
+        <CelestialTalismanModal
+          isOpen={showTalismanModal}
+          onClose={() => setShowTalismanModal(false)}
+          calculation={calculation}
+          profile={activeProfile}
+          language={language}
+        />
+      )}
     </div>
   );
 }

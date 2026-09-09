@@ -21,7 +21,8 @@ import {
   Binary,
   Heart,
   QrCode,
-  Search
+  Search,
+  Crown
 } from 'lucide-react';
 import { LanguageCode } from '../types/destiny';
 
@@ -33,6 +34,7 @@ interface Props {
   onOpenSponsorshipModal?: () => void;
   onOpenInternationalModal?: () => void;
   onOpenSeoKnowledgeModal?: () => void;
+  onOpenTalismanModal?: () => void;
   hasFloatingDock?: boolean;
 }
 
@@ -44,6 +46,7 @@ export const AppFooter: React.FC<Props> = ({
   onOpenSponsorshipModal,
   onOpenInternationalModal,
   onOpenSeoKnowledgeModal,
+  onOpenTalismanModal,
   hasFloatingDock = false
 }) => {
   const [copied, setCopied] = useState(false);
@@ -313,6 +316,17 @@ export const AppFooter: React.FC<Props> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+            {onOpenTalismanModal && (
+              <button
+                id="btn-footer-talisman-modal"
+                onClick={onOpenTalismanModal}
+                className="text-amber-300 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-semibold"
+                title="Khai mở Thẻ Mệnh Kim Giáp 3D & Bia Vàng Công Đức"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isVi ? 'Thẻ Kim Giáp & Bia Vàng' : 'Talisman & Patrons'}</span>
+              </button>
+            )}
             {onOpenSeoKnowledgeModal && (
               <button
                 id="btn-footer-seo-center"

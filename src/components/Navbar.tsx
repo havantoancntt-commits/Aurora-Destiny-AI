@@ -23,7 +23,8 @@ import {
   VolumeX,
   Compass,
   Menu,
-  MoreHorizontal
+  MoreHorizontal,
+  Crown
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -47,6 +48,7 @@ interface Props {
   onOpenSponsorshipModal?: () => void;
   onOpenInternationalModal?: () => void;
   onOpenOracleModal?: () => void;
+  onOpenTalismanModal?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -64,7 +66,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenAlertCenter = () => {},
   onOpenSponsorshipModal,
   onOpenInternationalModal,
-  onOpenOracleModal
+  onOpenOracleModal,
+  onOpenTalismanModal
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -245,6 +248,19 @@ export const Navbar: React.FC<Props> = ({
               )}
             </div>
 
+            {/* Desktop Direct Action: Thẻ Kim Giáp Khai Mệnh */}
+            {onOpenTalismanModal && (
+              <button
+                id="btn-nav-talisman-card"
+                onClick={onOpenTalismanModal}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-600/20 border border-amber-400/50 text-amber-200 hover:text-white hover:border-amber-300 text-xs transition-all cursor-pointer shadow-[0_0_12px_rgba(251,191,36,0.2)] font-semibold"
+                title="Khai Mở Thẻ Mệnh Kim Giáp 3D & Bia Vàng Công Đức"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400/30" />
+                <span>Thẻ Kim Giáp</span>
+              </button>
+            )}
+
             {/* Desktop Direct Action: Gieo Quẻ Kinh Dịch */}
             {onOpenOracleModal && (
               <button
@@ -360,6 +376,19 @@ export const Navbar: React.FC<Props> = ({
 
                   <div className="space-y-1 text-xs">
                     {/* Mobile-only tools in this drawer */}
+                    {onOpenTalismanModal && (
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          onOpenTalismanModal();
+                        }}
+                        className="md:hidden w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 transition-colors text-left cursor-pointer font-medium"
+                      >
+                        <Crown className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Thẻ Kim Giáp Khai Mệnh</span>
+                      </button>
+                    )}
+
                     {onOpenOracleModal && (
                       <button
                         onClick={() => {

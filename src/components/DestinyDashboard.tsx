@@ -26,7 +26,8 @@ import {
   Grid3X3,
   LayoutGrid,
   Eye,
-  Sliders
+  Sliders,
+  Crown
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -50,6 +51,7 @@ interface Props {
   onOpenOracleModal?: () => void;
   onOpenSponsorshipModal?: () => void;
   onOpenAlertCenter?: () => void;
+  onOpenTalismanModal?: () => void;
 }
 
 // 4x4 Classical Celestial Grid Coordinate Definition (12 Earthly Branches clockwise perimeter)
@@ -93,7 +95,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   onOpenShareCardModal,
   onOpenOracleModal = () => {},
   onOpenSponsorshipModal = () => {},
-  onOpenAlertCenter = () => {}
+  onOpenAlertCenter = () => {},
+  onOpenTalismanModal
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [ziweiViewMode, setZiweiViewMode] = useState<'board4x4' | 'cardList'>('board4x4');
@@ -312,7 +315,18 @@ export const DestinyDashboard: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 flex-wrap">
+            {onOpenTalismanModal && (
+              <button
+                id="btn-open-talisman-dashboard"
+                onClick={onOpenTalismanModal}
+                className="flex-1 sm:flex-initial px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 via-amber-400 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(251,191,36,0.3)] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                title="Khai mở Thẻ Mệnh Kim Giáp 3D & Bia Vàng Công Đức"
+              >
+                <Crown className="w-3.5 h-3.5 text-slate-950 fill-slate-950/30" />
+                <span>Thẻ Kim Giáp 3D</span>
+              </button>
+            )}
             {onOpenShareCardModal && (
               <button
                 id="btn-open-share-card"

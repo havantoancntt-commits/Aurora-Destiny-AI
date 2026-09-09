@@ -1182,6 +1182,121 @@ app.get('/api/seo/metadata', (req: Request, res: Response) => {
 });
 
 // ----------------------------------------------------
+// 11C. CELESTIAL HALL OF PATRONS (BIA VÀNG CÔNG ĐỨC THIÊN BÀN)
+// Trân trọng ghi danh những tấm lòng hảo tâm & bảo trợ tri thức
+// ----------------------------------------------------
+interface PatronRecord {
+  id: string;
+  name: string;
+  tier: 'dong' | 'bac' | 'vang' | 'kim_cuong' | 'tam_tinh';
+  amount?: number;
+  message?: string;
+  sealHash: string;
+  date: string;
+  isAnonymous?: boolean;
+}
+
+const initialPatrons: PatronRecord[] = [
+  {
+    id: 'ptr_001',
+    name: 'Phật Tử Diệu Tâm (TP. HCM)',
+    tier: 'kim_cuong',
+    amount: 1000000,
+    message: 'Kính chúc Kênh Huyền Phong Phật Đạo & Giáo Sư Prof.TOAN thân tâm an lạc, lan tỏa chánh tri kiến.',
+    sealHash: 'SEAL-HPPD-9F2A1C4B',
+    date: '2026-03-01'
+  },
+  {
+    id: 'ptr_002',
+    name: 'Cư Sĩ Trí Tuệ (Hà Nội)',
+    tier: 'vang',
+    amount: 500000,
+    message: 'Ủng hộ máy chủ AI phân tích Bát Tự & Tử Vi khoa học không mê tín dị đoan.',
+    sealHash: 'SEAL-HPPD-88B13DE0',
+    date: '2026-03-03'
+  },
+  {
+    id: 'ptr_003',
+    name: 'Bác Sĩ Nguyễn Hoàng (Đà Nẵng)',
+    tier: 'vang',
+    amount: 500000,
+    message: 'Tấm lòng tri ân thuật toán Giờ sinh chân mặt trời chuẩn xác đến từng phút.',
+    sealHash: 'SEAL-HPPD-C41951A8',
+    date: '2026-03-05'
+  },
+  {
+    id: 'ptr_004',
+    name: 'Hữu Duyên Trí Thiện (Cần Thơ)',
+    tier: 'bac',
+    amount: 200000,
+    message: 'Mời Giáo Sư chén trà đàm đạo, chúc dự án trường tồn vươn tầm quốc tế.',
+    sealHash: 'SEAL-HPPD-7E3048D2',
+    date: '2026-03-07'
+  },
+  {
+    id: 'ptr_005',
+    name: 'Huynh Đệ Vô Danh (California, USA)',
+    tier: 'kim_cuong',
+    amount: 2000000,
+    message: 'Bảo trợ GPU máy chủ đa tác tử AI, phụng sự người Việt năm châu.',
+    sealHash: 'SEAL-HPPD-EE4091BF',
+    date: '2026-03-08'
+  }
+];
+
+let registeredPatrons: PatronRecord[] = [...initialPatrons];
+
+app.get('/api/patrons', (req: Request, res: Response) => {
+  res.json({
+    status: 'success',
+    totalCount: registeredPatrons.length,
+    patrons: registeredPatrons
+  });
+});
+
+app.post('/api/patrons', (req: Request, res: Response) => {
+  const { name, tier, amount, message, isAnonymous } = req.body || {};
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Tên hoặc pháp danh không được để trống' });
+  }
+
+  const rawName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : name.trim();
+  const safeTier = ['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh'].includes(tier) ? tier : 'tam_tinh';
+  const cleanAmount = typeof amount === 'number' && amount > 0 ? amount : undefined;
+
+  const hashSeed = `${rawName}_${Date.now()}_${Math.random()}`;
+  let hashNum = 0x811c9dc5;
+  for (let i = 0; i < hashSeed.length; i++) {
+    hashNum ^= hashSeed.charCodeAt(i);
+    hashNum = (hashNum * 0x01000193) >>> 0;
+  }
+  const sealHash = `SEAL-HPPD-${hashNum.toString(16).toUpperCase().padStart(8, '0')}`;
+
+  const newPatron: PatronRecord = {
+    id: `ptr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    name: rawName,
+    tier: safeTier as any,
+    amount: cleanAmount,
+    message: message && typeof message === 'string' ? message.trim() : 'Gieo duyên công đức trợ lực nền tảng',
+    sealHash,
+    date: new Date().toISOString().split('T')[0],
+    isAnonymous: Boolean(isAnonymous)
+  };
+
+  registeredPatrons.unshift(newPatron);
+
+  if (registeredPatrons.length > 500) {
+    registeredPatrons = registeredPatrons.slice(0, 500);
+  }
+
+  return res.status(201).json({
+    status: 'success',
+    message: 'Ghi danh Bia Vàng Công Đức thành công',
+    patron: newPatron
+  });
+});
+
+// ----------------------------------------------------
 // 12. CENTRALIZED ERROR HANDLING MIDDLEWARE
 // ----------------------------------------------------
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
