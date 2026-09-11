@@ -18,6 +18,9 @@ import {
   X,
   RefreshCw,
   Bell,
+  BellRing,
+  Sliders,
+  Send,
   ArrowRight,
   Sun,
   Moon,
@@ -28,27 +31,49 @@ import {
   Disc
 } from 'lucide-react';
 import { CalculationResult, LanguageCode } from '../types/destiny';
+import { UserProfile } from '../types/user';
 import {
   calculateRealtimeSnapshot,
   RealtimeDestinySnapshot,
   HourlySlotInsight
 } from '../engine/realtimeEngine';
 import { soundEngine } from '../services/soundEffects';
+import { sacredSound } from '../services/soundService';
+import { CanChiNotificationPanel } from './CanChiNotificationPanel';
+import {
+  getNotificationPermission,
+  sendTestNotification,
+  requestNotificationPermission
+} from '../services/destinyPushNotification';
 
 interface Props {
   calculation: CalculationResult | null;
+  profile?: UserProfile | null;
   language: LanguageCode;
+  initialMode?: 'radar' | 'notifications';
   onClose: () => void;
 }
 
-export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, onClose }) => {
+export const RealTimeAlertCenter: React.FC<Props> = ({
+  calculation,
+  profile,
+  language,
+  initialMode = 'radar',
+  onClose
+}) => {
+  const [activeMode, setActiveMode] = useState<'radar' | 'notifications'>(initialMode);
   const [snapshot, setSnapshot] = useState<RealtimeDestinySnapshot>(() =>
     calculateRealtimeSnapshot(calculation, new Date())
   );
   const [selectedSlot, setSelectedSlot] = useState<HourlySlotInsight | null>(null);
   const [isMuted, setIsMuted] = useState<boolean>(() => soundEngine.getMuted());
   const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [notificationEnabled, setNotificationEnabled] = useState<boolean>(false);
+  const [notificationPerm, setNotificationPerm] = useState<NotificationPermission | 'unsupported'>(
+    () => getNotificationPermission()
+  );
+  const notificationEnabled = notificationPerm === 'granted';
+  const [isTestingPush, setIsTestingPush] = useState<boolean>(false);
+  const [testPushMsg, setTestPushMsg] = useState<string | null>(null);
 
   // Live real-time tick (each second)
   useEffect(() => {
@@ -102,8 +127,8 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
     if (typeof window !== 'undefined' && 'Notification' in window) {
       try {
         const permission = await Notification.requestPermission();
+        setNotificationPerm(permission);
         if (permission === 'granted') {
-          setNotificationEnabled(true);
           soundEngine.playHarmonicChime(660, 0.8);
           new Notification('Aurora Destiny AI • Cảnh Báo Thời Gian Thực', {
             body: `Đã kích hoạt hệ thống radar thiên văn. Canh giờ hiện tại: ${snapshot.currentHourPillar.stem} ${snapshot.currentHourPillar.branch} (${snapshot.currentSlot.zodiacStarName}) • Độ cộng hưởng: ${snapshot.resonanceScore}%`,
@@ -153,7 +178,7 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
         />
 
         {/* 1. Modal Top Bar */}
-        <div className="px-5 sm:px-8 py-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-4">
+        <div className="px-5 sm:px-8 py-4 border-b border-white/10 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div
               className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg transition-transform ${
@@ -169,7 +194,7 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold text-white tracking-wide font-cinzel">
-                  Trung Tâm Cảnh Báo Thiên Thời Thời Gian Thực
+                  Trung Tâm Cảnh Báo Thiên Thời & Thông Báo Đẩy
                 </h2>
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-widest bg-white/10 border border-white/20 text-slate-300">
                   LIVE RADAR
@@ -185,17 +210,52 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Mode Switcher */}
+            <div className="flex items-center p-1 rounded-full bg-black/60 border border-white/15 shadow-inner">
+              <button
+                onClick={() => {
+                  sacredSound.playCelestialChime(528);
+                  setActiveMode('radar');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium font-mono transition-all cursor-pointer ${
+                  activeMode === 'radar'
+                    ? 'bg-teal-500/25 text-teal-300 border border-teal-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>Radar Trực Quan</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  sacredSound.playCelestialChime(768);
+                  setActiveMode('notifications');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium font-mono transition-all cursor-pointer ${
+                  activeMode === 'notifications'
+                    ? 'bg-amber-500/25 text-amber-300 border border-amber-500/40 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <BellRing className="w-3.5 h-3.5 text-amber-400" />
+                <span>Thông Báo Đẩy Can Chi</span>
+              </button>
+            </div>
+
             {/* Quick Rescan Button */}
-            <button
-              onClick={handleRescan}
-              disabled={isScanning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs text-slate-200 font-medium transition-all active:scale-95 cursor-pointer"
-              title="Quét lại tần số năng lượng hiện tại"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-teal-400 ${isScanning ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Quét Lại</span>
-            </button>
+            {activeMode === 'radar' && (
+              <button
+                onClick={handleRescan}
+                disabled={isScanning}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs text-slate-200 font-medium transition-all active:scale-95 cursor-pointer"
+                title="Quét lại tần số năng lượng hiện tại"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-teal-400 ${isScanning ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Quét Lại</span>
+              </button>
+            )}
 
             {/* Sound Toggle Button */}
             <button
@@ -222,6 +282,21 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
 
         {/* 2. Main Content Body */}
         <div className="p-5 sm:p-8 space-y-6 max-h-[78vh] overflow-y-auto custom-scrollbar">
+          {activeMode === 'notifications' ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <CanChiNotificationPanel
+                calculation={calculation}
+                profile={profile || null}
+                language={language}
+                onClose={onClose}
+              />
+            </motion.div>
+          ) : (
+            <>
           {/* A. REAL-TIME DIRECTIVE HERO CARD */}
           <div
             className={`rounded-2xl p-5 sm:p-6 border backdrop-blur-md relative overflow-hidden transition-all duration-300 ${
@@ -644,6 +719,8 @@ export const RealTimeAlertCenter: React.FC<Props> = ({ calculation, language, on
               </motion.div>
             )}
           </div>
+            </>
+          )}
         </div>
 
         {/* 3. Modal Bottom Action Bar */}
