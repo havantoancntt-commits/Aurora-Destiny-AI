@@ -13,6 +13,12 @@ export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
 export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
 export const ANALYSIS_MODEL_VERSION = 'aurora_ensemble_v3.5';
 
+export interface DestinyCalculationOptions {
+  analysisYear?: number;
+  conventionVersion?: string;
+  astrologyRulesVersion?: string;
+}
+
 // Bounded LRU Cache for calculations (prevents redundant recomputations and unbounded memory growth)
 const MAX_ENGINE_CACHE_SIZE = 128;
 const calculationLruCache = new Map<string, CalculationResult>();
@@ -40,12 +46,17 @@ function deterministicHash(str: string): string {
 export function runFullDestinyCalculation(
   birthData: BirthData,
   profileId: string = 'prof_default',
-  eventsCount: number = 0
+  eventsCount: number = 0,
+  options?: DestinyCalculationOptions
 ): CalculationResult {
+  const analysisYear = options?.analysisYear ?? new Date().getFullYear();
+  const conventionVersion = options?.conventionVersion ?? birthData.ziweiYearConvention ?? 'solarLapXuan';
+  const rulesVersion = options?.astrologyRulesVersion ?? ASTROLOGY_RULES_VERSION;
+
   // Canonical Resolution of Birth Time (Single Source of Truth)
   const canonicalTime = resolveEffectiveBirthTime(birthData);
 
-  // Deterministic Idempotent Signature across all astronomical, calendar and convention coordinates
+  // Deterministic Idempotent Signature across all astronomical, calendar, transit year and convention coordinates
   const inputSignature = [
     profileId,
     birthData.solarYear,
@@ -61,20 +72,21 @@ export function runFullDestinyCalculation(
     birthData.gender,
     birthData.isLateRat ? 'lateRat' : 'standard',
     birthData.timeConvention || 'civil',
-    birthData.ziweiYearConvention || 'solarLapXuan',
+    conventionVersion,
     birthData.ziweiLeapMonthConvention || 'midMonthSplit',
+    analysisYear,
     CALCULATION_ENGINE_VERSION,
-    ASTROLOGY_RULES_VERSION,
+    rulesVersion,
     eventsCount
   ].join('_');
 
-  // Check bounded LRU cache
+  // Check bounded LRU cache with defensive copying
   if (calculationLruCache.has(inputSignature)) {
     const cached = calculationLruCache.get(inputSignature)!;
     // Re-insert to maintain recent LRU position
     calculationLruCache.delete(inputSignature);
     calculationLruCache.set(inputSignature, cached);
-    return cached;
+    return structuredClone(cached);
   }
 
   const effectiveBirthData: BirthData = {
@@ -91,8 +103,7 @@ export function runFullDestinyCalculation(
   const bazi = calculateBaZiChart(effectiveBirthData);
   const ziwei = calculateZiWeiChart(effectiveBirthData);
   const decades = calculateDecadeCycles(effectiveBirthData);
-  const currentYear = new Date().getFullYear();
-  const annualTransits = calculateAnnualTransits(effectiveBirthData, currentYear - 6, currentYear + 10);
+  const annualTransits = calculateAnnualTransits(effectiveBirthData, analysisYear - 6, analysisYear + 10);
   const confidence = evaluateConfidence(effectiveBirthData, eventsCount);
 
   const deterministicId = `calc_${deterministicHash(inputSignature)}`;
@@ -101,7 +112,7 @@ export function runFullDestinyCalculation(
     id: deterministicId,
     profileId,
     calculationVersion: CALCULATION_ENGINE_VERSION,
-    astrologyRulesVersion: ASTROLOGY_RULES_VERSION,
+    astrologyRulesVersion: rulesVersion,
     analysisModelVersion: ANALYSIS_MODEL_VERSION,
     timestamp: new Date().toISOString(),
     inputSnapshot: { ...birthData },
@@ -129,7 +140,9 @@ export function runFullDestinyCalculation(
       calculationLruCache.delete(oldestKey);
     }
   }
-  calculationLruCache.set(inputSignature, result);
+  // Store clone in cache to prevent caller mutation of cache
+  calculationLruCache.set(inputSignature, structuredClone(result));
 
-  return result;
+  // Return clone to caller to preserve complete cache immutability
+  return structuredClone(result);
 }

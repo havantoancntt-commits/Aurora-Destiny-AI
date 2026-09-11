@@ -25,7 +25,14 @@ interface QuarantineRecord {
   threatCount: number;
 }
 
-// In-memory threat tracking & IP quarantine store
+// ============================================================================
+// STATE STORE & DISTRIBUTED DEPLOYMENT ARCHITECTURE NOTE (SECTION 19 & 20)
+// In-memory Map threat store provides microsecond sub-millisecond local latency.
+// NOTE FOR HORIZONTAL MULTI-INSTANCE / CLOUD RUN AUTO-SCALING:
+// When running multiple container replicas in production, ipThreatStore and
+// ipQuarantineStore should be backed by a centralized Redis cluster or PostgreSQL
+// store so that rate limits and IP bans synchronize across all instances.
+// ============================================================================
 const ipThreatStore = new Map<string, { score: number; lastSeen: number; threats: string[] }>();
 const ipQuarantineStore = new Map<string, QuarantineRecord>();
 const recentThreats: SecurityThreatRecord[] = [];
@@ -112,9 +119,14 @@ function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: Secu
   }
 
   if (typeof val === 'string') {
-    // Check length to avoid ReDoS on huge blobs (e.g. PDF raw uploads)
+    // Payload safety boundary: individual string fields exceeding 50,000 characters
+    // are rejected immediately to prevent WAF bypass, buffer exhaustion, and ReDoS attacks.
     if (val.length > 50000) {
-      return { detected: false };
+      return {
+        detected: true,
+        type: 'COMMAND_INJECTION',
+        fragment: `Payload field length (${val.length}) exceeded maximum inspection threshold (50000)`
+      };
     }
 
     // 1. Prototype pollution check

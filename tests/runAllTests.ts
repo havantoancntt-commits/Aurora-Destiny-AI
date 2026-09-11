@@ -8,6 +8,7 @@ import { runCalculationRegressionTests } from './regression/calculationRegressio
 import { runTemporalEdgeCaseTests } from './edge-cases/temporalEdgeCases.test';
 import { runTimezoneCorrectionTests } from './timezone/timezoneCorrection.test';
 import { runBaziZiweiIntegrityTests } from './calculation/baziZiweiIntegrity.test';
+import { runCacheAndConventionRegressionTests } from './regression/cacheAndConventionRegression.test';
 
 export function runMasterTestSuite() {
   console.log('====================================================');
@@ -38,6 +39,11 @@ export function runMasterTestSuite() {
   totalPassed += integrityRes.passed;
   totalFailed += integrityRes.failed;
   allErrors.push(...integrityRes.errors);
+
+  const cacheConvRes = runCacheAndConventionRegressionTests();
+  totalPassed += cacheConvRes.passed;
+  totalFailed += cacheConvRes.failed;
+  allErrors.push(...cacheConvRes.errors);
 
   const elapsed = Date.now() - start;
 

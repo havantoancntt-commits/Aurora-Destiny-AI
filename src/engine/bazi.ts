@@ -21,6 +21,38 @@ import {
 } from './canchi';
 import { gregorianToJulianDay, convertSolarToLunar, getSunLongitudeDegrees, getSunLongitudeAtTime } from './lunarSolar';
 
+/**
+ * ============================================================================
+ * DOMAIN CONSTANTS & HEURISTIC SCORING MODEL (TỬ BÌNH / ZIPING METHODOLOGY)
+ * ============================================================================
+ * TAXONOMY & AUDIT CLASSIFICATION:
+ * - DOMAIN CONSTANTS: Canonical metaphysical principles (10 Stems, 12 Branches, 60 Jiazi cycle).
+ * - HEURISTIC CONSTANTS: Numerical weights and thresholds for elemental balance and Day Master strength.
+ *   In traditional Chinese metaphysics (Tử Bình / Bát Tự), there is NO single empirical physical constant.
+ *   These numerical weights represent an orthodox quantitative heuristic model (Lệnh Tháng, Thông Căn,
+ *   Đắc Địa, Tỷ Lệ Sinh Khắc) calibrated for consistent, transparent computational assessment.
+ */
+
+// HEURISTIC CONSTANTS: ELEMENTAL BALANCE SCORING
+export const STEM_ELEMENT_WEIGHT = 1.0; // Standard heavenly stem unit weight
+export const BRANCH_PRIMARY_WEIGHT = 1.5; // Standard earthly branch base weight
+export const MONTH_COMMANDER_SEASON_WEIGHT = 2.5; // Lệnh Tháng (Commander of the Season) weight heuristic
+
+// HEURISTIC CONSTANTS: PILLAR ROOT STRENGTH (THÔNG CĂN / ĐẮC ĐỊA / TÀNG CAN)
+export const ROOT_STRENGTH_BASE = 60;
+export const ROOT_STRENGTH_MAIN_ROOT_BONUS = 28; // Tọa Bản Khí (Chính căn vững chắc)
+export const ROOT_STRENGTH_HIDDEN_ROOT_BONUS = 18; // Dư khí hoặc Trung khí
+export const ROOT_STRENGTH_GENERATING_ROOT_BONUS = 12; // Được Địa chi sinh dưỡng
+export const ROOT_STRENGTH_CLASHING_ROOT_PENALTY = 16; // Bị Địa chi khắc chế
+export const ROOT_STRENGTH_MAX_BOUND = 99;
+export const ROOT_STRENGTH_MIN_BOUND = 35;
+
+// HEURISTIC THRESHOLDS: DAY MASTER STRENGTH RATIO (SUPPORTING / DRAINING)
+export const DAY_MASTER_VERY_STRONG_THRESHOLD = 1.6; // Ratio > 1.6
+export const DAY_MASTER_STRONG_THRESHOLD = 1.15;     // Ratio > 1.15
+export const DAY_MASTER_WEAK_THRESHOLD = 0.85;       // Ratio < 0.85
+export const DAY_MASTER_VERY_WEAK_THRESHOLD = 0.6;   // Ratio < 0.6
+
 // Calculate Year Stem & Branch using exact Solar Term boundary (Lập Xuân = 315° Sun Longitude)
 export function calculateYearPillar(
   year: number,
@@ -178,12 +210,12 @@ export function buildPillar(
   const isGeneratingRoot = ELEMENT_RELATIONS[branchElement].generates === stemElement;
   const isClashingRoot = ELEMENT_RELATIONS[branchElement].overcomes === stemElement;
 
-  let calculatedStrength = 60;
-  if (isMainRoot) calculatedStrength += 28; // Tọa Bản Khí (Chính căn vững chắc)
-  else if (hasHiddenRoot) calculatedStrength += 18; // Dư khí hoặc Trung khí
-  else if (isGeneratingRoot) calculatedStrength += 12; // Được Địa chi sinh dưỡng
-  else if (isClashingRoot) calculatedStrength -= 16; // Bị Địa chi khắc chế
-  const strength = Math.min(99, Math.max(35, calculatedStrength));
+  let calculatedStrength = ROOT_STRENGTH_BASE;
+  if (isMainRoot) calculatedStrength += ROOT_STRENGTH_MAIN_ROOT_BONUS; // Tọa Bản Khí (Chính căn vững chắc)
+  else if (hasHiddenRoot) calculatedStrength += ROOT_STRENGTH_HIDDEN_ROOT_BONUS; // Dư khí hoặc Trung khí
+  else if (isGeneratingRoot) calculatedStrength += ROOT_STRENGTH_GENERATING_ROOT_BONUS; // Được Địa chi sinh dưỡng
+  else if (isClashingRoot) calculatedStrength -= ROOT_STRENGTH_CLASHING_ROOT_PENALTY; // Bị Địa chi khắc chế
+  const strength = Math.min(ROOT_STRENGTH_MAX_BOUND, Math.max(ROOT_STRENGTH_MIN_BOUND, calculatedStrength));
 
   return {
     stem,
@@ -225,16 +257,16 @@ export function calculateBaZiChart(birthData: BirthData): BaZiChart {
   // Calculate Element Distribution
   const rawElements: Record<FiveElement, number> = { Wood: 0, Fire: 0, Earth: 0, Metal: 0, Water: 0 };
   
-  // Stems weight: 1.0 each
+  // Stems weight (Heavenly stem base weight)
   [yearPillar.stemElement, monthPillar.stemElement, dayPillar.stemElement, hourPillar.stemElement].forEach((el) => {
-    rawElements[el] += 1.0;
+    rawElements[el] += STEM_ELEMENT_WEIGHT;
   });
 
-  // Branch primary element weight: 1.5 each (Month branch is Commander of the Season, weight 2.5)
-  rawElements[yearPillar.branchElement] += 1.5;
-  rawElements[monthPillar.branchElement] += 2.5;
-  rawElements[dayPillar.branchElement] += 1.5;
-  rawElements[hourPillar.branchElement] += 1.5;
+  // Branch primary element weight (Month branch is Commander of the Season / Lệnh Tháng)
+  rawElements[yearPillar.branchElement] += BRANCH_PRIMARY_WEIGHT;
+  rawElements[monthPillar.branchElement] += MONTH_COMMANDER_SEASON_WEIGHT;
+  rawElements[dayPillar.branchElement] += BRANCH_PRIMARY_WEIGHT;
+  rawElements[hourPillar.branchElement] += BRANCH_PRIMARY_WEIGHT;
 
   const totalPoints = Object.values(rawElements).reduce((a, b) => a + b, 0);
   const safeTotalPoints = totalPoints > 0 ? totalPoints : 1;
@@ -278,10 +310,10 @@ export function calculateBaZiChart(birthData: BirthData): BaZiChart {
 
   let dayMasterStrength: BaZiChart['dayMasterStrength'] = 'Balanced';
   const ratio = supportingWeight / Math.max(1, drainingWeight);
-  if (ratio > 1.6) dayMasterStrength = 'Very Strong';
-  else if (ratio > 1.15) dayMasterStrength = 'Strong';
-  else if (ratio < 0.6) dayMasterStrength = 'Very Weak';
-  else if (ratio < 0.85) dayMasterStrength = 'Weak';
+  if (ratio > DAY_MASTER_VERY_STRONG_THRESHOLD) dayMasterStrength = 'Very Strong';
+  else if (ratio > DAY_MASTER_STRONG_THRESHOLD) dayMasterStrength = 'Strong';
+  else if (ratio < DAY_MASTER_VERY_WEAK_THRESHOLD) dayMasterStrength = 'Very Weak';
+  else if (ratio < DAY_MASTER_WEAK_THRESHOLD) dayMasterStrength = 'Weak';
 
   // Favorable Elements (Dụng Thần & Hỷ Thần)
   const favorableElements: FiveElement[] = [];

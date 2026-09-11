@@ -287,11 +287,12 @@ export class DestinyAiPipeline {
           `Dựa trên cấu trúc Bát Tự (Nhật Chủ ${expectedDayMasterVi.toUpperCase()}, Dụng Thần: ${bazi.favorableElements.join(', ')}) ` +
           `và Cung Mệnh Tử Vi (${ziwei.elementBureau}), hệ thống đề xuất tập trung vào phát triển năng lực nội tại, ` +
           `quản trị rủi ro chu kỳ và chủ động đưa ra các quyết định hành động sáng suốt, tự chủ.`,
+        confidenceScore: request.calculation.confidence.consistencyScore,
         isFallback: true
       };
     }
 
-    logStage(8, 'EVIDENCE_EXTRACTION', antiHallucinationPassed ? 'passed' : 'fallback', antiHallucinationDetail, s8Start);
+    logStage(8, 'EVIDENCE_EXTRACTION', antiHallucinationPassed ? 'passed' : 'warning', antiHallucinationDetail, s8Start);
 
     // -------------------------------------------------------------
     // STAGE 9: CONTRADICTION CHECK
