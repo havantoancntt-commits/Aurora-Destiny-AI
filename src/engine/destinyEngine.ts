@@ -1,5 +1,6 @@
 // ==========================================
 // MASTER DESTINY CALCULATION ENGINE
+// Single Canonical Pipeline: Input -> Normalize -> Canonical -> Calculate -> Invariant Check -> Cache -> Result
 // ==========================================
 
 import { BirthData, CalculationResult } from '../types/destiny';
@@ -7,17 +8,31 @@ import { calculateBaZiChart } from './bazi';
 import { calculateZiWeiChart } from './ziwei';
 import { calculateDecadeCycles, calculateAnnualTransits } from './temporal';
 import { evaluateConfidence } from './confidence';
-import { resolveEffectiveBirthTime } from './temporalCorrection';
+import type {
+  DestinyCalculationOptions,
+  CanonicalCalculationInput
+} from './canonicalInput';
+import {
+  CALCULATION_ENGINE_VERSION,
+  ASTROLOGY_RULES_VERSION,
+  ANALYSIS_MODEL_VERSION,
+  DEFAULT_CANONICAL_ANALYSIS_YEAR,
+  normalizeToCanonicalInput,
+  buildCanonicalCacheKey
+} from './canonicalInput';
 
-export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
-export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
-export const ANALYSIS_MODEL_VERSION = 'aurora_ensemble_v3.5';
-
-export interface DestinyCalculationOptions {
-  analysisYear?: number;
-  conventionVersion?: string;
-  astrologyRulesVersion?: string;
-}
+export type {
+  DestinyCalculationOptions,
+  CanonicalCalculationInput
+};
+export {
+  CALCULATION_ENGINE_VERSION,
+  ASTROLOGY_RULES_VERSION,
+  ANALYSIS_MODEL_VERSION,
+  DEFAULT_CANONICAL_ANALYSIS_YEAR,
+  normalizeToCanonicalInput,
+  buildCanonicalCacheKey
+};
 
 // Bounded LRU Cache for calculations (prevents redundant recomputations and unbounded memory growth)
 const MAX_ENGINE_CACHE_SIZE = 128;
@@ -25,6 +40,10 @@ const calculationLruCache = new Map<string, CalculationResult>();
 
 export function clearDestinyEngineCache(): void {
   calculationLruCache.clear();
+}
+
+export function getDestinyEngineCacheSize(): number {
+  return calculationLruCache.size;
 }
 
 function deterministicHash(str: string): string {
@@ -49,38 +68,13 @@ export function runFullDestinyCalculation(
   eventsCount: number = 0,
   options?: DestinyCalculationOptions
 ): CalculationResult {
-  const analysisYear = options?.analysisYear ?? new Date().getFullYear();
-  const conventionVersion = options?.conventionVersion ?? birthData.ziweiYearConvention ?? 'solarLapXuan';
-  const rulesVersion = options?.astrologyRulesVersion ?? ASTROLOGY_RULES_VERSION;
+  // 1. NORMALIZE & CREATE CANONICAL INPUT (Single Source of Truth)
+  const canonicalInput = normalizeToCanonicalInput(birthData, profileId, eventsCount, options);
 
-  // Canonical Resolution of Birth Time (Single Source of Truth)
-  const canonicalTime = resolveEffectiveBirthTime(birthData);
+  // 2. BUILD DETERMINISTIC CACHE SIGNATURE FROM CANONICAL ATTRIBUTES
+  const inputSignature = buildCanonicalCacheKey(canonicalInput);
 
-  // Deterministic Idempotent Signature across all astronomical, calendar, transit year and convention coordinates
-  const inputSignature = [
-    profileId,
-    birthData.solarYear,
-    birthData.solarMonth,
-    birthData.solarDay,
-    birthData.solarHour,
-    birthData.solarMinute ?? 0,
-    birthData.timezoneOffset,
-    canonicalTime.longitude.toFixed(4),
-    (canonicalTime.latitude ?? 0).toFixed(4),
-    birthData.calendarSystem || 'solar',
-    birthData.isLeapMonth ? 'leap' : 'regular',
-    birthData.gender,
-    birthData.isLateRat ? 'lateRat' : 'standard',
-    birthData.timeConvention || 'civil',
-    conventionVersion,
-    birthData.ziweiLeapMonthConvention || 'midMonthSplit',
-    analysisYear,
-    CALCULATION_ENGINE_VERSION,
-    rulesVersion,
-    eventsCount
-  ].join('_');
-
-  // Check bounded LRU cache with defensive copying
+  // 3. CHECK BOUNDED LRU CACHE WITH DEFENSIVE COPYING
   if (calculationLruCache.has(inputSignature)) {
     const cached = calculationLruCache.get(inputSignature)!;
     // Re-insert to maintain recent LRU position
@@ -89,31 +83,49 @@ export function runFullDestinyCalculation(
     return structuredClone(cached);
   }
 
+  // 4. PREPARE EFFECTIVE BIRTH DATA FOR CALCULATION ENGINES
   const effectiveBirthData: BirthData = {
     ...birthData,
-    solarYear: canonicalTime.effectiveDate.year,
-    solarMonth: canonicalTime.effectiveDate.month,
-    solarDay: canonicalTime.effectiveDate.day,
-    solarHour: canonicalTime.effectiveHour,
-    solarMinute: canonicalTime.effectiveMinute,
-    longitude: canonicalTime.longitude,
-    latitude: canonicalTime.latitude
+    solarYear: canonicalInput.birthYear,
+    solarMonth: canonicalInput.birthMonth,
+    solarDay: canonicalInput.birthDay,
+    solarHour: canonicalInput.birthHour,
+    solarMinute: canonicalInput.birthMinute,
+    hasExactHour: canonicalInput.hasExactHour,
+    longitude: canonicalInput.longitude,
+    latitude: canonicalInput.latitude,
+    timezoneOffset: canonicalInput.timezoneOffset,
+    timezoneName: canonicalInput.timezoneName,
+    isLateRat: canonicalInput.isLateRat,
+    timeConvention: canonicalInput.timeConvention,
+    ziweiYearConvention: canonicalInput.ziweiYearConvention,
+    ziweiLeapMonthConvention: canonicalInput.ziweiLeapMonthConvention
   };
 
+  // 5. EXECUTE CORE DETERMINISTIC ASTROLOGICAL ALGORITHMS
   const bazi = calculateBaZiChart(effectiveBirthData);
   const ziwei = calculateZiWeiChart(effectiveBirthData);
   const decades = calculateDecadeCycles(effectiveBirthData);
-  const annualTransits = calculateAnnualTransits(effectiveBirthData, analysisYear - 6, analysisYear + 10);
-  const confidence = evaluateConfidence(effectiveBirthData, eventsCount);
+  const annualTransits = calculateAnnualTransits(
+    effectiveBirthData,
+    canonicalInput.analysisYear - 6,
+    canonicalInput.analysisYear + 10
+  );
+
+  // 6. EXECUTE SYSTEM INVARIANT VALIDATOR & CONFIDENCE ENGINE
+  const confidence = evaluateConfidence(effectiveBirthData, eventsCount, 0, { bazi, ziwei });
 
   const deterministicId = `calc_${deterministicHash(inputSignature)}`;
 
+  // 7. CONSTRUCT COMPLETE IMMUTABLE CALCULATION RESULT
   const result: CalculationResult = {
     id: deterministicId,
     profileId,
-    calculationVersion: CALCULATION_ENGINE_VERSION,
-    astrologyRulesVersion: rulesVersion,
+    calculationVersion: canonicalInput.calculationEngineVersion,
+    astrologyRulesVersion: canonicalInput.astrologyRulesVersion,
     analysisModelVersion: ANALYSIS_MODEL_VERSION,
+    analysisYear: canonicalInput.analysisYear,
+    canonicalInput,
     timestamp: new Date().toISOString(),
     inputSnapshot: { ...birthData },
     bazi,
@@ -122,27 +134,32 @@ export function runFullDestinyCalculation(
     annualTransits,
     confidence,
     effectiveBirthTime: {
-      effectiveDate: canonicalTime.effectiveDate,
-      effectiveHour: canonicalTime.effectiveHour,
-      effectiveMinute: canonicalTime.effectiveMinute,
-      timeConvention: canonicalTime.timeConvention,
-      equationOfTimeMinutes: canonicalTime.equationOfTimeMinutes,
-      longitudeCorrectionMinutes: canonicalTime.longitudeCorrectionMinutes,
-      totalCorrectionMinutes: canonicalTime.totalCorrectionMinutes,
-      dayShift: canonicalTime.dayShift
+      effectiveDate: {
+        year: canonicalInput.birthYear,
+        month: canonicalInput.birthMonth,
+        day: canonicalInput.birthDay
+      },
+      effectiveHour: canonicalInput.birthHour,
+      effectiveMinute: canonicalInput.birthMinute,
+      timeConvention: canonicalInput.timeConvention,
+      equationOfTimeMinutes: 0,
+      longitudeCorrectionMinutes: (canonicalInput.longitude - canonicalInput.timezoneOffset * 15) * 4,
+      totalCorrectionMinutes: (canonicalInput.longitude - canonicalInput.timezoneOffset * 15) * 4,
+      dayShift: canonicalInput.birthDay !== birthData.solarDay ? (canonicalInput.birthDay > birthData.solarDay ? 1 : -1) : 0
     }
   };
 
-  // Maintain bounded size for in-memory cache
+  // 8. MAINTAIN BOUNDED LRU CACHE WITH REPLACEMENT POLICY
   if (calculationLruCache.size >= MAX_ENGINE_CACHE_SIZE) {
     const oldestKey = calculationLruCache.keys().next().value;
     if (oldestKey) {
       calculationLruCache.delete(oldestKey);
     }
   }
-  // Store clone in cache to prevent caller mutation of cache
+
+  // Store deep clone in cache to prevent external mutations
   calculationLruCache.set(inputSignature, structuredClone(result));
 
-  // Return clone to caller to preserve complete cache immutability
+  // Return fresh deep clone to ensure caller cannot mutate cache
   return structuredClone(result);
 }

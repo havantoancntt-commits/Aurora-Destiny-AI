@@ -188,6 +188,8 @@ export const OnboardingWizard: React.FC<Props> = ({
         calendarSystem: 'solar',
         isLateRat,
         timeConvention,
+        ziweiYearConvention: 'solarLapXuan',
+        ziweiLeapMonthConvention: 'midMonthSplit',
         longitude: locationProvider.resolveLocation(birthCity, birthCountry)?.longitude ?? (timezoneOffset * 15),
         latitude: locationProvider.resolveLocation(birthCity, birthCountry)?.latitude
       };

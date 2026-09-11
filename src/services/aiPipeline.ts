@@ -86,6 +86,7 @@ export interface PipelineRequest {
   profile: UserProfile;
   calculation: CalculationResult;
   backtest: BacktestResult;
+  analysisYear?: number;
 }
 
 export class DestinyAiPipeline {
@@ -144,8 +145,8 @@ export class DestinyAiPipeline {
     // -------------------------------------------------------------
     const s3Start = Date.now();
     const { bazi, ziwei, annualTransits } = request.calculation;
-    const currentYear = new Date().getFullYear();
-    const currentTransit = annualTransits.find(t => t.year === currentYear) || annualTransits[0];
+    const targetYear = request.analysisYear || request.calculation.analysisYear || 2026;
+    const currentTransit = annualTransits.find(t => t.year === targetYear) || annualTransits[0];
 
     const extractedFacts: PipelineEvidenceFact[] = [
       {
@@ -170,7 +171,7 @@ export class DestinyAiPipeline {
       },
       {
         category: 'transit',
-        fact: `Lưu Niên ${currentYear}: Sóng cơ hội ${currentTransit?.opportunityWave || 70}%, Sóng thận trọng ${currentTransit?.cautionWave || 40}%`,
+        fact: `Lưu Niên ${targetYear}: Sóng cơ hội ${currentTransit?.opportunityWave || 70}%, Sóng thận trọng ${currentTransit?.cautionWave || 40}%`,
         verifiedInChart: true
       },
       {
@@ -231,7 +232,8 @@ export class DestinyAiPipeline {
       request.userQuestion,
       request.profile,
       request.calculation,
-      request.backtest
+      request.backtest,
+      { analysisYear: targetYear }
     );
     logStage(7, 'AI_REASONING', 'passed', `Synthesized analytical discourse (Fallback: ${aiOutput.isFallback}).`, s7Start);
 

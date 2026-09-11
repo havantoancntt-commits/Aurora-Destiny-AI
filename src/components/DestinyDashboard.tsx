@@ -138,7 +138,7 @@ export const DestinyDashboard: React.FC<Props> = ({
     };
   }, [selectedPalace, palaceByBranch]);
 
-  const currentYear = new Date().getFullYear();
+  const currentYear = calculation.analysisYear || new Date().getFullYear();
   const currentTransit = calculation.annualTransits?.find((t) => t.year === currentYear) || calculation.annualTransits?.[0] || {
     year: currentYear,
     stem: 'Bing',

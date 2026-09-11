@@ -786,16 +786,18 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
     };
     repository.addChatMessage(validated.profileId, userMsg);
 
-    // Call resilient Gemini service
+    const targetYear = validated.analysisYear || calc.analysisYear || 2026;
+
+    // Call resilient Gemini service with explicit analysisYear
     const { content, confidenceScore } = await generateDestinyChatResponse(
       validated.message,
       profile,
       calc,
-      bt
+      bt,
+      { analysisYear: targetYear }
     );
 
-    const currentYear = new Date().getFullYear();
-    const currentTransit = calc.annualTransits.find(t => t.year === currentYear) || calc.annualTransits[0];
+    const currentTransit = calc.annualTransits.find(t => t.year === targetYear) || calc.annualTransits[0];
 
     const assistantMsg = {
       id: `msg_a_${Date.now()}`,
@@ -804,7 +806,7 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
       timestamp: new Date().toISOString(),
       confidenceScore,
       suggestedQuestions: [
-        'Giai đoạn nào trong năm nay có sóng năng lượng thuận lợi nhất?',
+        `Giai đoạn nào trong năm ${targetYear} có sóng năng lượng thuận lợi nhất?`,
         `Làm thế nào để ứng dụng Dụng Thần ${calc.bazi.favorableElements.join('/')} vào quản trị tài chính?`,
         'Điểm mù lớn nhất cần phòng tránh trong các quyết định lớn là gì?'
       ],
@@ -812,7 +814,7 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
         `Bát Tự: Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterStrength}) - Cách Cục: ${calc.bazi.structureType}`,
         `Dụng Thần: ${calc.bazi.favorableElements.join(', ')} | Kỵ Thần: ${calc.bazi.unfavorableElements.join(', ')}`,
         `Tử Vi: Cung Mệnh tại ${calc.ziwei.palaces.life?.branch} - Cục: ${calc.ziwei.elementBureau}`,
-        `Lưu Niên ${currentYear}: Sóng cơ hội ${currentTransit?.opportunityWave || 70}% - Sóng thận trọng ${currentTransit?.cautionWave || 40}%`,
+        `Lưu Niên ${targetYear}: Sóng cơ hội ${currentTransit?.opportunityWave || 70}% - Sóng thận trọng ${currentTransit?.cautionWave || 40}%`,
         `Chỉ số Tương Hợp Lịch Sử: ${bt.destinyConsistencyScore}/100`
       ]
     };

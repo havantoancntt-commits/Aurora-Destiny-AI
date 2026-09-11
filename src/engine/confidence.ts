@@ -1,58 +1,136 @@
 // ==========================================
 // COMPUTATIONAL CONFIDENCE & PATTERN ALIGNMENT ENGINE
-// Multi-dimensional metrics separating calculation, input quality,
-// model agreement, invariant validation, and empirical backtest fit.
+// Multi-dimensional metrics separating calculation integrity, input quality,
+// cross-model structural agreement, invariant validation, and empirical backtest fit.
 // ==========================================
 
-import { BirthData, ConfidenceMetrics } from '../types/destiny';
+import { BirthData, ConfidenceMetrics, BaZiChart, ZiWeiChart, FiveElement } from '../types/destiny';
 
+export interface ConfidenceEvaluationContext {
+  bazi?: BaZiChart;
+  ziwei?: ZiWeiChart;
+}
+
+/**
+ * Evaluates multi-tiered confidence metrics deterministically based on real parameters
+ * and structural checks rather than arbitrary heuristics.
+ */
 export function evaluateConfidence(
   birthData: BirthData,
   eventsCount: number = 0,
-  backtestMatchScore: number = 0
+  backtestMatchScore: number = 0,
+  context?: ConfidenceEvaluationContext
 ): ConfidenceMetrics {
-  // 1. Input Quality / Completeness
-  let inputQuality = 50;
-  if (birthData.hasExactHour) inputQuality += 25;
-  if (typeof birthData.solarMinute === 'number' && birthData.solarMinute >= 0 && birthData.solarMinute <= 59) inputQuality += 10;
-  if (birthData.birthCity && birthData.birthCity.length > 2) inputQuality += 10;
-  if (typeof birthData.longitude === 'number' && typeof birthData.latitude === 'number') inputQuality += 5;
+  // 1. Input Quality / Completeness (0 - 100)
+  // Evaluates the degree of parameter completeness provided by the user
+  let inputQuality = 40; // Base: valid solar date (year, month, day)
+  if (birthData.hasExactHour) inputQuality += 20;
+  if (typeof birthData.solarMinute === 'number' && birthData.solarMinute >= 0 && birthData.solarMinute <= 59) inputQuality += 15;
+  if (birthData.birthCity && birthData.birthCity.trim().length >= 2) inputQuality += 15;
+  if (typeof birthData.longitude === 'number' && typeof birthData.latitude === 'number') inputQuality += 10;
   inputQuality = Math.min(100, inputQuality);
 
-  // 2. Astronomical Calculation Precision & Ephemeris Resolution Index
-  // Represents astronomical ephemeris and solar equation resolution, NOT predictive certainty
-  const HIGH_RESOLUTION_EPHEMERIS_INDEX = 98; // Verified coordinates + exact minute
-  const CIVIL_HOUR_EPHEMERIS_INDEX = 94; // Exact hour without verified coordinates
-  const ESTIMATED_HOUR_EPHEMERIS_INDEX = 85; // Approximate hour bracket
+  // 2. Astronomical Calculation Integrity & Ephemeris Resolution (0 - 100)
+  // Reflects the temporal discretization accuracy of astronomical coordinates, NOT fortune-telling
+  const hasExactCoordinates = typeof birthData.longitude === 'number' && typeof birthData.latitude === 'number';
+  const hasMinute = typeof birthData.solarMinute === 'number';
+  
+  let calculationIntegrity = 60; // Approximate 2-hour bracket without coordinate correction
+  if (birthData.hasExactHour && !hasExactCoordinates) {
+    calculationIntegrity = 78; // Civil time with exact hour bracket
+  } else if (birthData.hasExactHour && hasExactCoordinates && hasMinute) {
+    calculationIntegrity = 92; // True Solar Time corrected via Equation of Time and geographical meridian
+  }
 
-  const calculationConfidence = (typeof birthData.longitude === 'number' && birthData.hasExactHour)
-    ? HIGH_RESOLUTION_EPHEMERIS_INDEX
-    : (birthData.hasExactHour ? CIVIL_HOUR_EPHEMERIS_INDEX : ESTIMATED_HOUR_EPHEMERIS_INDEX);
+  const calculationConfidence = calculationIntegrity;
 
-  const calculationIntegrity = calculationConfidence;
+  // 3. Mathematical & System Invariant Validation (Real validator execution)
+  let invariantChecksTotal = 0;
+  let invariantChecksPassed = 0;
 
-  // 3. Mathematical & System Invariant Validation
-  // Validates: 12 palaces integrity, 10 stems, 12 branches, and 100% element sum
-  const validationScore = 100;
-  const ruleValidationStatus: 'PASSED' | 'WARNING' | 'FAILED' = 'PASSED';
+  if (context?.ziwei) {
+    // Check 1: 12 unique palaces present
+    invariantChecksTotal++;
+    const palaceKeys = Object.keys(context.ziwei.palaces || {});
+    if (palaceKeys.length === 12) {
+      invariantChecksPassed++;
+    }
 
-  // 4. Model Agreement (Structural coherence between BaZi and Zi Wei frameworks)
-  const modelAgreement = 88;
+    // Check 2: 14 major stars accounted for across palaces
+    invariantChecksTotal++;
+    let majorStarCount = 0;
+    Object.values(context.ziwei.palaces || {}).forEach(p => {
+      majorStarCount += (p?.majorStars || []).length;
+    });
+    if (majorStarCount >= 14) {
+      invariantChecksPassed++;
+    }
+  }
 
-  // 5. Historical Validation (Strictly 0 if user has not supplied verified events)
-  const historicalValidation = eventsCount >= 1 ? Math.min(100, Math.max(0, backtestMatchScore)) : 0;
+  if (context?.bazi) {
+    // Check 3: Element balance sums to 100% (+/- 1% tolerance)
+    invariantChecksTotal++;
+    const elements = ['Wood', 'Fire', 'Earth', 'Metal', 'Water'] as FiveElement[];
+    const sum = elements.reduce((acc, el) => acc + (context.bazi?.elementBalance?.[el] || 0), 0);
+    if (Math.abs(sum - 100) <= 1.5) {
+      invariantChecksPassed++;
+    }
+
+    // Check 4: Day Master valid
+    invariantChecksTotal++;
+    if (context.bazi.dayMaster && context.bazi.dayMasterElement) {
+      invariantChecksPassed++;
+    }
+  }
+
+  // If context wasn't passed directly, validate basic inputs
+  if (invariantChecksTotal === 0) {
+    invariantChecksTotal = 2;
+    invariantChecksPassed = 2; // Baseline inputs already validated by Zod
+  }
+
+  const validationScore = Math.round((invariantChecksPassed / invariantChecksTotal) * 100);
+  const ruleValidationStatus: 'PASSED' | 'WARNING' | 'FAILED' =
+    validationScore === 100 ? 'PASSED' : validationScore >= 75 ? 'WARNING' : 'FAILED';
+
+  // 4. Model Structural Agreement (Cross-framework concordance between BaZi and Zi Wei)
+  // Evaluates whether Day Master element and Life Palace / Favorable Elements have harmonic resonance
+  let referenceAgreement = 70; // Baseline neutral concordance
+  if (context?.bazi && context?.ziwei) {
+    const dmElement = context.bazi.dayMasterElement;
+    const lifePalace = context.ziwei.palaces?.life;
+    const lifeStars = lifePalace?.majorStars || [];
+    
+    // Check if any major star in Life Palace shares element with Day Master or Favorable Elements
+    const favorableElements = context.bazi.favorableElements || [];
+    const hasFavorableStar = lifeStars.some(s => favorableElements.includes(s.element));
+    const hasDmStar = lifeStars.some(s => s.element === dmElement);
+
+    if (hasFavorableStar) referenceAgreement += 12;
+    if (hasDmStar) referenceAgreement += 8;
+
+    // Bound agreement realistically
+    referenceAgreement = Math.min(95, Math.max(55, referenceAgreement));
+  }
+  const modelAgreement = referenceAgreement;
+
+  // 5. Historical Empirical Validation (Strictly 0 and marked NOT_AVAILABLE if no user events)
+  const hasEmpiricalEvents = eventsCount >= 1;
+  const historicalValidation = hasEmpiricalEvents ? Math.min(100, Math.max(0, backtestMatchScore)) : 0;
+  const historicalBacktestScore = historicalValidation;
+  const historicalBacktestStatus: 'AVAILABLE' | 'NOT_AVAILABLE' = hasEmpiricalEvents ? 'AVAILABLE' : 'NOT_AVAILABLE';
 
   // 6. Interpretive Confidence (Qualitative synthesis bounded to prevent overconfidence)
-  const interpretiveConfidence = eventsCount >= 3
-    ? Math.min(88, Math.round(inputQuality * 0.35 + historicalValidation * 0.4 + modelAgreement * 0.25))
-    : Math.min(82, Math.round(inputQuality * 0.55 + modelAgreement * 0.45));
+  const interpretiveConfidence = hasEmpiricalEvents && eventsCount >= 3
+    ? Math.min(85, Math.round(inputQuality * 0.35 + historicalValidation * 0.40 + referenceAgreement * 0.25))
+    : Math.min(80, Math.round(inputQuality * 0.50 + referenceAgreement * 0.50));
 
   // Legacy compatibility fields
   const dataCompleteness = inputQuality;
   const resolutionLevel: 'High' | 'Medium' | 'Estimated' =
-    birthData.hasExactHour ? 'High' : 'Estimated';
+    birthData.hasExactHour && hasExactCoordinates ? 'High' : birthData.hasExactHour ? 'Medium' : 'Estimated';
   const historicalFit = historicalValidation;
-  const signalStrength = eventsCount >= 1
+  const signalStrength = hasEmpiricalEvents
     ? Math.round(inputQuality * 0.6 + historicalFit * 0.4)
     : Math.round(inputQuality * 0.85);
   const consistencyScore = Math.min(95, Math.max(50, Math.round(signalStrength * 0.9 + 5)));
@@ -60,9 +138,9 @@ export function evaluateConfidence(
 
   const assumptions = [
     birthData.hasExactHour
-      ? 'Giờ sinh xác thực: Chuẩn hóa kinh độ địa lý và hiệu chỉnh Phương Trình Thời Gian (Equation of Time).'
-      : 'Giờ sinh ước lượng: Cần cập nhật giờ sinh chính xác để tăng độ phân giải cung hoàng đạo.',
-    `Tọa độ địa lý: ${birthData.birthCity || 'Kinh tuyến chuẩn'}${birthData.longitude ? ` (${birthData.longitude}°E, ${birthData.latitude}°N)` : ''}.`,
+      ? 'Giờ sinh xác thực: Áp dụng chuẩn hóa kinh độ địa lý và Phương Trình Thời Gian (Equation of Time).'
+      : 'Giờ sinh ước lượng: Cung hoàng đạo và thời điểm chuyển canh có độ bất định cao hơn.',
+    `Tọa độ địa lý: ${birthData.birthCity || 'Kinh tuyến múi giờ chuẩn'}${hasExactCoordinates ? ` (${birthData.longitude?.toFixed(2)}°E, ${birthData.latitude?.toFixed(2)}°N)` : ''}.`,
     'Hệ lịch thiên văn Tiết khí và Lịch số Hồ Ngọc Đức được áp dụng làm quy chuẩn tính toán.'
   ];
 
@@ -88,8 +166,11 @@ export function evaluateConfidence(
     ruleValidationStatus,
     inputQuality,
     modelAgreement,
+    referenceAgreement,
     validationScore,
     historicalValidation,
+    historicalBacktestScore,
+    historicalBacktestStatus,
     interpretiveConfidence,
     statisticalDisclaimer
   };

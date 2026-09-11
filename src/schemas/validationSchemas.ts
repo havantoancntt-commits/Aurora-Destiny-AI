@@ -25,6 +25,8 @@ export const BirthDataSchema = z.object({
   calendarSystem: z.enum(['solar', 'lunar']),
   isLateRat: z.boolean().optional().default(false),
   timeConvention: z.enum(['civil', 'trueSolar']).optional().default('civil'),
+  ziweiYearConvention: z.enum(['solarLapXuan', 'lunarNewYear']).optional().default('solarLapXuan'),
+  ziweiLeapMonthConvention: z.enum(['midMonthSplit', 'keepMonth']).optional().default('midMonthSplit'),
   longitude: z.number().min(-180).max(180).optional(),
   latitude: z.number().min(-90).max(90).optional()
 }).refine((data) => {
@@ -95,13 +97,15 @@ export const HistoricalEventSchema = z.object({
 // 6. AI Chat Schema
 export const AiChatSchema = z.object({
   profileId: z.string().min(1, 'Mã hồ sơ bắt buộc'),
-  message: z.string().trim().min(1, 'Nội dung tin nhắn không được để trống').max(1500, 'Tin nhắn tối đa 1500 ký tự')
+  message: z.string().trim().min(1, 'Nội dung tin nhắn không được để trống').max(1500, 'Tin nhắn tối đa 1500 ký tự'),
+  analysisYear: z.number().int().min(1900, 'Năm phân tích từ 1900 đến 2100').max(2100, 'Năm phân tích từ 1900 đến 2100').optional()
 });
 
 // 7. What-If Scenario Evaluation Schema
 export const ScenarioEvaluateSchema = z.object({
   profileId: z.string().min(1, 'Mã hồ sơ bắt buộc'),
-  question: z.string().trim().min(3, 'Câu hỏi tối thiểu 3 ký tự').max(500, 'Câu hỏi tối đa 500 ký tự')
+  question: z.string().trim().min(3, 'Câu hỏi tối thiểu 3 ký tự').max(500, 'Câu hỏi tối đa 500 ký tự'),
+  analysisYear: z.number().int().min(1900, 'Năm phân tích từ 1900 đến 2100').max(2100, 'Năm phân tích từ 1900 đến 2100').optional()
 });
 
 // 8. User Preferences Schema

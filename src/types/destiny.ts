@@ -279,8 +279,11 @@ export interface ConfidenceMetrics {
   ruleValidationStatus?: 'PASSED' | 'WARNING' | 'FAILED'; // System invariant validation status
   inputQuality: number; // 0 - 100: Completeness and coordinate exactness of user input
   modelAgreement: number; // 0 - 100: Concordance between BaZi and Zi Wei indicators
+  referenceAgreement?: number; // Granular cross-framework structural concordance
   validationScore: number; // 0 - 100: Internal mathematical and astronomical invariant checks
   historicalValidation: number; // 0 - 100: Strictly empirical score from verified backtest events
+  historicalBacktestScore?: number; // Explicit empirical score (0 if no events)
+  historicalBacktestStatus?: 'AVAILABLE' | 'NOT_AVAILABLE'; // Explicit semantic status
   interpretiveConfidence: number; // 0 - 100: Bounded qualitative confidence for AI synthesis
   statisticalDisclaimer: string; // Explicit non-deterministic disclaimer
 }
@@ -291,6 +294,8 @@ export interface CalculationResult {
   calculationVersion: string;
   astrologyRulesVersion: string;
   analysisModelVersion: string;
+  analysisYear: number;
+  canonicalInput?: any;
   timestamp: string;
   inputSnapshot: BirthData;
   bazi: BaZiChart;

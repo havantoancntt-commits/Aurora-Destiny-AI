@@ -132,7 +132,8 @@ export async function generateDestinyChatResponse(
   userMessage: string,
   profile: UserProfile,
   calc: CalculationResult,
-  backtest: BacktestResult
+  backtest: BacktestResult,
+  options?: { analysisYear?: number }
 ): Promise<{ content: string; confidenceScore: number; isFallback: boolean }> {
   // Extract calculated factual points from deterministic engine
   const baziPillars = `Tứ Trụ: Năm [${STEMS[calc.bazi.yearPillar.stem].nameVi} ${BRANCHES[calc.bazi.yearPillar.branch].nameVi} (${calc.bazi.yearPillar.naYin}) - ${calc.bazi.yearPillar.tenGod}], ` +
@@ -159,11 +160,11 @@ export async function generateDestinyChatResponse(
     `Đại Vận Hiện Tại: ${calc.ziwei.currentDecade?.evaluation || ''}. ` +
     `Lưu Niên Tác Động: ${calc.ziwei.currentYearTransit?.summary || ''}`;
 
-  const currentYear = new Date().getFullYear();
-  const currentTransit = calc.annualTransits.find(t => t.year === currentYear) || calc.annualTransits[0];
-  const transitDetails = currentTransit ? `Lưu Niên ${currentYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): ` +
+  const analysisYear = options?.analysisYear || calc.analysisYear || 2026;
+  const currentTransit = calc.annualTransits.find(t => t.year === analysisYear) || calc.annualTransits[0];
+  const transitDetails = currentTransit ? `Lưu Niên Đang Phân Tích (${analysisYear} - ${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): ` +
     `Sóng Cơ Hội: ${currentTransit.opportunityWave}%, Sóng Thận Trọng: ${currentTransit.cautionWave}%, Điểm tổng thể: ${currentTransit.overallScore}/100. ` +
-    `Trọng tâm: ${currentTransit.recommendedFocus}` : 'Đang tính toán chu kỳ Lưu Niên';
+    `Trọng tâm: ${currentTransit.recommendedFocus}` : `Đang tính toán chu kỳ Lưu Niên ${analysisYear}`;
 
   const backtestSummary = backtest.totalEventsAnalyzed > 0
     ? `Chỉ số Tương Hợp Lịch Sử: ${backtest.destinyConsistencyScore}/100 trên ${backtest.totalEventsAnalyzed} sự kiện thực tế (${backtest.confidenceBand}).`
@@ -254,18 +255,18 @@ HƯỚNG DẪN TRẢ LỜI:
 
   // Deterministic Grounded Interpretation Fallback
   const transitDesc = currentTransit
-    ? `Năm ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị hành động: ${currentTransit.recommendedFocus}.`
-    : `Lưu Niên ${currentYear} đang trong chu kỳ tích lũy năng lượng ổn định.`;
+    ? `Năm ${analysisYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị hành động: ${currentTransit.recommendedFocus}.`
+    : `Lưu Niên ${analysisYear} đang trong chu kỳ tích lũy năng lượng ổn định.`;
 
   const authenticZiWei = calc.ziwei.authenticAnalysis;
   const fallbackContent = `Dựa trên kết quả tính toán xác thực từ Bát Tự và Tử Vi Đẩu Số:\n\n` +
-    `1. **Căn Cứ Bản Mệnh & Bát Tự**: Bạn mang Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), đắc Cách Cục **${calc.bazi.structureType}**. Dụng Thần tối ưu là hành **${calc.bazi.favorableElements.join(', ')}**, giúp điều hòa dòng năng lượng và gia tăng sức bật trong lĩnh vực "${profile.behavioralContext?.careerField || 'sự nghiệp'}".\n\n` +
+    `1. **Căn Cứ Bản Mệnh & Bát Tự**: Bạn mang Nhật Chủ ${STEMS[calc.bazi.dayMaster].nameVi} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), đắc Cách Cục **${calc.bazi.structureType}**. Dụng Thần tối ưu là hành **${calc.bazi.favorableElements.join(', ')}**, giúp điều hòa dòng năng lượng và gia tăng sức bật trong lĩnh vực "${profile.behavioralContext?.careerField || 'sự nghiệp'}".\n\n` +
     `2. **Thế Tinh Bàn Tử Vi Đẩu Số Chính Tông**:\n` +
     `   - **Âm Dương & Mệnh Cục**: Thể chất ${calc.ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${calc.ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). Bản Mệnh tương phối ${calc.ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} (${calc.ziwei.elementDestinyBureauHarmony?.explanation || ''}).\n` +
     `   - **Cung Thân Hậu Vận**: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'} — ${calc.ziwei.bodyPalaceAnalysis?.lifeImpact || 'Hậu vận phát huy mạnh mẽ bản lĩnh tự chủ.'}\n` +
     `   - **Tam Phương Tứ Chính**: Cung Mệnh tọa thủ ${lifeStars}, hội tụ cùng Quan Lộc (${careerStars}) và Tài Bạch (${wealthStars}). Cách Cục: ${calc.ziwei.majorConfigurations.join(', ')}.\n` +
     `   - **Đại Vận Đang Đi Qua**: ${calc.ziwei.currentDecade?.evaluation || 'Đang trong chu kỳ củng cố nguồn lực.'}\n\n` +
-    `3. **Lưu Niên ${currentYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}`;
+    `3. **Lưu Niên ${analysisYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}`;
 
   return {
     content: fallbackContent,

@@ -25,8 +25,9 @@ export function generateMultiAgentEnsemble(
   const dmEl = dm.element;
   const favorableStr = bazi.favorableElements.map(e => ELEMENT_RELATIONS[e]?.vi || e).join(', ');
   const unfavorableStr = bazi.unfavorableElements.map(e => ELEMENT_RELATIONS[e]?.vi || e).join(', ');
-  const currentYear = new Date().getFullYear();
-  const currentTransit = calculation.annualTransits.find(t => t.year === currentYear) || calculation.annualTransits[0];
+  const targetYear = calculation.analysisYear || new Date().getFullYear();
+  const currentYear = targetYear;
+  const currentTransit = calculation.annualTransits.find(t => t.year === targetYear) || calculation.annualTransits[0];
 
   const overallConsistencyScore = Math.round((confidence.consistencyScore * 0.6) + (backtestScore * 0.4));
 
@@ -115,7 +116,7 @@ export function generateMultiAgentEnsemble(
     agentRole: 'Chu Kỳ Vận Trình & Lưu Niên Thời Điểm',
     confidenceScore: 92,
     keyFindings: [
-      `Lưu Niên Năm ${currentYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): Chỉ số tổng thể ${currentTransit.overallScore}/100.`,
+      `Lưu Niên Năm ${targetYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): Chỉ số tổng thể ${currentTransit.overallScore}/100.`,
       `Sóng Cơ Hội: ${currentTransit.opportunityWave}%, Sóng Thận Trọng: ${currentTransit.cautionWave}%.`,
       `Trọng tâm khuyến nghị thời vận: ${currentTransit.recommendedFocus}.`
     ],
