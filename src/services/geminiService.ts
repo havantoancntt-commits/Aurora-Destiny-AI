@@ -9,6 +9,7 @@ import { CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { BacktestResult } from '../types/backtest';
 import { STEMS, BRANCHES } from '../engine/canchi';
+import { telemetry } from '../telemetry/telemetryService';
 
 let geminiClient: GoogleGenAI | null = null;
 
@@ -173,6 +174,7 @@ export async function generateDestinyChatResponse(
   const ai = getGemini();
 
   if (ai && !isCircuitBreakerOpen()) {
+    const aiStartTime = Date.now();
     try {
       // PROMPT INJECTION DEFENSE & SANITIZATION (SECTION 16)
       // Neutralize attempts to close delimiter tags or inject system directives
@@ -240,6 +242,7 @@ HƯỚNG DẪN TRẢ LỜI:
       const text = response.text?.trim();
       if (text) {
         recordSuccess();
+        telemetry.recordAiRequest(Date.now() - aiStartTime, true, false, false);
         return {
           content: text,
           confidenceScore: calc.confidence.consistencyScore,
@@ -248,12 +251,15 @@ HƯỚNG DẪN TRẢ LỜI:
       }
     } catch (err: any) {
       const quotaHit = isQuotaError(err);
+      const isTimeout = (err?.message || '').includes('timed out');
       recordFailure(quotaHit);
+      telemetry.recordAiRequest(Date.now() - aiStartTime, false, isTimeout, false);
       console.warn('[Resilient Gemini Service] Gemini call failed, activating deterministic grounded fallback:', err?.message || err);
     }
   }
 
   // Deterministic Grounded Interpretation Fallback
+  telemetry.recordAiRequest(0, true, false, true);
   const transitDesc = currentTransit
     ? `Năm ${analysisYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị hành động: ${currentTransit.recommendedFocus}.`
     : `Lưu Niên ${analysisYear} đang trong chu kỳ tích lũy năng lượng ổn định.`;

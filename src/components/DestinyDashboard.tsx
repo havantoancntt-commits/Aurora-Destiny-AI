@@ -538,50 +538,71 @@ export const DestinyDashboard: React.FC<Props> = ({
 
         {/* VIEW 1: TRADITIONAL 4x4 CELESTIAL SQUARE MATRIX (THIÊN BÀN CHUẨN) */}
         {ziweiViewMode === 'board4x4' ? (
-          <div className="overflow-x-auto pb-2">
-            <div className="min-w-[780px] grid grid-cols-4 gap-2.5">
-              {/* Render 12 Perimeter Celestial Cells */}
-              {CELESTIAL_BOARD_CELLS.map((cell) => {
-                const pal = palaceByBranch[cell.branch];
-                if (!pal) return null;
+          <div>
+            <div className="sm:hidden mb-2 px-3 py-2 rounded-lg bg-purple-950/30 border border-purple-800/40 text-[11px] text-purple-200 flex items-center justify-between">
+              <span>Vuốt ngang để xem đủ 12 cung thiên bàn</span>
+              <button
+                type="button"
+                onClick={() => setZiweiViewMode('cardList')}
+                className="text-amber-400 font-semibold underline ml-1 cursor-pointer"
+              >
+                Dạng danh sách
+              </button>
+            </div>
+            <div className="overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 scrollbar-thin">
+              <div className="min-w-[780px] grid grid-cols-4 gap-2.5" role="region" aria-label="Thiên bàn Tử Vi 12 Cung">
+                {/* Render 12 Perimeter Celestial Cells */}
+                {CELESTIAL_BOARD_CELLS.map((cell) => {
+                  const pal = palaceByBranch[cell.branch];
+                  if (!pal) return null;
 
-                const isSelected = selectedPalaceKey === pal.key;
-                const isOpposite = sanFangTuChinh.oppositeBranch === cell.branch;
-                const isTrine = sanFangTuChinh.trine1Branch === cell.branch || sanFangTuChinh.trine2Branch === cell.branch;
+                  const isSelected = selectedPalaceKey === pal.key;
+                  const isOpposite = sanFangTuChinh.oppositeBranch === cell.branch;
+                  const isTrine = sanFangTuChinh.trine1Branch === cell.branch || sanFangTuChinh.trine2Branch === cell.branch;
 
-                let borderStyle = 'border-white/10 hover:border-white/25 bg-black/40 text-slate-300';
-                let relationshipBadge = null;
+                  let borderStyle = 'border-white/10 hover:border-white/25 bg-black/40 text-slate-300';
+                  let relationshipBadge = null;
 
-                if (isSelected) {
-                  borderStyle = 'border-amber-500/80 bg-purple-950/40 ring-2 ring-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.25)]';
-                  relationshipBadge = (
-                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/50">
-                      TỌA THỦ
-                    </span>
-                  );
-                } else if (isOpposite) {
-                  borderStyle = 'border-sky-500/60 bg-sky-950/20 ring-1 ring-sky-400/30';
-                  relationshipBadge = (
-                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/40">
-                      XUNG CHIẾU
-                    </span>
-                  );
-                } else if (isTrine) {
-                  borderStyle = 'border-emerald-500/60 bg-emerald-950/20 ring-1 ring-emerald-400/30';
-                  relationshipBadge = (
-                    <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
-                      TAM HỢP
-                    </span>
-                  );
-                }
+                  if (isSelected) {
+                    borderStyle = 'border-amber-500/80 bg-purple-950/40 ring-2 ring-amber-400/50 shadow-[0_0_25px_rgba(251,191,36,0.25)]';
+                    relationshipBadge = (
+                      <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/50">
+                        TỌA THỦ
+                      </span>
+                    );
+                  } else if (isOpposite) {
+                    borderStyle = 'border-sky-500/60 bg-sky-950/20 ring-1 ring-sky-400/30';
+                    relationshipBadge = (
+                      <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/40">
+                        XUNG CHIẾU
+                      </span>
+                    );
+                  } else if (isTrine) {
+                    borderStyle = 'border-emerald-500/60 bg-emerald-950/20 ring-1 ring-emerald-400/30';
+                    relationshipBadge = (
+                      <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                        TAM HỢP
+                      </span>
+                    );
+                  }
 
-                return (
-                  <motion.div
-                    key={cell.branch}
-                    onClick={() => setSelectedPalaceKey(pal.key)}
-                    whileHover={{ scale: 1.01 }}
-                    className={`${cell.colStart} ${cell.rowStart} rounded-xl border p-2.5 flex flex-col justify-between min-h-[140px] cursor-pointer transition-all ${borderStyle}`}
-                  >
+                  return (
+                    <motion.div
+                      key={cell.branch}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Cung ${pal.nameVi}, chi ${BRANCHES[cell.branch]?.nameVi || cell.branch}`}
+                      aria-pressed={isSelected}
+                      onClick={() => setSelectedPalaceKey(pal.key)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedPalaceKey(pal.key);
+                        }
+                      }}
+                      whileHover={{ scale: 1.01 }}
+                      className={`${cell.colStart} ${cell.rowStart} rounded-xl border p-2.5 flex flex-col justify-between min-h-[140px] cursor-pointer transition-all ${borderStyle}`}
+                    >
                     {/* Top strip: Palace Name & Badges */}
                     <div>
                       <div className="flex items-center justify-between gap-1">
@@ -743,6 +764,7 @@ export const DestinyDashboard: React.FC<Props> = ({
               </div>
             </div>
           </div>
+        </div>
         ) : (
           /* VIEW 2: MODERN RESPONSIVE CARDS GRID (DANH SÁCH 12 CUNG) */
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">

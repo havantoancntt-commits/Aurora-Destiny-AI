@@ -14,6 +14,7 @@ import { CalculationResult } from '../types/destiny';
 import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { ChatMessage } from '../types/ai';
 import { PostgresDatabaseRepository } from './postgresRepository';
+import { telemetry } from '../telemetry/telemetryService';
 
 export interface AuditLogEntry {
   id: string;
@@ -650,20 +651,38 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     }
 
     for (const guestId of guestsToDelete) {
-      delete this.state.users[guestId];
-      delete this.state.preferences[guestId];
-
+      // Find all profiles owned by this guest
       const profileIds = Object.values(this.state.profiles)
         .filter(p => p.userId === guestId)
         .map(p => p.id);
 
       for (const pId of profileIds) {
-        delete this.state.profiles[pId];
-        delete this.state.calculations[pId];
-        delete this.state.backtestResults[pId];
+        // Cascade 1: Delete all calculations for this profile by actual foreign key relation (calc.profileId === pId)
+        for (const [calcId, calc] of Object.entries(this.state.calculations)) {
+          if (calc.profileId === pId) {
+            delete this.state.calculations[calcId];
+          }
+        }
+        // Cascade 2: Delete historical events
         delete this.state.historicalEvents[pId];
+        // Cascade 3: Delete backtest results
+        delete this.state.backtestResults[pId];
+        // Cascade 4: Delete chat messages
         delete this.state.chatMessages[pId];
+        // Delete the profile itself
+        delete this.state.profiles[pId];
       }
+
+      // Revoke any leftover sessions
+      for (const [token, session] of Object.entries(this.state.sessions)) {
+        if (session.userId === guestId) {
+          delete this.state.sessions[token];
+        }
+      }
+
+      // Delete user preferences and user account
+      delete this.state.preferences[guestId];
+      delete this.state.users[guestId];
     }
 
     if (cleaned > 0 || guestsToDelete.length > 0) {
@@ -936,15 +955,32 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // OBSERVABILITY METRICS
   // ----------------------------------------------------
   getMetrics() {
-    const activeSessions = Object.values(this.state.sessions).filter(s => Date.now() <= s.expiresAt).length;
+    const now = Date.now();
+    const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+    
+    // Real calculation of active users in the last 24h based on session activity or user lastLoginAt
+    const activeUserIds = new Set<string>();
+    for (const session of Object.values(this.state.sessions)) {
+      if (session.lastAccessedAt >= twentyFourHoursAgo) {
+        activeUserIds.add(session.userId);
+      }
+    }
+    for (const user of Object.values(this.state.users)) {
+      if (user.lastLoginAt && new Date(user.lastLoginAt).getTime() >= twentyFourHoursAgo) {
+        activeUserIds.add(user.id);
+      }
+    }
+
+    const activeSessions = Object.values(this.state.sessions).filter(s => now <= s.expiresAt).length;
     const userCount = Object.keys(this.state.users).length;
     const profileCount = Object.keys(this.state.profiles).length;
     const calcCount = Object.keys(this.state.calculations).length;
     const backtestCount = Object.keys(this.state.backtestResults || {}).length;
-    const aiLogs = this.state.auditLogs.filter(a => a.resource === 'ai' || a.action.includes('AI'));
+
+    const snap = telemetry.getSnapshot();
 
     return {
-      activeUsers24h: Math.max(activeSessions, userCount, 1),
+      activeUsers24h: activeUserIds.size,
       totalUsers: userCount,
       totalProfiles: profileCount,
       totalProfilesStored: profileCount,
@@ -952,16 +988,31 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
       totalEvents: Object.values(this.state.historicalEvents).reduce((sum, list) => sum + list.length, 0),
       totalActiveSessions: activeSessions,
       totalAuditLogs: this.state.auditLogs.length,
-      aiRequestsCount: aiLogs.length,
-      aiLatencyAvgMs: 420,
-      aiSuccessRate: 99.8,
-      calculationDeterministicRate: 100,
-      dbLatencyMs: 1.2,
-      cacheHitRatio: 98.6,
-      totalBacktestRuns: backtestCount,
-      totalScenariosEvaluated: calcCount * 12,
-      uptimeSeconds: Math.floor((Date.now() - this.startTime) / 1000),
-      storageMode: 'durable_atomic_file_adapter'
+      aiRequestsCount: snap.aiRequestsTotal,
+      aiLatencyAvgMs: snap.aiLatencyAvgMs,
+      aiLatencyP50Ms: snap.aiPercentiles.p50,
+      aiLatencyP95Ms: snap.aiPercentiles.p95,
+      aiLatencyP99Ms: snap.aiPercentiles.p99,
+      aiSuccessRate: snap.aiSuccessRate,
+      calculationDeterministicRate: snap.calculationDeterministicRate,
+      calcLatencyP50Ms: snap.calculationPercentiles.p50,
+      calcLatencyP95Ms: snap.calculationPercentiles.p95,
+      calcLatencyP99Ms: snap.calculationPercentiles.p99,
+      dbLatencyMs: snap.dbLatencyAvgMs,
+      dbLatencyP50Ms: snap.dbPercentiles.p50,
+      dbLatencyP95Ms: snap.dbPercentiles.p95,
+      dbLatencyP99Ms: snap.dbPercentiles.p99,
+      cacheHitRatio: snap.cacheHitRatio,
+      totalBacktestRuns: snap.backtestRunsTotal > 0 ? snap.backtestRunsTotal : backtestCount,
+      totalScenariosEvaluated: snap.scenarioRunsTotal,
+      uptimeSeconds: snap.uptimeSeconds,
+      storageMode: 'durable_atomic_file_adapter',
+      metricStatus: {
+        ai: snap.aiMetricStatus,
+        db: snap.dbMetricStatus,
+        cache: snap.cacheMetricStatus,
+        calculation: snap.calculationMetricStatus
+      }
     };
   }
 

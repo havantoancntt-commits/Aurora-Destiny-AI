@@ -12,8 +12,20 @@ async function runPostgresIntegrationSuite() {
   let poolToUse: any = undefined;
   if (!process.env.DATABASE_URL) {
     console.log('ℹ️ [Suite] DATABASE_URL not set — launching ephemeral PostgreSQL test instance via pg-mem...');
-    const { newDb } = await import('pg-mem');
+    const { newDb, DataType } = await import('pg-mem');
     const memDb = newDb();
+    memDb.public.registerFunction({
+      name: 'pg_advisory_lock',
+      args: [DataType.integer],
+      returns: DataType.bool,
+      implementation: () => true
+    });
+    memDb.public.registerFunction({
+      name: 'pg_advisory_unlock',
+      args: [DataType.integer],
+      returns: DataType.bool,
+      implementation: () => true
+    });
     const memPg = memDb.adapters.createPg();
     poolToUse = new memPg.Pool();
   } else {
@@ -23,11 +35,32 @@ async function runPostgresIntegrationSuite() {
   const repo = new PostgresDatabaseRepository(undefined, poolToUse);
   await repo.ensureInitialized();
 
-  // 1. VERIFY MIGRATIONS
-  console.log('▶ Test 1: Migration Verification');
-  const migRes = await repo.query('SELECT version, name FROM schema_migrations ORDER BY version ASC');
+  // 1. VERIFY MIGRATIONS & IMMUTABLE CHECKSUMS
+  console.log('▶ Test 1: Migration Verification & Checksum Integrity');
+  const migRes = await repo.query('SELECT version, name, checksum FROM schema_migrations ORDER BY version ASC');
   assert(migRes.rows.length >= 6, `Expected at least 6 migrations applied, found ${migRes.rows.length}`);
-  console.log(`  ✔ All ${migRes.rows.length} database migrations verified in schema_migrations.`);
+  for (const row of migRes.rows) {
+    assert(row.checksum && row.checksum.length === 64, `Migration ${row.version} must have valid SHA-256 checksum`);
+  }
+  console.log(`  ✔ All ${migRes.rows.length} database migrations verified with valid SHA-256 checksums.`);
+
+  // Test tamper detection
+  await repo.query("UPDATE schema_migrations SET checksum = 'tampered_fake_checksum_000000000000000000000000000000000000000' WHERE version = 1");
+  const { DatabaseMigrator } = await import('../db/migrator');
+  const migrator = new DatabaseMigrator(repo);
+  let tamperDetected = false;
+  try {
+    await migrator.runPendingMigrations();
+  } catch (err: any) {
+    if (err.message.includes('Migration integrity violation in version 1')) {
+      tamperDetected = true;
+    }
+  }
+  assert.strictEqual(tamperDetected, true, 'Migrator must detect post-apply migration alteration and reject execution');
+  // Restore original checksum
+  const origChecksum = migRes.rows[0].checksum;
+  await repo.query("UPDATE schema_migrations SET checksum = $1 WHERE version = 1", [origChecksum]);
+  console.log('  ✔ Tamper detection verified: altered migrations are rejected.');
 
   // 2. INSERT & SELECT (PARAMETERIZED)
   console.log('▶ Test 2: Parameterized Insert & Select');

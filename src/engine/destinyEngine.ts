@@ -8,6 +8,7 @@ import { calculateBaZiChart } from './bazi';
 import { calculateZiWeiChart } from './ziwei';
 import { calculateDecadeCycles, calculateAnnualTransits } from './temporal';
 import { evaluateConfidence } from './confidence';
+import { telemetry } from '../telemetry/telemetryService';
 import type {
   DestinyCalculationOptions,
   CanonicalCalculationInput
@@ -76,14 +77,18 @@ export function runFullDestinyCalculation(
 
   // 3. CHECK BOUNDED LRU CACHE WITH DEFENSIVE COPYING
   if (calculationLruCache.has(inputSignature)) {
+    telemetry.recordCacheHit();
     const cached = calculationLruCache.get(inputSignature)!;
     // Re-insert to maintain recent LRU position
     calculationLruCache.delete(inputSignature);
     calculationLruCache.set(inputSignature, cached);
     return structuredClone(cached);
   }
+  telemetry.recordCacheMiss();
 
-  // 4. PREPARE EFFECTIVE BIRTH DATA FOR CALCULATION ENGINES
+  const calcStart = Date.now();
+  try {
+    // 4. PREPARE EFFECTIVE BIRTH DATA FOR CALCULATION ENGINES
   const effectiveBirthData: BirthData = {
     ...birthData,
     solarYear: canonicalInput.birthYear,
@@ -157,9 +162,15 @@ export function runFullDestinyCalculation(
     }
   }
 
-  // Store deep clone in cache to prevent external mutations
-  calculationLruCache.set(inputSignature, structuredClone(result));
+    // Store deep clone in cache to prevent external mutations
+    calculationLruCache.set(inputSignature, structuredClone(result));
 
-  // Return fresh deep clone to ensure caller cannot mutate cache
-  return structuredClone(result);
+    telemetry.recordCalculation(Date.now() - calcStart, true);
+
+    // Return fresh deep clone to ensure caller cannot mutate cache
+    return structuredClone(result);
+  } catch (err) {
+    telemetry.recordCalculation(Date.now() - calcStart, false);
+    throw err;
+  }
 }

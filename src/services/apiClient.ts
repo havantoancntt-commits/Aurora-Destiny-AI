@@ -13,6 +13,7 @@ const SESSION_TOKEN_KEY = 'aurora_session_token';
 
 class ApiClient {
   private token: string | null = null;
+  private sessionPromise: Promise<string> | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -50,23 +51,33 @@ class ApiClient {
     }
   }
 
-  // Ensure an authenticated session token exists (auto-provisions guest session if none)
+  // Ensure an authenticated session token exists (auto-provisions guest session if none, with concurrency deduplication)
   public async ensureSession(force = false): Promise<string> {
     if (this.token && !force) return this.token;
 
-    try {
-      const res = await fetch('/api/auth/guest', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.token) {
-          this.setToken(data.token);
-          return data.token;
-        }
-      }
-    } catch (err) {
-      console.warn('Could not auto-provision guest session:', err);
+    if (this.sessionPromise) {
+      return this.sessionPromise;
     }
-    return this.token || '';
+
+    this.sessionPromise = (async () => {
+      try {
+        const res = await fetch('/api/auth/guest', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            this.setToken(data.token);
+            return data.token;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not auto-provision guest session:', err);
+      } finally {
+        this.sessionPromise = null;
+      }
+      return this.token || '';
+    })();
+
+    return this.sessionPromise;
   }
 
   private async fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {

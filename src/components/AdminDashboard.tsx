@@ -189,7 +189,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
           {/* 1. KEY OBSERVABILITY METRICS */}
           {metrics && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Người Dùng 24h</div>
                   <div className="text-xl font-bold font-mono text-cyan-400">
@@ -201,22 +201,40 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
-                  <div className="text-[11px] text-slate-400">Độ Chuẩn Định Thuật Toán</div>
+                  <div className="text-[11px] text-slate-400">Độ Chuẩn Thuật Toán</div>
                   <div className="text-xl font-bold font-mono text-emerald-400">
                     {metrics.calculationDeterministicRate !== undefined ? `${metrics.calculationDeterministicRate}%` : '100%'}
                   </div>
-                  <div className="text-[10px] text-emerald-400">Tỷ lệ sai lệch 0%</div>
+                  <div className="text-[10px] text-emerald-400">
+                    {metrics.calcLatencyP95Ms !== undefined && metrics.calcLatencyP95Ms > 0 ? `p95: ${metrics.calcLatencyP95Ms}ms` : 'Tỷ lệ sai lệch 0%'}
+                  </div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Độ Trễ Phân Tích AI</div>
                   <div className="text-xl font-bold font-mono text-purple-400">
-                    {metrics.aiLatencyAvgMs !== undefined && metrics.aiLatencyAvgMs > 0 ? `${metrics.aiLatencyAvgMs}ms` : 'Đang ghi nhận'}
+                    {metrics.aiLatencyAvgMs !== undefined && metrics.aiLatencyAvgMs > 0 ? `${metrics.aiLatencyAvgMs}ms` : 'Đang đo'}
                   </div>
-                  <div className="text-[10px] text-slate-400">Gemini 2.5 Flash Server-Side</div>
+                  <div className="text-[10px] text-slate-400">
+                    {metrics.aiLatencyP50Ms !== undefined && metrics.aiLatencyP50Ms > 0
+                      ? `p50: ${metrics.aiLatencyP50Ms}ms | p95: ${metrics.aiLatencyP95Ms}ms`
+                      : 'Gemini 2.5 Flash'}
+                  </div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
+                  <div className="text-[11px] text-slate-400">Độ Trễ Cơ Sở Dữ Liệu</div>
+                  <div className="text-xl font-bold font-mono text-cyan-400">
+                    {metrics.dbLatencyMs !== undefined && metrics.dbLatencyMs > 0 ? `${metrics.dbLatencyMs}ms` : '< 1ms'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {metrics.dbLatencyP95Ms !== undefined && metrics.dbLatencyP95Ms > 0
+                      ? `p50: ${metrics.dbLatencyP50Ms}ms | p95: ${metrics.dbLatencyP95Ms}ms`
+                      : 'Postgres / File Engine'}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1 col-span-2 sm:col-span-1">
                   <div className="text-[11px] text-slate-400">Tỷ Lệ Cache Hit</div>
                   <div className="text-xl font-bold font-mono text-amber-400">
                     {metrics.cacheHitRatio !== undefined ? `${metrics.cacheHitRatio}%` : '0%'}

@@ -39,7 +39,7 @@ export function evaluateConfidence(
   if (birthData.hasExactHour && !hasExactCoordinates) {
     calculationIntegrity = 78; // Civil time with exact hour bracket
   } else if (birthData.hasExactHour && hasExactCoordinates && hasMinute) {
-    calculationIntegrity = 92; // True Solar Time corrected via Equation of Time and geographical meridian
+    calculationIntegrity = 98; // True Solar Time corrected via Equation of Time and geographical meridian
   }
 
   const calculationConfidence = calculationIntegrity;

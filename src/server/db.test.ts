@@ -163,6 +163,80 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       updatedAt: new Date().toISOString()
     });
 
+    // Save calculation with distinct calculationId !== profileId
+    const guestCalc = repo.saveCalculation({
+      id: 'calc_distinct_guest_999',
+      profileId: guestProfile.id,
+      calculationVersion: '2.5.0',
+      astrologyRulesVersion: '1.0.0',
+      analysisModelVersion: '1.0.0',
+      inputSnapshot: {} as any,
+      bazi: {} as any,
+      ziwei: {} as any,
+      decades: [] as any,
+      annualTransits: [] as any,
+      analysisYear: 2026,
+      confidence: {
+        resolutionLevel: 'High',
+        calculationConfidence: 98,
+        interpretiveConfidence: 85,
+        historicalValidation: 0,
+        consistencyScore: 90,
+        validationScore: 100,
+        dataCompleteness: 100,
+        historicalFit: 90,
+        signalStrength: 95,
+        uncertaintyIndex: 10,
+        inputQuality: 100,
+        modelAgreement: 95,
+        assumptions: [],
+        limitations: [],
+        statisticalDisclaimer: 'Disclaimer'
+      },
+      timestamp: new Date().toISOString()
+    });
+
+    // Save historical event, backtest result, and chat message
+    repo.addHistoricalEvent({
+      id: 'evt_guest_1',
+      profileId: guestProfile.id,
+      year: 2020,
+      month: 6,
+      title: 'Tốt nghiệp',
+      category: 'Career',
+      impact: 'Positive',
+      intensity: 8,
+      description: 'Test event',
+      userConfidence: 5,
+      createdAt: new Date().toISOString()
+    });
+
+    repo.saveBacktestResult({
+      id: 'bt_guest_1',
+      profileId: guestProfile.id,
+      calculationId: guestCalc.id,
+      destinyConsistencyScore: 88,
+      historicalHitRate: 85,
+      statisticalSignificanceDisclaimer: 'Backtest disclaimer',
+      confidenceBand: 'High Empirical Reliability',
+      totalEventsAnalyzed: 1,
+      matchedEventsCount: 1,
+      divergentEventsCount: 0,
+      neutralEventsCount: 0,
+      comparisons: [],
+      strengthsSummary: [],
+      anomaliesSummary: [],
+      uncertaintyFactors: [],
+      timestamp: new Date().toISOString()
+    });
+
+    repo.addChatMessage(guestProfile.id, {
+      id: 'chat_guest_1',
+      sender: 'user',
+      content: 'Chào hệ thống',
+      timestamp: new Date().toISOString()
+    });
+
     // Store expired session for guest
     repo.saveSession({
       token: 'tok_guest_expired',
@@ -176,12 +250,24 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
 
     assert(repo.getUser(guestUser.id) !== null, 'Guest Exists Before Cleanup', 'Guest user is present before cleanup');
     assert(repo.getProfile(guestProfile.id) !== null, 'Guest Profile Exists Before Cleanup', 'Guest profile is present before cleanup');
+    assert(repo.getCalculation(guestCalc.id) !== null, 'Guest Calculation Exists Before Cleanup', 'Guest calculation is present before cleanup');
+    assert(repo.getHistoricalEvents(guestProfile.id).length > 0, 'Guest Events Exist Before Cleanup', 'Guest events present');
+    assert(repo.getBacktestResult(guestProfile.id) !== null, 'Guest Backtest Exists Before Cleanup', 'Guest backtest present');
+    assert(repo.getChatMessages(guestProfile.id).length > 0, 'Guest Chat Exists Before Cleanup', 'Guest chat messages present');
 
     // Run cleanup
     const cleanedCount = repo.cleanupExpiredSessions();
     assert(cleanedCount >= 1, 'Expired Session Cleanup Triggered', `Cleaned ${cleanedCount} expired sessions`);
     assert(repo.getUser(guestUser.id) === null, 'Cascade Purge of Expired Guest User', 'Expired guest user was purged');
     assert(repo.getProfile(guestProfile.id) === null, 'Cascade Purge of Expired Guest Profile', 'Expired guest profile was cascade deleted');
+    assert(repo.getCalculation(guestCalc.id) === null, 'Cascade Purge of Expired Guest Calculation', 'Distinct calculation ID purged without orphan');
+    assert(repo.getHistoricalEvents(guestProfile.id).length === 0, 'Cascade Purge of Expired Guest Events', 'Guest events purged');
+    assert(repo.getBacktestResult(guestProfile.id) === null, 'Cascade Purge of Expired Guest Backtest', 'Guest backtest purged');
+    assert(repo.getChatMessages(guestProfile.id).length === 0, 'Cascade Purge of Expired Guest Chats', 'Guest chats purged');
+
+    // Verify referential integrity passes with 0 orphan errors
+    const postCleanupIntegrity = repo.verifyDatabaseIntegrity();
+    assert(postCleanupIntegrity.valid === true, 'Post-Cleanup Referential Integrity', `Integrity valid: ${postCleanupIntegrity.errors.join(', ')}`);
 
     // Verify regular user is untouched
     assert(repo.getUser(user.id) !== null, 'Regular User Preserved During Purge', 'Registered user was preserved unharmed');

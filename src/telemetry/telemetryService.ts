@@ -6,6 +6,12 @@
 
 export type MetricQuality = 'REAL' | 'ESTIMATED' | 'UNAVAILABLE';
 
+export interface Percentiles {
+  p50: number | null;
+  p95: number | null;
+  p99: number | null;
+}
+
 export interface TelemetrySnapshot {
   httpRequestsTotal: number;
   httpErrorsTotal: number;
@@ -13,19 +19,23 @@ export interface TelemetrySnapshot {
   aiSuccessTotal: number;
   aiFailureTotal: number;
   aiTimeoutTotal: number;
+  aiFallbackTotal: number;
   aiLatencyAvgMs: number | null;
+  aiPercentiles: Percentiles;
   aiSuccessRate: number | null;
   aiMetricStatus: MetricQuality;
   
   calculationRequestsTotal: number;
   calculationFailuresTotal: number;
   calculationLatencyAvgMs: number | null;
+  calculationPercentiles: Percentiles;
   calculationDeterministicRate: number | null;
   calculationMetricStatus: MetricQuality;
 
   dbQueriesTotal: number;
   dbErrorsTotal: number;
   dbLatencyAvgMs: number | null;
+  dbPercentiles: Percentiles;
   dbMetricStatus: MetricQuality;
 
   cacheHitsTotal: number;
@@ -33,7 +43,21 @@ export interface TelemetrySnapshot {
   cacheHitRatio: number | null;
   cacheMetricStatus: MetricQuality;
 
+  scenarioRunsTotal: number;
+  backtestRunsTotal: number;
+
   uptimeSeconds: number;
+}
+
+function calculatePercentiles(samples: number[]): Percentiles {
+  if (samples.length === 0) {
+    return { p50: null, p95: null, p99: null };
+  }
+  const sorted = [...samples].sort((a, b) => a - b);
+  const p50 = sorted[Math.floor(sorted.length * 0.5)];
+  const p95 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))];
+  const p99 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.99))];
+  return { p50, p95, p99 };
 }
 
 class TelemetryService {
@@ -46,6 +70,7 @@ class TelemetryService {
   private aiSuccesses = 0;
   private aiFailures = 0;
   private aiTimeouts = 0;
+  private aiFallbacks = 0;
   private aiLatencies: number[] = [];
 
   private calcRequests = 0;
@@ -59,6 +84,9 @@ class TelemetryService {
   private cacheHits = 0;
   private cacheMisses = 0;
 
+  private scenarioRuns = 0;
+  private backtestRuns = 0;
+
   private readonly MAX_LATENCY_SAMPLES = 200;
 
   public recordHttpRequest(durationMs: number, isError: boolean): void {
@@ -66,13 +94,16 @@ class TelemetryService {
     if (isError) this.httpErrors++;
   }
 
-  public recordAiRequest(durationMs: number, success: boolean, timeout: boolean = false): void {
+  public recordAiRequest(durationMs: number, success: boolean, timeout: boolean = false, fallback: boolean = false): void {
     this.aiRequests++;
     if (success) {
       this.aiSuccesses++;
     } else {
       this.aiFailures++;
       if (timeout) this.aiTimeouts++;
+    }
+    if (fallback) {
+      this.aiFallbacks++;
     }
     this.aiLatencies.push(durationMs);
     if (this.aiLatencies.length > this.MAX_LATENCY_SAMPLES) {
@@ -106,6 +137,14 @@ class TelemetryService {
     this.cacheMisses++;
   }
 
+  public recordScenarioRun(): void {
+    this.scenarioRuns++;
+  }
+
+  public recordBacktestRun(): void {
+    this.backtestRuns++;
+  }
+
   public getSnapshot(): TelemetrySnapshot {
     const uptimeSeconds = Math.floor((Date.now() - this.startTime) / 1000);
 
@@ -113,6 +152,7 @@ class TelemetryService {
     let aiLatencyAvgMs: number | null = null;
     let aiSuccessRate: number | null = null;
     let aiMetricStatus: MetricQuality = 'UNAVAILABLE';
+    const aiPercentiles = calculatePercentiles(this.aiLatencies);
 
     if (this.aiRequests > 0) {
       aiSuccessRate = Math.round((this.aiSuccesses / this.aiRequests) * 1000) / 10;
@@ -127,6 +167,7 @@ class TelemetryService {
     let calculationLatencyAvgMs: number | null = null;
     let calculationDeterministicRate: number | null = null;
     let calculationMetricStatus: MetricQuality = 'UNAVAILABLE';
+    const calculationPercentiles = calculatePercentiles(this.calcLatencies);
 
     if (this.calcRequests > 0) {
       calculationDeterministicRate = Math.round(((this.calcRequests - this.calcFailures) / this.calcRequests) * 1000) / 10;
@@ -140,6 +181,7 @@ class TelemetryService {
     // DB Latency
     let dbLatencyAvgMs: number | null = null;
     let dbMetricStatus: MetricQuality = 'UNAVAILABLE';
+    const dbPercentiles = calculatePercentiles(this.dbLatencies);
     if (this.dbQueries > 0) {
       if (this.dbLatencies.length > 0) {
         const sum = this.dbLatencies.reduce((a, b) => a + b, 0);
@@ -164,22 +206,28 @@ class TelemetryService {
       aiSuccessTotal: this.aiSuccesses,
       aiFailureTotal: this.aiFailures,
       aiTimeoutTotal: this.aiTimeouts,
+      aiFallbackTotal: this.aiFallbacks,
       aiLatencyAvgMs,
+      aiPercentiles,
       aiSuccessRate,
       aiMetricStatus,
       calculationRequestsTotal: this.calcRequests,
       calculationFailuresTotal: this.calcFailures,
       calculationLatencyAvgMs,
+      calculationPercentiles,
       calculationDeterministicRate,
       calculationMetricStatus,
       dbQueriesTotal: this.dbQueries,
       dbErrorsTotal: this.dbErrors,
       dbLatencyAvgMs,
+      dbPercentiles,
       dbMetricStatus,
       cacheHitsTotal: this.cacheHits,
       cacheMissesTotal: this.cacheMisses,
       cacheHitRatio,
       cacheMetricStatus,
+      scenarioRunsTotal: this.scenarioRuns,
+      backtestRunsTotal: this.backtestRuns,
       uptimeSeconds
     };
   }
@@ -191,6 +239,7 @@ class TelemetryService {
     this.aiSuccesses = 0;
     this.aiFailures = 0;
     this.aiTimeouts = 0;
+    this.aiFallbacks = 0;
     this.aiLatencies = [];
     this.calcRequests = 0;
     this.calcFailures = 0;
@@ -200,6 +249,8 @@ class TelemetryService {
     this.dbLatencies = [];
     this.cacheHits = 0;
     this.cacheMisses = 0;
+    this.scenarioRuns = 0;
+    this.backtestRuns = 0;
     this.startTime = Date.now();
   }
 }

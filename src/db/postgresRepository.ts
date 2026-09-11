@@ -296,6 +296,12 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
 
   async cleanupExpiredSessions(): Promise<number> {
     const res = await this.query('DELETE FROM sessions WHERE expires_at <= NOW()');
+    // Cascade purge abandoned guest users whose sessions have expired
+    await this.query(`
+      DELETE FROM users 
+      WHERE id LIKE 'usr_guest_%' 
+        AND id NOT IN (SELECT user_id FROM sessions WHERE expires_at > NOW())
+    `);
     return res.rowCount || 0;
   }
 
@@ -782,16 +788,33 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       totalAuditLogs: auditCount,
       aiRequestsCount: snap.aiRequestsTotal,
       aiLatencyAvgMs: snap.aiLatencyAvgMs,
+      aiLatencyP50Ms: snap.aiPercentiles.p50,
+      aiLatencyP95Ms: snap.aiPercentiles.p95,
+      aiLatencyP99Ms: snap.aiPercentiles.p99,
       aiSuccessRate: snap.aiSuccessRate,
       aiMetricStatus: snap.aiMetricStatus,
       calculationDeterministicRate: snap.calculationDeterministicRate,
+      calcLatencyP50Ms: snap.calculationPercentiles.p50,
+      calcLatencyP95Ms: snap.calculationPercentiles.p95,
+      calcLatencyP99Ms: snap.calculationPercentiles.p99,
       calculationMetricStatus: snap.calculationMetricStatus,
       dbLatencyMs: snap.dbLatencyAvgMs,
+      dbLatencyP50Ms: snap.dbPercentiles.p50,
+      dbLatencyP95Ms: snap.dbPercentiles.p95,
+      dbLatencyP99Ms: snap.dbPercentiles.p99,
       dbMetricStatus: snap.dbMetricStatus,
       cacheHitRatio: snap.cacheHitRatio,
       cacheMetricStatus: snap.cacheMetricStatus,
+      totalBacktestRuns: snap.backtestRunsTotal,
+      totalScenariosEvaluated: snap.scenarioRunsTotal,
       uptimeSeconds: snap.uptimeSeconds,
-      storageMode: 'postgresql_production_adapter'
+      storageMode: 'postgresql_production_adapter',
+      metricStatus: {
+        ai: snap.aiMetricStatus,
+        db: snap.dbMetricStatus,
+        cache: snap.cacheMetricStatus,
+        calculation: snap.calculationMetricStatus
+      }
     };
   }
 

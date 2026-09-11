@@ -6,11 +6,11 @@ export interface ObservabilityMetrics {
   activeUsers24h: number;
   totalCalculations: number;
   aiRequestsCount: number;
-  aiLatencyAvgMs: number;
-  aiSuccessRate: number; // percentage e.g. 99.4
-  calculationDeterministicRate: number; // 100%
-  dbLatencyMs: number;
-  cacheHitRatio: number;
+  aiLatencyAvgMs: number | null;
+  aiSuccessRate: number | null; // percentage e.g. 99.4
+  calculationDeterministicRate: number | null; // 100%
+  dbLatencyMs: number | null;
+  cacheHitRatio: number | null;
   totalProfilesStored: number;
   totalBacktestRuns: number;
   totalScenariosEvaluated: number;
@@ -24,6 +24,22 @@ export interface ObservabilityMetrics {
   aiConfigured?: boolean;
   circuitBreakerOpen?: boolean;
   calculationEngineVersion?: string;
+  // Real measured latency percentiles
+  aiLatencyP50Ms?: number | null;
+  aiLatencyP95Ms?: number | null;
+  aiLatencyP99Ms?: number | null;
+  dbLatencyP50Ms?: number | null;
+  dbLatencyP95Ms?: number | null;
+  dbLatencyP99Ms?: number | null;
+  calcLatencyP50Ms?: number | null;
+  calcLatencyP95Ms?: number | null;
+  calcLatencyP99Ms?: number | null;
+  metricStatus?: {
+    ai: 'REAL' | 'UNAVAILABLE';
+    db: 'REAL' | 'UNAVAILABLE';
+    cache: 'REAL' | 'UNAVAILABLE';
+    calculation: 'REAL' | 'UNAVAILABLE';
+  };
 }
 
 export interface AuditLog {

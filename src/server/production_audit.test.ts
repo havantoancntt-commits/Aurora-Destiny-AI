@@ -110,8 +110,20 @@ console.log('▶ Test 4: PostgresDatabaseRepository Interface Parity & Real SQL'
 async function testPostgresRepository() {
   let poolToUse: any = undefined;
   if (!process.env.DATABASE_URL) {
-    const { newDb } = await import('pg-mem');
+    const { newDb, DataType } = await import('pg-mem');
     const memDb = newDb();
+    memDb.public.registerFunction({
+      name: 'pg_advisory_lock',
+      args: [DataType.integer],
+      returns: DataType.bool,
+      implementation: () => true
+    });
+    memDb.public.registerFunction({
+      name: 'pg_advisory_unlock',
+      args: [DataType.integer],
+      returns: DataType.bool,
+      implementation: () => true
+    });
     const memPg = memDb.adapters.createPg();
     poolToUse = new memPg.Pool();
   }

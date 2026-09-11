@@ -59,6 +59,7 @@ import {
   verifyAlgorithmSignature,
   antiScrapingSweeperMiddleware
 } from './src/server/algorithmProtection';
+import { telemetry } from './src/telemetry/telemetryService';
 
 const app = express();
 const PORT = 3000;
@@ -127,6 +128,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     'Content-Security-Policy',
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://ai.studio https://*.run.app;"
   );
+
+  const reqStart = Date.now();
+  res.on('finish', () => {
+    telemetry.recordHttpRequest(Date.now() - reqStart, res.statusCode >= 500);
+  });
+
   next();
 });
 
@@ -651,6 +658,7 @@ app.post(['/api/events', '/api/backtests/event'], requireAuth, (req, res, next) 
         runFullDestinyCalculation(profile.birthData, profile.id, allEvents.length);
 
       const computedBt = runBacktestAnalysis(allEvents, calc);
+      telemetry.recordBacktestRun();
       repo.saveBacktestResult(computedBt);
 
       return { event: createdEvent, updatedBt: computedBt };
@@ -673,6 +681,7 @@ app.delete(['/api/events/:profileId/:eventId', '/api/backtests/event/:profileId/
     const calc = repository.getLatestCalculationForProfile(profileId) ||
       runFullDestinyCalculation(profile.birthData, profile.id, allEvents.length);
     const updatedBt = runBacktestAnalysis(allEvents, calc);
+    telemetry.recordBacktestRun();
     repository.saveBacktestResult(updatedBt);
 
     res.json({ success: true, backtestResult: updatedBt });
@@ -732,6 +741,7 @@ app.post('/api/scenarios/evaluate', requireAuth, scenarioRateLimiter, (req, res,
     }
 
     const result = evaluateWhatIfScenario(validated.question, calc);
+    telemetry.recordScenarioRun();
     res.json(result);
   } catch (err) {
     next(err);
