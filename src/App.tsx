@@ -25,10 +25,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { RealTimeAlertCenter } from './components/RealTimeAlertCenter';
 import { SacredCosmicCipher3D } from './components/SacredCosmicCipher3D';
 import { AppFooter } from './components/AppFooter';
-import { SponsorshipModal } from './components/SponsorshipModal';
 import { LegalEthicsModal } from './components/LegalEthicsModal';
 import { InternationalizationModal } from './components/InternationalizationModal';
-import { MysticOracleModal } from './components/MysticOracleModal';
 import { SocialShareCardModal } from './components/SocialShareCardModal';
 import { SeoKnowledgeModal } from './components/SeoKnowledgeModal';
 import { CelestialTalismanModal } from './components/CelestialTalismanModal';
@@ -63,10 +61,8 @@ export default function App() {
   const [showPrivacyModal, setShowPrivacyModal] = useState<boolean>(false);
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
   const [showRealtimeAlertModal, setShowRealtimeAlertModal] = useState<boolean>(false);
-  const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
   const [showLegalModal, setShowLegalModal] = useState<boolean>(false);
   const [showInternationalModal, setShowInternationalModal] = useState<boolean>(false);
-  const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
   const [showShareCardModal, setShowShareCardModal] = useState<boolean>(false);
   const [showSeoModal, setShowSeoModal] = useState<boolean>(false);
   const [showTalismanModal, setShowTalismanModal] = useState<boolean>(false);
@@ -391,9 +387,7 @@ export default function App() {
           onRunTestAudit={() => setShowAdminModal(true)}
           calculation={calculation}
           onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
-          onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
           onOpenInternationalModal={() => setShowInternationalModal(true)}
-          onOpenOracleModal={() => setShowOracleModal(true)}
           onOpenTalismanModal={() => setShowTalismanModal(true)}
         />
       </div>
@@ -485,8 +479,6 @@ export default function App() {
                   onNavigateTab={setActiveTab}
                   onOpenReportModal={() => setShowReportModal(true)}
                   onOpenShareCardModal={() => setShowShareCardModal(true)}
-                  onOpenOracleModal={() => setShowOracleModal(true)}
-                  onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
                   onOpenTalismanModal={() => setShowTalismanModal(true)}
                 />
@@ -521,7 +513,6 @@ export default function App() {
                   profile={activeProfile}
                   calculation={calculation}
                   language={language}
-                  onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                 />
               )}
 
@@ -562,7 +553,6 @@ export default function App() {
         onOpenPrivacyCenter={() => setShowPrivacyModal(true)}
         onOpenReportModal={() => setShowReportModal(true)}
         onOpenAdminModal={() => setShowAdminModal(true)}
-        onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         onOpenInternationalModal={() => setShowInternationalModal(true)}
         onOpenSeoKnowledgeModal={() => setShowSeoModal(true)}
         onOpenTalismanModal={() => setShowTalismanModal(true)}
@@ -636,15 +626,6 @@ export default function App() {
         />
       )}
 
-      {/* Sponsorship & Channel Support Modal */}
-      {showSponsorshipModal && (
-        <SponsorshipModal
-          language={language}
-          onClose={() => setShowSponsorshipModal(false)}
-          onOpenLegalModal={() => setShowLegalModal(true)}
-        />
-      )}
-
       {/* Legal & Moral Ethics Statement Modal */}
       <LegalEthicsModal
         isOpen={showLegalModal}
@@ -667,15 +648,6 @@ export default function App() {
           }}
         />
       )}
-
-      {/* Mystic I Ching Oracle Divination Modal */}
-      <MysticOracleModal
-        isOpen={showOracleModal}
-        onClose={() => setShowOracleModal(false)}
-        language={language}
-        userName={activeProfile?.name || 'Quý Bạn'}
-        onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
-      />
 
       {/* Social Discovery & Privacy-Safe Share Card Modal */}
       {showShareCardModal && activeProfile && calculation && ensemble && (

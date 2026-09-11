@@ -91,6 +91,23 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
     }
   }
 
+  public async connect(): Promise<{ query: (sql: string, params?: any[]) => Promise<any>; release: () => void }> {
+    if (this.clientOverride) {
+      return {
+        query: (sql: string, params?: any[]) => this.clientOverride!.query(sql, params),
+        release: () => {}
+      };
+    }
+    if (!this.pool) {
+      throw new Error('PostgreSQL connection pool is not initialized');
+    }
+    const client = await this.pool.connect();
+    return {
+      query: (sql: string, params?: any[]) => client.query(sql, params),
+      release: () => client.release()
+    };
+  }
+
   public async query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number }> {
     const start = Date.now();
     try {

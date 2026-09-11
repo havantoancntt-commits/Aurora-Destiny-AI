@@ -35,10 +35,8 @@ import {
 import { CalculationResult, LanguageCode } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { computeKarmicPivot } from '../services/talismanEngine';
-import { CelestialPatron, PatronTier } from '../types/talisman';
 import { sacredSound } from '../services/soundService';
 import { STEMS, BRANCHES } from '../engine/canchi';
-import { PAYMENT_CHANNELS, PaymentMethodId, generateQrUrl } from '../data/paymentConfig';
 
 interface Props {
   isOpen: boolean;
@@ -46,7 +44,7 @@ interface Props {
   calculation: CalculationResult;
   profile: UserProfile;
   language?: LanguageCode;
-  initialTab?: 'card' | 'pivot' | 'patrons';
+  initialTab?: 'card' | 'pivot';
 }
 
 export const CelestialTalismanModal: React.FC<Props> = ({
@@ -58,30 +56,8 @@ export const CelestialTalismanModal: React.FC<Props> = ({
   initialTab = 'card'
 }) => {
   const isVi = language === 'vi';
-  const [activeTab, setActiveTab] = useState<'card' | 'pivot' | 'patrons'>(initialTab);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'card' | 'pivot'>(initialTab);
   const [isDownloading, setIsDownloading] = useState(false);
-
-  // Bank Info (Prof. TOAN)
-  const BANK_INFO = {
-    bankName: 'Vietcombank',
-    bankFullName: 'Ngân hàng TMCP Ngoại thương Việt Nam',
-    accountNumber: '0501000160764',
-    accountName: 'HA VAN TOAN',
-    bin: '970436'
-  };
-
-  const [selectedDonation, setSelectedDonation] = useState<number | null>(50000);
-  const [donationNote, setDonationNote] = useState<string>(`Ung ho HPPD - ${profile.name}`);
-  const [selectedChannel, setSelectedChannel] = useState<PaymentMethodId>('vcb');
-
-  // Patrons State
-  const [patrons, setPatrons] = useState<CelestialPatron[]>([]);
-  const [patronName, setPatronName] = useState(profile.name || '');
-  const [patronTier, setPatronTier] = useState<PatronTier>('vang');
-  const [patronMessage, setPatronMessage] = useState('Kính chúc Kênh Huyền Phong Phật Đạo & Thầy TOAN vạn sự cát tường.');
-  const [isSubmittingPatron, setIsSubmittingPatron] = useState(false);
-  const [registeredSuccess, setRegisteredSuccess] = useState<CelestialPatron | null>(null);
 
   // 3D Card Tilt State
   const [rotateX, setRotateX] = useState(0);
@@ -90,22 +66,6 @@ export const CelestialTalismanModal: React.FC<Props> = ({
 
   // Karmic analysis calculation
   const karmicData = computeKarmicPivot(calculation, profile);
-
-  // Fetch patrons on mount
-  useEffect(() => {
-    if (isOpen) {
-      fetch('/api/patrons')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data?.patrons && Array.isArray(data.patrons)) {
-            setPatrons(data.patrons);
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to load patrons:', err);
-        });
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -122,43 +82,6 @@ export const CelestialTalismanModal: React.FC<Props> = ({
   const handleMouseLeave = () => {
     setRotateX(0);
     setRotateY(0);
-  };
-
-  const handleCopy = (text: string, fieldKey: string) => {
-    navigator.clipboard?.writeText(text);
-    setCopiedField(fieldKey);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
-  // Submit Patron Form
-  const handleSubmitPatron = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!patronName.trim()) return;
-
-    setIsSubmittingPatron(true);
-    sacredSound.playCelestialChime(880);
-
-    try {
-      const res = await fetch('/api/patrons', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: patronName.trim(),
-          tier: patronTier,
-          amount: selectedDonation || undefined,
-          message: patronMessage.trim()
-        })
-      });
-      const data = await res.json();
-      if (data?.status === 'success' && data.patron) {
-        setPatrons((prev) => [data.patron, ...prev]);
-        setRegisteredSuccess(data.patron);
-      }
-    } catch (err) {
-      console.error('Error submitting patron:', err);
-    } finally {
-      setIsSubmittingPatron(false);
-    }
   };
 
   // Export Golden Talisman to Canvas Image
@@ -302,9 +225,6 @@ export const CelestialTalismanModal: React.FC<Props> = ({
     }
   };
 
-  const activePaymentChannel = PAYMENT_CHANNELS[selectedChannel];
-  const dynamicQrUrl = generateQrUrl(selectedChannel, selectedDonation, donationNote, patronName);
-
   return (
     <div
       id="celestial-talisman-modal"
@@ -339,7 +259,7 @@ export const CelestialTalismanModal: React.FC<Props> = ({
                 {isVi ? 'Thiên Bản Khai Mệnh & Pháp Bảo Kim Giáp 3D' : 'Sacred Celestial Talisman & Karmic Blueprint'}
               </h2>
               <p className="text-xs text-slate-400 font-light">
-                Chủ nhiệm sáng tạo: Giáo Sư - Prof.TOAN • Kênh Huyền Phong Phật Đạo
+                Hệ Thống Phân Tích &amp; Chuyển Hóa Vận Mệnh Aurora Destiny AI
               </p>
             </div>
           </div>
@@ -378,23 +298,6 @@ export const CelestialTalismanModal: React.FC<Props> = ({
           >
             <Compass className="w-4 h-4" />
             <span>{isVi ? 'Bản Đồ Nút Thắt & Cứu Giải' : 'Karmic Pivot & Remedy'}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('patrons')}
-            className={`px-3.5 py-2.5 rounded-t-xl transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'patrons'
-                ? 'border-rose-400 text-rose-300 bg-rose-500/10 font-bold'
-                : 'border-transparent text-slate-400 hover:text-white'
-            }`}
-          >
-            <Award className="w-4 h-4" />
-            <span>{isVi ? 'Bia Vàng Công Đức & Bảo Trợ' : 'Hall of Patrons'}</span>
-            {patrons.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500/30 text-rose-200 text-[10px]">
-                {patrons.length}
-              </span>
-            )}
           </button>
         </div>
 
@@ -618,257 +521,15 @@ export const CelestialTalismanModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Prof. TOAN Sacred Message */}
+              {/* Sacred Wisdom Message */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-950/30 via-slate-900 to-amber-950/20 border border-teal-500/30 space-y-2">
                 <div className="text-xs font-mono font-semibold uppercase tracking-wider text-teal-300 flex items-center gap-2">
                   <Award className="w-4 h-4 text-teal-400" />
-                  Lời Khai Thị Từ Kênh Huyền Phong Phật Đạo &amp; Giáo Sư Prof.TOAN
+                  Minh Triết Chuyển Hóa Cải Mệnh
                 </div>
                 <blockquote className="text-xs sm:text-sm text-slate-200 font-serif italic leading-relaxed pl-3 border-l-2 border-amber-400">
                   "{karmicData.sacredMotto}. Người thấu tỏ thiên mệnh là người không oán trách hoàn cảnh, biết lấy đức hạnh làm cội rễ và hành động chính trực làm thuyền nan vượt biển trần gian."
                 </blockquote>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: CELESTIAL HALL OF PATRONS & SUPPORT */}
-          {activeTab === 'patrons' && (
-            <div className="space-y-6">
-              {/* Introduction & Philosophy */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-purple-500/10 border border-amber-400/30 space-y-2 text-xs sm:text-sm text-slate-300">
-                <div className="flex items-center gap-2 text-amber-300 font-bold text-sm">
-                  <Heart className="w-4 h-4 text-rose-400" />
-                  Bia Vàng Công Đức Đồng Hành Cùng Kênh &amp; Dự Án
-                </div>
-                <p className="font-light leading-relaxed">
-                  Toàn bộ sự ủng hộ tự nguyện của Quý vị được dùng để chi trả máy chủ điện toán đám mây (GPU Cloud Servers), nghiên cứu nâng cấp thuật toán và duy trì kênh <strong className="text-amber-200">Huyền Phong Phật Đạo</strong> phụng sự cộng đồng hoàn toàn miễn phí.
-                </p>
-              </div>
-
-              {/* Payment Channel Switcher (VCB, MoMo, ZaloPay) */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedChannel('vcb')}
-                  className={`p-2.5 rounded-xl border transition-all text-left flex items-center gap-2 cursor-pointer ${
-                    selectedChannel === 'vcb'
-                      ? 'bg-emerald-950/60 border-emerald-400 text-emerald-200 shadow-sm'
-                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[10px] flex items-center justify-center shrink-0">
-                    VCB
-                  </div>
-                  <div className="overflow-hidden">
-                    <div className="text-xs font-bold truncate">Vietcombank</div>
-                    <div className="text-[9px] font-mono text-emerald-300 truncate">0501000160764</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedChannel('momo')}
-                  className={`p-2.5 rounded-xl border transition-all text-left flex items-center gap-2 cursor-pointer ${
-                    selectedChannel === 'momo'
-                      ? 'bg-[#2e051d] border-pink-500 text-pink-200 shadow-sm'
-                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-lg bg-[#A50064] text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    MoMo
-                  </div>
-                  <div className="overflow-hidden">
-                    <div className="text-xs font-bold truncate">Ví MoMo</div>
-                    <div className="text-[9px] font-mono text-pink-300 truncate">0974313633</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedChannel('zalopay')}
-                  className={`p-2.5 rounded-xl border transition-all text-left flex items-center gap-2 cursor-pointer ${
-                    selectedChannel === 'zalopay'
-                      ? 'bg-[#051c2e] border-sky-400 text-sky-200 shadow-sm'
-                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="w-6 h-6 rounded-lg bg-[#0088FF] text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    Zalo
-                  </div>
-                  <div className="overflow-hidden">
-                    <div className="text-xs font-bold truncate">Ví ZaloPay</div>
-                    <div className="text-[9px] font-mono text-sky-300 truncate">0974313633</div>
-                  </div>
-                </button>
-              </div>
-
-              {/* QR & Bank Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
-                {/* QR Code Container */}
-                <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col items-center text-center space-y-3">
-                  <div className="p-2.5 rounded-xl bg-white shadow-lg">
-                    <img
-                      src={dynamicQrUrl}
-                      alt={`Mã QR ${activePaymentChannel.name}`}
-                      className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
-                      loading="lazy"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="text-xs font-mono font-bold text-amber-300">
-                      {activePaymentChannel.shortName.toUpperCase()} — {activePaymentChannel.accountNumber}
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Chủ Tài Khoản: <strong className="text-white">{activePaymentChannel.accountName}</strong>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleCopy(activePaymentChannel.accountNumber, 'stk')}
-                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      {copiedField === 'stk' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedField === 'stk' ? 'Đã sao chép' : `Sao chép ${activePaymentChannel.type === 'bank' ? 'STK' : 'SĐT'}`}</span>
-                    </button>
-                    {activePaymentChannel.id === 'momo' && (
-                      <a
-                        href="https://me.momo.vn/0974313633"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 rounded-lg bg-[#A50064] hover:bg-[#C40076] text-white text-xs font-mono transition-all flex items-center gap-1.5"
-                      >
-                        <Smartphone className="w-3 h-3" />
-                        <span>Mở MoMo</span>
-                      </a>
-                    )}
-                  </div>
-                </div>
-
-                {/* Donation Presets & Form */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-mono text-slate-300 block">
-                      Chọn Mức Gieo Duyên Tùy Tâm:
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { amount: 20000, label: '20.000 đ', note: 'Tách Cà Phê' },
-                        { amount: 50000, label: '50.000 đ', note: 'Tách Trà Đạo' },
-                        { amount: 100000, label: '100.000 đ', note: 'Máy Chủ GPU' },
-                        { amount: 200000, label: '200.000 đ', note: 'Bảo Trợ Nghiên Cứu' },
-                        { amount: 500000, label: '500.000 đ', note: 'Hộ Pháp Tri Thức' },
-                        { amount: null, label: 'Tùy Tâm', note: 'Hảo Tâm' }
-                      ].map((item, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setSelectedDonation(item.amount)}
-                          className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
-                            selectedDonation === item.amount
-                              ? 'bg-amber-500/20 border-amber-400 text-amber-200 font-bold shadow-sm'
-                              : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                          }`}
-                        >
-                          <div className="text-xs">{item.label}</div>
-                          <div className="text-[10px] text-slate-400">{item.note}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Patron Inscription Form */}
-                  <form onSubmit={handleSubmitPatron} className="space-y-3 pt-2">
-                    <div className="text-xs font-mono font-semibold uppercase tracking-wider text-teal-300">
-                      Khắc Tên Lên Bia Vàng Công Đức:
-                    </div>
-
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        value={patronName}
-                        onChange={(e) => setPatronName(e.target.value)}
-                        placeholder="Tên hoặc Pháp danh của Quý vị..."
-                        className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/20 text-xs text-white focus:outline-none focus:border-teal-400"
-                        required
-                      />
-
-                      <textarea
-                        value={patronMessage}
-                        onChange={(e) => setPatronMessage(e.target.value)}
-                        placeholder="Lời nguyện chúc hoặc thông điệp gửi kênh..."
-                        rows={2}
-                        className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/20 text-xs text-white focus:outline-none focus:border-teal-400"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isSubmittingPatron}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white font-bold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{isSubmittingPatron ? 'Đang Khắc Bia Vàng...' : 'Khắc Tên Lên Bia Vàng Công Đức'}</span>
-                    </button>
-
-                    {registeredSuccess && (
-                      <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs flex items-center gap-2 animate-fade-in">
-                        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                        <span>Trân trọng cảm tạ! Tên của Quý vị đã được khắc ghi với mã ấn: {registeredSuccess.sealHash}</span>
-                      </div>
-                    )}
-                  </form>
-                </div>
-              </div>
-
-              {/* Hall of Patrons List */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-                    <Crown className="w-4 h-4 text-amber-400" />
-                    Danh Hiệu Hộ Pháp &amp; Huynh Đệ Đã Ghi Danh ({patrons.length})
-                  </h4>
-                  <span className="text-[10px] font-mono text-slate-400">Cập nhật thời gian thực</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
-                  {patrons.map((patron) => (
-                    <div
-                      key={patron.id}
-                      className="p-3 rounded-xl bg-slate-900/80 border border-white/10 flex items-start gap-3 text-xs"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-rose-500 flex items-center justify-center text-slate-950 font-bold text-xs shrink-0 mt-0.5">
-                        <Award className="w-4 h-4 text-slate-950" />
-                      </div>
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="font-bold text-amber-200 truncate">{patron.name}</span>
-                          <span className="text-[10px] font-mono text-slate-400 shrink-0">{patron.date}</span>
-                        </div>
-                        {patron.message && (
-                          <p className="text-slate-300/90 text-[11px] font-light line-clamp-2">
-                            "{patron.message}"
-                          </p>
-                        )}
-                        <div className="text-[9px] font-mono text-teal-400/80">
-                          {patron.sealHash}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Legal Compliance & Moral Ethics Notice */}
-              <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-[11px] text-slate-400 space-y-1">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-semibold font-mono text-[11px]">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Tuân Thủ Pháp Luật Việt Nam (Điều 457 Bộ luật Dân sự 2015)</span>
-                </div>
-                <p className="font-light text-slate-400 leading-relaxed">
-                  Hoạt động ủng hộ mang bản chất tặng cho tài sản tự nguyện phi thương mại nhằm duy trì máy chủ điện toán đám mây AI và nghiên cứu văn hóa truyền thống. Không phải là quan hệ mua bán dịch vụ tâm linh; không thay thế quyết định y tế, tài chính hay pháp lý.
-                </p>
               </div>
             </div>
           )}

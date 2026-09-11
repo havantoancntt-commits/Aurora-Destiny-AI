@@ -1,6 +1,7 @@
 // ==========================================
 // AURORA DESTINY AI — DATABASE MIGRATOR
 // Enterprise Schema Versioning, Atomic Migrations & Locks
+// Guarantees single-connection advisory lock lifecycle to prevent race conditions
 // ==========================================
 
 import fs from 'fs';
@@ -14,13 +15,21 @@ export interface MigrationFile {
   checksum: string;
 }
 
+export interface SingleConnectionClient {
+  query: (sql: string, params?: any[]) => Promise<any>;
+  release?: () => void;
+}
+
+export type QueryRunnerOrProvider =
+  | { connect: () => Promise<SingleConnectionClient>; query?: (sql: string, params?: any[]) => Promise<any> }
+  | { getClient?: () => Promise<SingleConnectionClient>; query?: (sql: string, params?: any[]) => Promise<any> }
+  | SingleConnectionClient;
+
 export class DatabaseMigrator {
-  private queryRunner: {
-    query: (sql: string, params?: any[]) => Promise<any>;
-  };
+  private queryRunner: QueryRunnerOrProvider;
   private static readonly ADVISORY_LOCK_ID = 74291845;
 
-  constructor(queryRunner: { query: (sql: string, params?: any[]) => Promise<any> }) {
+  constructor(queryRunner: QueryRunnerOrProvider) {
     this.queryRunner = queryRunner;
   }
 
@@ -44,43 +53,97 @@ export class DatabaseMigrator {
     });
   }
 
+  private async acquireDedicatedClient(): Promise<{ client: SingleConnectionClient; release: () => void }> {
+    if (typeof (this.queryRunner as any).connect === 'function') {
+      const conn = await (this.queryRunner as any).connect();
+      return {
+        client: conn,
+        release: () => {
+          if (typeof conn.release === 'function') {
+            conn.release();
+          }
+        }
+      };
+    } else if (typeof (this.queryRunner as any).getClient === 'function') {
+      const conn = await (this.queryRunner as any).getClient();
+      return {
+        client: conn,
+        release: () => {
+          if (typeof conn.release === 'function') {
+            conn.release();
+          }
+        }
+      };
+    } else {
+      const direct = this.queryRunner as SingleConnectionClient;
+      return {
+        client: direct,
+        release: () => {
+          if (typeof direct.release === 'function') {
+            direct.release();
+          }
+        }
+      };
+    }
+  }
+
   public async runPendingMigrations(): Promise<{ applied: number; versions: number[] }> {
+    const { client, release } = await this.acquireDedicatedClient();
     let lockAcquired = false;
+
     try {
-      // 0. Acquire distributed PostgreSQL advisory lock to prevent race conditions across pods/instances
+      // 0. Acquire distributed PostgreSQL advisory lock on this single dedicated client
+      // Session-scoped advisory locks MUST remain on the exact same client connection
       try {
-        await this.queryRunner.query('SELECT pg_advisory_lock($1)', [DatabaseMigrator.ADVISORY_LOCK_ID]);
+        await client.query('SELECT pg_advisory_lock($1)', [DatabaseMigrator.ADVISORY_LOCK_ID]);
         lockAcquired = true;
       } catch (lockErr: any) {
-        // Fallback for in-memory or environments where pg_advisory_lock is not supported
         console.warn('⚠️ [Migration] Advisory lock not supported by driver, proceeding with table-level atomic checks:', lockErr.message);
       }
 
       // 1. Ensure schema_migrations table exists with checksum tracking
+      let hasTable = false;
       try {
-        await this.queryRunner.query(`
-          CREATE TABLE IF NOT EXISTS schema_migrations (
-            version INTEGER PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            checksum VARCHAR(64),
-            applied_at TIMESTAMPTZ
-          );
-        `);
+        const check = await client.query(
+          "SELECT 1 FROM information_schema.tables WHERE table_name = 'schema_migrations'"
+        );
+        hasTable = (check.rows && check.rows.length > 0);
       } catch {
-        // Table already exists or driver limitation
+        hasTable = false;
+      }
+
+      if (!hasTable) {
+        try {
+          await client.query(`
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+              version INTEGER PRIMARY KEY,
+              name VARCHAR(255) NOT NULL,
+              checksum VARCHAR(64),
+              applied_at TIMESTAMPTZ
+            );
+          `);
+        } catch {
+          // Table already exists or driver limitation
+        }
       }
 
       // Ensure checksum column exists in existing tables
       try {
-        await this.queryRunner.query(`
-          ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum VARCHAR(64);
+        const colCheck = await client.query(`
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'schema_migrations' AND column_name = 'checksum'
         `);
+        if (!colCheck.rows || colCheck.rows.length === 0) {
+          await client.query(`
+            ALTER TABLE schema_migrations ADD COLUMN checksum VARCHAR(64);
+          `);
+        }
       } catch {
         // Column may already exist or ALTER not supported by driver
       }
 
-      // 2. Query already applied migration versions and checksums
-      const existing = await this.queryRunner.query(`
+      // 2. Query already applied migration versions and checksums on this dedicated client
+      const existing = await client.query(`
         SELECT version, name, checksum FROM schema_migrations ORDER BY version ASC;
       `);
       const appliedMap = new Map<number, { name: string; checksum?: string }>();
@@ -105,7 +168,7 @@ export class DatabaseMigrator {
             }
           } else {
             // Backfill checksum for legacy records
-            await this.queryRunner.query(
+            await client.query(
               'UPDATE schema_migrations SET checksum = $1 WHERE version = $2',
               [m.checksum, m.version]
             );
@@ -113,19 +176,19 @@ export class DatabaseMigrator {
         } else {
           console.log(`🚀 [Migration] Applying migration ${m.version}: ${m.name}...`);
           
-          // Execute migration SQL inside an atomic transaction
-          await this.queryRunner.query('BEGIN');
+          // Execute migration SQL inside an atomic transaction on this dedicated client
+          await client.query('BEGIN');
           try {
-            await this.queryRunner.query(m.sql);
-            await this.queryRunner.query(
+            await client.query(m.sql);
+            await client.query(
               'INSERT INTO schema_migrations (version, name, checksum, applied_at) VALUES ($1, $2, $3, NOW())',
               [m.version, m.name, m.checksum]
             );
-            await this.queryRunner.query('COMMIT');
+            await client.query('COMMIT');
             appliedVersions.push(m.version);
             console.log(`✅ [Migration] Migration ${m.version} applied successfully.`);
           } catch (err) {
-            await this.queryRunner.query('ROLLBACK');
+            await client.query('ROLLBACK');
             console.error(`❌ [Migration] Migration ${m.version} (${m.name}) failed! Rollback executed.`, err);
             throw err;
           }
@@ -136,17 +199,23 @@ export class DatabaseMigrator {
     } finally {
       if (lockAcquired) {
         try {
-          await this.queryRunner.query('SELECT pg_advisory_unlock($1)', [DatabaseMigrator.ADVISORY_LOCK_ID]);
+          await client.query('SELECT pg_advisory_unlock($1)', [DatabaseMigrator.ADVISORY_LOCK_ID]);
         } catch {
           // Ignore unlock error on teardown
         }
+      }
+      try {
+        release();
+      } catch {
+        // Ignore release error
       }
     }
   }
 
   public async getMigrationStatus(): Promise<{ currentVersion: number; totalMigrations: number; appliedVersions: number[] }> {
+    const { client, release } = await this.acquireDedicatedClient();
     try {
-      const res = await this.queryRunner.query(`
+      const res = await client.query(`
         SELECT version FROM schema_migrations ORDER BY version ASC;
       `);
       const versions = res.rows.map((r: any) => Number(r.version));
@@ -158,6 +227,12 @@ export class DatabaseMigrator {
       };
     } catch {
       return { currentVersion: 0, totalMigrations: 0, appliedVersions: [] };
+    } finally {
+      try {
+        release();
+      } catch {
+        // Ignore release error
+      }
     }
   }
 }

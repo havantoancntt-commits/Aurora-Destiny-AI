@@ -180,6 +180,27 @@ async function runPostgresIntegrationSuite() {
   assert(metrics.totalProfiles >= 1, 'Total profiles count must reflect real records');
   console.log('  ✔ Real metrics reported correctly without hardcoded values.');
 
+  // 8. CONCURRENT MIGRATION RUNNERS & ADVISORY LOCKING
+  console.log('▶ Test 8: Concurrent Migration Advisory Lock Synchronization');
+  const runner1 = new DatabaseMigrator(repo);
+  const runner2 = new DatabaseMigrator(repo);
+  const runner3 = new DatabaseMigrator(repo);
+
+  // Run 3 concurrent migration passes simultaneously
+  const results = await Promise.all([
+    runner1.runPendingMigrations(),
+    runner2.runPendingMigrations(),
+    runner3.runPendingMigrations()
+  ]);
+
+  // All runners should finish gracefully without conflict or deadlock
+  for (const res of results) {
+    assert(typeof res.applied === 'number', 'Migration run must return applied count');
+  }
+  const status = await runner1.getMigrationStatus();
+  assert(status.currentVersion >= 6, 'Migration version must remain at or above 6');
+  console.log('  ✔ Concurrent migration runners synchronized safely via dedicated client advisory lock.');
+
   console.log('====================================================');
   console.log('🏆 POSTGRESQL INTEGRATION SUITE PASSED 100%!');
   console.log('====================================================');
