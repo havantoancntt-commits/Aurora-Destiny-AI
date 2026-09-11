@@ -27,7 +27,10 @@ import {
   Layers,
   Star,
   Send,
-  UserCheck
+  UserCheck,
+  Smartphone,
+  ShieldCheck,
+  Wallet
 } from 'lucide-react';
 import { CalculationResult, LanguageCode } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -35,6 +38,7 @@ import { computeKarmicPivot } from '../services/talismanEngine';
 import { CelestialPatron, PatronTier } from '../types/talisman';
 import { sacredSound } from '../services/soundService';
 import { STEMS, BRANCHES } from '../engine/canchi';
+import { PAYMENT_CHANNELS, PaymentMethodId, generateQrUrl } from '../data/paymentConfig';
 
 interface Props {
   isOpen: boolean;
@@ -69,6 +73,7 @@ export const CelestialTalismanModal: React.FC<Props> = ({
 
   const [selectedDonation, setSelectedDonation] = useState<number | null>(50000);
   const [donationNote, setDonationNote] = useState<string>(`Ung ho HPPD - ${profile.name}`);
+  const [selectedChannel, setSelectedChannel] = useState<PaymentMethodId>('vcb');
 
   // Patrons State
   const [patrons, setPatrons] = useState<CelestialPatron[]>([]);
@@ -297,7 +302,8 @@ export const CelestialTalismanModal: React.FC<Props> = ({
     }
   };
 
-  const vietQrUrl = `https://img.vietqr.io/image/${BANK_INFO.bin}-${BANK_INFO.accountNumber}-compact2.png?amount=${selectedDonation || ''}&addInfo=${encodeURIComponent(donationNote)}&accountName=${encodeURIComponent(BANK_INFO.accountName)}`;
+  const activePaymentChannel = PAYMENT_CHANNELS[selectedChannel];
+  const dynamicQrUrl = generateQrUrl(selectedChannel, selectedDonation, donationNote, patronName);
 
   return (
     <div
@@ -639,14 +645,71 @@ export const CelestialTalismanModal: React.FC<Props> = ({
                 </p>
               </div>
 
+              {/* Payment Channel Switcher (VCB, MoMo, ZaloPay) */}
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedChannel('vcb')}
+                  className={`p-2.5 rounded-xl border transition-all text-left flex items-center gap-2 cursor-pointer ${
+                    selectedChannel === 'vcb'
+                      ? 'bg-emerald-950/60 border-emerald-400 text-emerald-200 shadow-sm'
+                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[10px] flex items-center justify-center shrink-0">
+                    VCB
+                  </div>
+                  <div className="overflow-hidden">
+                    <div className="text-xs font-bold truncate">Vietcombank</div>
+                    <div className="text-[9px] font-mono text-emerald-300 truncate">0501000160764</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedChannel('momo')}
+                  className={`p-2.5 rounded-xl border transition-all text-left flex items-center gap-2 cursor-pointer ${
+                    selectedChannel === 'momo'
+                      ? 'bg-[#2e051d] border-pink-500 text-pink-200 shadow-sm'
+                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="w-6 h-6 rounded-lg bg-[#A50064] text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                    MoMo
+                  </div>
+                  <div className="overflow-hidden">
+                    <div className="text-xs font-bold truncate">Ví MoMo</div>
+                    <div className="text-[9px] font-mono text-pink-300 truncate">0974313633</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedChannel('zalopay')}
+                  className={`p-2.5 rounded-xl border transition-all text-left flex items-center gap-2 cursor-pointer ${
+                    selectedChannel === 'zalopay'
+                      ? 'bg-[#051c2e] border-sky-400 text-sky-200 shadow-sm'
+                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="w-6 h-6 rounded-lg bg-[#0088FF] text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                    Zalo
+                  </div>
+                  <div className="overflow-hidden">
+                    <div className="text-xs font-bold truncate">Ví ZaloPay</div>
+                    <div className="text-[9px] font-mono text-sky-300 truncate">0974313633</div>
+                  </div>
+                </button>
+              </div>
+
               {/* QR & Bank Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
                 {/* QR Code Container */}
                 <div className="p-4 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col items-center text-center space-y-3">
                   <div className="p-2.5 rounded-xl bg-white shadow-lg">
                     <img
-                      src={vietQrUrl}
-                      alt="VietQR HA VAN TOAN"
+                      src={dynamicQrUrl}
+                      alt={`Mã QR ${activePaymentChannel.name}`}
                       className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
                       loading="lazy"
                     />
@@ -654,21 +717,32 @@ export const CelestialTalismanModal: React.FC<Props> = ({
 
                   <div className="space-y-1">
                     <div className="text-xs font-mono font-bold text-amber-300">
-                      VIETCOMBANK — 0501000160764
+                      {activePaymentChannel.shortName.toUpperCase()} — {activePaymentChannel.accountNumber}
                     </div>
                     <div className="text-[11px] text-slate-400">
-                      Chủ Tài Khoản: <strong className="text-white">HA VAN TOAN</strong>
+                      Chủ Tài Khoản: <strong className="text-white">{activePaymentChannel.accountName}</strong>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleCopy(BANK_INFO.accountNumber, 'stk')}
+                      onClick={() => handleCopy(activePaymentChannel.accountNumber, 'stk')}
                       className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       {copiedField === 'stk' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedField === 'stk' ? 'Đã sao chép STK' : 'Sao chép STK'}</span>
+                      <span>{copiedField === 'stk' ? 'Đã sao chép' : `Sao chép ${activePaymentChannel.type === 'bank' ? 'STK' : 'SĐT'}`}</span>
                     </button>
+                    {activePaymentChannel.id === 'momo' && (
+                      <a
+                        href="https://me.momo.vn/0974313633"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-[#A50064] hover:bg-[#C40076] text-white text-xs font-mono transition-all flex items-center gap-1.5"
+                      >
+                        <Smartphone className="w-3 h-3" />
+                        <span>Mở MoMo</span>
+                      </a>
+                    )}
                   </div>
                 </div>
 
@@ -784,6 +858,17 @@ export const CelestialTalismanModal: React.FC<Props> = ({
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Legal Compliance & Moral Ethics Notice */}
+              <div className="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-[11px] text-slate-400 space-y-1">
+                <div className="flex items-center gap-1.5 text-emerald-400 font-semibold font-mono text-[11px]">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Tuân Thủ Pháp Luật Việt Nam (Điều 457 Bộ luật Dân sự 2015)</span>
+                </div>
+                <p className="font-light text-slate-400 leading-relaxed">
+                  Hoạt động ủng hộ mang bản chất tặng cho tài sản tự nguyện phi thương mại nhằm duy trì máy chủ điện toán đám mây AI và nghiên cứu văn hóa truyền thống. Không phải là quan hệ mua bán dịch vụ tâm linh; không thay thế quyết định y tế, tài chính hay pháp lý.
+                </p>
               </div>
             </div>
           )}

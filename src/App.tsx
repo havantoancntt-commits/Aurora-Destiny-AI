@@ -26,6 +26,7 @@ import { RealTimeAlertCenter } from './components/RealTimeAlertCenter';
 import { SacredCosmicCipher3D } from './components/SacredCosmicCipher3D';
 import { AppFooter } from './components/AppFooter';
 import { SponsorshipModal } from './components/SponsorshipModal';
+import { LegalEthicsModal } from './components/LegalEthicsModal';
 import { InternationalizationModal } from './components/InternationalizationModal';
 import { MysticOracleModal } from './components/MysticOracleModal';
 import { SocialShareCardModal } from './components/SocialShareCardModal';
@@ -63,6 +64,7 @@ export default function App() {
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
   const [showRealtimeAlertModal, setShowRealtimeAlertModal] = useState<boolean>(false);
   const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
+  const [showLegalModal, setShowLegalModal] = useState<boolean>(false);
   const [showInternationalModal, setShowInternationalModal] = useState<boolean>(false);
   const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
   const [showShareCardModal, setShowShareCardModal] = useState<boolean>(false);
@@ -564,6 +566,7 @@ export default function App() {
         onOpenInternationalModal={() => setShowInternationalModal(true)}
         onOpenSeoKnowledgeModal={() => setShowSeoModal(true)}
         onOpenTalismanModal={() => setShowTalismanModal(true)}
+        onOpenLegalModal={() => setShowLegalModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -638,8 +641,16 @@ export default function App() {
         <SponsorshipModal
           language={language}
           onClose={() => setShowSponsorshipModal(false)}
+          onOpenLegalModal={() => setShowLegalModal(true)}
         />
       )}
+
+      {/* Legal & Moral Ethics Statement Modal */}
+      <LegalEthicsModal
+        isOpen={showLegalModal}
+        language={language}
+        onClose={() => setShowLegalModal(false)}
+      />
 
       {/* Global Internationalization & Astronomy Studio Modal */}
       {showInternationalModal && (

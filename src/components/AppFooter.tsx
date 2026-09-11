@@ -22,7 +22,8 @@ import {
   Heart,
   QrCode,
   Search,
-  Crown
+  Crown,
+  Scale
 } from 'lucide-react';
 import { LanguageCode } from '../types/destiny';
 
@@ -35,6 +36,7 @@ interface Props {
   onOpenInternationalModal?: () => void;
   onOpenSeoKnowledgeModal?: () => void;
   onOpenTalismanModal?: () => void;
+  onOpenLegalModal?: () => void;
   hasFloatingDock?: boolean;
 }
 
@@ -47,6 +49,7 @@ export const AppFooter: React.FC<Props> = ({
   onOpenInternationalModal,
   onOpenSeoKnowledgeModal,
   onOpenTalismanModal,
+  onOpenLegalModal,
   hasFloatingDock = false
 }) => {
   const [copied, setCopied] = useState(false);
@@ -346,6 +349,17 @@ export const AppFooter: React.FC<Props> = ({
               >
                 <Globe className="w-3.5 h-3.5" />
                 <span>{isVi ? 'Cài Đặt Quốc Tế' : 'Global Settings'}</span>
+              </button>
+            )}
+            {onOpenLegalModal && (
+              <button
+                id="btn-footer-legal-ethics"
+                onClick={onOpenLegalModal}
+                className="text-emerald-400 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-medium"
+                title="Bản Tuyên Bố Pháp Lý, Quy Chuẩn Đạo Đức & Tuân Thủ Pháp Luật Việt Nam"
+              >
+                <Scale className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{isVi ? 'Tuân Thủ Pháp Luật & Đạo Đức' : 'Legal & Ethics'}</span>
               </button>
             )}
             {onOpenPrivacyCenter && (
