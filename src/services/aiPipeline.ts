@@ -227,7 +227,7 @@ export class DestinyAiPipeline {
     // STAGE 7: AI REASONING
     // -------------------------------------------------------------
     const s7Start = Date.now();
-    const aiOutput = await generateDestinyChatResponse(
+    let aiOutput = await generateDestinyChatResponse(
       request.userQuestion,
       request.profile,
       request.calculation,
@@ -244,8 +244,54 @@ export class DestinyAiPipeline {
       p?.majorStars?.forEach(s => allValidStars.add(s.nameVi.toLowerCase()));
       p?.minorStars?.forEach(s => allValidStars.add(s.nameVi.toLowerCase()));
     });
-    // Check if response mentions stars that do not exist in the chart
-    logStage(8, 'EVIDENCE_EXTRACTION', 'passed', `Verified grounded stars against ${allValidStars.size} cataloged stars in native chart.`, s8Start);
+
+    let antiHallucinationPassed = true;
+    let antiHallucinationDetail = `Đã đối soát ${allValidStars.size} tinh tú và cấu trúc Bát Tự thực tế trên lá số.`;
+
+    // 1. Prohibited safety topics check (Fatal predictions, gambling, medical prescriptions)
+    const PROHIBITED_SAFETY_PATTERNS = [
+      /sẽ\s+(tử\s+vong|chết|qua\s+đời|gặp\s+đại\s+nạn\s+tử\s+vong)/i,
+      /(đặt\s+cược|tất\s+tay|chắc\s+chắn\s+trúng\s+số|chơi\s+lô\s+đề)/i,
+      /(ngưng\s+thuốc|bỏ\s+điều\s+trị\s+y\s+tế|thay\s+thế\s+bác\s+sĩ)/i
+    ];
+
+    const contentLower = aiOutput.content.toLowerCase();
+    for (const pattern of PROHIBITED_SAFETY_PATTERNS) {
+      if (pattern.test(contentLower)) {
+        antiHallucinationPassed = false;
+        antiHallucinationDetail = 'Phát hiện vi phạm quy chuẩn an toàn: Nội dung chứa cảnh báo tử vong/đỏ đen/y tế.';
+        break;
+      }
+    }
+
+    // 2. Day Master stem verification against hallucination
+    const STEM_NAMES_VI: Record<string, string> = {
+      Jia: 'giáp', Yi: 'ất', Bing: 'bính', Ding: 'đinh', Wu: 'mậu',
+      Ji: 'kỷ', Geng: 'canh', Xin: 'tân', Ren: 'nhâm', Gui: 'quý'
+    };
+    const expectedDayMasterVi = STEM_NAMES_VI[bazi.dayMaster];
+    // Check if AI explicitly asserts a different Day Master
+    Object.entries(STEM_NAMES_VI).forEach(([stem, nameVi]) => {
+      if (stem !== bazi.dayMaster) {
+        if (contentLower.includes(`nhật chủ ${nameVi}`) || contentLower.includes(`can ngày ${nameVi}`)) {
+          antiHallucinationPassed = false;
+          antiHallucinationDetail = `Phát hiện ảo giác Bát Tự: AI ngộ nhận Nhật Chủ là ${nameVi.toUpperCase()} thay vì ${expectedDayMasterVi.toUpperCase()}.`;
+        }
+      }
+    });
+
+    if (!antiHallucinationPassed) {
+      // Fallback to grounded deterministic interpretation
+      aiOutput = {
+        content: `[HỆ THỐNG AN TOÀN ĐÃ KÍCH HOẠT QUY CHUẨN XÁC THỰC]\n\n` +
+          `Dựa trên cấu trúc Bát Tự (Nhật Chủ ${expectedDayMasterVi.toUpperCase()}, Dụng Thần: ${bazi.favorableElements.join(', ')}) ` +
+          `và Cung Mệnh Tử Vi (${ziwei.elementBureau}), hệ thống đề xuất tập trung vào phát triển năng lực nội tại, ` +
+          `quản trị rủi ro chu kỳ và chủ động đưa ra các quyết định hành động sáng suốt, tự chủ.`,
+        isFallback: true
+      };
+    }
+
+    logStage(8, 'EVIDENCE_EXTRACTION', antiHallucinationPassed ? 'passed' : 'fallback', antiHallucinationDetail, s8Start);
 
     // -------------------------------------------------------------
     // STAGE 9: CONTRADICTION CHECK

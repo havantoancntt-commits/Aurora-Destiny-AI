@@ -185,6 +185,12 @@ export interface ZiWeiChart {
     decadeAndCurrentYearGuidance: string;
     strategicAdvice: string;
   };
+  calculationConvention?: {
+    yearConvention: 'solarLapXuan' | 'lunarNewYear';
+    leapMonthConvention: 'midMonthSplit' | 'keepMonth';
+    rulesVersion: string;
+    description: string;
+  };
 }
 
 export interface DecadeCycle {
@@ -243,6 +249,8 @@ export interface BirthData {
   calendarSystem: 'solar' | 'lunar';
   isLateRat?: boolean; // Configuration for hour 23 (Dạ Tý)
   timeConvention?: 'civil' | 'trueSolar'; // Astronomical time convention
+  ziweiYearConvention?: 'solarLapXuan' | 'lunarNewYear'; // Orthodox Lunar Year vs Solar Term Lap Xuan
+  ziweiLeapMonthConvention?: 'midMonthSplit' | 'keepMonth'; // Mid-month split (classical) vs Keep-month
   longitude?: number; // Geographic longitude in degrees for True Solar Time (e.g. 105.85 for Hanoi)
   latitude?: number; // Geographic latitude in degrees (-90 to +90)
 }
@@ -265,8 +273,10 @@ export interface ConfidenceMetrics {
   resolutionLevel: 'High' | 'Medium' | 'Estimated';
   assumptions: string[];
   limitations: string[];
-  // Distinct multi-dimensional confidence layers (Section VIII)
+  // Distinct multi-dimensional confidence layers (Audit Section IV)
   calculationConfidence: number; // 0 - 100: Astronomical and ephemeris calculation precision
+  calculationIntegrity?: number; // Architectural alias for calculation precision/invariants
+  ruleValidationStatus?: 'PASSED' | 'WARNING' | 'FAILED'; // System invariant validation status
   inputQuality: number; // 0 - 100: Completeness and coordinate exactness of user input
   modelAgreement: number; // 0 - 100: Concordance between BaZi and Zi Wei indicators
   validationScore: number; // 0 - 100: Internal mathematical and astronomical invariant checks

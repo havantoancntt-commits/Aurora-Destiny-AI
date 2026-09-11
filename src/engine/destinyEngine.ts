@@ -13,6 +13,14 @@ export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
 export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
 export const ANALYSIS_MODEL_VERSION = 'aurora_ensemble_v3.5';
 
+// Bounded LRU Cache for calculations (prevents redundant recomputations and unbounded memory growth)
+const MAX_ENGINE_CACHE_SIZE = 128;
+const calculationLruCache = new Map<string, CalculationResult>();
+
+export function clearDestinyEngineCache(): void {
+  calculationLruCache.clear();
+}
+
 function deterministicHash(str: string): string {
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
   for (let i = 0; i < str.length; i++) {
@@ -37,6 +45,38 @@ export function runFullDestinyCalculation(
   // Canonical Resolution of Birth Time (Single Source of Truth)
   const canonicalTime = resolveEffectiveBirthTime(birthData);
 
+  // Deterministic Idempotent Signature across all astronomical, calendar and convention coordinates
+  const inputSignature = [
+    profileId,
+    birthData.solarYear,
+    birthData.solarMonth,
+    birthData.solarDay,
+    birthData.solarHour,
+    birthData.solarMinute ?? 0,
+    birthData.timezoneOffset,
+    canonicalTime.longitude.toFixed(4),
+    (canonicalTime.latitude ?? 0).toFixed(4),
+    birthData.calendarSystem || 'solar',
+    birthData.isLeapMonth ? 'leap' : 'regular',
+    birthData.gender,
+    birthData.isLateRat ? 'lateRat' : 'standard',
+    birthData.timeConvention || 'civil',
+    birthData.ziweiYearConvention || 'solarLapXuan',
+    birthData.ziweiLeapMonthConvention || 'midMonthSplit',
+    CALCULATION_ENGINE_VERSION,
+    ASTROLOGY_RULES_VERSION,
+    eventsCount
+  ].join('_');
+
+  // Check bounded LRU cache
+  if (calculationLruCache.has(inputSignature)) {
+    const cached = calculationLruCache.get(inputSignature)!;
+    // Re-insert to maintain recent LRU position
+    calculationLruCache.delete(inputSignature);
+    calculationLruCache.set(inputSignature, cached);
+    return cached;
+  }
+
   const effectiveBirthData: BirthData = {
     ...birthData,
     solarYear: canonicalTime.effectiveDate.year,
@@ -55,25 +95,9 @@ export function runFullDestinyCalculation(
   const annualTransits = calculateAnnualTransits(effectiveBirthData, currentYear - 6, currentYear + 10);
   const confidence = evaluateConfidence(effectiveBirthData, eventsCount);
 
-  // Deterministic Idempotent Signature across all astronomical and user coordinates
-  const inputSignature = [
-    profileId,
-    birthData.solarYear,
-    birthData.solarMonth,
-    birthData.solarDay,
-    birthData.solarHour,
-    birthData.solarMinute ?? 0,
-    birthData.timezoneOffset,
-    canonicalTime.longitude.toFixed(4),
-    birthData.gender,
-    birthData.isLateRat ? 'lateRat' : 'standard',
-    birthData.timeConvention || 'civil',
-    CALCULATION_ENGINE_VERSION
-  ].join('_');
-
   const deterministicId = `calc_${deterministicHash(inputSignature)}`;
 
-  return {
+  const result: CalculationResult = {
     id: deterministicId,
     profileId,
     calculationVersion: CALCULATION_ENGINE_VERSION,
@@ -97,4 +121,15 @@ export function runFullDestinyCalculation(
       dayShift: canonicalTime.dayShift
     }
   };
+
+  // Maintain bounded size for in-memory cache
+  if (calculationLruCache.size >= MAX_ENGINE_CACHE_SIZE) {
+    const oldestKey = calculationLruCache.keys().next().value;
+    if (oldestKey) {
+      calculationLruCache.delete(oldestKey);
+    }
+  }
+  calculationLruCache.set(inputSignature, result);
+
+  return result;
 }

@@ -141,6 +141,9 @@ function getTuanBranches(yearStemIdx: number, yearBranchIdx: number): [EarthlyBr
 }
 
 export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
+  const yearConvention = birthData.ziweiYearConvention || 'solarLapXuan';
+  const leapMonthConvention = birthData.ziweiLeapMonthConvention || 'midMonthSplit';
+
   const lunar = convertSolarToLunar(
     birthData.solarYear,
     birthData.solarMonth,
@@ -149,6 +152,13 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
     birthData.isLateRat,
     birthData.solarHour
   );
+
+  // Determine Year Can-Chi based on selected Zi Wei convention
+  let yearStem: HeavenlyStem;
+  let yearBranch: EarthlyBranch;
+  let yearStemIdx: number;
+  let yearBranchIdx: number;
+
   const yearPB = calculateYearPillar(
     birthData.solarYear,
     birthData.solarMonth,
@@ -157,20 +167,41 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
     birthData.solarHour,
     birthData.solarMinute || 0
   );
-  const tuHoa = getTuHoa(yearPB.stem);
+
+  if (yearConvention === 'lunarNewYear') {
+    // Orthodox Classical Zi Wei (Tử Vi Đẩu Số Toàn Thư / Trần Đoàn): Year switches at Lunar New Year
+    const ziweiYear = lunar.lunarYear;
+    yearStemIdx = ((ziweiYear - 4) % 10 + 10) % 10;
+    yearBranchIdx = ((ziweiYear - 4) % 12 + 12) % 12;
+    yearStem = STEM_KEYS[yearStemIdx];
+    yearBranch = BRANCH_KEYS[yearBranchIdx];
+  } else {
+    // Solar Term / Lập Xuân Convention (Bắc Phái / Tử Vân): Year switches at Solar Longitude 315°
+    yearStem = yearPB.stem;
+    yearBranch = yearPB.branch;
+    yearStemIdx = STEM_KEYS.indexOf(yearStem);
+    yearBranchIdx = BRANCH_KEYS.indexOf(yearBranch);
+  }
+
+  const tuHoa = getTuHoa(yearStem);
+
+  // Handle Leap Month (Tháng Nhuận) in Zi Wei
+  let effectiveLunarMonth = lunar.lunarMonth;
+  if (lunar.isLeapMonth && leapMonthConvention === 'midMonthSplit' && lunar.lunarDay > 15) {
+    // Classical rule: If born past the 15th of leap month, count into following month
+    effectiveLunarMonth = (lunar.lunarMonth % 12) + 1;
+  }
 
   // Hour branch index (Tý = 0, Sửu = 1, Dần = 2, ...)
   const birthHourBranchIdx = Math.floor((birthData.solarHour + 1) / 2) % 12;
 
   // Cung Mệnh: Từ Dần (2), đếm thuận đến tháng sinh âm lịch, rồi đếm nghịch đến giờ sinh
-  const lifePalaceBranchIdx = (2 + (lunar.lunarMonth - 1) - birthHourBranchIdx + 24) % 12;
+  const lifePalaceBranchIdx = (2 + (effectiveLunarMonth - 1) - birthHourBranchIdx + 24) % 12;
 
   // Cung Thân: Từ Dần (2), đếm thuận đến tháng sinh âm lịch, rồi đếm thuận đến giờ sinh
-  const bodyPalaceBranchIdx = (2 + (lunar.lunarMonth - 1) + birthHourBranchIdx) % 12;
+  const bodyPalaceBranchIdx = (2 + (effectiveLunarMonth - 1) + birthHourBranchIdx) % 12;
 
   // Xác định Can của Cung Mệnh bằng Ngũ Hổ Độn từ Can Năm
-  const yearStemIdx = STEM_KEYS.indexOf(yearPB.stem);
-  const yearBranchIdx = BRANCH_KEYS.indexOf(yearPB.branch);
   const startStemForYin = ((yearStemIdx % 5) * 2 + 2) % 10;
   const lifePalaceStemIdx = (startStemForYin + ((lifePalaceBranchIdx - 2 + 12) % 12)) % 10;
   const lifePalaceStem = STEM_KEYS[lifePalaceStemIdx];
@@ -245,7 +276,7 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
   // ==========================================
   // Âm Dương Nam Nữ và Chiều Đại Vận / Tràng Sinh / Bác Sĩ
   // ==========================================
-  const isYangYear = STEMS[yearPB.stem].yinYang === 'Yang';
+  const isYangYear = STEMS[yearStem].yinYang === 'Yang';
   const isMale = birthData.gender === 'Male';
   const isThuan = (isMale && isYangYear) || (!isMale && !isYangYear); // Dương Nam / Âm Nữ đi THUẬN
 
@@ -428,7 +459,7 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
   // ==========================================
   // TUẦN KHÔNG VÀ TRIỆT KHÔNG
   // ==========================================
-  const trietBranches = getTrietBranches(yearPB.stem);
+  const trietBranches = getTrietBranches(yearStem);
   const tuanBranches = getTuanBranches(yearStemIdx, yearBranchIdx);
 
   // Build 12 Palaces in counter-clockwise order starting from Life Palace
@@ -620,15 +651,23 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
     cucNumber,
     majorConfigurations: configs.slice(0, 3),
     tuanPalaces: tuanBranches,
-    trietPalaces: trietBranches
+    trietPalaces: trietBranches,
+    calculationConvention: {
+      yearConvention,
+      leapMonthConvention,
+      rulesVersion: 'astrorules_ziwei_v2.5',
+      description: yearConvention === 'solarLapXuan'
+        ? 'Quy ước Tiết Khí Lập Xuân (Bắc phái / Tử Vân): Chuyển năm tại thời điểm Mặt Trời đạt 315° kinh độ hoàng đạo.'
+        : 'Quy ước Tết Nguyên Đán (Toàn Thư / Nam phái): Chuyển năm tại Mùng 1 Tết Âm Lịch truyền thống.'
+    }
   };
 
   // Tạo báo cáo luận giải xác thực sâu sắc
   const authenticReport = generateAuthenticZiWeiReport(
     baseChart,
     birthData,
-    yearPB.stem,
-    yearPB.branch
+    yearStem,
+    yearBranch
   );
 
   return {
