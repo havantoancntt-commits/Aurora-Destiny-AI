@@ -12,8 +12,11 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { promisify } from 'util';
 import { repository } from '../db/repository';
 import { UserAccount, UserRole, StoredSession } from '../types/user';
+
+const pbkdf2Async = promisify(crypto.pbkdf2);
 
 // Extend Express Request type
 declare global {
@@ -36,9 +39,30 @@ export function hashPassword(password: string, salt?: string): { hash: string; s
   return { hash: derived, salt: actualSalt };
 }
 
+// Non-blocking async password hashing (prevents Node.js event loop starvation under concurrency)
+export async function hashPasswordAsync(password: string, salt?: string): Promise<{ hash: string; salt: string }> {
+  const actualSalt = salt || crypto.randomBytes(16).toString('hex');
+  const derived = await pbkdf2Async(password, actualSalt, 100000, 64, 'sha512');
+  return { hash: derived.toString('hex'), salt: actualSalt };
+}
+
 export function verifyPassword(password: string, storedHash: string, salt: string): boolean {
   try {
     const { hash } = hashPassword(password, salt);
+    const hashBuf = Buffer.from(hash, 'hex');
+    const storedBuf = Buffer.from(storedHash, 'hex');
+    if (hashBuf.length !== storedBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(hashBuf, storedBuf);
+  } catch {
+    return false;
+  }
+}
+
+export async function verifyPasswordAsync(password: string, storedHash: string, salt: string): Promise<boolean> {
+  try {
+    const { hash } = await hashPasswordAsync(password, salt);
     const hashBuf = Buffer.from(hash, 'hex');
     const storedBuf = Buffer.from(storedHash, 'hex');
     if (hashBuf.length !== storedBuf.length) {
@@ -92,6 +116,35 @@ export function revokeSession(token: string): boolean {
   return repository.deleteSession(token);
 }
 
+export async function registerUserAsync(email: string, password: string, fullName: string, role: UserRole = 'USER'): Promise<{ user: UserAccount; token: string }> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = repository.getUserByEmail(normalizedEmail);
+  if (existing) {
+    throw new Error('Email đã được đăng ký trong hệ thống');
+  }
+
+  const { hash, salt } = await hashPasswordAsync(password);
+  const passwordRecord = `${salt}:${hash}`;
+
+  const userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  const newUser: UserAccount = {
+    id: userId,
+    email: normalizedEmail,
+    fullName: fullName.trim(),
+    role,
+    subscriptionTier: 'Free',
+    language: 'vi',
+    emailVerified: false,
+    createdAt: new Date().toISOString(),
+    lastLoginAt: new Date().toISOString(),
+    profilesCount: 0
+  };
+
+  const saved = repository.saveUser(newUser, passwordRecord);
+  const { token } = createSession(saved.id, false);
+  return { user: saved, token };
+}
+
 export function registerUser(email: string, password: string, fullName: string, role: UserRole = 'USER'): { user: UserAccount; token: string } {
   const normalizedEmail = email.toLowerCase().trim();
   const existing = repository.getUserByEmail(normalizedEmail);
@@ -119,6 +172,34 @@ export function registerUser(email: string, password: string, fullName: string, 
   const saved = repository.saveUser(newUser, passwordRecord);
   const { token } = createSession(saved.id, false);
   return { user: saved, token };
+}
+
+export async function loginUserAsync(email: string, password: string, currentSessionToken?: string): Promise<{ user: UserAccount; token: string }> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = repository.getUserByEmail(normalizedEmail);
+
+  // Constant-time execution prevents timing attacks leaking email presence
+  if (!existing || !existing.passwordHash) {
+    await verifyPasswordAsync(password, DUMMY_HASH, DUMMY_SALT);
+    throw new Error('Email hoặc mật khẩu không chính xác');
+  }
+
+  const [salt, storedHash] = existing.passwordHash.split(':');
+  if (!salt || !storedHash || !(await verifyPasswordAsync(password, storedHash, salt))) {
+    throw new Error('Email hoặc mật khẩu không chính xác');
+  }
+
+  // Session rotation: revoke previous session token to prevent session fixation attacks
+  if (currentSessionToken) {
+    repository.deleteSession(currentSessionToken);
+  }
+
+  existing.lastLoginAt = new Date().toISOString();
+  repository.saveUser(existing);
+
+  const { token } = createSession(existing.id, false);
+  const { passwordHash: _, ...cleanUser } = existing;
+  return { user: cleanUser, token };
 }
 
 export function loginUser(email: string, password: string, currentSessionToken?: string): { user: UserAccount; token: string } {
@@ -160,6 +241,23 @@ export function requestPasswordReset(email: string): { resetToken: string; expir
   }
   const created = repository.createPasswordReset(user.id);
   return { resetToken: created.token, expiresAt: created.expiresAt };
+}
+
+export async function resetPasswordWithTokenAsync(token: string, newPassword: string): Promise<boolean> {
+  const userId = repository.verifyAndConsumePasswordReset(token);
+  if (!userId) {
+    return false;
+  }
+  const user = repository.getUser(userId);
+  if (!user) {
+    return false;
+  }
+
+  const { hash, salt } = await hashPasswordAsync(newPassword);
+  repository.saveUser(user, `${salt}:${hash}`);
+  // Invalidate all active sessions for this user upon password reset
+  repository.revokeUserSessions(userId);
+  return true;
 }
 
 export function resetPasswordWithToken(token: string, newPassword: string): boolean {

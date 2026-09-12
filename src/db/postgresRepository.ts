@@ -312,14 +312,34 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   }
 
   async cleanupExpiredSessions(): Promise<number> {
-    const res = await this.query('DELETE FROM sessions WHERE expires_at <= NOW()');
-    // Cascade purge abandoned guest users whose sessions have expired
-    await this.query(`
-      DELETE FROM users 
-      WHERE id LIKE 'usr_guest_%' 
-        AND id NOT IN (SELECT user_id FROM sessions WHERE expires_at > NOW())
-    `);
-    return res.rowCount || 0;
+    if (!this.pool) return 0;
+    const client = await this.pool.connect();
+    const CLEANUP_LOCK_ID = 889902;
+    try {
+      const lockRes = await client.query('SELECT pg_try_advisory_lock($1) as acquired', [CLEANUP_LOCK_ID]);
+      const acquired = lockRes.rows[0]?.acquired;
+      if (!acquired) {
+        // Another instance is already executing the scheduled cleanup job
+        return 0;
+      }
+      try {
+        const res = await client.query('DELETE FROM sessions WHERE expires_at <= NOW()');
+        // Cascade purge abandoned guest users whose sessions have expired
+        await client.query(`
+          DELETE FROM users 
+          WHERE id LIKE 'usr_guest_%' 
+            AND id NOT IN (SELECT user_id FROM sessions WHERE expires_at > NOW())
+        `);
+        return res.rowCount || 0;
+      } finally {
+        await client.query('SELECT pg_advisory_unlock($1)', [CLEANUP_LOCK_ID]);
+      }
+    } catch (err) {
+      console.error('[PostgreSQL] cleanupExpiredSessions error:', err);
+      return 0;
+    } finally {
+      client.release();
+    }
   }
 
   async revokeUserSessions(userId: string): Promise<number> {

@@ -535,6 +535,15 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     // Revoke all sessions
     this.revokeUserSessions(userId);
 
+    // Clean up any password reset tokens
+    if (this.state.passwordResets) {
+      for (const [token, record] of Object.entries(this.state.passwordResets)) {
+        if (record.userId === userId) {
+          delete this.state.passwordResets[token];
+        }
+      }
+    }
+
     // Delete user and preferences
     delete this.state.users[userId];
     delete this.state.preferences[userId];
@@ -632,6 +641,15 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
       if (now > session.expiresAt) {
         delete this.state.sessions[token];
         cleaned++;
+      }
+    }
+
+    // Clean up expired or consumed password resets
+    if (this.state.passwordResets) {
+      for (const [token, record] of Object.entries(this.state.passwordResets)) {
+        if (now > record.expiresAt || record.used) {
+          delete this.state.passwordResets[token];
+        }
       }
     }
 

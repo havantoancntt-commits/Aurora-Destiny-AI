@@ -16,11 +16,14 @@ import {
   requireAdmin,
   verifyProfileOwnership,
   registerUser,
+  registerUserAsync,
   loginUser,
+  loginUserAsync,
   createGuestSession,
   revokeSession,
   requestPasswordReset,
   resetPasswordWithToken,
+  resetPasswordWithTokenAsync,
   bootstrapAdminIfConfigured
 } from './src/server/auth';
 import {
@@ -64,8 +67,11 @@ import { telemetry } from './src/telemetry/telemetryService';
 const app = express();
 const PORT = 3000;
 
-// Trust reverse proxy for correct IP rate-limiting behind Cloud Run / Nginx
-app.set('trust proxy', 1);
+// Trust reverse proxy configurable by environment (defaults to 1 hop behind Cloud Run/Nginx)
+const trustProxySetting = process.env.TRUST_PROXY
+  ? (process.env.TRUST_PROXY === 'true' ? true : (!isNaN(Number(process.env.TRUST_PROXY)) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY))
+  : (process.env.NODE_ENV === 'production' ? 1 : false);
+app.set('trust proxy', trustProxySetting);
 
 // Security: parse JSON with strict size limit
 app.use(express.json({ limit: '2mb' }));
@@ -82,6 +88,42 @@ app.use((req: Request, res: Response, next: NextFunction) => {
         (req as any).cookies[key] = val;
       }
     });
+  }
+  next();
+});
+
+// CSRF Defense for Cookie-authenticated state-changing requests
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const isMutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+  if (isMutating) {
+    const hasSessionCookie = Boolean((req as any).cookies && (req as any).cookies['aurora_session']);
+    const hasBearerAuth = Boolean(req.headers.authorization || req.headers['x-session-token']);
+    
+    // When relying solely on ambient browser cookie for authorization, verify origin/referrer
+    if (hasSessionCookie && !hasBearerAuth) {
+      const origin = (req.headers.origin || req.headers.referer) as string | undefined;
+      const host = req.headers.host;
+      if (origin && host) {
+        try {
+          const originHost = new URL(origin).host;
+          const isAllowed = originHost === host || 
+            originHost.endsWith('.google.com') || 
+            originHost.endsWith('.run.app') || 
+            originHost.endsWith('localhost:3000');
+          if (!isAllowed) {
+            return res.status(403).json({
+              error: {
+                code: 'CSRF_ORIGIN_REJECTED',
+                message: 'Yêu cầu bị từ chối do vi phạm quy tắc xác thực nguồn gốc (CSRF protection)',
+                requestId: req.requestId
+              }
+            });
+          }
+        } catch {
+          // Invalid origin header format
+        }
+      }
+    }
   }
   next();
 });
@@ -155,14 +197,16 @@ bootstrapAdminIfConfigured();
 // Clean up expired sessions on startup
 repository.cleanupExpiredSessions();
 
-// Periodic expired session & abandoned guest purge (every 15 minutes)
-setInterval(() => {
-  try {
-    repository.cleanupExpiredSessions();
-  } catch (err) {
-    console.error('[Session Cleanup Error]', err);
-  }
-}, 15 * 60 * 1000);
+// Periodic expired session & abandoned guest purge (every 15 minutes, can be disabled if handled by external cron)
+if (process.env.DISABLE_BACKGROUND_CLEANUP !== 'true') {
+  setInterval(() => {
+    try {
+      repository.cleanupExpiredSessions();
+    } catch (err) {
+      console.error('[Session Cleanup Error]', err);
+    }
+  }, 15 * 60 * 1000);
+}
 
 // ----------------------------------------------------
 // 1. HEALTH & OBSERVABILITY (LIVENESS, READINESS & DIAGNOSTICS)
@@ -227,10 +271,10 @@ app.get('/api/metrics', requireAdmin, adminRateLimiter, (req, res) => {
 // ----------------------------------------------------
 // 2. AUTHENTICATION & SESSIONS
 // ----------------------------------------------------
-app.post('/api/auth/register', registerRateLimiter, (req, res, next) => {
+app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
   try {
     const validated = RegisterSchema.parse(req.body);
-    const result = registerUser(validated.email, validated.password, validated.fullName);
+    const result = await registerUserAsync(validated.email, validated.password, validated.fullName);
     
     repository.logAudit({
       userId: result.user.id,
@@ -248,11 +292,11 @@ app.post('/api/auth/register', registerRateLimiter, (req, res, next) => {
   }
 });
 
-app.post('/api/auth/login', loginRateLimiter, (req, res, next) => {
+app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
   try {
     const validated = LoginSchema.parse(req.body);
     // Session rotation: pass current session token if client had one (e.g. from guest session)
-    const result = loginUser(validated.email, validated.password, req.sessionToken);
+    const result = await loginUserAsync(validated.email, validated.password, req.sessionToken);
 
     repository.logAudit({
       userId: result.user.id,
@@ -321,10 +365,10 @@ app.post('/api/auth/forgot-password', loginRateLimiter, (req, res, next) => {
 });
 
 // Reset Password with Token
-app.post('/api/auth/reset-password', loginRateLimiter, (req, res, next) => {
+app.post('/api/auth/reset-password', loginRateLimiter, async (req, res, next) => {
   try {
     const validated = ResetPasswordSchema.parse(req.body);
-    const success = resetPasswordWithToken(validated.token, validated.newPassword);
+    const success = await resetPasswordWithTokenAsync(validated.token, validated.newPassword);
 
     if (!success) {
       return res.status(400).json({
@@ -1028,6 +1072,7 @@ interface StagedPdfItem {
 }
 
 const pdfStagingCache = new Map<string, StagedPdfItem>();
+const MAX_PDF_STAGING_ITEMS = 50;
 
 // Clean up expired PDF staging files periodically
 setInterval(() => {
@@ -1053,6 +1098,12 @@ app.post(
 
     if (!buffer || buffer.length === 0) {
       return res.status(400).json({ error: 'Không nhận được dữ liệu tệp PDF.' });
+    }
+
+    // Bound memory usage: Evict oldest entry if size limit reached
+    if (pdfStagingCache.size >= MAX_PDF_STAGING_ITEMS) {
+      const oldestKey = pdfStagingCache.keys().next().value;
+      if (oldestKey) pdfStagingCache.delete(oldestKey);
     }
 
     const downloadId = crypto.randomBytes(16).toString('hex');
