@@ -261,6 +261,19 @@ export const Navbar: React.FC<Props> = ({
               </button>
             )}
 
+            {/* Desktop Direct Action: Đồng Hành & Mời Cà Phê Kênh */}
+            {onOpenSponsorshipModal && (
+              <button
+                id="btn-nav-support-channel"
+                onClick={onOpenSponsorshipModal}
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500/15 via-amber-500/15 to-purple-500/15 border border-rose-400/40 text-rose-200 hover:text-white hover:border-rose-300 text-xs transition-all cursor-pointer shadow-[0_0_12px_rgba(244,63,94,0.2)] font-semibold"
+                title="Đồng Hành & Mời Cà Phê Giáo Sư - Prof.TOAN"
+              >
+                <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/30" />
+                <span>Ủng Hộ Kênh</span>
+              </button>
+            )}
+
             {/* Desktop Direct Action: Gieo Quẻ Kinh Dịch */}
             {onOpenOracleModal && (
               <button

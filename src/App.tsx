@@ -30,6 +30,7 @@ import { InternationalizationModal } from './components/InternationalizationModa
 import { SocialShareCardModal } from './components/SocialShareCardModal';
 import { SeoKnowledgeModal } from './components/SeoKnowledgeModal';
 import { CelestialTalismanModal } from './components/CelestialTalismanModal';
+import { SponsorshipModal } from './components/SponsorshipModal';
 import { sacredSound } from './services/soundService';
 
 import { UserProfile, UserPreferences } from './types/user';
@@ -66,6 +67,7 @@ export default function App() {
   const [showShareCardModal, setShowShareCardModal] = useState<boolean>(false);
   const [showSeoModal, setShowSeoModal] = useState<boolean>(false);
   const [showTalismanModal, setShowTalismanModal] = useState<boolean>(false);
+  const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -389,6 +391,7 @@ export default function App() {
           onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
           onOpenInternationalModal={() => setShowInternationalModal(true)}
           onOpenTalismanModal={() => setShowTalismanModal(true)}
+          onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         />
       </div>
 
@@ -481,6 +484,7 @@ export default function App() {
                   onOpenShareCardModal={() => setShowShareCardModal(true)}
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
                   onOpenTalismanModal={() => setShowTalismanModal(true)}
+                  onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                 />
               )}
 
@@ -513,6 +517,7 @@ export default function App() {
                   profile={activeProfile}
                   calculation={calculation}
                   language={language}
+                  onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                 />
               )}
 
@@ -557,6 +562,7 @@ export default function App() {
         onOpenSeoKnowledgeModal={() => setShowSeoModal(true)}
         onOpenTalismanModal={() => setShowTalismanModal(true)}
         onOpenLegalModal={() => setShowLegalModal(true)}
+        onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -674,8 +680,16 @@ export default function App() {
           calculation={calculation}
           profile={activeProfile}
           language={language}
+          onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         />
       )}
+
+      {/* Tùy Hỷ Gieo Duyên & Bảo Trợ Kênh (Sponsorship Modal) */}
+      <SponsorshipModal
+        isOpen={showSponsorshipModal}
+        onClose={() => setShowSponsorshipModal(false)}
+        language={language}
+      />
     </div>
   );
 }

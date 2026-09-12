@@ -45,6 +45,7 @@ interface Props {
   profile: UserProfile;
   language?: LanguageCode;
   initialTab?: 'card' | 'pivot';
+  onOpenSponsorshipModal?: () => void;
 }
 
 export const CelestialTalismanModal: React.FC<Props> = ({
@@ -53,7 +54,8 @@ export const CelestialTalismanModal: React.FC<Props> = ({
   calculation,
   profile,
   language = 'vi',
-  initialTab = 'card'
+  initialTab = 'card',
+  onOpenSponsorshipModal
 }) => {
   const isVi = language === 'vi';
   const [activeTab, setActiveTab] = useState<'card' | 'pivot'>(initialTab);
@@ -542,12 +544,27 @@ export const CelestialTalismanModal: React.FC<Props> = ({
             <span>Pháp bảo tâm thức • Cải vận thực nghiệm • Khoa học &amp; Minh triết</span>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-full sm:w-auto px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 font-bold transition-all cursor-pointer text-center"
-          >
-            Đóng Cửa Sổ
-          </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            {onOpenSponsorshipModal && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenSponsorshipModal();
+                }}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-purple-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+              >
+                <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400/30" />
+                <span>Ủng Hộ &amp; Gieo Duyên</span>
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 font-bold transition-all cursor-pointer text-center"
+            >
+              Đóng Cửa Sổ
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -111,7 +111,7 @@ export const LegalEthicsModal: React.FC<Props> = ({
             </div>
             <div className="text-xs text-slate-300/90 pl-6 space-y-1.5 font-light">
               <p>
-                • <strong>Căn cứ Điều 457 Bộ luật Dân sự 2015</strong>: Mọi sự ủng hộ thông qua tài khoản Ngân hàng (Vietcombank 0501000160764) hay Ví điện tử (MoMo / ZaloPay 0974313633) mang bản chất là <strong>Hợp đồng tặng cho tài sản tự nguyện</strong>, xuất phát từ lòng hảo tâm và sự ghi nhận của người dùng đối với công trình nghiên cứu.
+                • <strong>Căn cứ Điều 457 Bộ luật Dân sự 2015</strong>: Mọi sự ủng hộ thông qua tài khoản Ngân hàng (Vietcombank <strong>0501000160764</strong> - Chủ tài khoản: <strong>HA VAN TOAN</strong>) hay Ví điện tử MoMo / ZaloPay (<strong>0974313633</strong> - <strong>Hà Văn Toàn</strong>) mang bản chất là <strong>Hợp đồng tặng cho tài sản tự nguyện</strong>, xuất phát từ lòng hảo tâm và sự ghi nhận của người dùng đối với công trình nghiên cứu và kênh Huyền Phong Phật Đạo.
               </p>
               <p>
                 • <strong>Mục đích sử dụng tài trợ:</strong> Toàn bộ nguồn kinh phí ủng hộ được tác giả sử dụng minh bạch nhằm chi trả chi phí thuê máy chủ điện toán đám mây AI (GPU Cloud Servers), chi phí bảo mật lưu trữ và hỗ trợ nghiên cứu công nghệ phục vụ cộng đồng hoàn toàn miễn phí.
