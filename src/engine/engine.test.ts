@@ -175,9 +175,10 @@ export function runAllEngineTests(): TestReport {
   assert(
     emptyBt.totalEventsAnalyzed === 0 &&
     emptyBt.destinyConsistencyScore === 0 &&
-    emptyBt.confidenceBand === 'Sparse Data Fit',
+    (emptyBt.confidenceBand === 'Insufficient Historical Evidence' || emptyBt.confidenceBand === 'Sparse Data Fit') &&
+    emptyBt.evidenceStatus === 'INSUFFICIENT_HISTORICAL_EVIDENCE',
     'Backtest Empty Events Fallback',
-    `Analyzed: ${emptyBt.totalEventsAnalyzed}, Score: ${emptyBt.destinyConsistencyScore}`
+    `Analyzed: ${emptyBt.totalEventsAnalyzed}, Score: ${emptyBt.destinyConsistencyScore}, Band: ${emptyBt.confidenceBand}`
   );
 
   // TEST 14: Backtest Deduplication of Identical Events

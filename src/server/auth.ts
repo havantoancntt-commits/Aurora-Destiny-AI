@@ -215,10 +215,14 @@ export function bootstrapAdminIfConfigured(): void {
   const passwordRecord = `${salt}:${hash}`;
 
   if (existing) {
-    existing.role = 'SUPER_ADMIN';
-    existing.subscriptionTier = 'Enterprise';
-    repository.saveUser(existing, passwordRecord);
-    console.log(`🔒 [Security] Administrator account "${adminEmail}" synchronized.`);
+    if (process.env.ADMIN_BOOTSTRAP_FORCE === 'true') {
+      existing.role = 'SUPER_ADMIN';
+      existing.subscriptionTier = 'Enterprise';
+      repository.saveUser(existing, passwordRecord);
+      console.log(`🔒 [Security] Administrator account "${adminEmail}" forcibly synchronized via ADMIN_BOOTSTRAP_FORCE.`);
+    } else {
+      console.log(`🔒 [Security] Administrator account "${adminEmail}" already provisioned. Skipping credential overwrite to preserve state across deployments (set ADMIN_BOOTSTRAP_FORCE=true to override).`);
+    }
   } else {
     const adminUser: UserAccount = {
       id: `usr_admin_${crypto.randomBytes(4).toString('hex')}`,

@@ -123,10 +123,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
-  // Content Security Policy - allowing embedding within Google AI Studio preview iframes
+  // Content Security Policy - tailored for high-security production while permitting development and AI Studio preview
+  const isProd = process.env.NODE_ENV === 'production';
+  const scriptSrc = isProd
+    ? "'self' 'unsafe-inline' https:" // Strict production: removes unsafe-eval
+    : "'self' 'unsafe-inline' 'unsafe-eval' https:"; // Dev/preview Vite HMR compatibility
+
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://ai.studio https://*.run.app;"
+    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://ai.studio https://*.run.app;`
   );
 
   const reqStart = Date.now();
@@ -1329,10 +1334,14 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
   console.error(`[Error ${req.requestId}] ${req.method} ${req.originalUrl}:`, err?.message || err);
 
+  const safeMessage = (statusCode === 500 && process.env.NODE_ENV === 'production')
+    ? 'Đã xảy ra lỗi nội bộ hệ thống trong quá trình xử lý yêu cầu.'
+    : (err.message || 'Đã xảy ra lỗi trong quá trình xử lý');
+
   res.status(statusCode).json({
     error: {
       code: err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST'),
-      message: err.message || 'Đã xảy ra lỗi trong quá trình xử lý',
+      message: safeMessage,
       requestId: req.requestId
     }
   });

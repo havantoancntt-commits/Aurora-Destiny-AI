@@ -58,7 +58,8 @@ export interface BacktestResult {
   matchedEventsCount: number;
   divergentEventsCount: number;
   neutralEventsCount: number;
-  confidenceBand: 'High Empirical Reliability' | 'Moderate Coherence' | 'Sparse Data Fit';
+  confidenceBand: 'High Empirical Reliability' | 'Moderate Coherence' | 'Sparse Data Fit' | 'Insufficient Historical Evidence';
+  evidenceStatus?: 'INSUFFICIENT_HISTORICAL_EVIDENCE' | 'PRELIMINARY_EVIDENCE' | 'SUFFICIENT_EVIDENCE';
   comparisons: CycleFitComparison[];
   strengthsSummary: string[];
   anomaliesSummary: string[];
