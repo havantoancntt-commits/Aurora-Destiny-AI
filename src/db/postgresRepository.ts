@@ -37,20 +37,21 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   private migrator: DatabaseMigrator;
   private migrationPromise: Promise<any> | null = null;
 
-  constructor(config?: PostgresConfig, injectedPool?: pg.Pool) {
+  constructor(config?: string | PostgresConfig, injectedPool?: pg.Pool) {
+    const normalizedConfig: PostgresConfig | undefined = typeof config === 'string' ? { connectionString: config } : config;
     if (injectedPool) {
       this.pool = injectedPool;
     } else {
-      const connStr = config?.connectionString || process.env.DATABASE_URL;
+      const connStr = normalizedConfig?.connectionString || process.env.DATABASE_URL;
       if (!connStr && process.env.NODE_ENV === 'production') {
         throw new Error('FATAL: DATABASE_URL is strictly required in production mode for PostgreSQL repository.');
       }
       this.pool = new Pool({
         connectionString: connStr,
-        max: config?.max || parseInt(process.env.DB_POOL_MAX || '20', 10),
-        idleTimeoutMillis: config?.idleTimeoutMillis || 30000,
-        connectionTimeoutMillis: config?.connectionTimeoutMillis || 5000,
-        statement_timeout: config?.statement_timeout || 10000
+        max: normalizedConfig?.max || parseInt(process.env.DB_POOL_MAX || '20', 10),
+        idleTimeoutMillis: normalizedConfig?.idleTimeoutMillis || 30000,
+        connectionTimeoutMillis: normalizedConfig?.connectionTimeoutMillis || 5000,
+        statement_timeout: normalizedConfig?.statement_timeout || 10000
       });
     }
 
@@ -270,15 +271,22 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   }
 
   // --- SESSIONS ---
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
   async saveSession(session: StoredSession): Promise<void> {
+    const tokenHash = this.hashToken(session.token);
     await this.query(
-      `INSERT INTO sessions (token, user_id, expires_at, created_at, last_accessed_at, is_guest)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO sessions (token, token_hash, user_id, expires_at, created_at, last_accessed_at, is_guest)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (token) DO UPDATE SET
+         token_hash = EXCLUDED.token_hash,
          last_accessed_at = EXCLUDED.last_accessed_at,
          expires_at = EXCLUDED.expires_at`,
       [
-        session.token,
+        tokenHash,
+        tokenHash,
         session.userId,
         new Date(session.expiresAt).toISOString(),
         new Date(session.createdAt).toISOString(),
@@ -289,15 +297,16 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   }
 
   async getSession(token: string): Promise<StoredSession | null> {
+    const tokenHash = this.hashToken(token);
     const res = await this.query(
-      `SELECT token, user_id as "userId", expires_at, created_at, last_accessed_at, is_guest as "isGuest"
-       FROM sessions WHERE token = $1`,
-      [token]
+      `SELECT token, token_hash, user_id as "userId", expires_at, created_at, last_accessed_at, is_guest as "isGuest"
+       FROM sessions WHERE token_hash = $1 OR token = $1`,
+      [tokenHash]
     );
     if (!res.rows[0]) return null;
     const r = res.rows[0];
     return {
-      token: r.token,
+      token, // Maintain original session token for caller context
       userId: r.userId,
       expiresAt: new Date(r.expires_at).getTime(),
       createdAt: new Date(r.created_at).getTime(),
@@ -307,7 +316,8 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   }
 
   async deleteSession(token: string): Promise<boolean> {
-    const res = await this.query('DELETE FROM sessions WHERE token = $1', [token]);
+    const tokenHash = this.hashToken(token);
+    const res = await this.query('DELETE FROM sessions WHERE token_hash = $1 OR token = $1', [tokenHash]);
     return (res.rowCount || 0) > 0;
   }
 
@@ -349,25 +359,31 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
 
   // --- PASSWORD RESET ---
   async createPasswordReset(userId: string): Promise<{ token: string; expiresAt: number }> {
-    const token = `rst_${crypto.randomBytes(32).toString('hex')}`;
+    const rawToken = `rst_${crypto.randomBytes(32).toString('hex')}`;
+    const tokenHash = this.hashToken(rawToken);
     const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
     await this.query(
-      `INSERT INTO password_reset_tokens (token, user_id, expires_at, used, created_at)
-       VALUES ($1, $2, $3, false, NOW())`,
-      [token, userId, new Date(expiresAt).toISOString()]
+      `INSERT INTO password_reset_tokens (token, token_hash, user_id, expires_at, used, created_at)
+       VALUES ($1, $2, $3, $4, false, NOW())`,
+      [tokenHash, tokenHash, userId, new Date(expiresAt).toISOString()]
     );
-    return { token, expiresAt };
+    return { token: rawToken, expiresAt };
   }
 
   async verifyAndConsumePasswordReset(token: string): Promise<string | null> {
+    const tokenHash = this.hashToken(token);
     const res = await this.query(
       `UPDATE password_reset_tokens 
        SET used = true 
-       WHERE token = $1 AND used = false AND expires_at > NOW()
+       WHERE (token_hash = $1 OR token = $1) AND used = false AND expires_at > NOW()
        RETURNING user_id as "userId"`,
-      [token]
+      [tokenHash]
     );
-    return res.rows[0]?.userId || null;
+    const userId = res.rows[0]?.userId || null;
+    if (userId) {
+      await this.revokeUserSessions(userId);
+    }
+    return userId;
   }
 
   // --- PROFILES ---

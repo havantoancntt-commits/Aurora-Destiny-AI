@@ -41,6 +41,14 @@ export interface CanonicalCalculationInput {
   astrologyRulesVersion: string;
   conventionVersion: string;
   eventsCount: number;
+
+  // Single Source of Truth for True Solar Time & Temporal Coordinates
+  equationOfTimeMinutes: number;
+  longitudeCorrectionMinutes: number;
+  totalCorrectionMinutes: number;
+  dayShift: -1 | 0 | 1;
+  localMeanSolarHour: number;
+  localMeanSolarMinute: number;
 }
 
 /**
@@ -99,7 +107,13 @@ export function normalizeToCanonicalInput(
     calculationEngineVersion: CALCULATION_ENGINE_VERSION,
     astrologyRulesVersion: rulesVersion,
     conventionVersion,
-    eventsCount: Math.max(0, eventsCount)
+    eventsCount: Math.max(0, eventsCount),
+    equationOfTimeMinutes: canonicalTime.equationOfTimeMinutes,
+    longitudeCorrectionMinutes: canonicalTime.longitudeCorrectionMinutes,
+    totalCorrectionMinutes: canonicalTime.totalCorrectionMinutes,
+    dayShift: canonicalTime.dayShift,
+    localMeanSolarHour: canonicalTime.localMeanSolarHour,
+    localMeanSolarMinute: canonicalTime.localMeanSolarMinute
   };
 }
 

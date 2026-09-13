@@ -105,11 +105,23 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       const host = req.headers.host;
       if (origin && host) {
         try {
-          const originHost = new URL(origin).host;
-          const isAllowed = originHost === host || 
-            originHost.endsWith('.google.com') || 
-            originHost.endsWith('.run.app') || 
-            originHost.endsWith('localhost:3000');
+          const originUrl = new URL(origin);
+          const originHost = originUrl.host;
+          const originHostname = originUrl.hostname;
+          const currentHostname = host.split(':')[0];
+
+          // Exact domain validation to prevent subdomain/partial-match bypasses
+          const isAllowed = 
+            originHost === host ||
+            originHostname === currentHostname ||
+            originHostname === 'localhost' ||
+            originHostname === '127.0.0.1' ||
+            originHostname === 'google.com' ||
+            originHostname.endsWith('.google.com') ||
+            originHostname === 'ai.studio' ||
+            originHostname.endsWith('.ai.studio') ||
+            originHostname.endsWith('.run.app');
+
           if (!isAllowed) {
             return res.status(403).json({
               error: {
@@ -120,7 +132,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
             });
           }
         } catch {
-          // Invalid origin header format
+          // Invalid origin header format - reject request
+          return res.status(403).json({
+            error: {
+              code: 'CSRF_ORIGIN_MALFORMED',
+              message: 'Tiêu đề Origin hoặc Referer không hợp lệ',
+              requestId: req.requestId
+            }
+          });
         }
       }
     }
@@ -165,15 +184,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
 
-  // Content Security Policy - tailored for high-security production while permitting development and AI Studio preview
+  // Content Security Policy - hardened for production while permitting development and AI Studio preview
   const isProd = process.env.NODE_ENV === 'production';
   const scriptSrc = isProd
-    ? "'self' 'unsafe-inline' https:" // Strict production: removes unsafe-eval
+    ? "'self' 'unsafe-inline' https:" // Strict production: eliminates unsafe-eval
     : "'self' 'unsafe-inline' 'unsafe-eval' https:"; // Dev/preview Vite HMR compatibility
 
   res.setHeader(
     'Content-Security-Policy',
-    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://ai.studio https://*.run.app;`
+    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://ai.studio https://*.run.app;`
   );
 
   const reqStart = Date.now();

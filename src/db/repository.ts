@@ -365,11 +365,23 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // TRANSACTIONS & DURABILITY
   // ----------------------------------------------------
-  runTransaction<T>(action: (repo: IDatabaseRepository) => T): T {
+  runTransaction<T>(action: (repo: IDatabaseRepository) => T | Promise<T>): any {
     // Snapshot state before executing transaction
     const snapshot = JSON.stringify(this.state);
     try {
       const result = action(this);
+      if (result && typeof (result as any).then === 'function') {
+        return (result as Promise<T>)
+          .then((res) => {
+            this.schedulePersist();
+            return res;
+          })
+          .catch((err) => {
+            this.state = JSON.parse(snapshot);
+            console.error('⚠️ Transaction failed and was rolled back successfully:', err);
+            throw err;
+          });
+      }
       this.schedulePersist();
       return result;
     } catch (err) {
@@ -608,26 +620,42 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // PERSISTENT SESSIONS (Survives Server Restarts)
   // ----------------------------------------------------
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
   saveSession(session: StoredSession): void {
-    this.state.sessions[session.token] = { ...session };
+    const tokenHash = this.hashToken(session.token);
+    this.state.sessions[tokenHash] = { ...session, token: tokenHash };
     this.schedulePersist();
   }
 
   getSession(token: string): StoredSession | null {
-    const s = this.state.sessions[token];
+    const tokenHash = this.hashToken(token);
+    const s = this.state.sessions[tokenHash] || this.state.sessions[token];
     if (!s) return null;
     if (Date.now() > s.expiresAt) {
+      delete this.state.sessions[tokenHash];
       delete this.state.sessions[token];
       this.schedulePersist();
       return null;
     }
     s.lastAccessedAt = Date.now();
-    return s;
+    return { ...s, token };
   }
 
   deleteSession(token: string): boolean {
+    const tokenHash = this.hashToken(token);
+    let deleted = false;
+    if (this.state.sessions[tokenHash]) {
+      delete this.state.sessions[tokenHash];
+      deleted = true;
+    }
     if (this.state.sessions[token]) {
       delete this.state.sessions[token];
+      deleted = true;
+    }
+    if (deleted) {
       this.schedulePersist();
       return true;
     }
@@ -730,30 +758,37 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     if (!this.state.passwordResets) {
       this.state.passwordResets = {};
     }
-    const token = `rst_${crypto.randomBytes(24).toString('hex')}`;
+    const rawToken = `rst_${crypto.randomBytes(24).toString('hex')}`;
+    const tokenHash = this.hashToken(rawToken);
     const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
-    this.state.passwordResets[token] = {
-      token,
+    this.state.passwordResets[tokenHash] = {
+      token: tokenHash,
       userId,
       expiresAt,
       used: false
     };
     this.schedulePersist();
-    return { token, expiresAt };
+    return { token: rawToken, expiresAt };
   }
 
   verifyAndConsumePasswordReset(token: string): string | null {
-    if (!this.state.passwordResets || !this.state.passwordResets[token]) {
+    if (!this.state.passwordResets) {
       return null;
     }
-    const record = this.state.passwordResets[token];
+    const tokenHash = this.hashToken(token);
+    const record = this.state.passwordResets[tokenHash] || this.state.passwordResets[token];
+    if (!record) {
+      return null;
+    }
     if (record.used || Date.now() > record.expiresAt) {
+      delete this.state.passwordResets[tokenHash];
       delete this.state.passwordResets[token];
       this.schedulePersist();
       return null;
     }
     record.used = true;
     this.schedulePersist();
+    this.revokeUserSessions(record.userId);
     return record.userId;
   }
 
@@ -1162,11 +1197,42 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
   }
 }
 
-// Global Singleton Repository instances
-export const persistentRepository: IDatabaseRepository = new PersistentDatabaseRepository();
+// ====================================================
+// REPOSITORY FACTORY & RUNTIME ARCHITECTURE
+// Enforces PostgreSQL in production with fail-fast validation
+// ====================================================
 
-export function initializeRepository(): IDatabaseRepository {
-  return persistentRepository;
+export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; connectionString?: string }): IDatabaseRepository | IAsyncDatabaseRepository {
+  const isProd = process.env.NODE_ENV === 'production';
+  const dbUrl = options?.connectionString || process.env.DATABASE_URL;
+
+  if (isProd) {
+    if (!dbUrl) {
+      const msg = 'FATAL: Production mode strictly requires DATABASE_URL configured for PostgreSQL repository. Silent fallback to file storage is prohibited.';
+      console.error(`🚨 [Repository Factory] ${msg}`);
+      throw new Error(msg);
+    }
+    console.log('🐘 [Repository Factory] Production environment with DATABASE_URL detected: Instantiating PostgresDatabaseRepository.');
+    return new PostgresDatabaseRepository({ connectionString: dbUrl });
+  }
+
+  if (dbUrl && options?.forceMode !== 'file') {
+    console.log('🐘 [Repository Factory] Non-production environment with DATABASE_URL detected: Instantiating PostgresDatabaseRepository.');
+    return new PostgresDatabaseRepository({ connectionString: dbUrl });
+  }
+
+  console.log('📁 [Repository Factory] Environment without DATABASE_URL: Instantiating PersistentDatabaseRepository.');
+  return new PersistentDatabaseRepository();
 }
 
-export const repository: IDatabaseRepository = initializeRepository();
+export const persistentRepository: IDatabaseRepository = new PersistentDatabaseRepository();
+
+export function initializeRepository(): IDatabaseRepository | IAsyncDatabaseRepository {
+  return createRepository();
+}
+
+export let repository: any = initializeRepository();
+
+export function setRepository(repo: any): void {
+  repository = repo;
+}

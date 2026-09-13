@@ -147,10 +147,10 @@ export function runFullDestinyCalculation(
       effectiveHour: canonicalInput.birthHour,
       effectiveMinute: canonicalInput.birthMinute,
       timeConvention: canonicalInput.timeConvention,
-      equationOfTimeMinutes: 0,
-      longitudeCorrectionMinutes: (canonicalInput.longitude - canonicalInput.timezoneOffset * 15) * 4,
-      totalCorrectionMinutes: (canonicalInput.longitude - canonicalInput.timezoneOffset * 15) * 4,
-      dayShift: canonicalInput.birthDay !== birthData.solarDay ? (canonicalInput.birthDay > birthData.solarDay ? 1 : -1) : 0
+      equationOfTimeMinutes: canonicalInput.equationOfTimeMinutes,
+      longitudeCorrectionMinutes: canonicalInput.longitudeCorrectionMinutes,
+      totalCorrectionMinutes: canonicalInput.totalCorrectionMinutes,
+      dayShift: canonicalInput.dayShift
     }
   };
 
