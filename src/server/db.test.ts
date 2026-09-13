@@ -7,7 +7,7 @@ import { PersistentDatabaseRepository } from '../db/repository';
 import fs from 'fs';
 import path from 'path';
 
-export function runDatabaseIntegrityTests(): { passed: number; failed: number; results: any[] } {
+export async function runDatabaseIntegrityTests(): Promise<{ passed: number; failed: number; results: any[] }> {
   const results: { testName: string; status: 'PASS' | 'FAIL'; message: string }[] = [];
 
   function assert(condition: boolean, testName: string, message: string) {
@@ -27,11 +27,11 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
 
   try {
     // TEST 1: Clean State Integrity
-    const initialCheck = repo.verifyDatabaseIntegrity();
+    const initialCheck = await repo.verifyDatabaseIntegrity();
     assert(initialCheck.valid && initialCheck.errors.length === 0, 'Clean State Database Integrity', 'Initial state has no orphan references');
 
     // TEST 2: User Creation & Profile Foreign Key
-    const user = repo.saveUser({
+    const user = await repo.saveUser({
       id: 'usr_integ_1',
       email: 'test_integ@aurora.io',
       fullName: 'Test Integ',
@@ -45,7 +45,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       isGuest: false
     }, 'hash123');
 
-    const profile = repo.saveProfile({
+    const profile = await repo.saveProfile({
       id: 'prof_test_1',
       userId: user.id,
       name: 'Nguyen Van Test',
@@ -77,7 +77,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       updatedAt: new Date().toISOString()
     });
 
-    const checkAfterProfile = repo.verifyDatabaseIntegrity();
+    const checkAfterProfile = await repo.verifyDatabaseIntegrity();
     assert(checkAfterProfile.valid, 'Profile-User Referential Integrity', 'Valid user-profile pair passes integrity verification');
 
     // TEST 3: Orphan Profile Detection
@@ -94,7 +94,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       updatedAt: new Date().toISOString()
     };
 
-    const checkWithOrphanProfile = repo.verifyDatabaseIntegrity();
+    const checkWithOrphanProfile = await repo.verifyDatabaseIntegrity();
     assert(
       !checkWithOrphanProfile.valid && checkWithOrphanProfile.errors.some(e => e.includes('usr_non_existent')),
       'Orphan Profile Detection',
@@ -110,7 +110,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       chart: {}
     };
 
-    const checkWithOrphanCalc = repo.verifyDatabaseIntegrity();
+    const checkWithOrphanCalc = await repo.verifyDatabaseIntegrity();
     assert(
       !checkWithOrphanCalc.valid && checkWithOrphanCalc.errors.some(e => e.includes('prof_non_existent')),
       'Orphan Calculation Detection',
@@ -129,7 +129,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       isGuest: false
     };
 
-    const checkWithDupEmail = repo.verifyDatabaseIntegrity();
+    const checkWithDupEmail = await repo.verifyDatabaseIntegrity();
     assert(
       !checkWithDupEmail.valid && checkWithDupEmail.errors.some(e => e.includes('Duplicate email')),
       'Duplicate Email Invariant Detection',
@@ -138,7 +138,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
     delete (repo as any).state.users['usr_dup'];
 
     // TEST 6: Guest Session & Expiry Purge
-    const guestUser = repo.saveUser({
+    const guestUser = await repo.saveUser({
       id: 'usr_guest_test_1',
       email: '',
       fullName: 'Khách',
@@ -151,7 +151,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       profilesCount: 0,
       isGuest: true
     });
-    const guestProfile = repo.saveProfile({
+    const guestProfile = await repo.saveProfile({
       id: 'prof_guest_1',
       userId: guestUser.id,
       name: 'Khách 1',
@@ -164,7 +164,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
     });
 
     // Save calculation with distinct calculationId !== profileId
-    const guestCalc = repo.saveCalculation({
+    const guestCalc = await repo.saveCalculation({
       id: 'calc_distinct_guest_999',
       profileId: guestProfile.id,
       calculationVersion: '2.5.0',
@@ -197,7 +197,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
     });
 
     // Save historical event, backtest result, and chat message
-    repo.addHistoricalEvent({
+    await repo.addHistoricalEvent({
       id: 'evt_guest_1',
       profileId: guestProfile.id,
       year: 2020,
@@ -211,7 +211,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       createdAt: new Date().toISOString()
     });
 
-    repo.saveBacktestResult({
+    await repo.saveBacktestResult({
       id: 'bt_guest_1',
       profileId: guestProfile.id,
       calculationId: guestCalc.id,
@@ -230,7 +230,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       timestamp: new Date().toISOString()
     });
 
-    repo.addChatMessage(guestProfile.id, {
+    await repo.addChatMessage(guestProfile.id, {
       id: 'chat_guest_1',
       sender: 'user',
       content: 'Chào hệ thống',
@@ -238,7 +238,7 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
     });
 
     // Store expired session for guest
-    repo.saveSession({
+    await repo.saveSession({
       token: 'tok_guest_expired',
       userId: guestUser.id,
       role: 'GUEST',
@@ -248,29 +248,29 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
       isGuest: true
     });
 
-    assert(repo.getUser(guestUser.id) !== null, 'Guest Exists Before Cleanup', 'Guest user is present before cleanup');
-    assert(repo.getProfile(guestProfile.id) !== null, 'Guest Profile Exists Before Cleanup', 'Guest profile is present before cleanup');
-    assert(repo.getCalculation(guestCalc.id) !== null, 'Guest Calculation Exists Before Cleanup', 'Guest calculation is present before cleanup');
-    assert(repo.getHistoricalEvents(guestProfile.id).length > 0, 'Guest Events Exist Before Cleanup', 'Guest events present');
-    assert(repo.getBacktestResult(guestProfile.id) !== null, 'Guest Backtest Exists Before Cleanup', 'Guest backtest present');
-    assert(repo.getChatMessages(guestProfile.id).length > 0, 'Guest Chat Exists Before Cleanup', 'Guest chat messages present');
+    assert(await repo.getUser(guestUser.id) !== null, 'Guest Exists Before Cleanup', 'Guest user is present before cleanup');
+    assert(await repo.getProfile(guestProfile.id) !== null, 'Guest Profile Exists Before Cleanup', 'Guest profile is present before cleanup');
+    assert(await repo.getCalculation(guestCalc.id) !== null, 'Guest Calculation Exists Before Cleanup', 'Guest calculation is present before cleanup');
+    assert((await repo.getHistoricalEvents(guestProfile.id)).length > 0, 'Guest Events Exist Before Cleanup', 'Guest events present');
+    assert(await repo.getBacktestResult(guestProfile.id) !== null, 'Guest Backtest Exists Before Cleanup', 'Guest backtest present');
+    assert((await repo.getChatMessages(guestProfile.id)).length > 0, 'Guest Chat Exists Before Cleanup', 'Guest chat messages present');
 
     // Run cleanup
-    const cleanedCount = repo.cleanupExpiredSessions();
+    const cleanedCount = await repo.cleanupExpiredSessions();
     assert(cleanedCount >= 1, 'Expired Session Cleanup Triggered', `Cleaned ${cleanedCount} expired sessions`);
-    assert(repo.getUser(guestUser.id) === null, 'Cascade Purge of Expired Guest User', 'Expired guest user was purged');
-    assert(repo.getProfile(guestProfile.id) === null, 'Cascade Purge of Expired Guest Profile', 'Expired guest profile was cascade deleted');
-    assert(repo.getCalculation(guestCalc.id) === null, 'Cascade Purge of Expired Guest Calculation', 'Distinct calculation ID purged without orphan');
-    assert(repo.getHistoricalEvents(guestProfile.id).length === 0, 'Cascade Purge of Expired Guest Events', 'Guest events purged');
-    assert(repo.getBacktestResult(guestProfile.id) === null, 'Cascade Purge of Expired Guest Backtest', 'Guest backtest purged');
-    assert(repo.getChatMessages(guestProfile.id).length === 0, 'Cascade Purge of Expired Guest Chats', 'Guest chats purged');
+    assert(await repo.getUser(guestUser.id) === null, 'Cascade Purge of Expired Guest User', 'Expired guest user was purged');
+    assert(await repo.getProfile(guestProfile.id) === null, 'Cascade Purge of Expired Guest Profile', 'Expired guest profile was cascade deleted');
+    assert(await repo.getCalculation(guestCalc.id) === null, 'Cascade Purge of Expired Guest Calculation', 'Distinct calculation ID purged without orphan');
+    assert((await repo.getHistoricalEvents(guestProfile.id)).length === 0, 'Cascade Purge of Expired Guest Events', 'Guest events purged');
+    assert(await repo.getBacktestResult(guestProfile.id) === null, 'Cascade Purge of Expired Guest Backtest', 'Guest backtest purged');
+    assert((await repo.getChatMessages(guestProfile.id)).length === 0, 'Cascade Purge of Expired Guest Chats', 'Guest chats purged');
 
     // Verify referential integrity passes with 0 orphan errors
-    const postCleanupIntegrity = repo.verifyDatabaseIntegrity();
+    const postCleanupIntegrity = await repo.verifyDatabaseIntegrity();
     assert(postCleanupIntegrity.valid === true, 'Post-Cleanup Referential Integrity', `Integrity valid: ${postCleanupIntegrity.errors.join(', ')}`);
 
     // Verify regular user is untouched
-    assert(repo.getUser(user.id) !== null, 'Regular User Preserved During Purge', 'Registered user was preserved unharmed');
+    assert(await repo.getUser(user.id) !== null, 'Regular User Preserved During Purge', 'Registered user was preserved unharmed');
 
   } finally {
     if (fs.existsSync(testDir)) {
@@ -285,15 +285,19 @@ export function runDatabaseIntegrityTests(): { passed: number; failed: number; r
 
 if (typeof process !== 'undefined' && Array.isArray(process.argv) && process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   console.log('🛡️ Running Aurora Database Integrity & Guest Lifecycle Tests...\n');
-  const report = runDatabaseIntegrityTests();
-  for (const r of report.results) {
-    const symbol = r.status === 'PASS' ? '✅' : '❌';
-    console.log(`${symbol} [${r.status}] ${r.testName}: ${r.message}`);
-  }
-  console.log(`\n📊 DB Integrity Summary: ${report.passed} passed, ${report.failed} failed.`);
-  if (report.failed > 0) {
+  runDatabaseIntegrityTests().then(report => {
+    for (const r of report.results) {
+      const symbol = r.status === 'PASS' ? '✅' : '❌';
+      console.log(`${symbol} [${r.status}] ${r.testName}: ${r.message}`);
+    }
+    console.log(`\n📊 DB Integrity Summary: ${report.passed} passed, ${report.failed} failed.`);
+    if (report.failed > 0) {
+      process.exit(1);
+    } else {
+      process.exit(0);
+    }
+  }).catch(err => {
+    console.error('Fatal test error:', err);
     process.exit(1);
-  } else {
-    process.exit(0);
-  }
+  });
 }

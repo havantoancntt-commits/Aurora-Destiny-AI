@@ -17,7 +17,7 @@ export async function runDevSeed() {
   console.log('🌱 [Seed] Seeding development environment with sample profile...');
 
   const devEmail = 'dev@aurora.local';
-  const existing = repository.getUserByEmail(devEmail);
+  const existing = await repository.getUserByEmail(devEmail);
   if (existing) {
     console.log('ℹ️ [Seed] Dev user already exists.');
     return;
@@ -25,7 +25,7 @@ export async function runDevSeed() {
 
   const { hash, salt } = hashPassword('DevPassword123!');
   const userId = `usr_dev_${crypto.randomBytes(4).toString('hex')}`;
-  const devUser = repository.saveUser({
+  const devUser = await repository.saveUser({
     id: userId,
     email: devEmail,
     fullName: 'Nhà Phát Triển Thử Nghiệm',
@@ -39,7 +39,7 @@ export async function runDevSeed() {
   }, `${salt}:${hash}`);
 
   // Seed primary test profile
-  repository.saveProfile({
+  await repository.saveProfile({
     id: `prof_dev_${crypto.randomBytes(4).toString('hex')}`,
     userId: devUser.id,
     name: 'Mẫu Thử Nghiệm Bát Tự',

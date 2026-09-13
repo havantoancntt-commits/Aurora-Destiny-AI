@@ -795,7 +795,7 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
     }
   }
 
-  exportToPostgresSql(): string {
+  async exportToPostgresSql(): Promise<string> {
     return '-- Current database engine is already native PostgreSQL.';
   }
 

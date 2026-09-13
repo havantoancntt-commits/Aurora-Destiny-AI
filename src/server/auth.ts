@@ -139,9 +139,10 @@ export async function getSessionUserAsync(token: string): Promise<UserAccount | 
 
 export function getSessionUser(token: string): UserAccount | null {
   if (!token) return null;
-  const session = repository.getSession(token);
-  if (!session || typeof session.then === 'function') return null;
-  return repository.getUser(session.userId);
+  const repoAny = repository as any;
+  const session = repoAny.getSessionSync ? repoAny.getSessionSync(token) : null;
+  if (!session) return null;
+  return repoAny.getUserSync ? repoAny.getUserSync(session.userId) : null;
 }
 
 export async function revokeSessionAsync(token: string): Promise<boolean> {
@@ -151,8 +152,10 @@ export async function revokeSessionAsync(token: string): Promise<boolean> {
 
 export function revokeSession(token: string): boolean {
   if (!token) return false;
-  const res = repository.deleteSession(token);
-  return typeof res === 'boolean' ? res : true;
+  const repoAny = repository as any;
+  if (repoAny.deleteSessionSync) return repoAny.deleteSessionSync(token);
+  repository.deleteSession(token);
+  return true;
 }
 
 export async function registerUserAsync(email: string, password: string, fullName: string, role: UserRole = 'USER'): Promise<{ user: UserAccount; token: string }> {
@@ -186,7 +189,8 @@ export async function registerUserAsync(email: string, password: string, fullNam
 
 export function registerUser(email: string, password: string, fullName: string, role: UserRole = 'USER'): { user: UserAccount; token: string } {
   const normalizedEmail = email.toLowerCase().trim();
-  const existing = repository.getUserByEmail(normalizedEmail);
+  const repoAny = repository as any;
+  const existing = repoAny.getUserByEmailSync ? repoAny.getUserByEmailSync(normalizedEmail) : null;
   if (existing) {
     throw new Error('Email đã được đăng ký trong hệ thống');
   }
@@ -208,7 +212,7 @@ export function registerUser(email: string, password: string, fullName: string, 
     profilesCount: 0
   };
 
-  const saved = repository.saveUser(newUser, passwordRecord);
+  const saved = repoAny.saveUserSync ? repoAny.saveUserSync(newUser, passwordRecord) : newUser;
   const { token } = createSession(saved.id, false);
   return { user: saved, token };
 }
@@ -243,7 +247,8 @@ export async function loginUserAsync(email: string, password: string, currentSes
 
 export function loginUser(email: string, password: string, currentSessionToken?: string): { user: UserAccount; token: string } {
   const normalizedEmail = email.toLowerCase().trim();
-  const existing = repository.getUserByEmail(normalizedEmail);
+  const repoAny = repository as any;
+  const existing = repoAny.getUserByEmailSync ? repoAny.getUserByEmailSync(normalizedEmail) : null;
 
   // Constant-time execution prevents timing attacks leaking email presence
   if (!existing || !existing.passwordHash) {
@@ -258,11 +263,19 @@ export function loginUser(email: string, password: string, currentSessionToken?:
 
   // Session rotation: revoke previous session token to prevent session fixation attacks
   if (currentSessionToken) {
-    repository.deleteSession(currentSessionToken);
+    if (repoAny.deleteSessionSync) {
+      repoAny.deleteSessionSync(currentSessionToken);
+    } else {
+      repository.deleteSession(currentSessionToken);
+    }
   }
 
   existing.lastLoginAt = new Date().toISOString();
-  repository.saveUser(existing);
+  if (repoAny.saveUserSync) {
+    repoAny.saveUserSync(existing);
+  } else {
+    repository.saveUser(existing);
+  }
 
   const { token } = createSession(existing.id, false);
   const { passwordHash: _, ...cleanUser } = existing;
@@ -285,12 +298,14 @@ export async function requestPasswordResetAsync(email: string): Promise<{ resetT
 // Password Reset workflow (Sync fallback)
 export function requestPasswordReset(email: string): { resetToken: string; expiresAt: number } | null {
   const normalizedEmail = email.toLowerCase().trim();
-  const user = repository.getUserByEmail(normalizedEmail);
+  const repoAny = repository as any;
+  const user = repoAny.getUserByEmailSync ? repoAny.getUserByEmailSync(normalizedEmail) : null;
   if (!user || user.isGuest) {
     verifyPassword('dummy_pass', DUMMY_HASH, DUMMY_SALT);
     return null;
   }
-  const created = repository.createPasswordReset(user.id);
+  const created = repoAny.createPasswordResetSync ? repoAny.createPasswordResetSync(user.id) : null;
+  if (!created) return null;
   return { resetToken: created.token, expiresAt: created.expiresAt };
 }
 
@@ -312,19 +327,28 @@ export async function resetPasswordWithTokenAsync(token: string, newPassword: st
 }
 
 export function resetPasswordWithToken(token: string, newPassword: string): boolean {
-  const userId = repository.verifyAndConsumePasswordReset(token);
+  const repoAny = repository as any;
+  const userId = repoAny.verifyAndConsumePasswordResetSync ? repoAny.verifyAndConsumePasswordResetSync(token) : null;
   if (!userId) {
     return false;
   }
-  const user = repository.getUser(userId);
+  const user = repoAny.getUserSync ? repoAny.getUserSync(userId) : null;
   if (!user) {
     return false;
   }
 
   const { hash, salt } = hashPassword(newPassword);
-  repository.saveUser(user, `${salt}:${hash}`);
+  if (repoAny.saveUserSync) {
+    repoAny.saveUserSync(user, `${salt}:${hash}`);
+  } else {
+    repository.saveUser(user, `${salt}:${hash}`);
+  }
   // Invalidate all active sessions for this user upon password reset
-  repository.revokeUserSessions(userId);
+  if (repoAny.revokeUserSessionsSync) {
+    repoAny.revokeUserSessionsSync(userId);
+  } else {
+    repository.revokeUserSessions(userId);
+  }
   return true;
 }
 
@@ -365,7 +389,8 @@ export function createGuestSession(): { user: UserAccount; token: string } {
     profilesCount: 0
   };
 
-  const saved = repository.saveUser(guestUser);
+  const repoAny = repository as any;
+  const saved = repoAny.saveUserSync ? repoAny.saveUserSync(guestUser) : guestUser;
   const { token } = createSession(saved.id, true);
   return { user: saved, token };
 }
@@ -421,7 +446,8 @@ export function bootstrapAdminIfConfigured(): void {
     return;
   }
 
-  const existing = repository.getUserByEmail(adminEmail);
+  const repoAny = repository as any;
+  const existing = repoAny.getUserByEmailSync ? repoAny.getUserByEmailSync(adminEmail) : null;
   const { hash, salt } = hashPassword(adminPass);
   const passwordRecord = `${salt}:${hash}`;
 
@@ -429,7 +455,11 @@ export function bootstrapAdminIfConfigured(): void {
     if (process.env.ADMIN_BOOTSTRAP_FORCE === 'true') {
       existing.role = 'SUPER_ADMIN';
       existing.subscriptionTier = 'Enterprise';
-      repository.saveUser(existing, passwordRecord);
+      if (repoAny.saveUserSync) {
+        repoAny.saveUserSync(existing, passwordRecord);
+      } else {
+        repository.saveUser(existing, passwordRecord);
+      }
       console.log(`🔒 [Security] Administrator account "${adminEmail}" forcibly synchronized via ADMIN_BOOTSTRAP_FORCE.`);
     } else {
       console.log(`🔒 [Security] Administrator account "${adminEmail}" already provisioned. Skipping credential overwrite to preserve state across deployments (set ADMIN_BOOTSTRAP_FORCE=true to override).`);
@@ -447,7 +477,11 @@ export function bootstrapAdminIfConfigured(): void {
       lastLoginAt: new Date().toISOString(),
       profilesCount: 0
     };
-    repository.saveUser(adminUser, passwordRecord);
+    if (repoAny.saveUserSync) {
+      repoAny.saveUserSync(adminUser, passwordRecord);
+    } else {
+      repository.saveUser(adminUser, passwordRecord);
+    }
     console.log(`🔒 [Security] Bootstrapped administrator account "${adminEmail}".`);
   }
 }
@@ -613,7 +647,8 @@ export function verifyProfileOwnership(req: Request, res: Response, profileId: s
     return null;
   }
 
-  const profile = repository.getProfile(profileId);
+  const repoAny = repository as any;
+  const profile = repoAny.getProfileSync ? repoAny.getProfileSync(profileId) : null;
   if (!profile) {
     res.status(404).json({
       error: {
@@ -628,25 +663,47 @@ export function verifyProfileOwnership(req: Request, res: Response, profileId: s
   // Strict ownership check
   if (profile.userId !== req.user.id) {
     if (req.user.role === 'SUPER_ADMIN') {
-      repository.logAudit({
-        userId: req.user.id,
-        action: 'SUPER_ADMIN_CROSS_PROFILE_READ',
-        resource: 'profile',
-        resourceId: profileId,
-        status: 'SUCCESS',
-        requestId: req.requestId
-      });
+      if (repoAny.logAuditSync) {
+        repoAny.logAuditSync({
+          userId: req.user.id,
+          action: 'SUPER_ADMIN_CROSS_PROFILE_READ',
+          resource: 'profile',
+          resourceId: profileId,
+          status: 'SUCCESS',
+          requestId: req.requestId
+        });
+      } else {
+        repository.logAudit({
+          userId: req.user.id,
+          action: 'SUPER_ADMIN_CROSS_PROFILE_READ',
+          resource: 'profile',
+          resourceId: profileId,
+          status: 'SUCCESS',
+          requestId: req.requestId
+        });
+      }
       return profile;
     }
 
-    repository.logAudit({
-      userId: req.user.id,
-      action: 'CROSS_USER_PROFILE_ACCESS_BLOCKED',
-      resource: 'profile',
-      resourceId: profileId,
-      status: 'BLOCKED',
-      requestId: req.requestId
-    });
+    if (repoAny.logAuditSync) {
+      repoAny.logAuditSync({
+        userId: req.user.id,
+        action: 'CROSS_USER_PROFILE_ACCESS_BLOCKED',
+        resource: 'profile',
+        resourceId: profileId,
+        status: 'BLOCKED',
+        requestId: req.requestId
+      });
+    } else {
+      repository.logAudit({
+        userId: req.user.id,
+        action: 'CROSS_USER_PROFILE_ACCESS_BLOCKED',
+        resource: 'profile',
+        resourceId: profileId,
+        status: 'BLOCKED',
+        requestId: req.requestId
+      });
+    }
 
     res.status(403).json({
       error: {

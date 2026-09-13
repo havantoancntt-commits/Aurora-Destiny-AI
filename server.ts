@@ -15,6 +15,7 @@ import {
   requireAuth,
   requireAdmin,
   verifyProfileOwnership,
+  verifyProfileOwnershipAsync,
   registerUser,
   registerUserAsync,
   loginUser,
@@ -218,9 +219,9 @@ repository.cleanupExpiredSessions();
 
 // Periodic expired session & abandoned guest purge (every 15 minutes, can be disabled if handled by external cron)
 if (process.env.DISABLE_BACKGROUND_CLEANUP !== 'true') {
-  setInterval(() => {
+  setInterval(async () => {
     try {
-      repository.cleanupExpiredSessions();
+      await repository.cleanupExpiredSessions();
     } catch (err) {
       console.error('[Session Cleanup Error]', err);
     }
@@ -230,13 +231,14 @@ if (process.env.DISABLE_BACKGROUND_CLEANUP !== 'true') {
 // ----------------------------------------------------
 // 1. HEALTH & OBSERVABILITY (LIVENESS, READINESS & DIAGNOSTICS)
 // ----------------------------------------------------
-app.get('/api/health', (req, res) => {
-  const integrity = repository.verifyDatabaseIntegrity();
+app.get('/api/health', async (req, res) => {
+  const integrity = await repository.verifyDatabaseIntegrity();
   const hasGeminiKey = !!process.env.GEMINI_API_KEY;
   const circuitOpen = isCircuitBreakerOpen();
 
   const isHealthy = integrity.valid;
   const status = isHealthy ? (hasGeminiKey && !circuitOpen ? 'ok' : 'degraded') : 'error';
+  const metrics = await repository.getMetrics();
 
   res.status(isHealthy ? 200 : 503).json({
     status,
@@ -247,7 +249,7 @@ app.get('/api/health', (req, res) => {
       application: { status: 'pass' },
       database: {
         status: integrity.valid ? 'pass' : 'fail',
-        storageMode: (repository.getMetrics() as any).storageMode || (process.env.DATABASE_URL ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
+        storageMode: (metrics as any).storageMode || (process.env.DATABASE_URL ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
         integrityErrors: integrity.errors
       },
       ai: {
@@ -268,8 +270,8 @@ app.get('/api/health/live', (req, res) => {
   res.status(200).send('OK');
 });
 
-app.get('/api/health/ready', (req, res) => {
-  const integrity = repository.verifyDatabaseIntegrity();
+app.get('/api/health/ready', async (req, res) => {
+  const integrity = await repository.verifyDatabaseIntegrity();
   if (integrity.valid) {
     res.status(200).send('READY');
   } else {
@@ -277,8 +279,8 @@ app.get('/api/health/ready', (req, res) => {
   }
 });
 
-app.get('/api/metrics', requireAdmin, adminRateLimiter, (req, res) => {
-  const metrics = repository.getMetrics();
+app.get('/api/metrics', requireAdmin, adminRateLimiter, async (req, res) => {
+  const metrics = await repository.getMetrics();
   res.json({
     ...metrics,
     aiConfigured: !!process.env.GEMINI_API_KEY,
@@ -409,8 +411,8 @@ app.post('/api/auth/reset-password', loginRateLimiter, async (req, res, next) =>
   }
 });
 
-app.get('/api/auth/me', requireAuth, (req, res) => {
-  const prefs = repository.getPreferences(req.user!.id);
+app.get('/api/auth/me', requireAuth, async (req, res) => {
+  const prefs = await repository.getPreferences(req.user!.id);
   res.json({
     user: req.user,
     preferences: prefs
@@ -420,18 +422,18 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // ----------------------------------------------------
 // 3. USER MANAGEMENT & GDPR COMPLIANCE
 // ----------------------------------------------------
-app.get('/api/user', requireAuth, (req, res) => {
-  const prefs = repository.getPreferences(req.user!.id);
+app.get('/api/user', requireAuth, async (req, res) => {
+  const prefs = await repository.getPreferences(req.user!.id);
   res.json({
     user: req.user,
     preferences: prefs
   });
 });
 
-app.post('/api/user/preferences', requireAuth, (req, res, next) => {
+app.post('/api/user/preferences', requireAuth, async (req, res, next) => {
   try {
     const validated = UserPreferencesSchema.parse(req.body);
-    const updated = repository.updatePreferences(req.user!.id, validated);
+    const updated = await repository.updatePreferences(req.user!.id, validated);
     res.json(updated);
   } catch (err) {
     next(err);
@@ -439,13 +441,13 @@ app.post('/api/user/preferences', requireAuth, (req, res, next) => {
 });
 
 // GDPR Data Export: Complete user data portability bundle
-app.get('/api/user/export', requireAuth, (req, res) => {
-  const data = repository.getAllUserData(req.user!.id);
+app.get('/api/user/export', requireAuth, async (req, res) => {
+  const data = await repository.getAllUserData(req.user!.id);
   if (!data) {
     return res.status(404).json({ error: { code: 'USER_NOT_FOUND', message: 'Không tìm thấy dữ liệu người dùng' } });
   }
 
-  repository.logAudit({
+  await repository.logAudit({
     userId: req.user!.id,
     action: 'USER_GDPR_DATA_EXPORT',
     resource: 'user',
@@ -460,11 +462,11 @@ app.get('/api/user/export', requireAuth, (req, res) => {
 });
 
 // Account Deletion: Complete cascade deletion of all user data
-app.delete('/api/user/me', requireAuth, (req, res) => {
+app.delete('/api/user/me', requireAuth, async (req, res) => {
   const userId = req.user!.id;
-  const success = repository.deleteUser(userId);
+  const success = await repository.deleteUser(userId);
 
-  repository.logAudit({
+  await repository.logAudit({
     userId,
     action: 'USER_ACCOUNT_DELETED',
     resource: 'user',
@@ -479,24 +481,24 @@ app.delete('/api/user/me', requireAuth, (req, res) => {
 // ----------------------------------------------------
 // 4. PROFILES (STRICT USER ISOLATION & TRANSACTION SAFETY)
 // ----------------------------------------------------
-app.get('/api/profiles', (req, res) => {
+app.get('/api/profiles', async (req, res) => {
   if (!req.user) {
     return res.json([]);
   }
-  const profiles = repository.getProfiles(req.user.id);
+  const profiles = await repository.getProfiles(req.user.id);
   res.json(profiles);
 });
 
-app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweeperMiddleware, (req, res, next) => {
+app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweeperMiddleware, async (req, res, next) => {
   try {
     const validated = ProfileCreateSchema.parse(req.body);
     const userId = req.user!.id;
 
     // Atomic transaction for guest quota check, profile, calculation & initial backtest creation
-    const { newProfile, calc } = repository.runTransaction((repo) => {
+    const { newProfile, calc } = await repository.runTransaction(async (repo) => {
       // Enforce guest quota atomically: role === 'GUEST' is single source of truth
       if (req.user!.role === 'GUEST') {
-        const existingProfiles = repo.getProfiles(userId);
+        const existingProfiles = await repo.getProfiles(userId);
         if (existingProfiles.length >= 2) {
           const quotaErr = new Error('Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.');
           (quotaErr as any).code = 'GUEST_QUOTA_EXCEEDED';
@@ -528,16 +530,16 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
       computedCalc.cryptographicSignature = generateAlgorithmSignature(computedCalc);
       createdProfile.latestCalculationId = computedCalc.id;
 
-      repo.saveCalculation(computedCalc);
-      repo.saveProfile(createdProfile);
+      await repo.saveCalculation(computedCalc);
+      await repo.saveProfile(createdProfile);
 
       const initialBt = runBacktestAnalysis([], computedCalc);
-      repo.saveBacktestResult(initialBt);
+      await repo.saveBacktestResult(initialBt);
 
       return { newProfile: createdProfile, calc: computedCalc };
     });
 
-    repository.logAudit({
+    await repository.logAudit({
       userId,
       action: 'PROFILE_CREATED',
       resource: 'profile',
@@ -552,15 +554,15 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
   }
 });
 
-app.put('/api/profiles/:id', requireAuth, (req, res, next) => {
+app.put('/api/profiles/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const profile = verifyProfileOwnership(req, res, id);
+    const profile = await verifyProfileOwnershipAsync(req, res, id);
     if (!profile) return;
 
     const validated = ProfileUpdateSchema.parse(req.body);
 
-    const updated = repository.runTransaction((repo) => {
+    const updated = await repository.runTransaction(async (repo) => {
       const updatedProfile: UserProfile = {
         ...profile,
         ...validated,
@@ -568,20 +570,20 @@ app.put('/api/profiles/:id', requireAuth, (req, res, next) => {
       };
 
       if (validated.birthData) {
-        const events = repo.getHistoricalEvents(id);
+        const events = await repo.getHistoricalEvents(id);
         const calc = runFullDestinyCalculation(validated.birthData, id, events.length);
         updatedProfile.latestCalculationId = calc.id;
-        repo.saveCalculation(calc);
+        await repo.saveCalculation(calc);
 
         const bt = runBacktestAnalysis(events, calc);
-        repo.saveBacktestResult(bt);
+        await repo.saveBacktestResult(bt);
       }
 
-      repo.saveProfile(updatedProfile);
+      await repo.saveProfile(updatedProfile);
       return updatedProfile;
     });
 
-    repository.logAudit({
+    await repository.logAudit({
       userId: req.user!.id,
       action: 'PROFILE_UPDATED',
       resource: 'profile',
@@ -596,14 +598,14 @@ app.put('/api/profiles/:id', requireAuth, (req, res, next) => {
   }
 });
 
-app.delete('/api/profiles/:id', requireAuth, (req, res) => {
+app.delete('/api/profiles/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const profile = verifyProfileOwnership(req, res, id);
+  const profile = await verifyProfileOwnershipAsync(req, res, id);
   if (!profile) return;
 
-  const deleted = repository.deleteProfile(id, req.user!.id);
+  const deleted = await repository.deleteProfile(id, req.user!.id);
   if (deleted) {
-    repository.logAudit({
+    await repository.logAudit({
       userId: req.user!.id,
       action: 'PROFILE_DELETED_CASCADE',
       resource: 'profile',
@@ -621,27 +623,27 @@ app.delete('/api/profiles/:id', requireAuth, (req, res) => {
 // 5. CALCULATIONS (DETERMINISTIC SINGLE SOURCE OF TRUTH)
 // Protected with Cryptographic Provenance & Anti-Scraping Sweeper
 // ----------------------------------------------------
-app.get(['/api/calculations/latest/:profileId', '/api/calculations/:profileId'], requireAuth, (req, res) => {
+app.get(['/api/calculations/latest/:profileId', '/api/calculations/:profileId'], requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  let calc = repository.getLatestCalculationForProfile(profileId);
+  let calc = await repository.getLatestCalculationForProfile(profileId);
   if (!calc) {
-    const events = repository.getHistoricalEvents(profileId);
+    const events = await repository.getHistoricalEvents(profileId);
     calc = runFullDestinyCalculation(profile.birthData, profile.id, events.length);
     calc.cryptographicSignature = generateAlgorithmSignature(calc);
-    repository.saveCalculation(calc);
+    await repository.saveCalculation(calc);
   } else if (!calc.cryptographicSignature) {
     calc.cryptographicSignature = generateAlgorithmSignature(calc);
-    repository.saveCalculation(calc);
+    await repository.saveCalculation(calc);
   }
 
-  let bt = repository.getBacktestResult(profileId);
+  let bt = await repository.getBacktestResult(profileId);
   if (!bt) {
-    const events = repository.getHistoricalEvents(profileId);
+    const events = await repository.getHistoricalEvents(profileId);
     bt = runBacktestAnalysis(events, calc);
-    repository.saveBacktestResult(bt);
+    await repository.saveBacktestResult(bt);
   }
 
   const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
@@ -650,26 +652,26 @@ app.get(['/api/calculations/latest/:profileId', '/api/calculations/:profileId'],
   res.json({ calculation: calc, ensemble, backtest: bt });
 });
 
-app.post(['/api/calculations/recalculate/:profileId', '/api/calculations/recalculate'], requireAuth, calculationRateLimiter, antiScrapingSweeperMiddleware, (req, res) => {
+app.post(['/api/calculations/recalculate/:profileId', '/api/calculations/recalculate'], requireAuth, calculationRateLimiter, antiScrapingSweeperMiddleware, async (req, res) => {
   const profileId = req.params.profileId || req.body?.profileId;
   if (!profileId) {
     res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Thiếu profileId' } });
     return;
   }
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const events = repository.getHistoricalEvents(profileId);
+  const events = await repository.getHistoricalEvents(profileId);
   const calc = runFullDestinyCalculation(profile.birthData, profile.id, events.length);
   calc.cryptographicSignature = generateAlgorithmSignature(calc);
-  repository.saveCalculation(calc);
+  await repository.saveCalculation(calc);
 
   const bt = runBacktestAnalysis(events, calc);
-  repository.saveBacktestResult(bt);
+  await repository.saveBacktestResult(bt);
 
   const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
 
-  repository.logAudit({
+  await repository.logAudit({
     userId: req.user!.id,
     action: 'CALCULATION_RECOMPUTED',
     resource: 'calculation',
@@ -685,26 +687,26 @@ app.post(['/api/calculations/recalculate/:profileId', '/api/calculations/recalcu
 // ----------------------------------------------------
 // 6. HISTORICAL EVENTS & EMPIRICAL BACKTESTING
 // ----------------------------------------------------
-app.get('/api/events/:profileId', requireAuth, (req, res) => {
+app.get('/api/events/:profileId', requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const events = repository.getHistoricalEvents(profileId);
+  const events = await repository.getHistoricalEvents(profileId);
   res.json(events);
 });
 
-app.post(['/api/events', '/api/backtests/event'], requireAuth, (req, res, next) => {
+app.post(['/api/events', '/api/backtests/event'], requireAuth, async (req, res, next) => {
   try {
     const validated = HistoricalEventSchema.parse(req.body);
-    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    const profile = await verifyProfileOwnershipAsync(req, res, validated.profileId);
     if (!profile) return;
 
     // Atomic transaction for guest quota enforcement, event creation & backtest calculation
-    const { event, updatedBt } = repository.runTransaction((repo) => {
+    const { event, updatedBt } = await repository.runTransaction(async (repo) => {
       // Enforce guest quota atomically: role === 'GUEST' is single source of truth
       if (req.user!.role === 'GUEST') {
-        const existingEvents = repo.getHistoricalEvents(validated.profileId);
+        const existingEvents = await repo.getHistoricalEvents(validated.profileId);
         if (existingEvents.length >= 5) {
           const quotaErr = new Error('Phiên khách tạm thời giới hạn tối đa 5 sự kiện đối chiếu. Vui lòng đăng ký tài khoản chính thức miễn phí để lưu trữ toàn bộ lịch sử.');
           (quotaErr as any).code = 'GUEST_EVENT_QUOTA_EXCEEDED';
@@ -719,15 +721,15 @@ app.post(['/api/events', '/api/backtests/event'], requireAuth, (req, res, next) 
         createdAt: new Date().toISOString()
       };
 
-      repo.addHistoricalEvent(createdEvent);
+      await repo.addHistoricalEvent(createdEvent);
 
-      const allEvents = repo.getHistoricalEvents(validated.profileId);
-      const calc = repo.getLatestCalculationForProfile(validated.profileId) ||
+      const allEvents = await repo.getHistoricalEvents(validated.profileId);
+      const calc = (await repo.getLatestCalculationForProfile(validated.profileId)) ||
         runFullDestinyCalculation(profile.birthData, profile.id, allEvents.length);
 
       const computedBt = runBacktestAnalysis(allEvents, calc);
       telemetry.recordBacktestRun();
-      repo.saveBacktestResult(computedBt);
+      await repo.saveBacktestResult(computedBt);
 
       return { event: createdEvent, updatedBt: computedBt };
     });
@@ -738,19 +740,19 @@ app.post(['/api/events', '/api/backtests/event'], requireAuth, (req, res, next) 
   }
 });
 
-app.delete(['/api/events/:profileId/:eventId', '/api/backtests/event/:profileId/:eventId'], requireAuth, (req, res) => {
+app.delete(['/api/events/:profileId/:eventId', '/api/backtests/event/:profileId/:eventId'], requireAuth, async (req, res) => {
   const { profileId, eventId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const deleted = repository.deleteHistoricalEvent(profileId, eventId);
+  const deleted = await repository.deleteHistoricalEvent(profileId, eventId);
   if (deleted) {
-    const allEvents = repository.getHistoricalEvents(profileId);
-    const calc = repository.getLatestCalculationForProfile(profileId) ||
+    const allEvents = await repository.getHistoricalEvents(profileId);
+    const calc = (await repository.getLatestCalculationForProfile(profileId)) ||
       runFullDestinyCalculation(profile.birthData, profile.id, allEvents.length);
     const updatedBt = runBacktestAnalysis(allEvents, calc);
     telemetry.recordBacktestRun();
-    repository.saveBacktestResult(updatedBt);
+    await repository.saveBacktestResult(updatedBt);
 
     res.json({ success: true, backtestResult: updatedBt });
   } else {
@@ -758,18 +760,18 @@ app.delete(['/api/events/:profileId/:eventId', '/api/backtests/event/:profileId/
   }
 });
 
-app.get(['/api/backtest/:profileId', '/api/backtests/:profileId'], requireAuth, (req, res) => {
+app.get(['/api/backtest/:profileId', '/api/backtests/:profileId'], requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const events = repository.getHistoricalEvents(profileId);
-  let bt = repository.getBacktestResult(profileId);
+  const events = await repository.getHistoricalEvents(profileId);
+  let bt = await repository.getBacktestResult(profileId);
   if (!bt) {
-    const calc = repository.getLatestCalculationForProfile(profileId) ||
+    const calc = (await repository.getLatestCalculationForProfile(profileId)) ||
       runFullDestinyCalculation(profile.birthData, profile.id, events.length);
     bt = runBacktestAnalysis(events, calc);
-    repository.saveBacktestResult(bt);
+    await repository.saveBacktestResult(bt);
   }
 
   res.json({ events, result: bt });
@@ -778,16 +780,16 @@ app.get(['/api/backtest/:profileId', '/api/backtests/:profileId'], requireAuth, 
 // ----------------------------------------------------
 // 7. MULTI-AGENT ENSEMBLE SYNTHESIS (GROUNDED)
 // ----------------------------------------------------
-app.get('/api/synthesis/:profileId', requireAuth, (req, res) => {
+app.get('/api/synthesis/:profileId', requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const calc = repository.getLatestCalculationForProfile(profileId) ||
+  const calc = (await repository.getLatestCalculationForProfile(profileId)) ||
     runFullDestinyCalculation(profile.birthData, profile.id, 0);
 
-  const bt = repository.getBacktestResult(profileId) ||
-    runBacktestAnalysis(repository.getHistoricalEvents(profileId), calc);
+  const bt = (await repository.getBacktestResult(profileId)) ||
+    runBacktestAnalysis(await repository.getHistoricalEvents(profileId), calc);
 
   const ensemble = generateMultiAgentEnsemble(profile, calc, bt.destinyConsistencyScore);
   res.json(ensemble);
@@ -796,16 +798,16 @@ app.get('/api/synthesis/:profileId', requireAuth, (req, res) => {
 // ----------------------------------------------------
 // 8. SCENARIOS & WHAT-IF SIMULATOR (DETERMINISTIC)
 // ----------------------------------------------------
-app.post('/api/scenarios/evaluate', requireAuth, scenarioRateLimiter, (req, res, next) => {
+app.post('/api/scenarios/evaluate', requireAuth, scenarioRateLimiter, async (req, res, next) => {
   try {
     const validated = ScenarioEvaluateSchema.parse(req.body);
-    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    const profile = await verifyProfileOwnershipAsync(req, res, validated.profileId);
     if (!profile) return;
 
-    let calc = repository.getLatestCalculationForProfile(validated.profileId);
+    let calc = await repository.getLatestCalculationForProfile(validated.profileId);
     if (!calc) {
       calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
-      repository.saveCalculation(calc);
+      await repository.saveCalculation(calc);
     }
 
     const result = evaluateWhatIfScenario(validated.question, calc);
@@ -819,15 +821,15 @@ app.post('/api/scenarios/evaluate', requireAuth, scenarioRateLimiter, (req, res,
 // ----------------------------------------------------
 // 9. DAILY DESTINY (DETERMINISTIC)
 // ----------------------------------------------------
-app.get('/api/daily/:profileId', requireAuth, (req, res) => {
+app.get('/api/daily/:profileId', requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  let calc = repository.getLatestCalculationForProfile(profileId);
+  let calc = await repository.getLatestCalculationForProfile(profileId);
   if (!calc) {
     calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
-    repository.saveCalculation(calc);
+    await repository.saveCalculation(calc);
   }
 
   const daily = computeDailyDestiny(calc);
@@ -840,19 +842,19 @@ app.get('/api/daily/:profileId', requireAuth, (req, res) => {
 app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) => {
   try {
     const validated = AiChatSchema.parse(req.body);
-    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    const profile = await verifyProfileOwnershipAsync(req, res, validated.profileId);
     if (!profile) return;
 
-    let calc = repository.getLatestCalculationForProfile(validated.profileId);
+    let calc = await repository.getLatestCalculationForProfile(validated.profileId);
     if (!calc) {
       calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
-      repository.saveCalculation(calc);
+      await repository.saveCalculation(calc);
     }
 
-    let bt = repository.getBacktestResult(validated.profileId);
+    let bt = await repository.getBacktestResult(validated.profileId);
     if (!bt) {
       bt = runBacktestAnalysis([], calc);
-      repository.saveBacktestResult(bt);
+      await repository.saveBacktestResult(bt);
     }
 
     // Save user message
@@ -862,7 +864,7 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
       content: validated.message,
       timestamp: new Date().toISOString()
     };
-    repository.addChatMessage(validated.profileId, userMsg);
+    await repository.addChatMessage(validated.profileId, userMsg);
 
     const targetYear = validated.analysisYear || calc.analysisYear || 2026;
 
@@ -897,7 +899,7 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
       ]
     };
 
-    repository.addChatMessage(validated.profileId, assistantMsg);
+    await repository.addChatMessage(validated.profileId, assistantMsg);
     res.json(assistantMsg);
   } catch (err) {
     next(err);
@@ -905,23 +907,23 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
 });
 
 // Retrieve conversation history for profile (strictly authenticated & isolated)
-app.get('/api/ai/messages/:profileId', requireAuth, (req, res) => {
+app.get('/api/ai/messages/:profileId', requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const messages = repository.getChatMessages(profileId);
+  const messages = await repository.getChatMessages(profileId);
   res.json(messages);
 });
 
 // Clear conversation history for profile
-app.delete('/api/ai/messages/:profileId', requireAuth, (req, res) => {
+app.delete('/api/ai/messages/:profileId', requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const cleared = repository.clearChatMessages(profileId);
-  repository.logAudit({
+  const cleared = await repository.clearChatMessages(profileId);
+  await repository.logAudit({
     userId: req.user!.id,
     action: 'CHAT_HISTORY_CLEARED',
     resource: 'chat',
@@ -938,19 +940,19 @@ app.delete('/api/ai/messages/:profileId', requireAuth, (req, res) => {
 app.post('/api/ai/pipeline', requireAuth, aiChatRateLimiter, async (req, res, next) => {
   try {
     const validated = AiChatSchema.parse(req.body);
-    const profile = verifyProfileOwnership(req, res, validated.profileId);
+    const profile = await verifyProfileOwnershipAsync(req, res, validated.profileId);
     if (!profile) return;
 
-    let calc = repository.getLatestCalculationForProfile(validated.profileId);
+    let calc = await repository.getLatestCalculationForProfile(validated.profileId);
     if (!calc) {
       calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
-      repository.saveCalculation(calc);
+      await repository.saveCalculation(calc);
     }
 
-    let bt = repository.getBacktestResult(validated.profileId);
+    let bt = await repository.getBacktestResult(validated.profileId);
     if (!bt) {
       bt = runBacktestAnalysis([], calc);
-      repository.saveBacktestResult(bt);
+      await repository.saveBacktestResult(bt);
     }
 
     const pipelineResult = await DestinyAiPipeline.execute({
@@ -1001,52 +1003,52 @@ app.get('/api/admin/security-threats', requireAdmin, adminRateLimiter, (req, res
   res.json(analytics);
 });
 
-app.get('/api/audit-logs', requireAdmin, adminRateLimiter, (req, res) => {
-  const logs = repository.getAuditLogs(100);
+app.get('/api/audit-logs', requireAdmin, adminRateLimiter, async (req, res) => {
+  const logs = await repository.getAuditLogs(100);
   res.json(logs);
 });
 
-app.get('/api/feature-flags', (req, res) => {
-  res.json(repository.getFeatureFlags());
+app.get('/api/feature-flags', async (req, res) => {
+  res.json(await repository.getFeatureFlags());
 });
 
-app.post('/api/feature-flags/toggle', requireAdmin, adminRateLimiter, (req, res, next) => {
+app.post('/api/feature-flags/toggle', requireAdmin, adminRateLimiter, async (req, res, next) => {
   try {
     const validated = FeatureFlagToggleSchema.parse(req.body);
-    const updated = repository.toggleFeatureFlag(validated.key, validated.enabled);
+    const updated = await repository.toggleFeatureFlag(validated.key, validated.enabled);
     if (!updated) {
       return res.status(404).json({ error: { code: 'FLAG_NOT_FOUND', message: 'Feature flag not found' } });
     }
-    res.json(repository.getFeatureFlags());
+    res.json(await repository.getFeatureFlags());
   } catch (err) {
     next(err);
   }
 });
 
 // Admin PostgreSQL Migration Exporter (PHẦN 3)
-app.get('/api/admin/export-sql', requireAdmin, adminRateLimiter, (req, res) => {
-  const ddl = repository.exportToPostgresSql();
+app.get('/api/admin/export-sql', requireAdmin, adminRateLimiter, async (req, res) => {
+  const ddl = await repository.exportToPostgresSql();
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="aurora_destiny_postgres_migration.sql"');
   res.send(ddl);
 });
 
-app.post('/api/admin/cleanup-sessions', requireAdmin, adminRateLimiter, (req, res) => {
-  const cleaned = repository.cleanupExpiredSessions();
+app.post('/api/admin/cleanup-sessions', requireAdmin, adminRateLimiter, async (req, res) => {
+  const cleaned = await repository.cleanupExpiredSessions();
   res.json({ success: true, cleanedSessionsCount: cleaned });
 });
 
 // Privacy Export for Profile
-app.get('/api/export/:profileId', requireAuth, (req, res) => {
+app.get('/api/export/:profileId', requireAuth, async (req, res) => {
   const { profileId } = req.params;
-  const profile = verifyProfileOwnership(req, res, profileId);
+  const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
 
-  const calc = repository.getLatestCalculationForProfile(profileId);
-  const events = repository.getHistoricalEvents(profileId);
-  const bt = repository.getBacktestResult(profileId);
-  const messages = repository.getChatMessages(profileId);
-  const prefs = repository.getPreferences(req.user!.id);
+  const calc = await repository.getLatestCalculationForProfile(profileId);
+  const events = await repository.getHistoricalEvents(profileId);
+  const bt = await repository.getBacktestResult(profileId);
+  const messages = await repository.getChatMessages(profileId);
+  const prefs = await repository.getPreferences(req.user!.id);
 
   const exportBundle = {
     app: 'Aurora Destiny AI',
@@ -1066,7 +1068,7 @@ app.get('/api/export/:profileId', requireAuth, (req, res) => {
     preferences: prefs
   };
 
-  repository.logAudit({
+  await repository.logAudit({
     userId: req.user!.id,
     action: 'USER_DATA_EXPORTED',
     resource: 'profile',

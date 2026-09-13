@@ -79,9 +79,9 @@ export function runAuthSecurityTests() {
   // TEST 7: Admin Bootstrap Without Environment Variables Does NOT Create Hardcoded Admin
   delete process.env.ADMIN_EMAIL;
   delete process.env.ADMIN_PASSWORD;
-  const beforeCount = repository.getAllUsers().length;
+  const beforeCount = ((repository as any).getAllUsersSync ? (repository as any).getAllUsersSync() : []).length;
   bootstrapAdminIfConfigured();
-  const afterCount = repository.getAllUsers().length;
+  const afterCount = ((repository as any).getAllUsersSync ? (repository as any).getAllUsersSync() : []).length;
   assert(
     beforeCount === afterCount,
     'Admin Bootstrap Safe Default',

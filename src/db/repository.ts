@@ -38,70 +38,6 @@ export interface FeatureFlag {
 
 export interface IDatabaseRepository {
   // Users & Auth
-  getUser(userId: string): UserAccount | null;
-  getAllUsers(): UserAccount[];
-  getUserByEmail(email: string): (UserAccount & { passwordHash?: string }) | null;
-  saveUser(user: UserAccount, passwordHash?: string): UserAccount;
-  deleteUser(userId: string): boolean;
-  getAllUserData(userId: string): any;
-  getPreferences(userId: string): UserPreferences;
-  updatePreferences(userId: string, prefs: Partial<UserPreferences>): UserPreferences;
-
-  // Persistent Sessions
-  saveSession(session: StoredSession): void;
-  getSession(token: string): StoredSession | null;
-  deleteSession(token: string): boolean;
-  cleanupExpiredSessions(): number;
-  revokeUserSessions(userId: string): number;
-
-  // Password Reset Tokens
-  createPasswordReset(userId: string): { token: string; expiresAt: number };
-  verifyAndConsumePasswordReset(token: string): string | null;
-
-  // Profiles (Isolated per User)
-  getProfiles(userId: string): UserProfile[];
-  getProfile(profileId: string): UserProfile | null;
-  saveProfile(profile: UserProfile): UserProfile;
-  deleteProfile(profileId: string, userId: string): boolean;
-
-  // Calculations (Foreign key -> Profile)
-  getCalculation(calculationId: string): CalculationResult | null;
-  getLatestCalculationForProfile(profileId: string): CalculationResult | null;
-  saveCalculation(calc: CalculationResult): CalculationResult;
-
-  // Historical Events (Foreign key -> Profile)
-  getHistoricalEvents(profileId: string): HistoricalEvent[];
-  addHistoricalEvent(event: HistoricalEvent): HistoricalEvent;
-  deleteHistoricalEvent(profileId: string, eventId: string): boolean;
-
-  // Backtest Results (Foreign key -> Profile)
-  getBacktestResult(profileId: string): BacktestResult | null;
-  saveBacktestResult(result: BacktestResult): BacktestResult;
-
-  // Chat Messages (Foreign key -> Profile)
-  getChatMessages(profileId: string): ChatMessage[];
-  addChatMessage(profileId: string, message: ChatMessage): ChatMessage;
-  clearChatMessages(profileId: string): boolean;
-
-  // Audit Logs (Data minimization: no PII/birth details)
-  logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): void;
-  getAuditLogs(limit?: number): AuditLogEntry[];
-
-  // Feature Flags
-  getFeatureFlags(): FeatureFlag[];
-  getFeatureFlag(key: string): FeatureFlag | null;
-  toggleFeatureFlag(key: string, enabled: boolean): FeatureFlag | null;
-
-  // Transactions & Durability
-  runTransaction<T>(action: (repo: IDatabaseRepository) => T): T;
-  verifyDatabaseIntegrity(): { valid: boolean; errors: string[]; checksum: string };
-  exportToPostgresSql(): string;
-
-  // Observability & Stats
-  getMetrics(): any;
-}
-
-export interface IAsyncDatabaseRepository {
   getUser(userId: string): Promise<UserAccount | null>;
   getAllUsers(): Promise<UserAccount[]>;
   getUserByEmail(email: string): Promise<(UserAccount & { passwordHash?: string }) | null>;
@@ -111,46 +47,62 @@ export interface IAsyncDatabaseRepository {
   getPreferences(userId: string): Promise<UserPreferences>;
   updatePreferences(userId: string, prefs: Partial<UserPreferences>): Promise<UserPreferences>;
 
+  // Persistent Sessions
   saveSession(session: StoredSession): Promise<void>;
   getSession(token: string): Promise<StoredSession | null>;
   deleteSession(token: string): Promise<boolean>;
   cleanupExpiredSessions(): Promise<number>;
   revokeUserSessions(userId: string): Promise<number>;
 
+  // Password Reset Tokens
   createPasswordReset(userId: string): Promise<{ token: string; expiresAt: number }>;
   verifyAndConsumePasswordReset(token: string): Promise<string | null>;
 
+  // Profiles (Isolated per User)
   getProfiles(userId: string): Promise<UserProfile[]>;
   getProfile(profileId: string): Promise<UserProfile | null>;
   saveProfile(profile: UserProfile): Promise<UserProfile>;
   deleteProfile(profileId: string, userId: string): Promise<boolean>;
 
+  // Calculations (Foreign key -> Profile)
   getCalculation(calculationId: string): Promise<CalculationResult | null>;
   getLatestCalculationForProfile(profileId: string): Promise<CalculationResult | null>;
   saveCalculation(calc: CalculationResult): Promise<CalculationResult>;
 
+  // Historical Events (Foreign key -> Profile)
   getHistoricalEvents(profileId: string): Promise<HistoricalEvent[]>;
   addHistoricalEvent(event: HistoricalEvent): Promise<HistoricalEvent>;
   deleteHistoricalEvent(profileId: string, eventId: string): Promise<boolean>;
 
+  // Backtest Results (Foreign key -> Profile)
   getBacktestResult(profileId: string): Promise<BacktestResult | null>;
   saveBacktestResult(result: BacktestResult): Promise<BacktestResult>;
 
+  // Chat Messages (Foreign key -> Profile)
   getChatMessages(profileId: string): Promise<ChatMessage[]>;
   addChatMessage(profileId: string, message: ChatMessage): Promise<ChatMessage>;
   clearChatMessages(profileId: string): Promise<boolean>;
 
+  // Audit Logs (Data minimization: no PII/birth details)
   logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void>;
   getAuditLogs(limit?: number): Promise<AuditLogEntry[]>;
 
+  // Feature Flags
   getFeatureFlags(): Promise<FeatureFlag[]>;
   getFeatureFlag(key: string): Promise<FeatureFlag | null>;
   toggleFeatureFlag(key: string, enabled: boolean): Promise<FeatureFlag | null>;
 
-  runTransaction<T>(action: (repo: IAsyncDatabaseRepository) => Promise<T>): Promise<T>;
+  // Transactions & Durability
+  runTransaction<T>(action: (repo: IDatabaseRepository) => Promise<T>): Promise<T>;
   verifyDatabaseIntegrity(): Promise<{ valid: boolean; errors: string[]; checksum: string }>;
+  exportToPostgresSql(): Promise<string>;
+  ensureInitialized?(): Promise<void>;
+
+  // Observability & Stats
   getMetrics(): Promise<any>;
 }
+
+export type IAsyncDatabaseRepository = IDatabaseRepository;
 
 // Durable File-backed Database Schema representation
 interface StoredDatabaseState {
@@ -168,7 +120,7 @@ interface StoredDatabaseState {
   _checksum?: string;
 }
 
-export class PersistentDatabaseRepository implements IDatabaseRepository {
+export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, IDatabaseRepository {
   private dir: string;
   private filePath: string;
   private backupPath: string;
@@ -365,23 +317,11 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // TRANSACTIONS & DURABILITY
   // ----------------------------------------------------
-  runTransaction<T>(action: (repo: IDatabaseRepository) => T | Promise<T>): any {
+  async runTransaction<T>(action: (repo: any) => T | Promise<T>): Promise<T> {
     // Snapshot state before executing transaction
     const snapshot = JSON.stringify(this.state);
     try {
-      const result = action(this);
-      if (result && typeof (result as any).then === 'function') {
-        return (result as Promise<T>)
-          .then((res) => {
-            this.schedulePersist();
-            return res;
-          })
-          .catch((err) => {
-            this.state = JSON.parse(snapshot);
-            console.error('⚠️ Transaction failed and was rolled back successfully:', err);
-            throw err;
-          });
-      }
+      const result = await Promise.resolve(action(this));
       this.schedulePersist();
       return result;
     } catch (err) {
@@ -392,7 +332,24 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     }
   }
 
-  verifyDatabaseIntegrity(): { valid: boolean; errors: string[]; checksum: string } {
+  runTransactionSync<T>(action: (repo: PersistentDatabaseRepository) => T): T {
+    const snapshot = JSON.stringify(this.state);
+    try {
+      const result = action(this);
+      this.schedulePersist();
+      return result;
+    } catch (err) {
+      this.state = JSON.parse(snapshot);
+      console.error('⚠️ Transaction failed and was rolled back successfully:', err);
+      throw err;
+    }
+  }
+
+  async verifyDatabaseIntegrity(): Promise<{ valid: boolean; errors: string[]; checksum: string }> {
+    return this.verifyDatabaseIntegritySync();
+  }
+
+  verifyDatabaseIntegritySync(): { valid: boolean; errors: string[]; checksum: string } {
     const errors: string[] = [];
     const { _checksum, ...cleanState } = this.state;
     const currentChecksum = this.computeChecksum(cleanState);
@@ -490,18 +447,27 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // USERS & AUTH
   // ----------------------------------------------------
-  getUser(userId: string): UserAccount | null {
+  async getUser(userId: string): Promise<UserAccount | null> {
+    return this.getUserSync(userId);
+  }
+  getUserSync(userId: string): UserAccount | null {
     const user = this.state.users[userId];
     if (!user) return null;
     const { passwordHash, ...cleanUser } = user;
     return cleanUser;
   }
 
-  getAllUsers(): UserAccount[] {
+  async getAllUsers(): Promise<UserAccount[]> {
+    return this.getAllUsersSync();
+  }
+  getAllUsersSync(): UserAccount[] {
     return Object.values(this.state.users).map(({ passwordHash: _, ...clean }) => clean);
   }
 
-  getUserByEmail(email: string): (UserAccount & { passwordHash?: string }) | null {
+  async getUserByEmail(email: string): Promise<(UserAccount & { passwordHash?: string }) | null> {
+    return this.getUserByEmailSync(email);
+  }
+  getUserByEmailSync(email: string): (UserAccount & { passwordHash?: string }) | null {
     const normalized = email.toLowerCase().trim();
     for (const u of Object.values(this.state.users)) {
       if (u.email.toLowerCase().trim() === normalized) {
@@ -511,7 +477,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return null;
   }
 
-  saveUser(user: UserAccount, passwordHash?: string): UserAccount {
+  async saveUser(user: UserAccount, passwordHash?: string): Promise<UserAccount> {
+    return this.saveUserSync(user, passwordHash);
+  }
+  saveUserSync(user: UserAccount, passwordHash?: string): UserAccount {
     const existing = (this.state.users[user.id] || {}) as Partial<UserAccount & { passwordHash?: string }>;
     this.state.users[user.id] = {
       ...existing,
@@ -535,17 +504,20 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return clean;
   }
 
-  deleteUser(userId: string): boolean {
+  async deleteUser(userId: string): Promise<boolean> {
+    return this.deleteUserSync(userId);
+  }
+  deleteUserSync(userId: string): boolean {
     if (!this.state.users[userId]) return false;
 
     // Cascade delete all profiles owned by this user
-    const userProfiles = this.getProfiles(userId);
+    const userProfiles = this.getProfilesSync(userId);
     for (const profile of userProfiles) {
-      this.deleteProfile(profile.id, userId);
+      this.deleteProfileSync(profile.id, userId);
     }
 
     // Revoke all sessions
-    this.revokeUserSessions(userId);
+    this.revokeUserSessionsSync(userId);
 
     // Clean up any password reset tokens
     if (this.state.passwordResets) {
@@ -564,24 +536,27 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return true;
   }
 
-  getAllUserData(userId: string): any {
-    const user = this.getUser(userId);
+  async getAllUserData(userId: string): Promise<any> {
+    return this.getAllUserDataSync(userId);
+  }
+  getAllUserDataSync(userId: string): any {
+    const user = this.getUserSync(userId);
     if (!user) return null;
 
-    const prefs = this.getPreferences(userId);
-    const profiles = this.getProfiles(userId);
+    const prefs = this.getPreferencesSync(userId);
+    const profiles = this.getProfilesSync(userId);
     const calculations: Record<string, CalculationResult> = {};
     const historicalEvents: Record<string, HistoricalEvent[]> = {};
     const backtests: Record<string, BacktestResult> = {};
     const chats: Record<string, ChatMessage[]> = {};
 
     for (const p of profiles) {
-      const calc = this.getLatestCalculationForProfile(p.id);
+      const calc = this.getLatestCalculationForProfileSync(p.id);
       if (calc) calculations[p.id] = calc;
-      historicalEvents[p.id] = this.getHistoricalEvents(p.id);
-      const bt = this.getBacktestResult(p.id);
+      historicalEvents[p.id] = this.getHistoricalEventsSync(p.id);
+      const bt = this.getBacktestResultSync(p.id);
       if (bt) backtests[p.id] = bt;
-      chats[p.id] = this.getChatMessages(p.id);
+      chats[p.id] = this.getChatMessagesSync(p.id);
     }
 
     return {
@@ -596,7 +571,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     };
   }
 
-  getPreferences(userId: string): UserPreferences {
+  async getPreferences(userId: string): Promise<UserPreferences> {
+    return this.getPreferencesSync(userId);
+  }
+  getPreferencesSync(userId: string): UserPreferences {
     return this.state.preferences[userId] || {
       theme: 'dark',
       language: 'vi',
@@ -609,8 +587,11 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     };
   }
 
-  updatePreferences(userId: string, prefs: Partial<UserPreferences>): UserPreferences {
-    const current = this.getPreferences(userId);
+  async updatePreferences(userId: string, prefs: Partial<UserPreferences>): Promise<UserPreferences> {
+    return this.updatePreferencesSync(userId, prefs);
+  }
+  updatePreferencesSync(userId: string, prefs: Partial<UserPreferences>): UserPreferences {
+    const current = this.getPreferencesSync(userId);
     const updated = { ...current, ...prefs };
     this.state.preferences[userId] = updated;
     this.schedulePersist();
@@ -624,13 +605,19 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
-  saveSession(session: StoredSession): void {
+  async saveSession(session: StoredSession): Promise<void> {
+    this.saveSessionSync(session);
+  }
+  saveSessionSync(session: StoredSession): void {
     const tokenHash = this.hashToken(session.token);
     this.state.sessions[tokenHash] = { ...session, token: tokenHash };
     this.schedulePersist();
   }
 
-  getSession(token: string): StoredSession | null {
+  async getSession(token: string): Promise<StoredSession | null> {
+    return this.getSessionSync(token);
+  }
+  getSessionSync(token: string): StoredSession | null {
     const tokenHash = this.hashToken(token);
     const s = this.state.sessions[tokenHash] || this.state.sessions[token];
     if (!s) return null;
@@ -644,7 +631,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return { ...s, token };
   }
 
-  deleteSession(token: string): boolean {
+  async deleteSession(token: string): Promise<boolean> {
+    return this.deleteSessionSync(token);
+  }
+  deleteSessionSync(token: string): boolean {
     const tokenHash = this.hashToken(token);
     let deleted = false;
     if (this.state.sessions[tokenHash]) {
@@ -662,7 +652,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return false;
   }
 
-  cleanupExpiredSessions(): number {
+  async cleanupExpiredSessions(): Promise<number> {
+    return this.cleanupExpiredSessionsSync();
+  }
+  cleanupExpiredSessionsSync(): number {
     const now = Date.now();
     let cleaned = 0;
     for (const [token, session] of Object.entries(this.state.sessions)) {
@@ -737,7 +730,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return cleaned;
   }
 
-  revokeUserSessions(userId: string): number {
+  async revokeUserSessions(userId: string): Promise<number> {
+    return this.revokeUserSessionsSync(userId);
+  }
+  revokeUserSessionsSync(userId: string): number {
     let revoked = 0;
     for (const [token, session] of Object.entries(this.state.sessions)) {
       if (session.userId === userId) {
@@ -754,7 +750,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // PASSWORD RESET TOKENS (Time-limited & Single-use)
   // ----------------------------------------------------
-  createPasswordReset(userId: string): { token: string; expiresAt: number } {
+  async createPasswordReset(userId: string): Promise<{ token: string; expiresAt: number }> {
+    return this.createPasswordResetSync(userId);
+  }
+  createPasswordResetSync(userId: string): { token: string; expiresAt: number } {
     if (!this.state.passwordResets) {
       this.state.passwordResets = {};
     }
@@ -771,7 +770,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return { token: rawToken, expiresAt };
   }
 
-  verifyAndConsumePasswordReset(token: string): string | null {
+  async verifyAndConsumePasswordReset(token: string): Promise<string | null> {
+    return this.verifyAndConsumePasswordResetSync(token);
+  }
+  verifyAndConsumePasswordResetSync(token: string): string | null {
     if (!this.state.passwordResets) {
       return null;
     }
@@ -788,22 +790,31 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     }
     record.used = true;
     this.schedulePersist();
-    this.revokeUserSessions(record.userId);
+    this.revokeUserSessionsSync(record.userId);
     return record.userId;
   }
 
   // ----------------------------------------------------
   // PROFILES (Isolated per User)
   // ----------------------------------------------------
-  getProfiles(userId: string): UserProfile[] {
+  async getProfiles(userId: string): Promise<UserProfile[]> {
+    return this.getProfilesSync(userId);
+  }
+  getProfilesSync(userId: string): UserProfile[] {
     return Object.values(this.state.profiles).filter(p => p.userId === userId);
   }
 
-  getProfile(profileId: string): UserProfile | null {
+  async getProfile(profileId: string): Promise<UserProfile | null> {
+    return this.getProfileSync(profileId);
+  }
+  getProfileSync(profileId: string): UserProfile | null {
     return this.state.profiles[profileId] || null;
   }
 
-  saveProfile(profile: UserProfile): UserProfile {
+  async saveProfile(profile: UserProfile): Promise<UserProfile> {
+    return this.saveProfileSync(profile);
+  }
+  saveProfileSync(profile: UserProfile): UserProfile {
     // Foreign Key check: userId must exist in users
     if (!this.state.users[profile.userId]) {
       throw new Error(`Foreign key constraint failed: User '${profile.userId}' does not exist.`);
@@ -812,7 +823,7 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     this.state.profiles[profile.id] = { ...profile, updatedAt: new Date().toISOString() };
     
     // Update user profile count
-    const userProfiles = this.getProfiles(profile.userId);
+    const userProfiles = this.getProfilesSync(profile.userId);
     if (this.state.users[profile.userId]) {
       this.state.users[profile.userId].profilesCount = userProfiles.length;
     }
@@ -822,13 +833,16 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   }
 
   // CASCADE DELETE: Removing a profile cascades to calculations, events, backtests, messages
-  deleteProfile(profileId: string, userId: string): boolean {
+  async deleteProfile(profileId: string, userId: string): Promise<boolean> {
+    return this.deleteProfileSync(profileId, userId);
+  }
+  deleteProfileSync(profileId: string, userId: string): boolean {
     const profile = this.state.profiles[profileId];
     if (!profile) return false;
     
     // Ownership check: only owner or super-admin can delete
     if (profile.userId !== userId) {
-      const user = this.getUser(userId);
+      const user = this.getUserSync(userId);
       if (!user || user.role !== 'SUPER_ADMIN') {
         return false;
       }
@@ -853,7 +867,7 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     delete this.state.chatMessages[profileId];
 
     // Update user profile count
-    const remaining = this.getProfiles(profile.userId);
+    const remaining = this.getProfilesSync(profile.userId);
     if (this.state.users[profile.userId]) {
       this.state.users[profile.userId].profilesCount = remaining.length;
     }
@@ -865,11 +879,17 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // CALCULATIONS
   // ----------------------------------------------------
-  getCalculation(calculationId: string): CalculationResult | null {
+  async getCalculation(calculationId: string): Promise<CalculationResult | null> {
+    return this.getCalculationSync(calculationId);
+  }
+  getCalculationSync(calculationId: string): CalculationResult | null {
     return this.state.calculations[calculationId] || null;
   }
 
-  getLatestCalculationForProfile(profileId: string): CalculationResult | null {
+  async getLatestCalculationForProfile(profileId: string): Promise<CalculationResult | null> {
+    return this.getLatestCalculationForProfileSync(profileId);
+  }
+  getLatestCalculationForProfileSync(profileId: string): CalculationResult | null {
     const profile = this.state.profiles[profileId];
     if (!profile) return null;
 
@@ -883,7 +903,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return matches[0];
   }
 
-  saveCalculation(calc: CalculationResult): CalculationResult {
+  async saveCalculation(calc: CalculationResult): Promise<CalculationResult> {
+    return this.saveCalculationSync(calc);
+  }
+  saveCalculationSync(calc: CalculationResult): CalculationResult {
     this.state.calculations[calc.id] = calc;
     if (this.state.profiles[calc.profileId]) {
       this.state.profiles[calc.profileId].latestCalculationId = calc.id;
@@ -895,11 +918,17 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // HISTORICAL EVENTS
   // ----------------------------------------------------
-  getHistoricalEvents(profileId: string): HistoricalEvent[] {
+  async getHistoricalEvents(profileId: string): Promise<HistoricalEvent[]> {
+    return this.getHistoricalEventsSync(profileId);
+  }
+  getHistoricalEventsSync(profileId: string): HistoricalEvent[] {
     return this.state.historicalEvents[profileId] || [];
   }
 
-  addHistoricalEvent(event: HistoricalEvent): HistoricalEvent {
+  async addHistoricalEvent(event: HistoricalEvent): Promise<HistoricalEvent> {
+    return this.addHistoricalEventSync(event);
+  }
+  addHistoricalEventSync(event: HistoricalEvent): HistoricalEvent {
     if (!this.state.historicalEvents[event.profileId]) {
       this.state.historicalEvents[event.profileId] = [];
     }
@@ -908,7 +937,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return event;
   }
 
-  deleteHistoricalEvent(profileId: string, eventId: string): boolean {
+  async deleteHistoricalEvent(profileId: string, eventId: string): Promise<boolean> {
+    return this.deleteHistoricalEventSync(profileId, eventId);
+  }
+  deleteHistoricalEventSync(profileId: string, eventId: string): boolean {
     const list = this.state.historicalEvents[profileId];
     if (!list) return false;
     const initialLen = list.length;
@@ -921,11 +953,17 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // BACKTEST RESULTS
   // ----------------------------------------------------
-  getBacktestResult(profileId: string): BacktestResult | null {
+  async getBacktestResult(profileId: string): Promise<BacktestResult | null> {
+    return this.getBacktestResultSync(profileId);
+  }
+  getBacktestResultSync(profileId: string): BacktestResult | null {
     return this.state.backtestResults[profileId] || null;
   }
 
-  saveBacktestResult(result: BacktestResult): BacktestResult {
+  async saveBacktestResult(result: BacktestResult): Promise<BacktestResult> {
+    return this.saveBacktestResultSync(result);
+  }
+  saveBacktestResultSync(result: BacktestResult): BacktestResult {
     this.state.backtestResults[result.profileId] = result;
     this.schedulePersist();
     return result;
@@ -934,11 +972,17 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // CHAT MESSAGES
   // ----------------------------------------------------
-  getChatMessages(profileId: string): ChatMessage[] {
+  async getChatMessages(profileId: string): Promise<ChatMessage[]> {
+    return this.getChatMessagesSync(profileId);
+  }
+  getChatMessagesSync(profileId: string): ChatMessage[] {
     return this.state.chatMessages[profileId] || [];
   }
 
-  addChatMessage(profileId: string, message: ChatMessage): ChatMessage {
+  async addChatMessage(profileId: string, message: ChatMessage): Promise<ChatMessage> {
+    return this.addChatMessageSync(profileId, message);
+  }
+  addChatMessageSync(profileId: string, message: ChatMessage): ChatMessage {
     if (!this.state.chatMessages[profileId]) {
       this.state.chatMessages[profileId] = [];
     }
@@ -950,7 +994,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     return message;
   }
 
-  clearChatMessages(profileId: string): boolean {
+  async clearChatMessages(profileId: string): Promise<boolean> {
+    return this.clearChatMessagesSync(profileId);
+  }
+  clearChatMessagesSync(profileId: string): boolean {
     if (this.state.chatMessages[profileId]) {
       this.state.chatMessages[profileId] = [];
       this.schedulePersist();
@@ -962,8 +1009,11 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // AUDIT LOGS (Data minimization: No PII/birth records)
   // ----------------------------------------------------
-  logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): void {
-    const flag = this.getFeatureFlag('audit_logging_enabled');
+  async logAudit(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void> {
+    this.logAuditSync(entry);
+  }
+  logAuditSync(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): void {
+    const flag = this.getFeatureFlagSync('audit_logging_enabled');
     if (flag && !flag.enabled && entry.status !== 'BLOCKED') {
       return; // Skip routine logs if flag is toggled off, but always record security blocks
     }
@@ -980,22 +1030,34 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
     this.schedulePersist();
   }
 
-  getAuditLogs(limit: number = 100): AuditLogEntry[] {
+  async getAuditLogs(limit: number = 100): Promise<AuditLogEntry[]> {
+    return this.getAuditLogsSync(limit);
+  }
+  getAuditLogsSync(limit: number = 100): AuditLogEntry[] {
     return this.state.auditLogs.slice(0, limit);
   }
 
   // ----------------------------------------------------
   // FEATURE FLAGS
   // ----------------------------------------------------
-  getFeatureFlags(): FeatureFlag[] {
+  async getFeatureFlags(): Promise<FeatureFlag[]> {
+    return this.getFeatureFlagsSync();
+  }
+  getFeatureFlagsSync(): FeatureFlag[] {
     return Object.values(this.state.featureFlags);
   }
 
-  getFeatureFlag(key: string): FeatureFlag | null {
+  async getFeatureFlag(key: string): Promise<FeatureFlag | null> {
+    return this.getFeatureFlagSync(key);
+  }
+  getFeatureFlagSync(key: string): FeatureFlag | null {
     return this.state.featureFlags[key] || null;
   }
 
-  toggleFeatureFlag(key: string, enabled: boolean): FeatureFlag | null {
+  async toggleFeatureFlag(key: string, enabled: boolean): Promise<FeatureFlag | null> {
+    return this.toggleFeatureFlagSync(key, enabled);
+  }
+  toggleFeatureFlagSync(key: string, enabled: boolean): FeatureFlag | null {
     const flag = this.state.featureFlags[key];
     if (!flag) return null;
     flag.enabled = enabled;
@@ -1007,7 +1069,10 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // ----------------------------------------------------
   // OBSERVABILITY METRICS
   // ----------------------------------------------------
-  getMetrics() {
+  async getMetrics(): Promise<any> {
+    return this.getMetricsSync();
+  }
+  getMetricsSync() {
     const now = Date.now();
     const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
     
@@ -1073,7 +1138,11 @@ export class PersistentDatabaseRepository implements IDatabaseRepository {
   // POSTGRESQL MIGRATION EXPORTER (PHẦN 3)
   // Generates DDL & Data Inserts for seamless PostgreSQL transition
   // ----------------------------------------------------
-  exportToPostgresSql(): string {
+  async exportToPostgresSql(): Promise<string> {
+    return this.exportToPostgresSqlSync();
+  }
+
+  exportToPostgresSqlSync(): string {
     const ddl = `
 -- ==========================================================
 -- AURORA DESTINY AI — POSTGRESQL PRODUCTION MIGRATION DDL
@@ -1195,6 +1264,10 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
 `;
     return ddl;
   }
+
+  async ensureInitialized(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 // ====================================================
@@ -1202,7 +1275,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
 // Enforces PostgreSQL in production with fail-fast validation
 // ====================================================
 
-export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; connectionString?: string }): IDatabaseRepository | IAsyncDatabaseRepository {
+export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; connectionString?: string }): IDatabaseRepository {
   const isProd = process.env.NODE_ENV === 'production';
   const dbUrl = options?.connectionString || process.env.DATABASE_URL;
 
@@ -1227,12 +1300,12 @@ export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; 
 
 export const persistentRepository: IDatabaseRepository = new PersistentDatabaseRepository();
 
-export function initializeRepository(): IDatabaseRepository | IAsyncDatabaseRepository {
+export function initializeRepository(): IDatabaseRepository {
   return createRepository();
 }
 
-export let repository: any = initializeRepository();
+export let repository: IDatabaseRepository = initializeRepository();
 
-export function setRepository(repo: any): void {
+export function setRepository(repo: IDatabaseRepository): void {
   repository = repo;
 }
