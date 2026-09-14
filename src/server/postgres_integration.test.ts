@@ -206,7 +206,11 @@ async function runPostgresIntegrationSuite() {
   console.log('====================================================');
 }
 
-runPostgresIntegrationSuite().catch((err) => {
-  console.error('❌ PostgreSQL Integration Suite Failed:', err);
-  process.exit(1);
-});
+runPostgresIntegrationSuite()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('❌ PostgreSQL Integration Suite Failed:', err);
+    process.exit(1);
+  });

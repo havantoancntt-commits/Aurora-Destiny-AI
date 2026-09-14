@@ -5,6 +5,9 @@
 
 import { runFullDestinyCalculation, clearDestinyEngineCache } from '../../src/engine/destinyEngine';
 import { BirthData } from '../../src/types/destiny';
+import { evaluateCurrentDecade, evaluateCurrentYearTransit } from '../../src/engine/ziweiInterpretation';
+import { generate100YearHeatmap } from '../../src/engine/lifetimeHeatmapEngine';
+import { runBacktestAnalysis } from '../../src/engine/backtesting';
 
 export function runCacheAndConventionRegressionTests(): { passed: number; failed: number; errors: string[] } {
   let passed = 0;
@@ -112,6 +115,65 @@ export function runCacheAndConventionRegressionTests(): { passed: number; failed
     }
     if (result2026Recheck.annualTransits[0].year !== 2020) {
       throw new Error(`Cache returned incorrect transit year on 2026 replay: ${result2026Recheck.annualTransits[0].year}`);
+    }
+
+    // Verify analysisYear isolation across Ziwei interpretation, Heatmap, and Backtest engines
+    const decade2026 = evaluateCurrentDecade(result2026.ziwei, sampleBirth, 2026);
+    const decade2040 = evaluateCurrentDecade(result2026.ziwei, sampleBirth, 2040);
+    if (decade2026.evaluation === decade2040.evaluation) {
+      throw new Error('evaluateCurrentDecade failed to distinguish analysisYear 2026 vs 2040');
+    }
+
+    const transit2026 = evaluateCurrentYearTransit(result2026.ziwei, 'Bing', 'Wu_B', 2026);
+    const transit2030 = evaluateCurrentYearTransit(result2026.ziwei, 'Geng', 'Xu', 2030);
+    if (transit2026.year !== 2026 || transit2030.year !== 2030) {
+      throw new Error('evaluateCurrentYearTransit did not isolate target years properly');
+    }
+
+    const heatmap2026 = generate100YearHeatmap(sampleBirth, result2026, 2026);
+    const heatmap2035 = generate100YearHeatmap(sampleBirth, result2026, 2035);
+    if (heatmap2026.currentYear !== 2026 || heatmap2035.currentYear !== 2035) {
+      throw new Error('generate100YearHeatmap failed to isolate analysisYear');
+    }
+
+    const backtestRes2026 = runBacktestAnalysis(
+      [{
+        id: 'evt_2028',
+        profileId: 'prof_test',
+        year: 2028,
+        title: 'Future Milestone',
+        category: 'Career',
+        impact: 'Positive',
+        intensity: 4,
+        description: 'Promotion',
+        userConfidence: 5,
+        createdAt: '2026-01-01'
+      }],
+      result2026,
+      2026
+    );
+    const backtestRes2030 = runBacktestAnalysis(
+      [{
+        id: 'evt_2028_past',
+        profileId: 'prof_test',
+        year: 2028,
+        title: 'Past Milestone in 2030',
+        category: 'Career',
+        impact: 'Positive',
+        intensity: 4,
+        description: 'Promotion',
+        userConfidence: 5,
+        createdAt: '2026-01-01'
+      }],
+      result2026,
+      2030
+    );
+    // Year 2028 event is discarded when analysisYear is 2026 (look-ahead bias protection), but accepted when analysisYear is 2030
+    if (backtestRes2026.totalEventsAnalyzed !== 0) {
+      throw new Error(`Look-ahead bias failure: event in 2028 should have been excluded for analysisYear 2026, but got count ${backtestRes2026.totalEventsAnalyzed}`);
+    }
+    if (backtestRes2030.totalEventsAnalyzed !== 1) {
+      throw new Error(`Backtest event should have been included for analysisYear 2030, but got count ${backtestRes2030.totalEventsAnalyzed}`);
     }
 
     passed++;

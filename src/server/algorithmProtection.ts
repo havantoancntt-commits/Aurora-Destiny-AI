@@ -9,8 +9,21 @@ import crypto from 'crypto';
 import { CalculationResult } from '../types/destiny';
 import { repository } from '../db/repository';
 
-// Master server key used for HMAC signature of algorithm calculations
-const ALGORITHM_MASTER_SECRET = process.env.ALGORITHM_PROTECTION_SECRET || 'aurora_celestial_huyen_phong_phat_dao_master_seal_2026';
+// Master server key used for HMAC signature of algorithm calculations.
+// FAIL-FAST IN PRODUCTION: In production, ALGORITHM_PROTECTION_SECRET MUST be explicitly configured.
+function getAlgorithmMasterSecret(): string {
+  const secret = process.env.ALGORITHM_PROTECTION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[FATAL SECURITY] ALGORITHM_PROTECTION_SECRET is not configured in production environment. Refusing to operate with fallback secret.'
+      );
+    }
+    return 'aurora_celestial_huyen_phong_phat_dao_dev_fallback_secret_2026';
+  }
+  return secret;
+}
+
 const ALGORITHM_ENGINE_ID = 'AURORA_CELESTIAL_CORE_V4.2_PROPRIETARY';
 const ISSUER_NAME = 'Prof.TOAN & Huyen Phong Phat Dao Proprietary Astrology Matrix';
 
@@ -67,7 +80,7 @@ export function generateAlgorithmSignature(calc: CalculationResult): {
   ].join('::');
 
   const algorithmHash = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
-  const signature = crypto.createHmac('sha256', ALGORITHM_MASTER_SECRET)
+  const signature = crypto.createHmac('sha256', getAlgorithmMasterSecret())
     .update(`${algorithmHash}::${now}::${ISSUER_NAME}`)
     .digest('hex');
 
@@ -113,7 +126,7 @@ export function verifyAlgorithmSignature(calc: CalculationResult): boolean {
   }
 
   // Re-verify HMAC signature with constant-time equality check
-  const expectedSig = crypto.createHmac('sha256', ALGORITHM_MASTER_SECRET)
+  const expectedSig = crypto.createHmac('sha256', getAlgorithmMasterSecret())
     .update(`${expectedHash}::${sealTimestamp}::${ISSUER_NAME}`)
     .digest('hex');
 

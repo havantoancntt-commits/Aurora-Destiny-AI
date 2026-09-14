@@ -70,10 +70,11 @@ export interface LifetimeHeatmapData {
 
 export function generate100YearHeatmap(
   birthData: BirthData,
-  calculation: CalculationResult
+  calculation: CalculationResult,
+  customAnalysisYear?: number
 ): LifetimeHeatmapData {
   const birthYear = birthData.solarYear;
-  const currentCalendarYear = new Date().getFullYear();
+  const currentCalendarYear = customAnalysisYear || calculation.analysisYear || new Date().getFullYear();
   const currentAge = currentCalendarYear - birthYear + 1;
   const decades = calculation.decades || [];
 

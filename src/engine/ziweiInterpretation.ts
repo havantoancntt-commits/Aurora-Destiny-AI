@@ -345,8 +345,8 @@ export function evaluateLifePalaceAndSanFang(chart: ZiWeiChart) {
 }
 
 // 6. Xác định Đại Vận hiện tại dựa trên tuổi âm lịch
-export function evaluateCurrentDecade(chart: ZiWeiChart, birthData: BirthData) {
-  const currentYear = new Date().getFullYear();
+export function evaluateCurrentDecade(chart: ZiWeiChart, birthData: BirthData, analysisYear?: number) {
+  const currentYear = analysisYear || new Date().getFullYear();
   // Tuổi mụ âm lịch
   const lunarAge = currentYear - birthData.solarYear + 1;
 
@@ -428,7 +428,7 @@ export function generateAuthenticZiWeiReport(
   const bodyPalaceAnalysis = evaluateBodyPalace(chart.bodyPalaceKey, bodyPalace);
   const thaiTueCircleAnalysis = evaluateThaiTueGroup(chart.palaces.life?.thaiTueStar);
   const lifeAndSanFang = evaluateLifePalaceAndSanFang(chart);
-  const currentDecade = evaluateCurrentDecade(chart, birthData);
+  const currentDecade = evaluateCurrentDecade(chart, birthData, analysisYear);
   const currentYearTransit = evaluateCurrentYearTransit(chart, yearStem, yearBranch, analysisYear);
 
   const strategicEmpowerment = [

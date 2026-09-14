@@ -14,6 +14,8 @@ import {
   resetPasswordWithTokenAsync
 } from './auth';
 import { BirthData } from '../types/destiny';
+import { generateAlgorithmSignature, verifyAlgorithmSignature } from './algorithmProtection';
+import { runFullDestinyCalculation } from '../engine/destinyEngine';
 
 async function runProductionAuditTests() {
   console.log('🚀 Running Production Upgrade Verification Suite...');
@@ -182,12 +184,50 @@ async function runProductionAuditTests() {
   assert.strictEqual(rollbackOccurred, true, 'Transaction error caught');
   console.log('  ✔ Postgres repository interface, real SQL migrations & transactions verified.');
 
+  // ----------------------------------------------------
+  // TEST 5: ALGORITHM PROTECTION FAIL-FAST & SIGNATURE
+  // ----------------------------------------------------
+  console.log('▶ Test 5: Algorithm Protection Fail-Fast & Cryptographic Seal');
+  const sampleCalc = runFullDestinyCalculation(exactBirthData, 'prof_algo_test');
+  const seal = generateAlgorithmSignature(sampleCalc);
+  assert.strictEqual(seal.verified, true, 'Signature successfully generated in dev mode');
+  sampleCalc.cryptographicSignature = seal;
+  const isVerified = verifyAlgorithmSignature(sampleCalc);
+  assert.strictEqual(isVerified, true, 'Cryptographic signature verified with HMAC timing-safe equality');
+
+  // Verify production fail-fast when ALGORITHM_PROTECTION_SECRET is missing
+  const oldNodeEnv = process.env.NODE_ENV;
+  const oldSecret = process.env.ALGORITHM_PROTECTION_SECRET;
+  try {
+    process.env.NODE_ENV = 'production';
+    delete process.env.ALGORITHM_PROTECTION_SECRET;
+    let threwFatalError = false;
+    try {
+      generateAlgorithmSignature(sampleCalc);
+    } catch (err: any) {
+      if (err?.message?.includes('ALGORITHM_PROTECTION_SECRET is not configured in production')) {
+        threwFatalError = true;
+      }
+    }
+    assert.strictEqual(threwFatalError, true, 'Production must FAIL FAST when ALGORITHM_PROTECTION_SECRET is missing');
+  } finally {
+    process.env.NODE_ENV = oldNodeEnv;
+    if (oldSecret !== undefined) {
+      process.env.ALGORITHM_PROTECTION_SECRET = oldSecret;
+    }
+  }
+  console.log('  ✔ Algorithm protection fail-fast in production verified.');
+
   console.log('==================================================');
   console.log('🎉 ALL PRODUCTION UPGRADE VERIFICATION TESTS PASSED!');
   console.log('==================================================');
 }
 
-runProductionAuditTests().catch((err) => {
-  console.error('❌ Production audit test failed:', err);
-  process.exit(1);
-});
+runProductionAuditTests()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('❌ Production audit test failed:', err);
+    process.exit(1);
+  });

@@ -12,9 +12,10 @@ import { calculateSingleAnnualTransit } from './temporal';
 
 export function runBacktestAnalysis(
   events: HistoricalEvent[],
-  calculation: CalculationResult
+  calculation: CalculationResult,
+  customAnalysisYear?: number
 ): BacktestResult {
-  const currentYear = new Date().getFullYear();
+  const currentYear = customAnalysisYear || calculation.analysisYear || new Date().getFullYear();
 
   // Prevent look-ahead bias: only analyze events that occurred in or before current year
   // Deduplicate events by year and normalized title

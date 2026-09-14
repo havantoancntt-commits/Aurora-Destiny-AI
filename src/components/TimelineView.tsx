@@ -34,7 +34,7 @@ interface Props {
 type TimelineSubTab = 'time-machine' | 'heatmap-100' | 'classic';
 
 export const TimelineView: React.FC<Props> = ({ calculation, language }) => {
-  const currentYear = new Date().getFullYear();
+  const currentYear = calculation?.analysisYear || new Date().getFullYear();
   const [activeSubTab, setActiveSubTab] = useState<TimelineSubTab>('time-machine');
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedDecadeIdx, setSelectedDecadeIdx] = useState<number>(2);
