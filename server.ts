@@ -14,18 +14,14 @@ import {
   authMiddleware,
   requireAuth,
   requireAdmin,
-  verifyProfileOwnership,
   verifyProfileOwnershipAsync,
-  registerUser,
   registerUserAsync,
-  loginUser,
   loginUserAsync,
-  createGuestSession,
-  revokeSession,
-  requestPasswordReset,
-  resetPasswordWithToken,
+  createGuestSessionAsync,
+  revokeSessionAsync,
+  requestPasswordResetAsync,
   resetPasswordWithTokenAsync,
-  bootstrapAdminIfConfigured
+  bootstrapAdminIfConfiguredAsync
 } from './src/server/auth';
 import {
   loginRateLimiter,
@@ -56,7 +52,7 @@ import { evaluateWhatIfScenario } from './src/engine/scenarios';
 import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/aiSynthesizer';
 import { generateDestinyChatResponse, isCircuitBreakerOpen } from './src/services/geminiService';
 import { DestinyAiPipeline } from './src/services/aiPipeline';
-import { UserProfile } from './src/types/user';
+import { UserProfile, UserAccount } from './src/types/user';
 import { enterpriseSecurityFirewall, getSecurityAnalytics } from './src/server/securityFirewall';
 import {
   generateAlgorithmSignature,
@@ -64,6 +60,29 @@ import {
   antiScrapingSweeperMiddleware
 } from './src/server/algorithmProtection';
 import { telemetry } from './src/telemetry/telemetryService';
+
+// Extend Express Request type with type-safe properties
+declare global {
+  namespace Express {
+    interface Request {
+      cookies?: Record<string, string>;
+      sessionToken?: string;
+      requestId?: string;
+      user?: UserAccount;
+    }
+  }
+}
+
+export class AppError extends Error {
+  code: string;
+  statusCode: number;
+  constructor(message: string, code: string = 'BAD_REQUEST', statusCode: number = 400) {
+    super(message);
+    this.name = 'AppError';
+    this.code = code;
+    this.statusCode = statusCode;
+  }
+}
 
 const app = express();
 const PORT = 3000;
@@ -79,69 +98,81 @@ app.use(express.json({ limit: '2mb' }));
 
 // Lightweight native cookie parser (no third-party dependency needed)
 app.use((req: Request, res: Response, next: NextFunction) => {
-  (req as any).cookies = {};
+  req.cookies = {};
   if (req.headers.cookie) {
     req.headers.cookie.split(';').forEach(cookieStr => {
       const parts = cookieStr.split('=');
       if (parts.length >= 2) {
         const key = parts[0].trim();
         const val = decodeURIComponent(parts.slice(1).join('=').trim());
-        (req as any).cookies[key] = val;
+        req.cookies![key] = val;
       }
     });
   }
   next();
 });
 
+// Helper for strict origin matching (Section XIX CSRF Specification)
+function isOriginAllowed(originHeader: string | undefined, hostHeader: string | undefined): boolean {
+  if (!originHeader) return false;
+  try {
+    const originUrl = new URL(originHeader);
+    const originStr = originUrl.origin;
+    const isProd = process.env.NODE_ENV === 'production';
+
+    // 1. Exact match against configured ALLOWED_ORIGINS (comma-separated list)
+    const configuredOrigins = process.env.ALLOWED_ORIGINS;
+    if (configuredOrigins) {
+      const allowedList = configuredOrigins.split(',').map(s => s.trim()).filter(Boolean);
+      if (allowedList.includes(originStr)) {
+        return true;
+      }
+    }
+
+    // 2. Same-origin match against current Host header
+    if (hostHeader) {
+      const cleanHost = hostHeader.trim();
+      if (originUrl.host === cleanHost) {
+        return true;
+      }
+    }
+
+    // 3. Local development and AI Studio preview origins (strictly non-production)
+    if (!isProd) {
+      if (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') {
+        return true;
+      }
+      if (originStr === 'https://aistudio.google.com' || originStr === 'https://ai.studio') {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 // CSRF Defense for Cookie-authenticated state-changing requests
 app.use((req: Request, res: Response, next: NextFunction) => {
   const isMutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
   if (isMutating) {
-    const hasSessionCookie = Boolean((req as any).cookies && (req as any).cookies['aurora_session']);
+    const hasSessionCookie = Boolean(req.cookies && req.cookies['aurora_session']);
     const hasBearerAuth = Boolean(req.headers.authorization || req.headers['x-session-token']);
     
     // When relying solely on ambient browser cookie for authorization, verify origin/referrer
     if (hasSessionCookie && !hasBearerAuth) {
-      const origin = (req.headers.origin || req.headers.referer) as string | undefined;
+      const originHeader = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer as string).origin : undefined);
       const host = req.headers.host;
-      if (origin && host) {
-        try {
-          const originUrl = new URL(origin);
-          const originHost = originUrl.host;
-          const originHostname = originUrl.hostname;
-          const currentHostname = host.split(':')[0];
 
-          // Exact domain validation to prevent subdomain/partial-match bypasses
-          const isAllowed = 
-            originHost === host ||
-            originHostname === currentHostname ||
-            originHostname === 'localhost' ||
-            originHostname === '127.0.0.1' ||
-            originHostname === 'google.com' ||
-            originHostname.endsWith('.google.com') ||
-            originHostname === 'ai.studio' ||
-            originHostname.endsWith('.ai.studio') ||
-            originHostname.endsWith('.run.app');
-
-          if (!isAllowed) {
-            return res.status(403).json({
-              error: {
-                code: 'CSRF_ORIGIN_REJECTED',
-                message: 'Yêu cầu bị từ chối do vi phạm quy tắc xác thực nguồn gốc (CSRF protection)',
-                requestId: req.requestId
-              }
-            });
+      if (!originHeader || !isOriginAllowed(originHeader, host)) {
+        return res.status(403).json({
+          error: {
+            code: 'CSRF_ORIGIN_REJECTED',
+            message: 'Yêu cầu bị từ chối do vi phạm quy tắc xác thực nguồn gốc (CSRF protection)',
+            requestId: req.requestId
           }
-        } catch {
-          // Invalid origin header format - reject request
-          return res.status(403).json({
-            error: {
-              code: 'CSRF_ORIGIN_MALFORMED',
-              message: 'Tiêu đề Origin hoặc Referer không hợp lệ',
-              requestId: req.requestId
-            }
-          });
-        }
+        });
       }
     }
   }
@@ -187,14 +218,31 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   // Content Security Policy - hardened for production while permitting development and AI Studio preview
   const isProd = process.env.NODE_ENV === 'production';
-  const scriptSrc = isProd
-    ? "'self' 'unsafe-inline' https:" // Strict production: eliminates unsafe-eval
-    : "'self' 'unsafe-inline' 'unsafe-eval' https:"; // Dev/preview Vite HMR compatibility
+  const cspPolicy = isProd
+    ? [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'self' https://aistudio.google.com https://ai.studio"
+      ].join('; ')
+    : [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob: https:",
+        "connect-src 'self' ws: wss: https:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'self' https://aistudio.google.com https://ai.studio"
+      ].join('; ');
 
-  res.setHeader(
-    'Content-Security-Policy',
-    `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'self' https://aistudio.google.com https://*.google.com https://ai.studio https://*.run.app;`
-  );
+  res.setHeader('Content-Security-Policy', cspPolicy);
 
   const reqStart = Date.now();
   res.on('finish', () => {
@@ -210,23 +258,6 @@ app.use(enterpriseSecurityFirewall);
 
 // Authentication middleware extracts user from bearer token or x-session-token
 app.use(authMiddleware);
-
-// Dynamic Bootstrap Admin account if ADMIN_EMAIL & ADMIN_PASSWORD are provided
-bootstrapAdminIfConfigured();
-
-// Clean up expired sessions on startup
-repository.cleanupExpiredSessions();
-
-// Periodic expired session & abandoned guest purge (every 15 minutes, can be disabled if handled by external cron)
-if (process.env.DISABLE_BACKGROUND_CLEANUP !== 'true') {
-  setInterval(async () => {
-    try {
-      await repository.cleanupExpiredSessions();
-    } catch (err) {
-      console.error('[Session Cleanup Error]', err);
-    }
-  }, 15 * 60 * 1000);
-}
 
 // ----------------------------------------------------
 // 1. HEALTH & OBSERVABILITY (LIVENESS, READINESS & DIAGNOSTICS)
@@ -249,7 +280,7 @@ app.get('/api/health', async (req, res) => {
       application: { status: 'pass' },
       database: {
         status: integrity.valid ? 'pass' : 'fail',
-        storageMode: (metrics as any).storageMode || (process.env.DATABASE_URL ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
+        storageMode: metrics.storageMode || (process.env.DATABASE_URL ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
         integrityErrors: integrity.errors
       },
       ai: {
@@ -297,7 +328,7 @@ app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
     const validated = RegisterSchema.parse(req.body);
     const result = await registerUserAsync(validated.email, validated.password, validated.fullName);
     
-    repository.logAudit({
+    await repository.logAudit({
       userId: result.user.id,
       action: 'USER_REGISTERED',
       resource: 'auth',
@@ -319,7 +350,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
     // Session rotation: pass current session token if client had one (e.g. from guest session)
     const result = await loginUserAsync(validated.email, validated.password, req.sessionToken);
 
-    repository.logAudit({
+    await repository.logAudit({
       userId: result.user.id,
       action: 'USER_LOGIN',
       resource: 'auth',
@@ -335,13 +366,13 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
   }
 });
 
-app.post('/api/auth/logout', requireAuth, (req, res) => {
+app.post('/api/auth/logout', requireAuth, async (req, res) => {
   const token = req.sessionToken;
   if (token) {
-    revokeSession(token);
+    await revokeSessionAsync(token);
   }
   clearSessionCookie(res);
-  repository.logAudit({
+  await repository.logAudit({
     userId: req.user!.id,
     action: 'USER_LOGOUT',
     resource: 'auth',
@@ -352,20 +383,24 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 });
 
 // Auto-provision isolated guest session for first-time visitors
-app.post('/api/auth/guest', guestRateLimiter, (req, res) => {
-  const result = createGuestSession();
-  setSessionCookie(res, result.token);
-  res.setHeader('x-session-token', result.token);
-  res.json(result);
+app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
+  try {
+    const result = await createGuestSessionAsync();
+    setSessionCookie(res, result.token);
+    res.setHeader('x-session-token', result.token);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Request Password Reset
-app.post('/api/auth/forgot-password', loginRateLimiter, (req, res, next) => {
+app.post('/api/auth/forgot-password', loginRateLimiter, async (req, res, next) => {
   try {
     const validated = ForgotPasswordSchema.parse(req.body);
-    const result = requestPasswordReset(validated.email);
+    const result = await requestPasswordResetAsync(validated.email);
 
-    repository.logAudit({
+    await repository.logAudit({
       userId: 'system',
       action: 'PASSWORD_RESET_REQUESTED',
       resource: 'auth',
@@ -500,10 +535,11 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
       if (req.user!.role === 'GUEST') {
         const existingProfiles = await repo.getProfiles(userId);
         if (existingProfiles.length >= 2) {
-          const quotaErr = new Error('Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.');
-          (quotaErr as any).code = 'GUEST_QUOTA_EXCEEDED';
-          (quotaErr as any).statusCode = 403;
-          throw quotaErr;
+          throw new AppError(
+            'Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.',
+            'GUEST_QUOTA_EXCEEDED',
+            403
+          );
         }
       }
 
@@ -708,10 +744,11 @@ app.post(['/api/events', '/api/backtests/event'], requireAuth, async (req, res, 
       if (req.user!.role === 'GUEST') {
         const existingEvents = await repo.getHistoricalEvents(validated.profileId);
         if (existingEvents.length >= 5) {
-          const quotaErr = new Error('Phiên khách tạm thời giới hạn tối đa 5 sự kiện đối chiếu. Vui lòng đăng ký tài khoản chính thức miễn phí để lưu trữ toàn bộ lịch sử.');
-          (quotaErr as any).code = 'GUEST_EVENT_QUOTA_EXCEEDED';
-          (quotaErr as any).statusCode = 403;
-          throw quotaErr;
+          throw new AppError(
+            'Phiên khách tạm thời giới hạn tối đa 5 sự kiện đối chiếu. Vui lòng đăng ký tài khoản chính thức miễn phí để lưu trữ toàn bộ lịch sử.',
+            'GUEST_EVENT_QUOTA_EXCEEDED',
+            403
+          );
         }
       }
 
@@ -1350,7 +1387,10 @@ app.post('/api/patrons', (req: Request, res: Response) => {
   }
 
   const rawName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : name.trim();
-  const safeTier = ['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh'].includes(tier) ? tier : 'tam_tinh';
+  const validTiers: ReadonlyArray<PatronRecord['tier']> = ['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh'];
+  const safeTier: PatronRecord['tier'] = validTiers.includes(tier as PatronRecord['tier'])
+    ? (tier as PatronRecord['tier'])
+    : 'tam_tinh';
   const cleanAmount = typeof amount === 'number' && amount > 0 ? amount : undefined;
 
   const hashSeed = `${rawName}_${Date.now()}_${Math.random()}`;
@@ -1364,7 +1404,7 @@ app.post('/api/patrons', (req: Request, res: Response) => {
   const newPatron: PatronRecord = {
     id: `ptr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     name: rawName,
-    tier: safeTier as any,
+    tier: safeTier,
     amount: cleanAmount,
     message: message && typeof message === 'string' ? message.trim() : 'Gieo duyên công đức trợ lực nền tảng',
     sealHash,
@@ -1423,6 +1463,33 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // 13. VITE MIDDLEWARE & STATIC ASSETS
 // ----------------------------------------------------
 async function startServer() {
+  // Ensure database repository is initialized
+  if (repository.ensureInitialized) {
+    await repository.ensureInitialized();
+  }
+
+  // Dynamic Bootstrap Admin account if ADMIN_EMAIL & ADMIN_PASSWORD are provided
+  await bootstrapAdminIfConfiguredAsync();
+
+  // Initial cleanup of expired sessions on startup
+  try {
+    await repository.cleanupExpiredSessions();
+  } catch (err) {
+    console.error('[Session Cleanup Startup Error]', err);
+  }
+
+  // Periodic expired session & abandoned guest purge (every 15 minutes)
+  let cleanupInterval: NodeJS.Timeout | null = null;
+  if (process.env.DISABLE_BACKGROUND_CLEANUP !== 'true') {
+    cleanupInterval = setInterval(async () => {
+      try {
+        await repository.cleanupExpiredSessions();
+      } catch (err) {
+        console.error('[Session Cleanup Error]', err);
+      }
+    }, 15 * 60 * 1000);
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -1443,12 +1510,36 @@ async function startServer() {
   });
 
   // Graceful shutdown handling (SIGTERM & SIGINT)
+  let isShuttingDown = false;
   const shutdown = () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     console.log('🛑 [Shutdown] Received termination signal. Closing server cleanly...');
-    server.close(() => {
-      console.log('✅ [Shutdown] HTTP connections closed. Process terminating cleanly.');
+
+    if (cleanupInterval) {
+      clearInterval(cleanupInterval);
+      cleanupInterval = null;
+    }
+
+    server.close(async () => {
+      console.log('✅ [Shutdown] HTTP connections closed.');
+      if (repository.close) {
+        try {
+          await repository.close();
+          console.log('✅ [Shutdown] Repository resources flushed and released.');
+        } catch (closeErr) {
+          console.error('⚠️ [Shutdown] Error closing repository:', closeErr);
+        }
+      }
+      console.log('✅ [Shutdown] Process terminating cleanly.');
       process.exit(0);
     });
+
+    // Force exit after 10 seconds if graceful shutdown hangs
+    setTimeout(() => {
+      console.error('⚠️ [Shutdown] Graceful shutdown timed out after 10s. Forcing exit.');
+      process.exit(1);
+    }, 10000).unref();
   };
 
   process.on('SIGTERM', shutdown);

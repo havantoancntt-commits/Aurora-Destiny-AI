@@ -97,9 +97,45 @@ export interface IDatabaseRepository {
   verifyDatabaseIntegrity(): Promise<{ valid: boolean; errors: string[]; checksum: string }>;
   exportToPostgresSql(): Promise<string>;
   ensureInitialized?(): Promise<void>;
+  close?(): Promise<void>;
 
   // Observability & Stats
-  getMetrics(): Promise<any>;
+  getMetrics(): Promise<DatabaseMetrics>;
+}
+
+export interface DatabaseMetrics {
+  storageMode?: string;
+  activeUsers24h: number;
+  totalUsers: number;
+  totalProfiles: number;
+  totalProfilesStored?: number;
+  totalCalculations: number;
+  totalEvents: number;
+  totalActiveSessions: number;
+  totalAuditLogs: number;
+  aiRequestsCount?: number;
+  aiLatencyAvgMs?: number;
+  aiLatencyP50Ms?: number;
+  aiLatencyP95Ms?: number;
+  aiLatencyP99Ms?: number;
+  aiSuccessRate?: number;
+  aiMetricStatus?: string;
+  calculationDeterministicRate?: number;
+  calcLatencyP50Ms?: number;
+  calcLatencyP95Ms?: number;
+  calcLatencyP99Ms?: number;
+  calculationMetricStatus?: string;
+  dbLatencyMs?: number;
+  dbLatencyP50Ms?: number;
+  dbLatencyP95Ms?: number;
+  dbLatencyP99Ms?: number;
+  dbMetricStatus?: string;
+  cacheHitRatio?: number;
+  cacheMetricStatus?: string;
+  totalBacktestRuns?: number;
+  totalScenariosEvaluated?: number;
+  uptimeSeconds?: number;
+  [key: string]: unknown;
 }
 
 export type IAsyncDatabaseRepository = IDatabaseRepository;
@@ -1266,6 +1302,15 @@ CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
   }
 
   async ensureInitialized(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  async close(): Promise<void> {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+    this.persistSync();
     return Promise.resolve();
   }
 }
