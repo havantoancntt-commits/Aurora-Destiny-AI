@@ -382,16 +382,20 @@ export function evaluateCurrentDecade(chart: ZiWeiChart, birthData: BirthData) {
 }
 
 // 7. Lưu Niên năm nay
-export function evaluateCurrentYearTransit(chart: ZiWeiChart, birthYearStem: HeavenlyStem, birthYearBranch: EarthlyBranch) {
-  const currentYear = new Date().getFullYear();
-  // Can Chi 2026: Bính Ngọ
-  // Formula: year stem & branch
-  const stemIdx = (currentYear - 4) % 10;
-  const branchIdx = (currentYear - 4) % 12;
+export function evaluateCurrentYearTransit(
+  chart: ZiWeiChart,
+  birthYearStem: HeavenlyStem,
+  birthYearBranch: EarthlyBranch,
+  targetYear?: number
+) {
+  const currentYear = targetYear || new Date().getFullYear();
+  // Formula: year stem & branch (modulo arithmetic handling negative years)
+  const stemIdx = ((currentYear - 4) % 10 + 10) % 10;
+  const branchIdx = ((currentYear - 4) % 12 + 12) % 12;
   const currentStem = ['Jia', 'Yi', 'Bing', 'Ding', 'Wu', 'Ji', 'Geng', 'Xin', 'Ren', 'Gui'][stemIdx] as HeavenlyStem;
   const currentBranch = ['Zi', 'Chou', 'Yin_B', 'Mao', 'Chen', 'Si', 'Wu_B', 'Wei', 'Shen', 'You', 'Xu', 'Hai'][branchIdx] as EarthlyBranch;
 
-  // Cung vị trên tinh bàn trùng với chi của năm nay (Ngọ)
+  // Cung vị trên tinh bàn trùng với chi của năm phân tích
   const targetPalaceEntry = Object.entries(chart.palaces).find(([_, p]) => p.branch === currentBranch);
   const targetPalace = targetPalaceEntry ? targetPalaceEntry[1] : chart.palaces.life;
   const targetPalaceKey = (targetPalaceEntry ? targetPalaceEntry[0] : 'life') as PalaceKey;
@@ -414,7 +418,8 @@ export function generateAuthenticZiWeiReport(
   chart: ZiWeiChart,
   birthData: BirthData,
   yearStem: HeavenlyStem,
-  yearBranch: EarthlyBranch
+  yearBranch: EarthlyBranch,
+  analysisYear?: number
 ): AuthenticZiWeiReport {
   const gender = birthData.gender === 'Female' ? 'Female' : 'Male';
   const yinYangGenderHarmony = evaluateYinYangGender(yearStem, gender);
@@ -424,7 +429,7 @@ export function generateAuthenticZiWeiReport(
   const thaiTueCircleAnalysis = evaluateThaiTueGroup(chart.palaces.life?.thaiTueStar);
   const lifeAndSanFang = evaluateLifePalaceAndSanFang(chart);
   const currentDecade = evaluateCurrentDecade(chart, birthData);
-  const currentYearTransit = evaluateCurrentYearTransit(chart, yearStem, yearBranch);
+  const currentYearTransit = evaluateCurrentYearTransit(chart, yearStem, yearBranch, analysisYear);
 
   const strategicEmpowerment = [
     `Tận dụng thế mạnh tinh hoa của bộ sao Cung Mệnh [${chart.palaces.life?.majorStars.map(s => s.nameVi).join(', ') || 'Đặc tính uyển chuyển của Mệnh Vô Chính Diệu'}] để tạo dấu ấn chuyên môn riêng biệt.`,

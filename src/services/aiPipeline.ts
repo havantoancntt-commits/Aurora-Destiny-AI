@@ -12,6 +12,7 @@ import { CalculationResult, BirthData, BehavioralContext } from '../types/destin
 import { UserProfile } from '../types/user';
 import { BacktestResult } from '../types/backtest';
 import { STEMS, BRANCHES, ELEMENT_RELATIONS } from '../engine/canchi';
+import { getDefaultAnalysisYear } from '../engine/canonicalInput';
 import { generateDestinyChatResponse } from './geminiService';
 
 export interface InternalQualityScore {
@@ -145,7 +146,7 @@ export class DestinyAiPipeline {
     // -------------------------------------------------------------
     const s3Start = Date.now();
     const { bazi, ziwei, annualTransits } = request.calculation;
-    const targetYear = request.analysisYear || request.calculation.analysisYear || 2026;
+    const targetYear = request.analysisYear || request.calculation.analysisYear || getDefaultAnalysisYear(request.profile?.birthData?.timezoneOffset);
     const currentTransit = annualTransits.find(t => t.year === targetYear) || annualTransits[0];
 
     const extractedFacts: PipelineEvidenceFact[] = [

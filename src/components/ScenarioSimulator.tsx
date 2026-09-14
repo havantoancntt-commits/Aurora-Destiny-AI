@@ -97,7 +97,7 @@ export const ScenarioSimulator: React.FC<Props> = ({ calculation, language }) =>
         >
           <input
             type="text"
-            placeholder="Nhập câu hỏi ngã rẽ bạn đang cân nhắc (VD: Tôi có nên mở rộng công ty năm 2026?)..."
+            placeholder={`Nhập câu hỏi ngã rẽ bạn đang cân nhắc (VD: Tôi có nên mở rộng công ty năm ${new Date().getFullYear()}?)...`}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             className="flex-1 px-4 py-3 rounded-2xl bg-black/50 border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-teal-400 transition-all placeholder:text-slate-500"

@@ -109,7 +109,7 @@ export function runFullDestinyCalculation(
 
   // 5. EXECUTE CORE DETERMINISTIC ASTROLOGICAL ALGORITHMS
   const bazi = calculateBaZiChart(effectiveBirthData);
-  const ziwei = calculateZiWeiChart(effectiveBirthData);
+  const ziwei = calculateZiWeiChart(effectiveBirthData, { analysisYear: canonicalInput.analysisYear });
   const decades = calculateDecadeCycles(effectiveBirthData);
   const annualTransits = calculateAnnualTransits(
     effectiveBirthData,

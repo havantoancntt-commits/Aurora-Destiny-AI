@@ -140,7 +140,7 @@ function getTuanBranches(yearStemIdx: number, yearBranchIdx: number): [EarthlyBr
   }
 }
 
-export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
+export function calculateZiWeiChart(birthData: BirthData, options?: { analysisYear?: number }): ZiWeiChart {
   const yearConvention = birthData.ziweiYearConvention || 'solarLapXuan';
   const leapMonthConvention = birthData.ziweiLeapMonthConvention || 'midMonthSplit';
 
@@ -667,7 +667,8 @@ export function calculateZiWeiChart(birthData: BirthData): ZiWeiChart {
     baseChart,
     birthData,
     yearStem,
-    yearBranch
+    yearBranch,
+    options?.analysisYear
   );
 
   return {

@@ -9,7 +9,22 @@ import { resolveEffectiveBirthTime } from './temporalCorrection';
 export const CALCULATION_ENGINE_VERSION = 'calc_v2.5.0';
 export const ASTROLOGY_RULES_VERSION = 'astrorules_v2.0.0';
 export const ANALYSIS_MODEL_VERSION = 'aurora_ensemble_v3.5';
-export const DEFAULT_CANONICAL_ANALYSIS_YEAR = 2026;
+
+/**
+ * Returns the current calendar year adjusted for timezone offset, avoiding hardcoded years.
+ */
+export function getDefaultAnalysisYear(timezoneOffset: number = 7): number {
+  try {
+    const now = new Date();
+    const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+    const targetTime = new Date(utcTime + timezoneOffset * 3600000);
+    return targetTime.getFullYear();
+  } catch {
+    return new Date().getFullYear();
+  }
+}
+
+export const DEFAULT_CANONICAL_ANALYSIS_YEAR = getDefaultAnalysisYear();
 
 export interface DestinyCalculationOptions {
   analysisYear?: number;
@@ -79,7 +94,7 @@ export function normalizeToCanonicalInput(
   const analysisYear: number =
     typeof options?.analysisYear === 'number' && options.analysisYear >= 1900 && options.analysisYear <= 2100
       ? options.analysisYear
-      : DEFAULT_CANONICAL_ANALYSIS_YEAR;
+      : getDefaultAnalysisYear(birthData.timezoneOffset);
 
   const rulesVersion = options?.astrologyRulesVersion || ASTROLOGY_RULES_VERSION;
   const conventionVersion = options?.conventionVersion || `${ziweiYearConvention}_${ziweiLeapMonthConvention}_${timeConvention}_${isLateRat ? 'lateRat' : 'standard'}`;

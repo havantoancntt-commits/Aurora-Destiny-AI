@@ -46,7 +46,7 @@ export const SeoKnowledgeModal: React.FC<Props> = ({
   const isVi = language === 'vi';
   const canonicalUrl = 'https://auroradestiny.ai/';
 
-  const citationText = `Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo. (2024-2026). "Aurora Destiny AI — Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý Tử Vi 108 Tinh Bàn Chuẩn Xác". Truy cập tại: https://auroradestiny.ai/`;
+  const citationText = `Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo. (2024-${new Date().getFullYear()}). "Aurora Destiny AI — Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý Tử Vi 108 Tinh Bàn Chuẩn Xác". Truy cập tại: https://auroradestiny.ai/`;
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(canonicalUrl).then(() => {

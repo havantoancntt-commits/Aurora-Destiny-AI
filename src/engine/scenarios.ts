@@ -4,17 +4,27 @@
 
 import { ScenarioAnalysisResult, ScenarioOption } from '../types/ai';
 import { CalculationResult } from '../types/destiny';
+import { getDefaultAnalysisYear } from './canonicalInput';
+import { STEMS, BRANCHES } from './canchi';
 
 export function evaluateWhatIfScenario(
   question: string,
-  calculation: CalculationResult
+  calculation: CalculationResult,
+  targetYear?: number
 ): ScenarioAnalysisResult {
-  const currentYear = new Date().getFullYear();
+  const currentYear = targetYear || calculation?.analysisYear || getDefaultAnalysisYear(calculation?.canonicalInput?.timezoneOffset || 7);
+  const stemIdx = ((currentYear - 4) % 10 + 10) % 10;
+  const branchIdx = ((currentYear - 4) % 12 + 12) % 12;
+  const STEM_KEYS = ['Jia', 'Yi', 'Bing', 'Ding', 'Wu', 'Ji', 'Geng', 'Xin', 'Ren', 'Gui'] as const;
+  const BRANCH_KEYS = ['Zi', 'Chou', 'Yin_B', 'Mao', 'Chen', 'Si', 'Wu_B', 'Wei', 'Shen', 'You', 'Xu', 'Hai'] as const;
+  const fallbackStem = STEM_KEYS[stemIdx];
+  const fallbackBranch = BRANCH_KEYS[branchIdx];
+
   const currentTransit = calculation?.annualTransits?.find((t) => t.year === currentYear) || calculation?.annualTransits?.[0] || {
     year: currentYear,
-    stem: 'Bing',
-    branch: 'Wu_B',
-    element: 'Fire',
+    stem: fallbackStem,
+    branch: fallbackBranch,
+    element: STEMS[fallbackStem]?.element || 'Fire',
     tenGod: 'Chính Quan',
     overallScore: 70,
     careerScore: 70,

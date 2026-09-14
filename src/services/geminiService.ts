@@ -9,6 +9,7 @@ import { CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { BacktestResult } from '../types/backtest';
 import { STEMS, BRANCHES } from '../engine/canchi';
+import { getDefaultAnalysisYear } from '../engine/canonicalInput';
 import { telemetry } from '../telemetry/telemetryService';
 
 let geminiClient: GoogleGenAI | null = null;
@@ -161,7 +162,7 @@ export async function generateDestinyChatResponse(
     `Đại Vận Hiện Tại: ${calc.ziwei.currentDecade?.evaluation || ''}. ` +
     `Lưu Niên Tác Động: ${calc.ziwei.currentYearTransit?.summary || ''}`;
 
-  const analysisYear = options?.analysisYear || calc.analysisYear || 2026;
+  const analysisYear = options?.analysisYear || calc.analysisYear || getDefaultAnalysisYear(calc.canonicalInput?.timezoneOffset || 7);
   const currentTransit = calc.annualTransits.find(t => t.year === analysisYear) || calc.annualTransits[0];
   const transitDetails = currentTransit ? `Lưu Niên Đang Phân Tích (${analysisYear} - ${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): ` +
     `Sóng Cơ Hội: ${currentTransit.opportunityWave}%, Sóng Thận Trọng: ${currentTransit.cautionWave}%, Điểm tổng thể: ${currentTransit.overallScore}/100. ` +

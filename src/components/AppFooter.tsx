@@ -314,7 +314,7 @@ export const AppFooter: React.FC<Props> = ({
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <div className="text-center md:text-left leading-relaxed">
             <p>
-              Bản quyền © 2024–2026 <span className="text-white font-medium">Aurora Destiny AI</span> • Kênh <strong className="text-amber-300/90 font-medium">Huyền Phong Phật Đạo</strong> • <strong className="text-white font-medium">Giáo Sư - Prof.TOAN</strong>.
+              Bản quyền © 2024–{new Date().getFullYear()} <span className="text-white font-medium">Aurora Destiny AI</span> • Kênh <strong className="text-amber-300/90 font-medium">Huyền Phong Phật Đạo</strong> • <strong className="text-white font-medium">Giáo Sư - Prof.TOAN</strong>.
             </p>
           </div>
 

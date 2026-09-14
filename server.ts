@@ -47,6 +47,7 @@ import {
 } from './src/schemas/validationSchemas';
 
 import { runFullDestinyCalculation, CALCULATION_ENGINE_VERSION, ASTROLOGY_RULES_VERSION, ANALYSIS_MODEL_VERSION } from './src/engine/destinyEngine';
+import { getDefaultAnalysisYear } from './src/engine/canonicalInput';
 import { runBacktestAnalysis } from './src/engine/backtesting';
 import { evaluateWhatIfScenario } from './src/engine/scenarios';
 import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/aiSynthesizer';
@@ -847,7 +848,7 @@ app.post('/api/scenarios/evaluate', requireAuth, scenarioRateLimiter, async (req
       await repository.saveCalculation(calc);
     }
 
-    const result = evaluateWhatIfScenario(validated.question, calc);
+    const result = evaluateWhatIfScenario(validated.question, calc, validated.analysisYear);
     telemetry.recordScenarioRun();
     res.json(result);
   } catch (err) {
@@ -903,7 +904,7 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
     };
     await repository.addChatMessage(validated.profileId, userMsg);
 
-    const targetYear = validated.analysisYear || calc.analysisYear || 2026;
+    const targetYear = validated.analysisYear || calc.analysisYear || getDefaultAnalysisYear(profile.birthData.timezoneOffset);
 
     // Call resilient Gemini service with explicit analysisYear
     const { content, confidenceScore } = await generateDestinyChatResponse(
@@ -996,7 +997,8 @@ app.post('/api/ai/pipeline', requireAuth, aiChatRateLimiter, async (req, res, ne
       userQuestion: validated.message,
       profile,
       calculation: calc,
-      backtest: bt
+      backtest: bt,
+      analysisYear: validated.analysisYear
     });
 
     res.json(pipelineResult);
