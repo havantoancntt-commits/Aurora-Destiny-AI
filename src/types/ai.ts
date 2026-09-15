@@ -103,6 +103,8 @@ export interface ChatMessage {
   timestamp: string;
   agentRef?: string;
   confidenceScore?: number;
+  aiStatus?: 'AI_SUCCESS' | 'AI_FALLBACK' | 'AI_DEGRADED' | 'AI_UNAVAILABLE';
+  isFallback?: boolean;
   suggestedQuestions?: string[];
   groundedFacts?: string[];
 }

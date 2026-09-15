@@ -97,18 +97,36 @@ app.set('trust proxy', trustProxySetting);
 // Security: parse JSON with strict size limit
 app.use(express.json({ limit: '2mb' }));
 
-// Lightweight native cookie parser (no third-party dependency needed)
+// Robust native cookie parser with defensive validation & malformed URI handling
 app.use((req: Request, res: Response, next: NextFunction) => {
   req.cookies = {};
   if (req.headers.cookie) {
-    req.headers.cookie.split(';').forEach(cookieStr => {
-      const parts = cookieStr.split('=');
-      if (parts.length >= 2) {
-        const key = parts[0].trim();
-        const val = decodeURIComponent(parts.slice(1).join('=').trim());
-        req.cookies![key] = val;
+    // Defense against oversized Cookie header (max 8KB)
+    if (req.headers.cookie.length > 8192) {
+      return next();
+    }
+    const cookiePairs = req.headers.cookie.split(';');
+    for (const cookieStr of cookiePairs) {
+      const equalIndex = cookieStr.indexOf('=');
+      if (equalIndex > 0) {
+        const rawKey = cookieStr.slice(0, equalIndex).trim();
+        const rawVal = cookieStr.slice(equalIndex + 1).trim();
+        // Prevent prototype pollution or malicious property injection
+        if (rawKey && rawKey !== '__proto__' && rawKey !== 'constructor' && rawKey !== 'prototype') {
+          try {
+            // First cookie occurrence takes precedence if duplicates exist
+            if (req.cookies[rawKey] === undefined) {
+              req.cookies[rawKey] = decodeURIComponent(rawVal);
+            }
+          } catch {
+            // Safe fallback if decodeURIComponent throws on malformed percent encoding
+            if (req.cookies[rawKey] === undefined) {
+              req.cookies[rawKey] = rawVal;
+            }
+          }
+        }
       }
-    });
+    }
   }
   next();
 });
@@ -193,8 +211,11 @@ function setSessionCookie(res: Response, token: string): void {
 }
 
 function clearSessionCookie(res: Response): void {
+  const isProd = process.env.NODE_ENV === 'production';
   res.clearCookie('aurora_session', {
     httpOnly: true,
+    secure: isProd,
+    sameSite: 'lax',
     path: '/'
   });
 }
@@ -907,13 +928,20 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
     const targetYear = validated.analysisYear || calc.analysisYear || getDefaultAnalysisYear(profile.birthData.timezoneOffset);
 
     // Call resilient Gemini service with explicit analysisYear
-    const { content, confidenceScore } = await generateDestinyChatResponse(
+    const { content, confidenceScore, isFallback } = await generateDestinyChatResponse(
       validated.message,
       profile,
       calc,
       bt,
       { analysisYear: targetYear }
     );
+
+    const hasApiKey = Boolean(process.env.GEMINI_API_KEY);
+    const aiStatus: 'AI_SUCCESS' | 'AI_FALLBACK' | 'AI_DEGRADED' | 'AI_UNAVAILABLE' = !hasApiKey
+      ? 'AI_UNAVAILABLE'
+      : isFallback
+        ? 'AI_FALLBACK'
+        : 'AI_SUCCESS';
 
     const currentTransit = calc.annualTransits.find(t => t.year === targetYear) || calc.annualTransits[0];
 
@@ -923,6 +951,8 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
       content,
       timestamp: new Date().toISOString(),
       confidenceScore,
+      aiStatus,
+      isFallback,
       suggestedQuestions: [
         `Giai đoạn nào trong năm ${targetYear} có sóng năng lượng thuận lợi nhất?`,
         `Làm thế nào để ứng dụng Dụng Thần ${calc.bazi.favorableElements.join('/')} vào quản trị tài chính?`,

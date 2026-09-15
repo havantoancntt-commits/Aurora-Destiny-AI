@@ -147,6 +147,9 @@ let activeStore: IRateLimitStore;
 if (process.env.REDIS_URL) {
   activeStore = new RedisRateLimitStore(process.env.REDIS_URL);
 } else {
+  if (process.env.NODE_ENV === 'production' && process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true') {
+    throw new Error('FATAL: REDIS_URL is strictly required in production when REDIS_REQUIRED_IN_PRODUCTION=true.');
+  }
   activeStore = new MemoryRateLimitStore();
 }
 

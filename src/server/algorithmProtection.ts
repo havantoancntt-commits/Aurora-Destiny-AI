@@ -35,9 +35,10 @@ interface SweepTrackRecord {
 }
 
 const sweepTracker = new Map<string, SweepTrackRecord>();
+const MAX_SWEEP_TRACKERS = 10000;
 
 // Clean up sweep tracking memory every 5 minutes
-setInterval(() => {
+const sweepCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, record] of sweepTracker.entries()) {
     record.submissions = record.submissions.filter(s => now - s.timestamp < 10 * 60 * 1000);
@@ -46,6 +47,9 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+if (sweepCleanupInterval.unref) {
+  sweepCleanupInterval.unref();
+}
 
 /**
  * Generate a tamper-evident cryptographic HMAC-SHA256 signature for a calculation.
@@ -153,6 +157,10 @@ export function antiScrapingSweeperMiddleware(req: Request, res: Response, next:
   const now = Date.now();
   let track = sweepTracker.get(clientKey);
   if (!track) {
+    if (sweepTracker.size >= MAX_SWEEP_TRACKERS) {
+      const oldest = sweepTracker.keys().next().value;
+      if (oldest) sweepTracker.delete(oldest);
+    }
     track = { submissions: [], penaltyActive: false, penaltyUntil: 0 };
     sweepTracker.set(clientKey, track);
   }
