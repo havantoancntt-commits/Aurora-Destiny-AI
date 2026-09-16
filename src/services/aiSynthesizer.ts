@@ -30,6 +30,9 @@ export function generateMultiAgentEnsemble(
   const currentTransit = calculation.annualTransits.find(t => t.year === targetYear) || calculation.annualTransits[0];
 
   const overallConsistencyScore = Math.round((confidence.consistencyScore * 0.6) + (backtestScore * 0.4));
+  const baseCalcConfidence = calculation.confidence?.calculationIntegrity || 85;
+  const inputQuality = calculation.confidence?.inputQuality || 80;
+  const modelAgreement = calculation.confidence?.modelAgreement || 75;
 
   // Extract real star and pillar details
   const lifeMajorStars = ziwei.palaces.life?.majorStars || [];
@@ -49,11 +52,19 @@ export function generateMultiAgentEnsemble(
 
   const bodyPalaceName = ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc';
 
+  // Dynamically compute domain-specific confidence scores grounded in calculation metrics
+  const baziConfidence = Math.min(99, Math.round(baseCalcConfidence * 0.5 + inputQuality * 0.3 + modelAgreement * 0.2));
+  const ziweiConfidence = Math.min(99, Math.round(baseCalcConfidence * 0.4 + inputQuality * 0.4 + modelAgreement * 0.2));
+  const temporalConfidence = Math.min(99, Math.round(baziConfidence * 0.6 + (confidence.consistencyScore || 80) * 0.4));
+  const behavioralConfidence = Math.min(99, Math.round(inputQuality * 0.6 + overallConsistencyScore * 0.4));
+  const statisticalConfidence = Math.min(99, Math.round(overallConsistencyScore * 0.7 + (confidence.validationScore || 85) * 0.3));
+  const riskConfidence = Math.min(99, Math.max(50, 100 - (confidence.uncertaintyIndex || 15)));
+
   // Agent 1: Traditional Astrology Analyst
   const traditionalAstrologyAgent = {
     agentName: 'Agent 1 — Traditional Astrology Analyst',
     agentRole: 'Ngũ Hành & Âm Dương Cân Bằng Học',
-    confidenceScore: 96,
+    confidenceScore: baziConfidence,
     keyFindings: [
       `Cân bằng Ngũ Hành Tứ Trụ: Kim (${bazi.elementBalance.Metal}%), Mộc (${bazi.elementBalance.Wood}%), Thủy (${bazi.elementBalance.Water}%), Hỏa (${bazi.elementBalance.Fire}%), Thổ (${bazi.elementBalance.Earth}%).`,
       `Bản mệnh Nạp Âm: ${bazi.yearPillar.naYin} (Năm ${STEMS[bazi.yearPillar.stem].nameVi} ${BRANCHES[bazi.yearPillar.branch].nameVi}). Thể trạng Nhật Chủ: ${bazi.dayMasterStrength} (${dm.nameVi} ${ELEMENT_RELATIONS[dmEl]?.vi || dmEl}).`,
@@ -72,7 +83,7 @@ export function generateMultiAgentEnsemble(
   const baziAnalystAgent = {
     agentName: 'Agent 2 — BaZi Four Pillars Specialist',
     agentRole: 'Bát Tự & Thập Thần Cấu Trúc Học',
-    confidenceScore: 95,
+    confidenceScore: baziConfidence,
     keyFindings: [
       `Tứ Trụ Mệnh Bàn: Năm [${STEMS[bazi.yearPillar.stem].nameVi} ${BRANCHES[bazi.yearPillar.branch].nameVi} - ${bazi.yearPillar.tenGod}], Tháng [${STEMS[bazi.monthPillar.stem].nameVi} ${BRANCHES[bazi.monthPillar.branch].nameVi} - ${bazi.monthPillar.tenGod}], Ngày [${STEMS[bazi.dayPillar.stem].nameVi} ${BRANCHES[bazi.dayPillar.branch].nameVi} - Nhật Chủ], Giờ [${STEMS[bazi.hourPillar.stem].nameVi} ${BRANCHES[bazi.hourPillar.branch].nameVi} - ${bazi.hourPillar.tenGod}].`,
       `Cách Cục chuẩn xác: ${bazi.structureType}. Nhật Chủ ${dm.nameVi} đạt trạng thái ${bazi.dayMasterStrength}.`,
@@ -91,7 +102,7 @@ export function generateMultiAgentEnsemble(
   const ziweiAnalystAgent = {
     agentName: 'Agent 3 — Zi Wei Dou Shu Palace Master',
     agentRole: 'Tử Vi Đẩu Số & Tứ Hóa Tinh Tú Học',
-    confidenceScore: 96,
+    confidenceScore: ziweiConfidence,
     keyFindings: [
       `Cung Mệnh tại ${ziwei.palaces.life.branch} (${ziwei.palaces.life.stem}) tọa thủ: ${lifeStarStr} (Vòng Tràng Sinh: ${ziwei.palaces.life?.trangSinhStar || ''}, Vòng Thái Tuế: ${ziwei.palaces.life?.thaiTueStar || ''}).`,
       `Bản Thể: ${ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). Cục Số: ${ziwei.elementBureau} (${ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} - ${ziwei.elementDestinyBureauHarmony?.quality || 'Bình Hòa'}).`,
@@ -114,7 +125,7 @@ export function generateMultiAgentEnsemble(
   const temporalPatternAgent = {
     agentName: 'Agent 4 — Temporal Pattern Analyst',
     agentRole: 'Chu Kỳ Vận Trình & Lưu Niên Thời Điểm',
-    confidenceScore: 92,
+    confidenceScore: temporalConfidence,
     keyFindings: [
       `Lưu Niên Năm ${targetYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi} - ${currentTransit.tenGod}): Chỉ số tổng thể ${currentTransit.overallScore}/100.`,
       `Sóng Cơ Hội: ${currentTransit.opportunityWave}%, Sóng Thận Trọng: ${currentTransit.cautionWave}%.`,
@@ -133,7 +144,7 @@ export function generateMultiAgentEnsemble(
   const behavioralContextAgent = {
     agentName: 'Agent 5 — Behavioral Context Analyst',
     agentRole: 'Tích Hợp Ngữ Cảnh Hành Vi & Mục Tiêu Thực Tế',
-    confidenceScore: 93,
+    confidenceScore: behavioralConfidence,
     keyFindings: [
       `Mục tiêu hàng đầu của người dùng: "${profile.behavioralContext.topPriority || 'Mở rộng quy mô sự nghiệp'}" tương thích cao với thế mạnh của Cung Mệnh và Quan Lộc.`,
       `Lĩnh vực chuyên môn: ${profile.behavioralContext.careerField || 'Sáng tạo & Quản trị'} phát huy tối đa năng lực Dụng Thần ${favorableStr}.`,
@@ -152,7 +163,7 @@ export function generateMultiAgentEnsemble(
   const statisticalConsistencyAgent = {
     agentName: 'Agent 6 — Statistical Consistency Analyst',
     agentRole: 'Đo Lường Nhất Quán Thống Kê & Backtest Lịch Sử',
-    confidenceScore: 90,
+    confidenceScore: statisticalConfidence,
     keyFindings: [
       `Chỉ số Nhất Quán Bản Mệnh (Consistency Score): ${overallConsistencyScore}/100 (Backtest: ${backtestScore}/100).`,
       `Độ khớp giữa chu kỳ ngũ hành tính toán và các sự kiện lịch sử đạt mức tin cậy vững chắc.`,
@@ -171,7 +182,7 @@ export function generateMultiAgentEnsemble(
   const riskUncertaintyAgent = {
     agentName: 'Agent 7 — Risk & Uncertainty Analyst',
     agentRole: 'Quản Trị Rủi Ro & Ranh Giới Bất Định',
-    confidenceScore: 96,
+    confidenceScore: riskConfidence,
     keyFindings: [
       `Chỉ số Bất Định (Uncertainty Index): ${confidence.uncertaintyIndex}/100. Biên độ an toàn vận trình ổn định.`,
       `Điểm tựa rủi ro: Duy trì tỷ lệ đòn bẩy tài chính và nợ vay ở mức dưới 35% tổng tài sản.`,
@@ -193,7 +204,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'career' as const,
       score: ziwei.palaces.career?.score || 88,
       trend: (ziwei.palaces.career?.score || 88) >= 80 ? ('Rising' as const) : ('Stable' as const),
-      confidence: 94,
+      confidence: Math.round(ziweiConfidence * 0.6 + temporalConfidence * 0.4),
       supportingFactors: [
         `Cung Quan Lộc tọa thủ ${careerStarStr}`,
         `Cách cục ${bazi.structureType} bổ trợ năng lực điều hành`,
@@ -209,7 +220,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'finance' as const,
       score: ziwei.palaces.wealth?.score || 85,
       trend: 'Stable' as const,
-      confidence: 91,
+      confidence: Math.round(ziweiConfidence * 0.5 + baziConfidence * 0.5),
       supportingFactors: [
         `Cung Tài Bạch tọa thủ ${wealthStarStr}`,
         `Hành Dụng Thần (${favorableStr}) hỗ trợ dòng tiền lưu thông`,
@@ -225,7 +236,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'relationships' as const,
       score: ziwei.palaces.spouse?.score || 78,
       trend: 'Stable' as const,
-      confidence: 88,
+      confidence: Math.round(ziweiConfidence * 0.7 + behavioralConfidence * 0.3),
       supportingFactors: [
         `Cung Phu Thê tại ${ziwei.palaces.spouse?.branch} (${ziwei.palaces.spouse?.score}đ) duy trì sự hài hòa`,
         'Sự thấu hiểu và chia sẻ giá trị sống cốt lõi'
@@ -240,7 +251,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'family' as const,
       score: ziwei.palaces.parents?.score || 82,
       trend: 'Rising' as const,
-      confidence: 90,
+      confidence: Math.round(ziweiConfidence * 0.8 + inputQuality * 0.2),
       supportingFactors: [
         `Cung Phụ Mẫu (${ziwei.palaces.parents?.score}đ) vững vàng, nền tảng phúc ấm tổ tiên`,
         'Sự nâng đỡ từ hậu phương gia đình tin cậy'
@@ -254,7 +265,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'learning' as const,
       score: Math.min(96, (ziwei.palaces.life?.score || 85) + 6),
       trend: 'Rising' as const,
-      confidence: 95,
+      confidence: Math.round(baziConfidence * 0.5 + ziweiConfidence * 0.5),
       supportingFactors: [
         `Tư chất Nhật Chủ ${dm.nameVi} (${dm.element}) thông tuệ sắc sảo`,
         'Khả năng đúc kết mô hình và hấp thụ tri thức công nghệ mới cực nhanh'
@@ -268,7 +279,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'growth' as const,
       score: Math.min(95, (ziwei.palaces.life?.score || 85) + 4),
       trend: 'Rising' as const,
-      confidence: 93,
+      confidence: Math.round(ziweiConfidence * 0.6 + behavioralConfidence * 0.4),
       supportingFactors: [
         `Ý chí kiên định từ Cung Mệnh tọa ${lifeStarStr}`,
         'Ý thức phản chiếu bản thân và tự nâng cấp liên tục'
@@ -282,7 +293,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'opportunity' as const,
       score: currentTransit.opportunityWave,
       trend: currentTransit.opportunityWave >= 75 ? ('Rising' as const) : ('Stable' as const),
-      confidence: 92,
+      confidence: temporalConfidence,
       supportingFactors: [
         `Lưu Niên ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) tương tác tích cực`,
         `Thời điểm hội tụ: ${currentTransit.recommendedFocus}`
@@ -296,7 +307,7 @@ export function generateMultiAgentEnsemble(
       domainKey: 'risk' as const,
       score: Math.max(40, 100 - currentTransit.cautionWave),
       trend: 'Stable' as const,
-      confidence: 94,
+      confidence: riskConfidence,
       supportingFactors: [
         `Chỉ số Bất Định kiểm soát ở mức ${confidence.uncertaintyIndex}/100`,
         'Quy tắc dừng lỗ và quỹ dự phòng an toàn'
