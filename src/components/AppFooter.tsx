@@ -21,7 +21,6 @@ import {
   Binary,
   Heart,
   QrCode,
-  Search,
   Crown,
   Scale
 } from 'lucide-react';
@@ -330,17 +329,6 @@ export const AppFooter: React.FC<Props> = ({
                 <span>{isVi ? 'Thẻ Kim Giáp & Bia Vàng' : 'Talisman & Patrons'}</span>
               </button>
             )}
-            {onOpenSeoKnowledgeModal && (
-              <button
-                id="btn-footer-seo-center"
-                onClick={onOpenSeoKnowledgeModal}
-                className="text-amber-300 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-medium"
-                title="Khám phá Trung tâm Tối ưu SEO, Sơ đồ Web và JSON-LD"
-              >
-                <Search className="w-3.5 h-3.5 text-amber-400" />
-                <span>{isVi ? 'Tối Ưu SEO & Sơ Đồ Web' : 'SEO & Sitemaps'}</span>
-              </button>
-            )}
             {onOpenInternationalModal && (
               <button
                 id="btn-footer-international-settings"
@@ -376,14 +364,6 @@ export const AppFooter: React.FC<Props> = ({
                 className="text-slate-400 hover:text-white transition-colors cursor-pointer"
               >
                 {isVi ? 'Xuất Hồ Sơ PDF' : 'Export Dossier'}
-              </button>
-            )}
-            {onOpenAdminModal && (
-              <button
-                onClick={onOpenAdminModal}
-                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
-              >
-                {isVi ? 'Quản Trị & Kiểm Thử' : 'Audit'}
               </button>
             )}
           </div>

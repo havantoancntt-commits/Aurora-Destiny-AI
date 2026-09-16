@@ -157,6 +157,21 @@ export default function App() {
 
   useEffect(() => {
     loadInitialData();
+
+    // Check for ?admin URL parameter
+    if (typeof window !== 'undefined' && window.location.search.includes('admin=1')) {
+      setShowAdminModal(true);
+    }
+
+    // Keyboard shortcut (Ctrl+Alt+A or Cmd+Alt+A) for developer/audit access without cluttering the UI
+    const handleAdminShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setShowAdminModal((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleAdminShortcut);
+    return () => window.removeEventListener('keydown', handleAdminShortcut);
   }, []);
 
   // Handle Profile Switch
@@ -557,9 +572,7 @@ export default function App() {
         language={language}
         onOpenPrivacyCenter={() => setShowPrivacyModal(true)}
         onOpenReportModal={() => setShowReportModal(true)}
-        onOpenAdminModal={() => setShowAdminModal(true)}
         onOpenInternationalModal={() => setShowInternationalModal(true)}
-        onOpenSeoKnowledgeModal={() => setShowSeoModal(true)}
         onOpenTalismanModal={() => setShowTalismanModal(true)}
         onOpenLegalModal={() => setShowLegalModal(true)}
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}

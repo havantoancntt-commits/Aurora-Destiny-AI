@@ -480,17 +480,19 @@ export const Navbar: React.FC<Props> = ({
                       <span>Chính Sách Riêng Tư</span>
                     </button>
 
-                    {/* Admin */}
-                    <button
-                      onClick={() => {
-                        setShowMoreMenu(false);
-                        onOpenAdminModal();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-200 hover:bg-white/5 transition-colors text-left cursor-pointer"
-                    >
-                      <Activity className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>Quản Trị &amp; Kiểm Thử</span>
-                    </button>
+                    {/* Admin - Only visible in admin debug mode via ?admin URL parameter */}
+                    {typeof window !== 'undefined' && window.location.search.includes('admin') && (
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          onOpenAdminModal();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-slate-200 hover:bg-white/5 transition-colors text-left cursor-pointer"
+                      >
+                        <Activity className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span>Quản Trị &amp; Kiểm Thử</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
