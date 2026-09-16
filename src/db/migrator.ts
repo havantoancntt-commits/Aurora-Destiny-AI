@@ -34,7 +34,10 @@ export class DatabaseMigrator {
   }
 
   public getMigrationFiles(): MigrationFile[] {
-    const migrationsDir = path.join(process.cwd(), 'migrations');
+    let migrationsDir = path.join(process.cwd(), 'migrations');
+    if (!fs.existsSync(migrationsDir)) {
+      migrationsDir = path.join(process.cwd(), 'src', 'db', 'migrations');
+    }
     if (!fs.existsSync(migrationsDir)) {
       return [];
     }

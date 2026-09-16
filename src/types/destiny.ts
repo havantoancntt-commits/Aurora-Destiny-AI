@@ -292,7 +292,15 @@ export interface ConfidenceMetrics {
   resolutionLevel: 'High' | 'Medium' | 'Estimated';
   assumptions: string[];
   limitations: string[];
-  // Distinct multi-dimensional confidence layers (Audit Section IV)
+  // Distinct multi-dimensional confidence layers (Audit Section IV & Phase 7 Explicit Score Separation)
+  scoreType: 'DETERMINISTIC' | 'HEURISTIC' | 'RETROSPECTIVE_PATTERN_FIT';
+  calculationIntegrityScore: number; // 0 - 100: Astronomical and ephemeris calculation precision
+  dataCompletenessScore: number; // 0 - 100: Completeness and coordinate exactness of user input
+  ruleConsistencyScore: number; // 0 - 100: Internal mathematical and astronomical invariant checks
+  heuristicPatternScore: number; // 0 - 100: Metaphysical balance heuristic (Day Master, Season Commander)
+  historicalPatternFitScore: number | null; // NULL if no historical events provided
+  historicalPatternFitType: 'RETROSPECTIVE_PATTERN_FIT' | 'INSUFFICIENT_DATA';
+  aiResponseQualityScore?: number; // 0 - 100: Grounding and verification score
   calculationConfidence: number; // 0 - 100: Astronomical and ephemeris calculation precision
   calculationIntegrity?: number; // Architectural alias for calculation precision/invariants
   ruleValidationStatus?: 'PASSED' | 'WARNING' | 'FAILED'; // System invariant validation status

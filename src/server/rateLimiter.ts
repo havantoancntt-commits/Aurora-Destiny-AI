@@ -26,15 +26,18 @@ export interface IRateLimitStore {
 }
 
 export class MemoryRateLimitStore implements IRateLimitStore {
-  private store = new Map<string, { count: number; resetAt: number }>();
+  private store = new Map<string, number[]>();
   private cleanupInterval: NodeJS.Timeout;
 
   constructor() {
     this.cleanupInterval = setInterval(() => {
       const now = Date.now();
-      for (const [k, v] of this.store.entries()) {
-        if (now > v.resetAt) {
+      for (const [k, timestamps] of this.store.entries()) {
+        const valid = timestamps.filter(t => now - t < 3600 * 1000);
+        if (valid.length === 0) {
           this.store.delete(k);
+        } else {
+          this.store.set(k, valid);
         }
       }
     }, 60 * 1000);
@@ -45,17 +48,14 @@ export class MemoryRateLimitStore implements IRateLimitStore {
 
   async increment(key: string, windowMs: number): Promise<RateLimitResult> {
     const now = Date.now();
-    let record = this.store.get(key);
-    if (!record || now > record.resetAt) {
-      record = {
-        count: 1,
-        resetAt: now + windowMs
-      };
-      this.store.set(key, record);
-    } else {
-      record.count += 1;
-    }
-    return { count: record.count, resetAt: record.resetAt };
+    const existing = this.store.get(key) || [];
+    const valid = existing.filter(t => now - t < windowMs);
+    valid.push(now);
+    this.store.set(key, valid);
+
+    const oldest = valid[0];
+    const resetAt = oldest + windowMs;
+    return { count: valid.length, resetAt };
   }
 
   async reset(key: string): Promise<void> {
@@ -106,26 +106,37 @@ export class RedisRateLimitStore implements IRateLimitStore {
 
     try {
       const now = Date.now();
-      const redisKey = `ratelimit:${key}`;
+      const redisKey = `ratelimit_sw:${key}`;
       
-      // Atomic Lua script: Increment and set TTL if new key
+      // True Sliding Window Atomic Lua Script using Sorted Sets
       const luaScript = `
-        local current = redis.call('INCR', KEYS[1])
-        if current == 1 then
-          redis.call('PEXPIRE', KEYS[1], ARGV[1])
+        local key = KEYS[1]
+        local now = tonumber(ARGV[1])
+        local window = tonumber(ARGV[2])
+        local clearBefore = now - window
+
+        redis.call('ZREMRANGEBYSCORE', key, '-inf', clearBefore)
+        local seq = redis.call('INCR', key .. ':seq')
+        redis.call('ZADD', key, now, now .. ':' .. seq)
+        local count = redis.call('ZCARD', key)
+        redis.call('PEXPIRE', key, math.ceil(window))
+        redis.call('PEXPIRE', key .. ':seq', math.ceil(window))
+
+        local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+        local resetAt = now + window
+        if oldest and #oldest >= 2 then
+          resetAt = tonumber(oldest[2]) + window
         end
-        local ttl = redis.call('PTTL', KEYS[1])
-        return {current, ttl}
+        return {count, resetAt}
       `;
 
-      const result = await this.client.eval(luaScript, 1, redisKey, windowMs.toString()) as [number, number];
-      const count = result[0];
-      const ttl = result[1] > 0 ? result[1] : windowMs;
-      const resetAt = now + ttl;
+      const result = await this.client.eval(luaScript, 1, redisKey, now.toString(), windowMs.toString()) as [number, number];
+      const count = Number(result[0]);
+      const resetAt = Number(result[1]);
 
       return { count, resetAt };
     } catch (err: any) {
-      console.warn('⚠️ [RateLimiter] Redis command failed, falling back to in-memory window:', err.message);
+      console.warn('⚠️ [RateLimiter] Redis command failed, falling back to fail-secure in-memory sliding window:', err.message);
       return this.localFallback.increment(key, windowMs);
     }
   }

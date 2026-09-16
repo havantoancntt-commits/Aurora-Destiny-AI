@@ -153,6 +153,13 @@ export function evaluateConfidence(
   const statisticalDisclaimer = 'Điểm số biểu thị mức độ hoàn thiện của tham số đầu vào và tính nhất quán toán học của thuật toán, không phải là xác suất khoa học thực nghiệm (empirical frequentist probability) hay cam kết tiên tri.';
 
   return {
+    scoreType: 'DETERMINISTIC',
+    calculationIntegrityScore: calculationIntegrity,
+    dataCompletenessScore: inputQuality,
+    ruleConsistencyScore: validationScore,
+    heuristicPatternScore: modelAgreement,
+    historicalPatternFitScore: hasEmpiricalEvents ? historicalValidation : null,
+    historicalPatternFitType: hasEmpiricalEvents ? 'RETROSPECTIVE_PATTERN_FIT' : 'INSUFFICIENT_DATA',
     consistencyScore,
     dataCompleteness,
     historicalFit,

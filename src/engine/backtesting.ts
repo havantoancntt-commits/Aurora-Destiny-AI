@@ -30,7 +30,7 @@ export function runBacktestAnalysis(
     return true;
   });
 
-  // Phase 4 Audit Compliance: When no historical events exist, score is strictly NULL
+  // Phase 4 & Phase 8 Audit Compliance: When no historical events exist, score is strictly NULL
   if (validPastEvents.length === 0) {
     return {
       id: `bt_${crypto.randomUUID()}`,
@@ -38,6 +38,7 @@ export function runBacktestAnalysis(
       calculationId: calculation.id,
       timestamp: new Date().toISOString(),
       totalEventsAnalyzed: 0,
+      scoreType: 'INSUFFICIENT_DATA',
       destinyConsistencyScore: null, // Strictly null when no empirical data
       historicalHitRate: null,
       statisticalSignificanceDisclaimer: 'Chưa có dữ liệu sự kiện thực tế. Chỉ số đối sánh hồi quy chỉ được kích hoạt khi người dùng cung cấp tối thiểu 1 sự kiện bước ngoặt quá khứ.',
@@ -48,6 +49,20 @@ export function runBacktestAnalysis(
       evidenceStatus: 'INSUFFICIENT_HISTORICAL_EVIDENCE',
       validationStatus: 'INSUFFICIENT_DATA',
       methodologyNote: 'Quy trình kiểm chứng: Dữ liệu biến cố lịch sử -> Lọc khử look-ahead bias -> Đối sánh chu kỳ năng lượng Lưu Niên -> Phân tích hồi quy mẫu -> Xuất báo cáo tính nhất quán.',
+      biasAnalysis: {
+        recallBiasRisk: 'HIGH',
+        retrospectiveBiasRisk: 'HIGH',
+        selectionBiasNote: 'Chưa có mẫu sự kiện để đánh giá sai số lựa chọn (selection bias).'
+      },
+      scientificMetrics: {
+        sampleSize: 0,
+        missingDataCount: 0,
+        baselineHitRate: 50,
+        falsePositivesCount: 0,
+        falseNegativesCount: 0,
+        calibrationDelta: null,
+        confidenceInterval95: null
+      },
       comparisons: [],
       strengthsSummary: ['Chưa có sự kiện quá khứ nào được nạp để kiểm chứng mẫu hồi quy.'],
       anomaliesSummary: ['Vui lòng nạp tối thiểu 3 sự kiện bước ngoặt để mở khóa chỉ số đối sánh lịch sử đầy đủ.'],
@@ -134,16 +149,25 @@ export function runBacktestAnalysis(
   const historicalHitRate = Math.round((matchedCount / validPastEvents.length) * 100);
   const statisticalSignificanceDisclaimer = 'Chỉ số tương hợp là điểm đối sánh hồi quy (retrospective pattern fit) trên tập sự kiện lịch sử cá nhân, không cấu thành xác suất thống kê tần suất (frequentist probability) hay cam kết tiên tri tương lai.';
 
-  // Categorize validation status based on sample depth
-  let validationStatus: 'INSUFFICIENT_DATA' | 'PRELIMINARY' | 'EXPLORATORY' | 'VALIDATED' = 'PRELIMINARY';
-  let confidenceBand: BacktestResult['confidenceBand'] = 'Sparse Data Fit';
-  let evidenceStatus: NonNullable<BacktestResult['evidenceStatus']> = 'PRELIMINARY_EVIDENCE';
+  // Phase 8: Scientific sample depth & bias analysis
+  const avgConfidence = validPastEvents.reduce((s, e) => s + (e.userConfidence || 3), 0) / validPastEvents.length;
+  const recallBiasRisk: 'HIGH' | 'MODERATE' | 'LOW' = avgConfidence < 3.5 ? 'HIGH' : avgConfidence < 4.2 ? 'MODERATE' : 'LOW';
+  const missingDataCount = validPastEvents.filter(e => typeof e.month !== 'number').length;
+  const n = validPastEvents.length;
 
-  if (validPastEvents.length >= 6) {
-    validationStatus = 'VALIDATED';
+  let validationStatus: NonNullable<BacktestResult['validationStatus']> = 'SPARSE_RETROSPECTIVE_SAMPLE';
+  let evidenceStatus: NonNullable<BacktestResult['evidenceStatus']> = 'PRELIMINARY_EVIDENCE';
+  let confidenceBand: BacktestResult['confidenceBand'] = 'Sparse Data Fit';
+
+  if (n >= 20) {
+    validationStatus = 'EMPIRICALLY_EVALUATED_SAMPLE';
     evidenceStatus = 'SUFFICIENT_EVIDENCE';
     confidenceBand = destinyConsistencyScore >= 80 ? 'High Retrospective Pattern Fit' : 'Moderate Coherence';
-  } else if (validPastEvents.length >= 3) {
+  } else if (n >= 6) {
+    validationStatus = 'EXPLORATORY_RETROSPECTIVE_FIT';
+    evidenceStatus = 'EXPLORATORY_EVIDENCE';
+    confidenceBand = destinyConsistencyScore >= 80 ? 'High Retrospective Pattern Fit' : 'Moderate Coherence';
+  } else if (n >= 3) {
     validationStatus = 'EXPLORATORY';
     evidenceStatus = 'EXPLORATORY_EVIDENCE';
     confidenceBand = destinyConsistencyScore >= 80 ? 'Moderate Coherence' : 'Sparse Data Fit';
@@ -151,6 +175,17 @@ export function runBacktestAnalysis(
     validationStatus = 'PRELIMINARY';
     evidenceStatus = 'PRELIMINARY_EVIDENCE';
     confidenceBand = 'Sparse Data Fit';
+  }
+
+  // 95% Confidence Interval for hit rate when sample size is sufficient
+  let confidenceInterval95: { lower: number; upper: number } | null = null;
+  if (n >= 10) {
+    const p = historicalHitRate / 100;
+    const se = Math.sqrt((p * (1 - p)) / n);
+    confidenceInterval95 = {
+      lower: Math.max(0, Math.round((p - 1.96 * se) * 100)),
+      upper: Math.min(100, Math.round((p + 1.96 * se) * 100))
+    };
   }
 
   const strengthsSummary = [
@@ -163,9 +198,10 @@ export function runBacktestAnalysis(
     : [`Không có dị biệt cực đoan; các biến cố lịch sử bám sát quỹ đạo chu kỳ tính toán.`];
 
   const uncertaintyFactors = [
-    `Số lượng sự kiện ghi nhận: ${validPastEvents.length} (Khuyến nghị nạp từ 5 sự kiện quá khứ để đạt mức kiểm chứng tối ưu).`,
-    `Độ tin cậy ghi nhớ của người dùng: Trung bình ${Math.round(validPastEvents.reduce((s, e) => s + (e.userConfidence || 3), 0) / validPastEvents.length)}/5.`,
-    'Chỉ số phản ánh mức độ tương thích mẫu lịch sử hồi quy, không phải khẳng định tất định về tương lai.'
+    `Số lượng sự kiện ghi nhận: ${validPastEvents.length} (Mẫu cá nhân hồi quy, không cấu thành mô hình dự báo tương lai).`,
+    `Độ tin cậy ghi nhớ của người dùng: Trung bình ${Math.round(avgConfidence * 10) / 10}/5 (Nguy cơ sai lệch hồi tưởng / recall bias: ${recallBiasRisk}).`,
+    missingDataCount > 0 ? `Có ${missingDataCount}/${n} sự kiện thiếu thông tin tháng cụ thể (chỉ ghi nhận năm).` : 'Dữ liệu thời gian của các sự kiện đã nạp đầy đủ cả năm và tháng.',
+    'Chỉ số phản ánh mức độ tương thích mẫu lịch sử hồi quy (retrospective pattern fit), không phải xác suất thống kê tần suất.'
   ];
 
   return {
@@ -174,6 +210,7 @@ export function runBacktestAnalysis(
     calculationId: calculation.id,
     timestamp: new Date().toISOString(),
     totalEventsAnalyzed: validPastEvents.length,
+    scoreType: 'RETROSPECTIVE_PATTERN_FIT',
     destinyConsistencyScore,
     historicalHitRate,
     statisticalSignificanceDisclaimer,
@@ -184,6 +221,20 @@ export function runBacktestAnalysis(
     evidenceStatus,
     validationStatus,
     methodologyNote: 'Quy trình kiểm chứng: Dữ liệu biến cố lịch sử -> Lọc khử look-ahead bias -> Đối sánh chu kỳ năng lượng Lưu Niên -> Phân tích hồi quy mẫu -> Xuất báo cáo tính nhất quán.',
+    biasAnalysis: {
+      recallBiasRisk,
+      retrospectiveBiasRisk: 'HIGH',
+      selectionBiasNote: 'Sự kiện do người dùng tự chủ động hồi tưởng và chọn lọc (self-selection), không phải mẫu ngẫu nhiên độc lập.'
+    },
+    scientificMetrics: {
+      sampleSize: n,
+      missingDataCount,
+      baselineHitRate: 50,
+      falsePositivesCount: divergentCount,
+      falseNegativesCount: 0,
+      calibrationDelta: Math.round(Math.abs(historicalHitRate - 50)),
+      confidenceInterval95
+    },
     comparisons,
     strengthsSummary,
     anomaliesSummary,

@@ -52,7 +52,8 @@ export interface BacktestResult {
   calculationId: string;
   timestamp: string;
   totalEventsAnalyzed: number;
-  destinyConsistencyScore: number | null; // NULL when no events provided (Audit Requirement Phase 4)
+  scoreType: 'RETROSPECTIVE_PATTERN_FIT' | 'INSUFFICIENT_DATA' | 'OUT_OF_SAMPLE_VALIDATION' | 'BLIND_HISTORICAL_VALIDATION';
+  destinyConsistencyScore: number | null; // NULL when no events provided (Audit Requirement Phase 4 & Phase 7)
   historicalHitRate: number | null; // NULL when no events provided
   statisticalSignificanceDisclaimer: string; // Explicit distinction between personal retrospective fit and predictive validation
   matchedEventsCount: number;
@@ -60,8 +61,22 @@ export interface BacktestResult {
   neutralEventsCount: number;
   confidenceBand: 'High Retrospective Pattern Fit' | 'High Empirical Reliability' | 'Moderate Coherence' | 'Sparse Data Fit' | 'Insufficient Historical Evidence';
   evidenceStatus?: 'INSUFFICIENT_HISTORICAL_EVIDENCE' | 'PRELIMINARY_EVIDENCE' | 'EXPLORATORY_EVIDENCE' | 'SUFFICIENT_EVIDENCE';
-  validationStatus?: 'INSUFFICIENT_DATA' | 'PRELIMINARY' | 'EXPLORATORY' | 'VALIDATED';
+  validationStatus?: 'INSUFFICIENT_DATA' | 'PRELIMINARY' | 'EXPLORATORY' | 'VALIDATED' | 'SPARSE_RETROSPECTIVE_SAMPLE' | 'EXPLORATORY_RETROSPECTIVE_FIT' | 'EMPIRICALLY_EVALUATED_SAMPLE';
   methodologyNote?: string;
+  biasAnalysis?: {
+    recallBiasRisk: 'HIGH' | 'MODERATE' | 'LOW';
+    retrospectiveBiasRisk: 'HIGH' | 'MODERATE';
+    selectionBiasNote: string;
+  };
+  scientificMetrics?: {
+    sampleSize: number;
+    missingDataCount: number;
+    baselineHitRate: number;
+    falsePositivesCount: number;
+    falseNegativesCount: number;
+    calibrationDelta: number | null;
+    confidenceInterval95: { lower: number; upper: number } | null;
+  };
   comparisons: CycleFitComparison[];
   strengthsSummary: string[];
   anomaliesSummary: string[];

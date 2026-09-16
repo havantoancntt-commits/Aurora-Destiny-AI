@@ -27,11 +27,12 @@ function getAlgorithmMasterSecret(): string {
 const ALGORITHM_ENGINE_ID = 'AURORA_CELESTIAL_CORE_V4.2_PROPRIETARY';
 const ISSUER_NAME = 'Prof.TOAN & Huyen Phong Phat Dao Proprietary Astrology Matrix';
 
-// Client sweep tracking to prevent differential parameter scraping (brute-forcing calculations)
+// Client sweep tracking with multi-signal behavioral metrics
 interface SweepTrackRecord {
-  submissions: Array<{ timestamp: number; birthKey: string }>;
+  submissions: Array<{ timestamp: number; birthKey: string; hour: number; day: number }>;
   penaltyActive: boolean;
   penaltyUntil: number;
+  burstCount: number;
 }
 
 const sweepTracker = new Map<string, SweepTrackRecord>();
@@ -161,7 +162,7 @@ export function antiScrapingSweeperMiddleware(req: Request, res: Response, next:
       const oldest = sweepTracker.keys().next().value;
       if (oldest) sweepTracker.delete(oldest);
     }
-    track = { submissions: [], penaltyActive: false, penaltyUntil: 0 };
+    track = { submissions: [], penaltyActive: false, penaltyUntil: 0, burstCount: 0 };
     sweepTracker.set(clientKey, track);
   }
 
@@ -172,8 +173,8 @@ export function antiScrapingSweeperMiddleware(req: Request, res: Response, next:
       res.setHeader('Retry-After', waitSeconds.toString());
       return res.status(429).json({
         error: {
-          code: 'ALGORITHM_SCRAPING_SUSPICION',
-          message: 'Hệ thống phát hiện tần suất tính toán bất thường mang dấu hiệu thu thập dữ liệu tự động. Vui lòng thử lại sau giây lát.',
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: 'Tần suất gửi yêu cầu vượt ngưỡng cho phép. Vui lòng thử lại sau giây lát.',
           retryAfterSeconds: waitSeconds,
           requestId: req.requestId
         }
@@ -187,16 +188,41 @@ export function antiScrapingSweeperMiddleware(req: Request, res: Response, next:
   const birthData = req.body?.birthData;
   if (birthData) {
     const birthKey = `${birthData.solarYear}-${birthData.solarMonth}-${birthData.solarDay}-${birthData.solarHour}-${birthData.solarMinute}`;
-    track.submissions.push({ timestamp: now, birthKey });
+    const hour = typeof birthData.solarHour === 'number' ? birthData.solarHour : -1;
+    const day = typeof birthData.solarDay === 'number' ? birthData.solarDay : -1;
+
+    // Check rapid automated sub-second interval
+    const lastSub = track.submissions[track.submissions.length - 1];
+    const isRapidAutomation = lastSub ? (now - lastSub.timestamp < 250) : false;
+
+    track.submissions.push({ timestamp: now, birthKey, hour, day });
 
     // Filter to last 2 minutes
     track.submissions = track.submissions.filter(s => now - s.timestamp < 2 * 60 * 1000);
 
-    // Count unique birth keys submitted in the last 2 minutes
+    // Multi-signal 1: Burst requests within 5 seconds
+    const burstCount = track.submissions.filter(s => now - s.timestamp < 5000).length;
+
+    // Multi-signal 2: Unique birth keys submitted in the last 2 minutes
     const uniqueBirthKeys = new Set(track.submissions.map(s => s.birthKey));
 
-    // If more than 12 unique birth times submitted in 2 minutes, flag as algorithm scraping attack
-    if (uniqueBirthKeys.size > 12) {
+    // Multi-signal 3: Sequential parameter enumeration (stepping hours or days)
+    let isSequentialStepping = false;
+    if (track.submissions.length >= 5) {
+      const recentSubs = track.submissions.slice(-5);
+      const hourDiffs = recentSubs.slice(1).map((s, idx) => s.hour - recentSubs[idx].hour);
+      const isLinearHours = hourDiffs.every(d => d === 1 || d === 2);
+      if (isLinearHours) isSequentialStepping = true;
+    }
+
+    // Determine scraping signature
+    const isScrapingSuspected =
+      uniqueBirthKeys.size > 12 ||
+      (burstCount > 7 && uniqueBirthKeys.size > 4) ||
+      (isSequentialStepping && uniqueBirthKeys.size >= 5) ||
+      (isRapidAutomation && uniqueBirthKeys.size >= 6);
+
+    if (isScrapingSuspected) {
       track.penaltyActive = true;
       track.penaltyUntil = now + 60 * 1000; // 60 seconds cooling period
 
@@ -211,8 +237,8 @@ export function antiScrapingSweeperMiddleware(req: Request, res: Response, next:
 
       return res.status(429).json({
         error: {
-          code: 'ALGORITHM_SCRAPING_SUSPICION',
-          message: 'Hệ thống an ninh phát hiện hành vi quét hàng loạt tham số lá số. Cơ chế bảo vệ bản quyền thuật toán đã kích hoạt làm mát.',
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: 'Tần suất gửi yêu cầu vượt ngưỡng cho phép. Vui lòng thử lại sau giây lát.',
           retryAfterSeconds: 60,
           requestId: req.requestId
         }
