@@ -1,6 +1,6 @@
 // ==========================================
 // AURORA DESTINY AI — MULTI-TIER REASONING PIPELINE
-// Architectural Standard: 13-Stage Zero-Hallucination Pipeline
+// Architectural Standard: 13-Stage Grounded Reasoning & Verification Pipeline
 // 1. INPUT VALIDATION → 2. PROFILE NORMALIZATION → 3. DATA EXTRACTION
 // → 4. RULE ENGINE → 5. DOMAIN CALCULATION → 6. CONSISTENCY CHECK
 // → 7. AI REASONING → 8. EVIDENCE EXTRACTION → 9. CONTRADICTION CHECK

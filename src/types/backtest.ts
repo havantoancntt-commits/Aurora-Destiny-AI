@@ -52,14 +52,16 @@ export interface BacktestResult {
   calculationId: string;
   timestamp: string;
   totalEventsAnalyzed: number;
-  destinyConsistencyScore: number; // 0 - 100 (Heuristic model fit score)
-  historicalHitRate: number; // 0 - 100% (Percentage of actual events matching calculated direction)
-  statisticalSignificanceDisclaimer: string; // Explicit distinction between personal empirical fit and frequentist statistical probability
+  destinyConsistencyScore: number | null; // NULL when no events provided (Audit Requirement Phase 4)
+  historicalHitRate: number | null; // NULL when no events provided
+  statisticalSignificanceDisclaimer: string; // Explicit distinction between personal retrospective fit and predictive validation
   matchedEventsCount: number;
   divergentEventsCount: number;
   neutralEventsCount: number;
-  confidenceBand: 'High Empirical Reliability' | 'Moderate Coherence' | 'Sparse Data Fit' | 'Insufficient Historical Evidence';
-  evidenceStatus?: 'INSUFFICIENT_HISTORICAL_EVIDENCE' | 'PRELIMINARY_EVIDENCE' | 'SUFFICIENT_EVIDENCE';
+  confidenceBand: 'High Retrospective Pattern Fit' | 'High Empirical Reliability' | 'Moderate Coherence' | 'Sparse Data Fit' | 'Insufficient Historical Evidence';
+  evidenceStatus?: 'INSUFFICIENT_HISTORICAL_EVIDENCE' | 'PRELIMINARY_EVIDENCE' | 'EXPLORATORY_EVIDENCE' | 'SUFFICIENT_EVIDENCE';
+  validationStatus?: 'INSUFFICIENT_DATA' | 'PRELIMINARY' | 'EXPLORATORY' | 'VALIDATED';
+  methodologyNote?: string;
   comparisons: CycleFitComparison[];
   strengthsSummary: string[];
   anomaliesSummary: string[];

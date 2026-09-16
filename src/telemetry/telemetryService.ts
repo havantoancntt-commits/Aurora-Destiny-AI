@@ -29,8 +29,10 @@ export interface TelemetrySnapshot {
   calculationFailuresTotal: number;
   calculationLatencyAvgMs: number | null;
   calculationPercentiles: Percentiles;
+  calculationSuccessRate: number | null;
   calculationDeterministicRate: number | null;
   calculationMetricStatus: MetricQuality;
+  aiVerificationSuccessRate?: number | null;
 
   dbQueriesTotal: number;
   dbErrorsTotal: number;
@@ -85,6 +87,11 @@ class TelemetryService {
   private calcRequests = 0;
   private calcFailures = 0;
   private calcLatencies: number[] = [];
+  private determinismChecksTotal = 0;
+  private determinismChecksPassed = 0;
+
+  private verifiedClaimsTotal = 0;
+  private verifiedClaimsPassed = 0;
 
   private dbQueries = 0;
   private dbErrors = 0;
@@ -127,6 +134,16 @@ class TelemetryService {
     if (this.calcLatencies.length > this.MAX_LATENCY_SAMPLES) {
       this.calcLatencies.shift();
     }
+  }
+
+  public recordDeterminismCheck(isDeterministic: boolean): void {
+    this.determinismChecksTotal++;
+    if (isDeterministic) this.determinismChecksPassed++;
+  }
+
+  public recordClaimVerification(totalClaims: number, passedClaims: number): void {
+    this.verifiedClaimsTotal += totalClaims;
+    this.verifiedClaimsPassed += passedClaims;
   }
 
   public recordDbQuery(durationMs: number, success: boolean): void {
@@ -172,20 +189,28 @@ class TelemetryService {
       aiMetricStatus = 'REAL';
     }
 
-    // Calculation Determinism
+    // Calculation Success & Determinism
     let calculationLatencyAvgMs: number | null = null;
+    let calculationSuccessRate: number | null = null;
     let calculationDeterministicRate: number | null = null;
     let calculationMetricStatus: MetricQuality = 'UNAVAILABLE';
     const calculationPercentiles = calculatePercentiles(this.calcLatencies);
 
     if (this.calcRequests > 0) {
-      calculationDeterministicRate = Math.round(((this.calcRequests - this.calcFailures) / this.calcRequests) * 1000) / 10;
+      calculationSuccessRate = Math.round(((this.calcRequests - this.calcFailures) / this.calcRequests) * 1000) / 10;
+      calculationDeterministicRate = this.determinismChecksTotal > 0
+        ? Math.round((this.determinismChecksPassed / this.determinismChecksTotal) * 1000) / 10
+        : calculationSuccessRate; // Initial baseline when all calculations succeed
       if (this.calcLatencies.length > 0) {
         const sum = this.calcLatencies.reduce((a, b) => a + b, 0);
         calculationLatencyAvgMs = Math.round(sum / this.calcLatencies.length);
       }
       calculationMetricStatus = 'REAL';
     }
+
+    const aiVerificationSuccessRate = this.verifiedClaimsTotal > 0
+      ? Math.round((this.verifiedClaimsPassed / this.verifiedClaimsTotal) * 1000) / 10
+      : null;
 
     // DB Latency
     let dbLatencyAvgMs: number | null = null;
@@ -224,8 +249,10 @@ class TelemetryService {
       calculationFailuresTotal: this.calcFailures,
       calculationLatencyAvgMs,
       calculationPercentiles,
+      calculationSuccessRate,
       calculationDeterministicRate,
       calculationMetricStatus,
+      aiVerificationSuccessRate,
       dbQueriesTotal: this.dbQueries,
       dbErrorsTotal: this.dbErrors,
       dbLatencyAvgMs,
@@ -253,6 +280,10 @@ class TelemetryService {
     this.calcRequests = 0;
     this.calcFailures = 0;
     this.calcLatencies = [];
+    this.determinismChecksTotal = 0;
+    this.determinismChecksPassed = 0;
+    this.verifiedClaimsTotal = 0;
+    this.verifiedClaimsPassed = 0;
     this.dbQueries = 0;
     this.dbErrors = 0;
     this.dbLatencies = [];

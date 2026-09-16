@@ -208,6 +208,14 @@ export interface DecadeCycle {
   keyThemes: string[];
   opportunitySignals: string[];
   cautionSignals: string[];
+  startAgeExact?: number; // Exact astronomical age from solar term crossing
+  direction?: 'forward' | 'reverse'; // Thuận hành hay Nghịch hành
+  daYunCalculation?: {
+    conversionRule: string;
+    relevantSolarTerm: string;
+    elapsedDays: number;
+    startAgeExact: number;
+  };
 }
 
 export interface AnnualTransit {
@@ -216,16 +224,27 @@ export interface AnnualTransit {
   branch: EarthlyBranch;
   element: FiveElement;
   tenGod: string;
-  overallScore: number; // 0 - 100
+  overallScore: number; // 0 - 100 (Heuristic harmony index)
   careerScore: number;
   wealthScore: number;
   relationshipScore: number;
   healthScore: number;
   growthScore: number;
-  opportunityWave: number; // 0 - 100
-  cautionWave: number; // 0 - 100
+  opportunityWave: number; // 0 - 100 (Heuristic opportunity index)
+  cautionWave: number; // 0 - 100 (Heuristic caution index)
   highlightSummary: string;
   recommendedFocus: string;
+  heuristicHarmonyIndex?: number;
+  heuristicOpportunityIndex?: number;
+  heuristicCautionIndex?: number;
+  interactions?: {
+    clashes: string[];
+    combinations: string[];
+    punishments: string[];
+    harms: string[];
+    destructions: string[];
+    structuralSummary: string;
+  };
 }
 
 export type Gender = 'Male' | 'Female' | 'Other' | 'PreferNotToSay';

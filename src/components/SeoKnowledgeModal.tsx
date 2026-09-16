@@ -344,8 +344,8 @@ export const SeoKnowledgeModal: React.FC<Props> = ({
                     <li>• Aurora Destiny AI</li>
                     <li>• Kênh Huyền Phong Phật Đạo</li>
                     <li>• Giáo Sư - Prof.TOAN</li>
-                    <li>• Hợp xướng 7 Multi-Agent Consensus AI</li>
-                    <li>• Rào cản Zero-Hallucination Guardrails</li>
+                    <li>• Hợp xướng 7 Module Phân Tích Chuyên Sâu</li>
+                    <li>• Rào cản Claim Verification Guardrails</li>
                   </ul>
                 </div>
 

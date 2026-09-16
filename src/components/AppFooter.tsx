@@ -241,11 +241,11 @@ export const AppFooter: React.FC<Props> = ({
             <ul className="space-y-2 text-xs text-slate-400 font-light">
               <li className="flex items-start gap-2">
                 <span className="text-indigo-400 mt-0.5">•</span>
-                <span>Hợp xướng 7 Chuyên Gia AI phân tích đồng thuận đa góc nhìn.</span>
+                <span>Hợp xướng 7 Module Phân Tích Chuyên Sâu đa góc nhìn.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-indigo-400 mt-0.5">•</span>
-                <span>Cơ chế Rào cản Zero-Hallucination: Tuyệt đối theo dữ kiện lá số.</span>
+                <span>Cơ chế Kiểm Định Khẳng Định (Claim Verification): Bám sát dữ kiện tính toán.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-indigo-400 mt-0.5">•</span>

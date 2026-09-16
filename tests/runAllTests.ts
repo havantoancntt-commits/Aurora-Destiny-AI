@@ -9,8 +9,9 @@ import { runTemporalEdgeCaseTests } from './edge-cases/temporalEdgeCases.test';
 import { runTimezoneCorrectionTests } from './timezone/timezoneCorrection.test';
 import { runBaziZiweiIntegrityTests } from './calculation/baziZiweiIntegrity.test';
 import { runCacheAndConventionRegressionTests } from './regression/cacheAndConventionRegression.test';
+import { runAuditPhaseVerificationTests } from './regression/auditPhaseVerification.test';
 
-export function runMasterTestSuite() {
+export async function runMasterTestSuite() {
   console.log('====================================================');
   console.log('🛡️  AURORA DESTINY AI — ENTERPRISE VALIDATION SUITE');
   console.log('====================================================\n');
@@ -45,6 +46,14 @@ export function runMasterTestSuite() {
   totalFailed += cacheConvRes.failed;
   allErrors.push(...cacheConvRes.errors);
 
+  try {
+    await runAuditPhaseVerificationTests();
+    totalPassed += 5;
+  } catch (err: any) {
+    totalFailed += 1;
+    allErrors.push(`Audit Phase Verification: ${err.message}`);
+  }
+
   const elapsed = Date.now() - start;
 
   console.log('\n====================================================');
@@ -66,4 +75,7 @@ export function runMasterTestSuite() {
   }
 }
 
-runMasterTestSuite();
+runMasterTestSuite().catch((err) => {
+  console.error('Fatal Test Runner Error:', err);
+  process.exit(1);
+});

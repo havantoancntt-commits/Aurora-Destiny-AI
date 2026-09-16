@@ -1,6 +1,6 @@
 // ==========================================
-// MULTI-AGENT AI ENSEMBLE & DAILY DESTINY ENGINE
-// High-Accuracy Analytical Synthesis & Zero Hallucination
+// MULTI-PERSPECTIVE ANALYTICAL SYNTHESIS & ENSEMBLE ENGINE
+// Grounded Multi-Model Synthesis with Ephemeris-based Determinism & Transparent Caveats
 // ==========================================
 
 import {
@@ -14,11 +14,11 @@ import { STEMS, BRANCHES, ELEMENT_RELATIONS, STEM_KEYS, BRANCH_KEYS } from '../e
 import { calculateDayPillar } from '../engine/bazi';
 import { convertSolarToLunar } from '../engine/lunarSolar';
 
-// Synthesize Multi-Agent Ensemble Analysis
+// Synthesize Multi-Perspective Analytical Ensemble
 export function generateMultiAgentEnsemble(
   profile: UserProfile,
   calculation: CalculationResult,
-  backtestScore: number = 75
+  backtestScore?: number | null
 ): MultiAgentEnsemble {
   const { bazi, ziwei, confidence } = calculation;
   const dm = STEMS[bazi.dayMaster];
@@ -29,7 +29,10 @@ export function generateMultiAgentEnsemble(
   const currentYear = targetYear;
   const currentTransit = calculation.annualTransits.find(t => t.year === targetYear) || calculation.annualTransits[0];
 
-  const overallConsistencyScore = Math.round((confidence.consistencyScore * 0.6) + (backtestScore * 0.4));
+  const hasBacktest = typeof backtestScore === 'number';
+  const overallConsistencyScore = hasBacktest
+    ? Math.round((confidence.consistencyScore * 0.6) + (backtestScore * 0.4))
+    : confidence.consistencyScore;
   const baseCalcConfidence = calculation.confidence?.calculationIntegrity || 85;
   const inputQuality = calculation.confidence?.inputQuality || 80;
   const modelAgreement = calculation.confidence?.modelAgreement || 75;
@@ -159,22 +162,26 @@ export function generateMultiAgentEnsemble(
     ]
   };
 
-  // Agent 6: Statistical Consistency Analyst
+  // Analytical Module 6: Retrospective Pattern & Empirical Coherence
   const statisticalConsistencyAgent = {
-    agentName: 'Agent 6 — Statistical Consistency Analyst',
-    agentRole: 'Đo Lường Nhất Quán Thống Kê & Backtest Lịch Sử',
+    agentName: 'Analytical Module 6 — Retrospective Pattern & Empirical Coherence',
+    agentRole: 'Đo Lường Tính Nhất Quán Hồi Quy & Đối Sánh Biến Cố Lịch Sử',
     confidenceScore: statisticalConfidence,
     keyFindings: [
-      `Chỉ số Nhất Quán Bản Mệnh (Consistency Score): ${overallConsistencyScore}/100 (Backtest: ${backtestScore}/100).`,
-      `Độ khớp giữa chu kỳ ngũ hành tính toán và các sự kiện lịch sử đạt mức tin cậy vững chắc.`,
-      `Độ lệch chuẩn phương sai (Variance) thấp, mô hình giữ độ ổn định cao qua các chu kỳ thời gian.`
+      hasBacktest
+        ? `Chỉ số Nhất Quán Bản Mệnh: ${overallConsistencyScore}/100 (Đối sánh thực chứng: ${backtestScore}/100 trên sự kiện đã nạp).`
+        : `Chỉ số Nhất Quán Bản Mệnh: ${overallConsistencyScore}/100 (Chưa nạp sự kiện lịch sử để đối sánh thực chứng).`,
+      hasBacktest
+        ? `Mức độ tương hợp giữa chu kỳ tính toán và các biến cố đã nạp đạt trạng thái kiểm chứng bước đầu.`
+        : `Các khuyến nghị hiện tại dựa trên suy diễn nguyên lý Bát Tự & Tử Vi; khuyến nghị nạp thêm sự kiện quá khứ để tinh chỉnh.`,
+      `Mô hình phân tích đa chiều phân tách rõ giữa tầng tính toán thiên văn khách quan và tầng tổng hợp diễn giải.`
     ],
     recommendations: [
       `Ghi nhận đều đặn các sự kiện thực tế quan trọng vào Backtesting Studio để tăng cường hiệu chuẩn cá nhân hóa.`,
-      `Xem dữ liệu như hệ quy chiếu xác suất khoa học định hướng hành vi, không coi là định mệnh áp đặt.`
+      `Xem dữ liệu như hệ quy chiếu định hướng kế hoạch hành vi, không coi là định mệnh áp đặt.`
     ],
     riskNotations: [
-      `Mô hình xác suất có độ trễ ngắn khoảng 1-2 tháng tùy thuộc vào tốc độ hành động thực tế của cá nhân.`
+      `Mô hình đối sánh phản ánh tính tương thích mẫu quá khứ, không cấu thành bảo đảm tất định cho các biến số tương lai.`
     ]
   };
 
