@@ -144,6 +144,7 @@ export function buildCanonicalCacheKey(input: CanonicalCalculationInput): string
     input.birthHour,
     input.birthMinute,
     input.timezoneOffset,
+    input.timezoneName || 'UTC',
     (typeof input.longitude === 'number' ? input.longitude : 0).toFixed(4),
     (typeof input.latitude === 'number' ? input.latitude : 0).toFixed(4),
     input.calendarSystem,

@@ -76,6 +76,7 @@ export interface PipelineResult {
   };
   qualityScore: InternalQualityScore;
   contradictionCheck: PipelineContradictionCheck;
+  hallucinationSeverity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
   aiResponseContent: string;
   suggestedActionPlan: string[];
   safetyDisclaimers: string[];
@@ -250,6 +251,7 @@ export class DestinyAiPipeline {
 
     let antiHallucinationPassed = true;
     let antiHallucinationDetail = `Đã đối soát ${allValidStars.size} tinh tú và cấu trúc Bát Tự thực tế trên lá số.`;
+    let hallucinationSeverity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE' = 'NONE';
 
     // 1. Prohibited safety topics check (Fatal predictions, gambling, medical prescriptions)
     const PROHIBITED_SAFETY_PATTERNS = [
@@ -262,7 +264,8 @@ export class DestinyAiPipeline {
     for (const pattern of PROHIBITED_SAFETY_PATTERNS) {
       if (pattern.test(contentLower)) {
         antiHallucinationPassed = false;
-        antiHallucinationDetail = 'Phát hiện vi phạm quy chuẩn an toàn: Nội dung chứa cảnh báo tử vong/đỏ đen/y tế.';
+        hallucinationSeverity = 'CRITICAL';
+        antiHallucinationDetail = 'Phát hiện vi phạm quy chuẩn an toàn [CRITICAL]: Nội dung chứa cảnh báo tử vong/đỏ đen/y tế.';
         break;
       }
     }
@@ -278,7 +281,8 @@ export class DestinyAiPipeline {
       if (stem !== bazi.dayMaster) {
         if (contentLower.includes(`nhật chủ ${nameVi}`) || contentLower.includes(`can ngày ${nameVi}`)) {
           antiHallucinationPassed = false;
-          antiHallucinationDetail = `Phát hiện ảo giác Bát Tự: AI ngộ nhận Nhật Chủ là ${nameVi.toUpperCase()} thay vì ${expectedDayMasterVi.toUpperCase()}.`;
+          hallucinationSeverity = 'CRITICAL';
+          antiHallucinationDetail = `Phát hiện ảo giác Bát Tự [CRITICAL]: AI ngộ nhận Nhật Chủ là ${nameVi.toUpperCase()} thay vì ${expectedDayMasterVi.toUpperCase()}.`;
         }
       }
     });
@@ -369,6 +373,7 @@ export class DestinyAiPipeline {
       domainCalculations,
       qualityScore,
       contradictionCheck,
+      hallucinationSeverity,
       aiResponseContent: aiOutput.content,
       suggestedActionPlan: suggestedActions,
       safetyDisclaimers,

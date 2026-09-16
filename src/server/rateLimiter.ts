@@ -136,7 +136,10 @@ export class RedisRateLimitStore implements IRateLimitStore {
 
       return { count, resetAt };
     } catch (err: any) {
-      console.warn('⚠️ [RateLimiter] Redis command failed, falling back to fail-secure in-memory sliding window:', err.message);
+      console.warn('⚠️ [RateLimiter] Redis command failed:', err.message);
+      if (process.env.RATE_LIMIT_FAIL_CLOSED === 'true') {
+        throw new Error('Rate limiter service temporarily unavailable (distributed fail-closed policy active).');
+      }
       return this.localFallback.increment(key, windowMs);
     }
   }
@@ -144,7 +147,8 @@ export class RedisRateLimitStore implements IRateLimitStore {
   async reset(key: string): Promise<void> {
     try {
       if (this.isConnected) {
-        await this.client.del(`ratelimit:${key}`);
+        const redisKey = `ratelimit_sw:${key}`;
+        await this.client.del(redisKey, `${redisKey}:seq`, `ratelimit:${key}`);
       }
     } catch {
       // ignore
