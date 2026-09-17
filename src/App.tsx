@@ -338,9 +338,8 @@ export default function App() {
   // Export User Dossier
   const handleExportData = async (profId: string) => {
     try {
-      const token = api.getToken();
       const res = await fetch(`/api/export/${profId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        credentials: 'same-origin'
       });
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const blob = await res.blob();

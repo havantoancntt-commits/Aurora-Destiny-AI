@@ -90,8 +90,8 @@ const PORT = 3000;
 
 // Trust reverse proxy configurable by environment (defaults to 1 hop behind Cloud Run/Nginx)
 const trustProxySetting = process.env.TRUST_PROXY
-  ? (process.env.TRUST_PROXY === 'true' ? true : (!isNaN(Number(process.env.TRUST_PROXY)) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY))
-  : (process.env.NODE_ENV === 'production' ? 1 : false);
+  ? (process.env.TRUST_PROXY === 'true' ? 'loopback, linklocal, uniquelocal' : (!isNaN(Number(process.env.TRUST_PROXY)) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY))
+  : (process.env.NODE_ENV === 'production' ? 1 : 'loopback');
 app.set('trust proxy', trustProxySetting);
 
 // Security: parse JSON with strict size limit
@@ -177,7 +177,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const isMutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
   if (isMutating) {
     const hasSessionCookie = Boolean(req.cookies && req.cookies['aurora_session']);
-    const hasBearerAuth = Boolean(req.headers.authorization || req.headers['x-session-token']);
+    const hasBearerAuth = Boolean(req.headers.authorization);
     
     // When relying solely on ambient browser cookie for authorization, verify origin/referrer
     if (hasSessionCookie && !hasBearerAuth) {
@@ -359,7 +359,7 @@ app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
     });
 
     setSessionCookie(res, result.token);
-    res.status(201).json(result);
+    res.status(201).json({ user: result.user, message: 'Đăng ký tài khoản thành công' });
   } catch (err) {
     next(err);
   }
@@ -380,7 +380,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
     });
 
     setSessionCookie(res, result.token);
-    res.json(result);
+    res.json({ user: result.user, message: 'Đăng nhập thành công' });
   } catch (err) {
     next(err);
   }
@@ -407,7 +407,7 @@ app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
   try {
     const result = await createGuestSessionAsync();
     setSessionCookie(res, result.token);
-    res.json(result);
+    res.json({ user: result.user, message: 'Khởi tạo phiên khách thành công' });
   } catch (err) {
     next(err);
   }
@@ -535,11 +535,8 @@ app.delete('/api/user/me', requireAuth, async (req, res) => {
 // ----------------------------------------------------
 // 4. PROFILES (STRICT USER ISOLATION & TRANSACTION SAFETY)
 // ----------------------------------------------------
-app.get('/api/profiles', async (req, res) => {
-  if (!req.user) {
-    return res.json([]);
-  }
-  const profiles = await repository.getProfiles(req.user.id);
+app.get('/api/profiles', requireAuth, async (req, res) => {
+  const profiles = await repository.getProfiles(req.user!.id);
   res.json(profiles);
 });
 
@@ -1155,11 +1152,21 @@ app.get('/api/export/:profileId', requireAuth, async (req, res) => {
 interface StagedPdfItem {
   buffer: Buffer;
   fileName: string;
+  userId?: string;
+  downloadCount: number;
   expiresAt: number;
 }
 
 const pdfStagingCache = new Map<string, StagedPdfItem>();
-const MAX_PDF_STAGING_ITEMS = 50;
+const MAX_PDF_STAGING_ITEMS = 30;
+
+function sanitizePdfFileName(rawName: string | undefined): string {
+  if (!rawName || typeof rawName !== 'string') return 'Sach_Ban_Menh_A4.pdf';
+  // Strip control chars, CRLF, quotes, backslashes, path traversal
+  const base = path.basename(rawName).replace(/[\r\n\0"';<>\\]/g, '').trim();
+  const safe = base.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9.-]/g, '_').slice(0, 80);
+  return safe.endsWith('.pdf') ? safe : `${safe}.pdf`;
+}
 
 // Clean up expired PDF staging files periodically
 setInterval(() => {
@@ -1174,7 +1181,8 @@ setInterval(() => {
 // Stage a generated PDF for robust native mobile OS download
 app.post(
   '/api/pdf/prepare-download',
-  express.raw({ type: ['application/pdf', 'application/octet-stream'], limit: '30mb' }),
+  requireAuth,
+  express.raw({ type: ['application/pdf', 'application/octet-stream'], limit: '15mb' }),
   (req: Request, res: Response) => {
     let buffer: Buffer | null = null;
     if (Buffer.isBuffer(req.body) && req.body.length > 0) {
@@ -1184,7 +1192,18 @@ app.post(
     }
 
     if (!buffer || buffer.length === 0) {
-      return res.status(400).json({ error: 'Không nhận được dữ liệu tệp PDF.' });
+      return res.status(400).json({ error: { code: 'EMPTY_PAYLOAD', message: 'Không nhận được dữ liệu tệp PDF.' } });
+    }
+
+    // Verify PDF Magic Bytes (%PDF-)
+    if (buffer.length < 5 || buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+      return res.status(400).json({
+        error: {
+          code: 'MALFORMED_PDF',
+          message: 'Dữ liệu không phải là tệp PDF hợp lệ.',
+          requestId: req.requestId
+        }
+      });
     }
 
     // Bound memory usage: Evict oldest entry if size limit reached
@@ -1193,14 +1212,16 @@ app.post(
       if (oldestKey) pdfStagingCache.delete(oldestKey);
     }
 
-    const downloadId = crypto.randomBytes(16).toString('hex');
-    const rawFileName = (req.query.filename as string) || 'Sach_Ban_Menh_A4.pdf';
-    const safeFileName = rawFileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    // 256-bit entropy download token
+    const downloadId = crypto.randomBytes(32).toString('hex');
+    const safeFileName = sanitizePdfFileName(req.query.filename as string);
 
     pdfStagingCache.set(downloadId, {
       buffer,
       fileName: safeFileName,
-      expiresAt: Date.now() + 20 * 60 * 1000 // 20 minutes expiration
+      userId: req.user?.id,
+      downloadCount: 0,
+      expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes expiration
     });
 
     const downloadUrl = `/api/pdf/download/${downloadId}?filename=${encodeURIComponent(safeFileName)}`;
@@ -1219,24 +1240,32 @@ app.get('/api/pdf/download/:id', (req: Request, res: Response) => {
   const staged = pdfStagingCache.get(id);
 
   if (!staged || staged.expiresAt < Date.now()) {
+    if (staged) pdfStagingCache.delete(id);
     return res
       .status(404)
       .send(
-        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu tạm.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu tạm hoặc đã được tải về.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
       );
   }
 
-  const fileName = (req.query.filename as string) || staged.fileName || 'Sach_Ban_Menh_A4.pdf';
+  // Bound download replays: Allow at most 3 downloads per staged ticket then evict
+  staged.downloadCount += 1;
+  if (staged.downloadCount >= 3) {
+    pdfStagingCache.delete(id);
+  }
+
+  const safeFileName = sanitizePdfFileName(staged.fileName);
   const isView = req.query.view === '1';
-  const encodedFileName = encodeURIComponent(fileName);
+  const asciiFileName = safeFileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+  const encodedFileName = encodeURIComponent(safeFileName);
 
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Length', staged.buffer.length);
+  res.setHeader('Content-Length', staged.buffer.length.toString());
 
   if (isView) {
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
+    res.setHeader('Content-Disposition', `inline; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`);
   } else {
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"; filename*=UTF-8''${encodedFileName}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`);
   }
 
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -1409,20 +1438,24 @@ app.get('/api/patrons', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/patrons', (req: Request, res: Response) => {
+app.post('/api/patrons', guestRateLimiter, (req: Request, res: Response) => {
   const { name, tier, amount, message, isAnonymous } = req.body || {};
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'Tên hoặc pháp danh không được để trống' });
   }
 
-  const rawName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : name.trim();
+  const cleanName = name.trim().slice(0, 60);
+  const rawName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : cleanName;
   const validTiers: ReadonlyArray<PatronRecord['tier']> = ['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh'];
   const safeTier: PatronRecord['tier'] = validTiers.includes(tier as PatronRecord['tier'])
     ? (tier as PatronRecord['tier'])
     : 'tam_tinh';
-  const cleanAmount = typeof amount === 'number' && amount > 0 ? amount : undefined;
+  const cleanAmount = typeof amount === 'number' && amount > 0 && amount <= 100000000 ? Math.floor(amount) : undefined;
+  const cleanMessage = typeof message === 'string' && message.trim()
+    ? message.trim().slice(0, 250)
+    : 'Gieo duyên công đức trợ lực nền tảng';
 
-  const hashSeed = `${rawName}_${Date.now()}_${Math.random()}`;
+  const hashSeed = `${rawName}_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
   let hashNum = 0x811c9dc5;
   for (let i = 0; i < hashSeed.length; i++) {
     hashNum ^= hashSeed.charCodeAt(i);
@@ -1431,11 +1464,11 @@ app.post('/api/patrons', (req: Request, res: Response) => {
   const sealHash = `SEAL-HPPD-${hashNum.toString(16).toUpperCase().padStart(8, '0')}`;
 
   const newPatron: PatronRecord = {
-    id: `ptr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    id: `ptr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
     name: rawName,
     tier: safeTier,
     amount: cleanAmount,
-    message: message && typeof message === 'string' ? message.trim() : 'Gieo duyên công đức trợ lực nền tảng',
+    message: cleanMessage,
     sealHash,
     date: new Date().toISOString().split('T')[0],
     isAnonymous: Boolean(isAnonymous)

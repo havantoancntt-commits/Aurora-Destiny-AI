@@ -158,7 +158,7 @@ export const FeatureFlagToggleSchema = z.object({
 // 10. Auth Schemas
 export const RegisterSchema = z.object({
   email: z.string().email('Email không hợp lệ').max(100),
-  password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').max(100),
+  password: z.string().min(12, 'Mật khẩu tối thiểu 12 ký tự để đảm bảo an toàn').max(100),
   fullName: z.string().trim().min(1, 'Họ tên không được để trống').max(100)
 });
 
@@ -173,5 +173,5 @@ export const ForgotPasswordSchema = z.object({
 
 export const ResetPasswordSchema = z.object({
   token: z.string().min(10, 'Mã khôi phục không hợp lệ').max(128),
-  newPassword: z.string().min(6, 'Mật khẩu mới tối thiểu 6 ký tự').max(100)
+  newPassword: z.string().min(12, 'Mật khẩu mới tối thiểu 12 ký tự để đảm bảo an toàn').max(100)
 });

@@ -1,6 +1,6 @@
 // ==========================================
 // AURORA DESTINY AI — AUTHENTICATED API CLIENT
-// Production-grade client with session token persistence,
+// Production-grade client with HttpOnly cookie session management,
 // multi-user isolation & automatic guest session bootstrap.
 // ==========================================
 
@@ -9,51 +9,31 @@ import { CalculationResult, BirthData, BehavioralContext } from '../types/destin
 import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { MultiAgentEnsemble, ChatMessage, ScenarioAnalysisResult, DailyDestiny } from '../types/ai';
 
-const SESSION_TOKEN_KEY = 'aurora_session_token';
-
 class ApiClient {
-  private token: string | null = null;
-  private sessionPromise: Promise<string> | null = null;
+  private programmaticToken: string | null = null;
+  private sessionInitialized = false;
+  private sessionPromise: Promise<boolean> | null = null;
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      try {
-        this.token = localStorage.getItem(SESSION_TOKEN_KEY);
-      } catch (e) {
-        console.warn('LocalStorage unavailable for token storage:', e);
-      }
-    }
+    // Cookie-based architecture: tokens reside exclusively in HttpOnly cookies, not localStorage
   }
 
   public getToken(): string | null {
-    return this.token;
+    return this.programmaticToken;
   }
 
   public setToken(token: string) {
-    this.token = token;
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(SESSION_TOKEN_KEY, token);
-      } catch (e) {
-        console.warn('Failed to persist session token:', e);
-      }
-    }
+    this.programmaticToken = token;
   }
 
   public clearToken() {
-    this.token = null;
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(SESSION_TOKEN_KEY);
-      } catch (e) {
-        console.warn('Failed to remove session token:', e);
-      }
-    }
+    this.programmaticToken = null;
+    this.sessionInitialized = false;
   }
 
-  // Ensure an authenticated session token exists (auto-provisions guest session if none, with concurrency deduplication)
-  public async ensureSession(force = false): Promise<string> {
-    if (this.token && !force) return this.token;
+  // Ensure an authenticated session exists (auto-provisions guest session if none, with concurrency deduplication)
+  public async ensureSession(force = false): Promise<boolean> {
+    if (this.sessionInitialized && !force) return true;
 
     if (this.sessionPromise) {
       return this.sessionPromise;
@@ -61,20 +41,20 @@ class ApiClient {
 
     this.sessionPromise = (async () => {
       try {
-        const res = await fetch('/api/auth/guest', { method: 'POST' });
+        const res = await fetch('/api/auth/guest', {
+          method: 'POST',
+          credentials: 'same-origin'
+        });
         if (res.ok) {
-          const data = await res.json();
-          if (data.token) {
-            this.setToken(data.token);
-            return data.token;
-          }
+          this.sessionInitialized = true;
+          return true;
         }
       } catch (err) {
         console.warn('Could not auto-provision guest session:', err);
       } finally {
         this.sessionPromise = null;
       }
-      return this.token || '';
+      return false;
     })();
 
     return this.sessionPromise;
@@ -84,20 +64,22 @@ class ApiClient {
     await this.ensureSession();
 
     const headers = new Headers(init?.headers || {});
-    if (this.token && !headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${this.token}`);
+    if (this.programmaticToken && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${this.programmaticToken}`);
     }
 
     const credentials = init?.credentials || 'same-origin';
     let res = await fetch(input, { ...init, headers, credentials });
 
-    // Auto-heal on 401 UNAUTHENTICATED: Token was rejected/expired, re-provision fresh session and retry
+    // Auto-heal on 401 UNAUTHENTICATED: Session expired, re-provision fresh guest session and retry once
     if (res.status === 401) {
       this.clearToken();
-      const freshToken = await this.ensureSession(true);
-      if (freshToken) {
+      const provisioned = await this.ensureSession(true);
+      if (provisioned) {
         const retryHeaders = new Headers(init?.headers || {});
-        retryHeaders.set('Authorization', `Bearer ${freshToken}`);
+        if (this.programmaticToken) {
+          retryHeaders.set('Authorization', `Bearer ${this.programmaticToken}`);
+        }
         res = await fetch(input, { ...init, headers: retryHeaders, credentials });
       }
     }
@@ -110,30 +92,42 @@ class ApiClient {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ email, password, fullName })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `Đăng ký thất bại (${res.status})`);
     }
-    const data = await res.json();
-    if (data.token) this.setToken(data.token);
-    return data;
+    this.sessionInitialized = true;
+    return res.json();
   }
 
   public async login(email: string, password: string) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ email, password })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `Đăng nhập thất bại (${res.status})`);
     }
-    const data = await res.json();
-    if (data.token) this.setToken(data.token);
-    return data;
+    this.sessionInitialized = true;
+    return res.json();
+  }
+
+  public async logout() {
+    this.clearToken();
+    const res = await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      throw new Error(`Đăng xuất thất bại (${res.status})`);
+    }
+    return res.json();
   }
 
   public async getMe(): Promise<{ user: UserAccount; preferences: UserPreferences }> {
