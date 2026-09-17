@@ -101,6 +101,9 @@ export class RedisRateLimitStore implements IRateLimitStore {
 
   async increment(key: string, windowMs: number): Promise<RateLimitResult> {
     if (!this.isConnected) {
+      if (process.env.RATE_LIMIT_FAIL_CLOSED === 'true' || (process.env.NODE_ENV === 'production' && process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true')) {
+        throw new Error('Rate limiter service temporarily unavailable (distributed fail-closed policy active).');
+      }
       return this.localFallback.increment(key, windowMs);
     }
 

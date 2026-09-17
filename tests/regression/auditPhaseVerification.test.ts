@@ -138,6 +138,12 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
   {
     telemetry.resetForTesting();
     telemetry.recordCalculation(15, true);
+
+    // Invariant: when 0 determinism checks recorded, calculationDeterministicRate MUST be null, NOT calculationSuccessRate
+    const zeroCheckSnap = telemetry.getSnapshot();
+    assert.strictEqual(zeroCheckSnap.calculationSuccessRate, 100, 'calculationSuccessRate should be 100%');
+    assert.strictEqual(zeroCheckSnap.calculationDeterministicRate, null, 'calculationDeterministicRate must be strictly null when 0 checks run');
+
     telemetry.recordDeterminismCheck(true);
     telemetry.recordDeterminismCheck(true);
     telemetry.recordClaimVerification(10, 9);
@@ -157,7 +163,64 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
     console.log('  ✅ [PASS] Database Repository Factory Instantiation');
   }
 
-  console.log('📊 [Audit Phase Result]: 5 PASSED, 0 FAILED.\n');
+  // Test 6: IANA Historical Timezone Resolution
+  {
+    const { resolveHistoricalTimezoneOffset } = await import('../../src/engine/temporalCorrection');
+    
+    // Vietnam: UTC+7 constant
+    const vn = resolveHistoricalTimezoneOffset(1990, 5, 15, 10, 30, 'Asia/Ho_Chi_Minh');
+    assert(vn !== null, 'Vietnam offset resolution must not be null');
+    assert.strictEqual(vn.offsetHours, 7, 'Vietnam must resolve to UTC+7');
+
+    // New York: Summer (EDT UTC-4) vs Winter (EST UTC-5)
+    const nySummer = resolveHistoricalTimezoneOffset(1980, 7, 15, 10, 30, 'America/New_York');
+    assert(nySummer !== null, 'NY Summer offset must resolve');
+    assert.strictEqual(nySummer.offsetHours, -4, 'NY Summer must resolve to UTC-4 (EDT)');
+
+    const nyWinter = resolveHistoricalTimezoneOffset(1980, 1, 15, 10, 30, 'America/New_York');
+    assert(nyWinter !== null, 'NY Winter offset must resolve');
+    assert.strictEqual(nyWinter.offsetHours, -5, 'NY Winter must resolve to UTC-5 (EST)');
+
+    // London: Summer (BST UTC+1) vs Winter (GMT UTC+0)
+    const lonSummer = resolveHistoricalTimezoneOffset(2020, 6, 15, 10, 30, 'Europe/London');
+    assert(lonSummer !== null, 'London Summer offset must resolve');
+    assert.strictEqual(lonSummer.offsetHours, 1, 'London Summer must resolve to UTC+1 (BST)');
+
+    const lonWinter = resolveHistoricalTimezoneOffset(2020, 12, 15, 10, 30, 'Europe/London');
+    assert(lonWinter !== null, 'London Winter offset must resolve');
+    assert.strictEqual(lonWinter.offsetHours, 0, 'London Winter must resolve to UTC+0 (GMT)');
+
+    console.log('  ✅ [PASS] IANA Historical Timezone Offset Resolution (DST & Winter/Summer)');
+  }
+
+  // Test 7: Rate Limiter Fail-Closed Policy on Disconnected Redis
+  {
+    const { RedisRateLimitStore } = await import('../../src/server/rateLimiter');
+    const fakeRedisClient: any = {
+      on: () => {},
+      connect: async () => {},
+      eval: async () => { throw new Error('Simulated Redis failure'); }
+    };
+    const redisStore = new RedisRateLimitStore(fakeRedisClient);
+    
+    // With RATE_LIMIT_FAIL_CLOSED=true, Redis failure throws instead of silent fallback
+    process.env.RATE_LIMIT_FAIL_CLOSED = 'true';
+    let failedClosed = false;
+    try {
+      await redisStore.increment('fail_test_key', 1000);
+    } catch (e: any) {
+      if (e.message.includes('fail-closed policy active')) {
+        failedClosed = true;
+      }
+    } finally {
+      delete process.env.RATE_LIMIT_FAIL_CLOSED;
+    }
+    assert.strictEqual(failedClosed, true, 'Redis failure under RATE_LIMIT_FAIL_CLOSED=true must fail closed');
+
+    console.log('  ✅ [PASS] Rate Limiter Fail-Closed Policy Enforcement');
+  }
+
+  console.log('📊 [Audit Phase Result]: 7 PASSED, 0 FAILED.\n');
 }
 
 if (process.argv[1]?.includes('auditPhaseVerification.test.ts')) {

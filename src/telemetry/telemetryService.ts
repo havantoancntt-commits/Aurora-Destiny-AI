@@ -200,7 +200,7 @@ class TelemetryService {
       calculationSuccessRate = Math.round(((this.calcRequests - this.calcFailures) / this.calcRequests) * 1000) / 10;
       calculationDeterministicRate = this.determinismChecksTotal > 0
         ? Math.round((this.determinismChecksPassed / this.determinismChecksTotal) * 1000) / 10
-        : calculationSuccessRate; // Initial baseline when all calculations succeed
+        : null;
       if (this.calcLatencies.length > 0) {
         const sum = this.calcLatencies.reduce((a, b) => a + b, 0);
         calculationLatencyAvgMs = Math.round(sum / this.calcLatencies.length);

@@ -170,11 +170,11 @@ export function runAllEngineTests(): TestReport {
     `Feb 3: ${solarTermFeb3.lunarDay}, Feb 5: ${solarTermFeb5.lunarDay}`
   );
 
-  // TEST 13: Backtest with Empty Events Handling
+  // TEST 13: Backtest with Empty Events Handling (Empirical Null-Safety)
   const emptyBt = runBacktestAnalysis([], calc1);
   assert(
     emptyBt.totalEventsAnalyzed === 0 &&
-    emptyBt.destinyConsistencyScore === 0 &&
+    emptyBt.destinyConsistencyScore === null &&
     (emptyBt.confidenceBand === 'Insufficient Historical Evidence' || emptyBt.confidenceBand === 'Sparse Data Fit') &&
     emptyBt.evidenceStatus === 'INSUFFICIENT_HISTORICAL_EVIDENCE',
     'Backtest Empty Events Fallback',

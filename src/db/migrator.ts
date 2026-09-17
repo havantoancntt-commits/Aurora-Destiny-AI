@@ -34,9 +34,11 @@ export class DatabaseMigrator {
   }
 
   public getMigrationFiles(): MigrationFile[] {
+    // Canonical migrations directory is at repository root /migrations
     let migrationsDir = path.join(process.cwd(), 'migrations');
     if (!fs.existsSync(migrationsDir)) {
-      migrationsDir = path.join(process.cwd(), 'src', 'db', 'migrations');
+      // Fallback relative to current file for compiled/bundled environments
+      migrationsDir = path.resolve(__dirname, '..', '..', 'migrations');
     }
     if (!fs.existsSync(migrationsDir)) {
       return [];

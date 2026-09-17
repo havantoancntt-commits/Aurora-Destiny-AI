@@ -203,20 +203,22 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Độ Chuẩn Thuật Toán</div>
                   <div className="text-xl font-bold font-mono text-emerald-400">
-                    {metrics.calculationDeterministicRate !== undefined ? `${metrics.calculationDeterministicRate}%` : '100%'}
+                    {metrics.calculationDeterministicRate !== undefined && metrics.calculationDeterministicRate !== null
+                      ? `${metrics.calculationDeterministicRate}%`
+                      : 'N/A (Chưa đo)'}
                   </div>
                   <div className="text-[10px] text-emerald-400">
-                    {metrics.calcLatencyP95Ms !== undefined && metrics.calcLatencyP95Ms > 0 ? `p95: ${metrics.calcLatencyP95Ms}ms` : 'Tỷ lệ sai lệch 0%'}
+                    {metrics.calcLatencyP95Ms !== undefined && metrics.calcLatencyP95Ms > 0 ? `p95: ${metrics.calcLatencyP95Ms}ms` : 'Chưa có mẫu đo'}
                   </div>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Độ Trễ Phân Tích AI</div>
                   <div className="text-xl font-bold font-mono text-purple-400">
-                    {metrics.aiLatencyAvgMs !== undefined && metrics.aiLatencyAvgMs > 0 ? `${metrics.aiLatencyAvgMs}ms` : 'Đang đo'}
+                    {metrics.aiLatencyAvgMs !== undefined && metrics.aiLatencyAvgMs !== null && metrics.aiLatencyAvgMs > 0 ? `${metrics.aiLatencyAvgMs}ms` : 'Chưa có dữ liệu'}
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    {metrics.aiLatencyP50Ms !== undefined && metrics.aiLatencyP50Ms > 0
+                    {metrics.aiLatencyP50Ms !== undefined && metrics.aiLatencyP50Ms !== null && metrics.aiLatencyP50Ms > 0
                       ? `p50: ${metrics.aiLatencyP50Ms}ms | p95: ${metrics.aiLatencyP95Ms}ms`
                       : 'Gemini 2.5 Flash'}
                   </div>
@@ -225,10 +227,10 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                   <div className="text-[11px] text-slate-400">Độ Trễ Cơ Sở Dữ Liệu</div>
                   <div className="text-xl font-bold font-mono text-cyan-400">
-                    {metrics.dbLatencyMs !== undefined && metrics.dbLatencyMs > 0 ? `${metrics.dbLatencyMs}ms` : '< 1ms'}
+                    {metrics.dbLatencyMs !== undefined && metrics.dbLatencyMs !== null && metrics.dbLatencyMs > 0 ? `${metrics.dbLatencyMs}ms` : 'Chưa có dữ liệu'}
                   </div>
                   <div className="text-[10px] text-slate-400">
-                    {metrics.dbLatencyP95Ms !== undefined && metrics.dbLatencyP95Ms > 0
+                    {metrics.dbLatencyP95Ms !== undefined && metrics.dbLatencyP95Ms !== null && metrics.dbLatencyP95Ms > 0
                       ? `p50: ${metrics.dbLatencyP50Ms}ms | p95: ${metrics.dbLatencyP95Ms}ms`
                       : 'Postgres / File Engine'}
                   </div>
@@ -237,7 +239,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1 col-span-2 sm:col-span-1">
                   <div className="text-[11px] text-slate-400">Tỷ Lệ Cache Hit</div>
                   <div className="text-xl font-bold font-mono text-amber-400">
-                    {metrics.cacheHitRatio !== undefined ? `${metrics.cacheHitRatio}%` : '0%'}
+                    {metrics.cacheHitRatio !== undefined && metrics.cacheHitRatio !== null ? `${metrics.cacheHitRatio}%` : 'Chưa có dữ liệu'}
                   </div>
                   <div className="text-[10px] text-slate-400">Ephemeris Đã Lập Chỉ Mục</div>
                 </div>
@@ -252,7 +254,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-emerald-400 font-medium">Hệ Thống Trực Tuyến 100%</span>
+                  <span className="text-emerald-400 font-medium">Hệ Thống Trực Tuyến</span>
                   {metrics.calculationEngineVersion && (
                     <span className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-[10px] text-slate-300">
                       {metrics.calculationEngineVersion}
@@ -363,7 +365,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                   <Fingerprint className="w-3.5 h-3.5 text-cyan-400" />
                 </div>
                 <div className="font-semibold text-slate-200">HMAC-SHA256 Canonical Seal</div>
-                <div className="text-[10px] text-emerald-400">Bảo vệ chống làm giả & trích xuất 100%</div>
+                <div className="text-[10px] text-emerald-400">Bảo vệ tính toàn vẹn & xác thực nguồn gốc</div>
               </div>
 
               <div className="p-3 rounded-lg bg-slate-900 border border-slate-800/80 space-y-1">

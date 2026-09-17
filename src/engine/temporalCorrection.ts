@@ -49,6 +49,73 @@ export interface EffectiveBirthTime {
 }
 
 /**
+ * Resolves exact historical UTC offset in hours from IANA timezone identifier
+ * at a specific local civil datetime using standard Intl runtime support.
+ * Returns null if timezone is invalid or unsupported.
+ */
+export function resolveHistoricalTimezoneOffset(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone: string
+): { offsetHours: number; offsetMinutes: number; exactUtcIso: string } | null {
+  if (!timeZone || typeof Intl === 'undefined' || !Intl.DateTimeFormat) return null;
+  const utcMatch = timeZone.match(/^UTC([+-]\d+(?:\.\d+)?)$/i);
+  if (utcMatch) {
+    const hours = parseFloat(utcMatch[1]);
+    return { offsetHours: hours, offsetMinutes: hours * 60, exactUtcIso: '' };
+  }
+
+  try {
+    const utcApprox = new Date(Date.UTC(year, month - 1, day, hour, minute));
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+
+    const getParts = (d: Date) => {
+      const parts = formatter.formatToParts(d);
+      const val = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10);
+      const h = val('hour');
+      return {
+        year: val('year'),
+        month: val('month'),
+        day: val('day'),
+        hour: h === 24 ? 0 : h,
+        minute: val('minute')
+      };
+    };
+
+    const p1 = getParts(utcApprox);
+    const targetLocalMs = Date.UTC(year, month - 1, day, hour, minute);
+    const p1Ms = Date.UTC(p1.year, p1.month - 1, p1.day, p1.hour, p1.minute);
+    const offsetMs = p1Ms - utcApprox.getTime();
+
+    const exactUtc = new Date(targetLocalMs - offsetMs);
+    const p2 = getParts(exactUtc);
+    const p2Ms = Date.UTC(p2.year, p2.month - 1, p2.day, p2.hour, p2.minute);
+    const finalOffsetMs = p2Ms - exactUtc.getTime();
+    const offsetHours = finalOffsetMs / 3600000;
+
+    return {
+      offsetHours,
+      offsetMinutes: finalOffsetMs / 60000,
+      exactUtcIso: exactUtc.toISOString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolves Effective Birth Time Canonical Object
  * Single source of truth for BaZi, ZiWei, Lunar conversions, Transits & AI ground facts.
  */
@@ -62,11 +129,36 @@ export function resolveEffectiveBirthTime(
     solarDay,
     solarHour,
     solarMinute = 0,
-    timezoneOffset = 7,
-    timezoneName = `UTC${timezoneOffset >= 0 ? `+${timezoneOffset}` : timezoneOffset}`,
     timeConvention = 'civil',
     isLateRat = false
   } = birthData;
+
+  const rawTimezoneOffset = birthData.timezoneOffset !== undefined ? birthData.timezoneOffset : 7;
+  let timezoneName = birthData.timezoneName;
+  if (!timezoneName) {
+    const loc = explicitLocation || locationProvider.resolveLocation(birthData.birthCity, birthData.birthCountry);
+    if (loc && loc.timezone) {
+      timezoneName = loc.timezone;
+    } else {
+      timezoneName = `UTC${rawTimezoneOffset >= 0 ? `+${rawTimezoneOffset}` : rawTimezoneOffset}`;
+    }
+  }
+
+  // Resolve historical UTC offset from IANA timezone if available
+  let timezoneOffset = rawTimezoneOffset;
+  if (timezoneName) {
+    const historical = resolveHistoricalTimezoneOffset(
+      solarYear,
+      solarMonth,
+      solarDay,
+      solarHour,
+      solarMinute,
+      timezoneName
+    );
+    if (historical !== null) {
+      timezoneOffset = historical.offsetHours;
+    }
+  }
 
   // 1. Resolve geographic longitude & latitude
   let longitude = birthData.longitude;
