@@ -124,7 +124,7 @@ export function runAllEngineTests(): TestReport {
   ];
   const btResult = runBacktestAnalysis(sampleEvents, calc1);
   assert(btResult.totalEventsAnalyzed === 2, 'Backtest Event Processing', `Processed ${btResult.totalEventsAnalyzed} events`);
-  assert(btResult.destinyConsistencyScore >= 0 && btResult.destinyConsistencyScore <= 100, 'Backtest Score Validity', `Score: ${btResult.destinyConsistencyScore}/100`);
+  assert(btResult.destinyConsistencyScore !== null && btResult.destinyConsistencyScore >= 0 && btResult.destinyConsistencyScore <= 100, 'Backtest Score Validity', `Score: ${btResult.destinyConsistencyScore}/100`);
 
   // TEST 9: What-If Scenario Engine (3 Distinct Branches)
   const scenarioResult = evaluateWhatIfScenario('Tôi có nên chuyển sang làm AI năm nay?', calc1);

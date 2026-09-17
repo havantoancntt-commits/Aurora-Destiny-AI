@@ -264,13 +264,14 @@ export function calculateTrueSolarTime(
   civilHour: number,
   civilMinute: number,
   timezoneOffset: number = 7,
-  longitude: number = 105.85 // Default Hanoi: 105.85°E
+  longitude?: number
 ): TrueSolarTimeResult {
+  const actualLongitude = longitude !== undefined && longitude !== null ? longitude : timezoneOffset * 15;
   const jd = gregorianToContinuousJD(year, month, day, civilHour, civilMinute, timezoneOffset);
   const { equationOfTimeMinutes } = calculateEquationOfTime(jd);
 
   const standardMeridian = timezoneOffset * 15;
-  const longitudeCorrectionMinutes = (longitude - standardMeridian) * 4;
+  const longitudeCorrectionMinutes = (actualLongitude - standardMeridian) * 4;
   const totalCorrectionMinutes = equationOfTimeMinutes + longitudeCorrectionMinutes;
 
   const totalCivilMinutes = civilHour * 60 + civilMinute;

@@ -8,7 +8,7 @@
 // → 13. REPRODUCIBLE RESULT DELIVERY
 // ==========================================
 
-import { CalculationResult, BirthData, BehavioralContext } from '../types/destiny';
+import { CalculationResult, BirthData, BehavioralContext, FiveElement } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { BacktestResult } from '../types/backtest';
 import { STEMS, BRANCHES, ELEMENT_RELATIONS } from '../engine/canchi';
@@ -67,12 +67,12 @@ export interface PipelineResult {
   groundedFacts: PipelineEvidenceFact[];
   domainCalculations: {
     dayMasterStatus: string;
-    favorableElements: string[];
-    unfavorableElements: string[];
+    favorableElements: (string | FiveElement)[];
+    unfavorableElements: (string | FiveElement)[];
     lifePalaceStarSummary: string;
     currentYearOpportunityWave: number;
     currentYearCautionWave: number;
-    backtestConsistencyScore: number;
+    backtestConsistencyScore: number | null;
   };
   qualityScore: InternalQualityScore;
   contradictionCheck: PipelineContradictionCheck;

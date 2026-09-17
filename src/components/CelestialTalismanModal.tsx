@@ -444,7 +444,7 @@ export const CelestialTalismanModal: React.FC<Props> = ({
                   </button>
 
                   <button
-                    onClick={() => setActiveTab('patrons')}
+                    onClick={() => onOpenSponsorshipModal ? onOpenSponsorshipModal() : setActiveTab('pivot')}
                     className="w-full sm:w-auto px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/20 text-xs sm:text-sm text-slate-200 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer font-medium"
                   >
                     <Heart className="w-4 h-4 text-rose-400" />

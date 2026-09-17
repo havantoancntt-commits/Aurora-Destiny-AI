@@ -36,6 +36,35 @@ export const BirthDataSchema = z.object({
 }, {
   message: 'Ngày sinh không tồn tại trong tháng/năm đã chọn',
   path: ['solarDay']
+}).refine((data) => {
+  // Validate semantic consistency between timezoneName and timezoneOffset
+  if (!data.timezoneName) return true;
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: data.timezoneName,
+      timeZoneName: 'shortOffset'
+    });
+    const parts = formatter.formatToParts(new Date(Date.UTC(data.solarYear, (data.solarMonth || 1) - 1, data.solarDay || 1, 12, 0)));
+    const offsetPart = parts.find(p => p.type === 'timeZoneName')?.value;
+    if (offsetPart) {
+      const match = offsetPart.match(/(?:GMT|UTC)([+-])(\d+)(?::(\d+))?/i);
+      if (match) {
+        const sign = match[1] === '-' ? -1 : 1;
+        const hours = parseInt(match[2], 10);
+        const mins = match[3] ? parseInt(match[3], 10) : 0;
+        const expectedOffset = sign * (hours + mins / 60);
+        if (Math.abs(data.timezoneOffset - expectedOffset) > 2) {
+          return false;
+        }
+      }
+    }
+  } catch {
+    // Non-IANA string or legacy label passes
+  }
+  return true;
+}, {
+  message: 'Mâu thuẫn ngữ nghĩa giữa tên múi giờ (timezoneName) và độ lệch thời gian (timezoneOffset)',
+  path: ['timezoneOffset']
 });
 
 // 2. Behavioral Context Schema

@@ -6,6 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import Redis from 'ioredis';
 import { repository } from '../db/repository';
 
 export interface SecurityThreatRecord {
@@ -26,17 +27,36 @@ interface QuarantineRecord {
 }
 
 // ============================================================================
-// STATE STORE & DISTRIBUTED DEPLOYMENT ARCHITECTURE NOTE (SECTION 19 & 20)
+// STATE STORE & DISTRIBUTED DEPLOYMENT ARCHITECTURE
 // In-memory Map threat store provides microsecond sub-millisecond local latency.
-// NOTE FOR HORIZONTAL MULTI-INSTANCE / CLOUD RUN AUTO-SCALING:
-// When running multiple container replicas in production, ipThreatStore and
-// ipQuarantineStore should be backed by a centralized Redis cluster or PostgreSQL
-// store so that rate limits and IP bans synchronize across all instances.
+// When REDIS_URL is provided, ipQuarantineStore synchronizes across all container
+// instances for cluster-wide attack mitigation.
 // ============================================================================
 const ipThreatStore = new Map<string, { score: number; lastSeen: number; threats: string[] }>();
 const ipQuarantineStore = new Map<string, QuarantineRecord>();
 const recentThreats: SecurityThreatRecord[] = [];
 const MAX_RECENT_THREATS = 200;
+
+let distributedRedis: Redis | null = null;
+if (process.env.REDIS_URL) {
+  try {
+    distributedRedis = new Redis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      connectTimeout: 3000,
+      lazyConnect: true
+    });
+    distributedRedis.connect().catch((err) => {
+      console.warn('⚠️ [Firewall] Redis connection failed, continuing with local store:', err.message);
+    });
+  } catch (err: any) {
+    console.warn('⚠️ [Firewall] Failed to initialize Redis client:', err.message);
+  }
+}
+
+export function setDistributedFirewallRedis(client: Redis | null): void {
+  distributedRedis = client;
+}
 
 // Regular attack signatures
 const SQL_INJECTION_PATTERNS = [
@@ -63,10 +83,10 @@ const PATH_TRAVERSAL_PATTERNS = [
 ];
 
 const XSS_PATTERNS = [
-  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i,
   /javascript\s*:\s*[^\s]/i,
   /vbscript\s*:\s*[^\s]/i,
-  /on(error|load|click|mouseover|submit|focus|blur)\s*=\s*['"][^'"]*['"]/gi,
+  /on(error|load|click|mouseover|submit|focus|blur)\s*=\s*['"][^'"]*['"]/i,
   /data:\s*text\/html/i
 ];
 
@@ -183,13 +203,28 @@ function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: Secu
 /**
  * Enterprise Web Application Firewall (WAF) & Intrusion Prevention Middleware
  */
-export function enterpriseSecurityFirewall(req: Request, res: Response, next: NextFunction) {
+export async function enterpriseSecurityFirewall(req: Request, res: Response, next: NextFunction) {
   const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
   const ipHashed = hashIp(ip);
   const now = Date.now();
 
   // 1. CHECK IP QUARANTINE (AUTO-BAN)
-  const quarantine = ipQuarantineStore.get(ip);
+  let quarantine = ipQuarantineStore.get(ip);
+  if (!quarantine && distributedRedis && (distributedRedis.status === 'ready' || distributedRedis.status === 'connect')) {
+    try {
+      const remote = await distributedRedis.get(`firewall:quarantine:${ipHashed}`);
+      if (remote) {
+        const parsed = JSON.parse(remote) as QuarantineRecord;
+        if (parsed.bannedUntil > now) {
+          quarantine = parsed;
+          ipQuarantineStore.set(ip, quarantine);
+        }
+      }
+    } catch {
+      // Redis fallback to local
+    }
+  }
+
   if (quarantine) {
     if (now < quarantine.bannedUntil) {
       const remainingSeconds = Math.ceil((quarantine.bannedUntil - now) / 1000);
@@ -304,11 +339,17 @@ function applySecurityPenalty(ip: string, reason: string, points: number, detail
   // Quarantine threshold: 5 points
   if (threat.score >= 5) {
     const quarantineDuration = 30 * 60 * 1000; // 30 minutes
-    ipQuarantineStore.set(ip, {
+    const record: QuarantineRecord = {
       bannedUntil: now + quarantineDuration,
       reason: detail,
       threatCount: threat.threats.length
-    });
+    };
+    ipQuarantineStore.set(ip, record);
+
+    if (distributedRedis && (distributedRedis.status === 'ready' || distributedRedis.status === 'connect')) {
+      const ipHashed = hashIp(ip);
+      distributedRedis.set(`firewall:quarantine:${ipHashed}`, JSON.stringify(record), 'PX', quarantineDuration).catch(() => {});
+    }
     return true;
   }
 

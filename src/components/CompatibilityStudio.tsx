@@ -82,7 +82,18 @@ export const CompatibilityStudio: React.FC<Props> = ({
     }
     return {
       id: 'custom_partner',
+      userId: activeProfile.userId || 'guest_user',
+      isPrimary: false,
       name: customPartner.name,
+      avatarSeed: 'partner',
+      behavioralContext: {
+        careerField: '',
+        employmentStatus: '',
+        financialGoal: '',
+        relationshipStatus: '',
+        topPriority: '',
+        personalNotes: ''
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       birthData: {

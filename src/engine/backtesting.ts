@@ -78,6 +78,8 @@ export function runBacktestAnalysis(
   let matchedCount = 0;
   let divergentCount = 0;
   let neutralCount = 0;
+  let falsePositivesCount = 0;
+  let falseNegativesCount = 0;
 
   validPastEvents.forEach((event) => {
     // Dynamically calculate the authentic transit for the exact event year if not precalculated
@@ -111,11 +113,13 @@ export function runBacktestAnalysis(
       status = 'Anomalous Divergence';
       explanation = `Sự kiện bứt phá tích cực vượt qua sóng thận trọng (thể hiện nỗ lực chủ động cá nhân hoặc đòn bẩy ngoại cảnh).`;
       divergentCount++;
+      falseNegativesCount++;
     } else if (eventIsNegative && expectedPositive) {
       matchScore = 48;
       status = 'Anomalous Divergence';
       explanation = `Biến cố tiêu cực diễn ra trong năm chu kỳ tích cực, cần lưu ý biến số môi trường hoặc hành vi chủ quan.`;
       divergentCount++;
+      falsePositivesCount++;
     } else {
       matchScore = 70;
       status = 'Neutral Divergence';
@@ -230,8 +234,8 @@ export function runBacktestAnalysis(
       sampleSize: n,
       missingDataCount,
       baselineHitRate: 50,
-      falsePositivesCount: divergentCount,
-      falseNegativesCount: 0,
+      falsePositivesCount,
+      falseNegativesCount,
       calibrationDelta: Math.round(Math.abs(historicalHitRate - 50)),
       confidenceInterval95
     },

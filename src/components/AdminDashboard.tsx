@@ -208,7 +208,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
                       : 'N/A (Chưa đo)'}
                   </div>
                   <div className="text-[10px] text-emerald-400">
-                    {metrics.calcLatencyP95Ms !== undefined && metrics.calcLatencyP95Ms > 0 ? `p95: ${metrics.calcLatencyP95Ms}ms` : 'Chưa có mẫu đo'}
+                    {metrics.calcLatencyP95Ms !== undefined && metrics.calcLatencyP95Ms !== null && metrics.calcLatencyP95Ms > 0 ? `p95: ${metrics.calcLatencyP95Ms}ms` : 'Chưa có mẫu đo'}
                   </div>
                 </div>
 

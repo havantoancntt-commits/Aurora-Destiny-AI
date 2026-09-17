@@ -56,7 +56,7 @@ export function initClientSecurityShield() {
 
   // 3. Object Prototype Pollution / Tamper Detection
   try {
-    if (Object.isFrozen && Object.prototype) {
+    if (typeof Object.isFrozen === 'function' && Object.prototype) {
       // Monitor if __proto__ or Object.prototype has been tampered with
       const testObj: any = {};
       if (testObj.polluted) {

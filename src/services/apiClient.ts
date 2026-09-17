@@ -88,13 +88,8 @@ class ApiClient {
       headers.set('Authorization', `Bearer ${this.token}`);
     }
 
-    let res = await fetch(input, { ...init, headers });
-
-    // Catch any updated session token from response header
-    const newToken = res.headers.get('x-session-token');
-    if (newToken && newToken !== this.token) {
-      this.setToken(newToken);
-    }
+    const credentials = init?.credentials || 'same-origin';
+    let res = await fetch(input, { ...init, headers, credentials });
 
     // Auto-heal on 401 UNAUTHENTICATED: Token was rejected/expired, re-provision fresh session and retry
     if (res.status === 401) {
@@ -103,11 +98,7 @@ class ApiClient {
       if (freshToken) {
         const retryHeaders = new Headers(init?.headers || {});
         retryHeaders.set('Authorization', `Bearer ${freshToken}`);
-        res = await fetch(input, { ...init, headers: retryHeaders });
-        const retryToken = res.headers.get('x-session-token');
-        if (retryToken && retryToken !== this.token) {
-          this.setToken(retryToken);
-        }
+        res = await fetch(input, { ...init, headers: retryHeaders, credentials });
       }
     }
 

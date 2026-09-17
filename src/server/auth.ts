@@ -48,26 +48,50 @@ function getSyncRepo(): LegacySyncRepository {
   return repository as unknown as LegacySyncRepository;
 }
 
-const DUMMY_SALT = 'aurora_dummy_salt_for_constant_time_comparison';
-const DUMMY_HASH = crypto.pbkdf2Sync('dummy_pass', DUMMY_SALT, 100000, 64, 'sha512').toString('hex');
+export const DEFAULT_PBKDF2_ROUNDS = 210000;
+export const LEGACY_PBKDF2_ROUNDS = 100000;
 
-// Helper: Hash password securely with salt using PBKDF2 (100,000 rounds)
-export function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
+const DUMMY_SALT = 'aurora_dummy_salt_for_constant_time_comparison';
+const DUMMY_HASH = crypto.pbkdf2Sync('dummy_pass', DUMMY_SALT, DEFAULT_PBKDF2_ROUNDS, 64, 'sha512').toString('hex');
+
+export interface PasswordHashResult {
+  hash: string;
+  salt: string;
+  rounds: number;
+  record: string;
+}
+
+// Helper: Hash password securely with salt using PBKDF2 (210,000 rounds per OWASP guidelines)
+export function hashPassword(password: string, salt?: string, rounds: number = DEFAULT_PBKDF2_ROUNDS): PasswordHashResult {
   const actualSalt = salt || crypto.randomBytes(16).toString('hex');
-  const derived = crypto.pbkdf2Sync(password, actualSalt, 100000, 64, 'sha512').toString('hex');
-  return { hash: derived, salt: actualSalt };
+  const derived = crypto.pbkdf2Sync(password, actualSalt, rounds, 64, 'sha512').toString('hex');
+  return { hash: derived, salt: actualSalt, rounds, record: `v2:${rounds}:${actualSalt}:${derived}` };
 }
 
 // Non-blocking async password hashing (prevents Node.js event loop starvation under concurrency)
-export async function hashPasswordAsync(password: string, salt?: string): Promise<{ hash: string; salt: string }> {
+export async function hashPasswordAsync(password: string, salt?: string, rounds: number = DEFAULT_PBKDF2_ROUNDS): Promise<PasswordHashResult> {
   const actualSalt = salt || crypto.randomBytes(16).toString('hex');
-  const derived = await pbkdf2Async(password, actualSalt, 100000, 64, 'sha512');
-  return { hash: derived.toString('hex'), salt: actualSalt };
+  const derived = await pbkdf2Async(password, actualSalt, rounds, 64, 'sha512');
+  const derivedHex = derived.toString('hex');
+  return { hash: derivedHex, salt: actualSalt, rounds, record: `v2:${rounds}:${actualSalt}:${derivedHex}` };
 }
 
-export function verifyPassword(password: string, storedHash: string, salt: string): boolean {
+export function parsePasswordRecord(storedRecord: string): { rounds: number; salt: string; hash: string; isVersion2: boolean } {
+  if (storedRecord.startsWith('v2:')) {
+    const parts = storedRecord.split(':');
+    const rounds = parseInt(parts[1] || `${DEFAULT_PBKDF2_ROUNDS}`, 10) || DEFAULT_PBKDF2_ROUNDS;
+    const salt = parts[2] || '';
+    const hash = parts[3] || '';
+    return { rounds, salt, hash, isVersion2: true };
+  } else {
+    const [salt, hash] = storedRecord.split(':');
+    return { rounds: LEGACY_PBKDF2_ROUNDS, salt: salt || '', hash: hash || '', isVersion2: false };
+  }
+}
+
+export function verifyPassword(password: string, storedHash: string, salt: string, rounds: number = DEFAULT_PBKDF2_ROUNDS): boolean {
   try {
-    const { hash } = hashPassword(password, salt);
+    const { hash } = hashPassword(password, salt, rounds);
     const hashBuf = Buffer.from(hash, 'hex');
     const storedBuf = Buffer.from(storedHash, 'hex');
     if (hashBuf.length !== storedBuf.length) {
@@ -79,9 +103,9 @@ export function verifyPassword(password: string, storedHash: string, salt: strin
   }
 }
 
-export async function verifyPasswordAsync(password: string, storedHash: string, salt: string): Promise<boolean> {
+export async function verifyPasswordAsync(password: string, storedHash: string, salt: string, rounds: number = DEFAULT_PBKDF2_ROUNDS): Promise<boolean> {
   try {
-    const { hash } = await hashPasswordAsync(password, salt);
+    const { hash } = await hashPasswordAsync(password, salt, rounds);
     const hashBuf = Buffer.from(hash, 'hex');
     const storedBuf = Buffer.from(storedHash, 'hex');
     if (hashBuf.length !== storedBuf.length) {
@@ -184,8 +208,8 @@ export async function registerUserAsync(email: string, password: string, fullNam
     throw new Error('Email đã được đăng ký trong hệ thống');
   }
 
-  const { hash, salt } = await hashPasswordAsync(password);
-  const passwordRecord = `${salt}:${hash}`;
+  const { record } = await hashPasswordAsync(password);
+  const passwordRecord = record;
 
   const userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const newUser: UserAccount = {
@@ -214,8 +238,8 @@ export function registerUser(email: string, password: string, fullName: string, 
     throw new Error('Email đã được đăng ký trong hệ thống');
   }
 
-  const { hash, salt } = hashPassword(password);
-  const passwordRecord = `${salt}:${hash}`;
+  const { record } = hashPassword(password);
+  const passwordRecord = record;
 
   const userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const newUser: UserAccount = {
@@ -242,13 +266,20 @@ export async function loginUserAsync(email: string, password: string, currentSes
 
   // Constant-time execution prevents timing attacks leaking email presence
   if (!existing || !existing.passwordHash) {
-    await verifyPasswordAsync(password, DUMMY_HASH, DUMMY_SALT);
+    await verifyPasswordAsync(password, DUMMY_HASH, DUMMY_SALT, DEFAULT_PBKDF2_ROUNDS);
     throw new Error('Email hoặc mật khẩu không chính xác');
   }
 
-  const [salt, storedHash] = existing.passwordHash.split(':');
-  if (!salt || !storedHash || !(await verifyPasswordAsync(password, storedHash, salt))) {
+  const parsed = parsePasswordRecord(existing.passwordHash);
+  if (!parsed.salt || !parsed.hash || !(await verifyPasswordAsync(password, parsed.hash, parsed.salt, parsed.rounds))) {
     throw new Error('Email hoặc mật khẩu không chính xác');
+  }
+
+  // Seamless auto-upgrade legacy hashes or lower iterations to v2:210000
+  let upgradedRecord: string | undefined;
+  if (!parsed.isVersion2 || parsed.rounds < DEFAULT_PBKDF2_ROUNDS) {
+    const upgraded = await hashPasswordAsync(password);
+    upgradedRecord = upgraded.record;
   }
 
   // Session rotation: revoke previous session token to prevent session fixation attacks
@@ -257,7 +288,7 @@ export async function loginUserAsync(email: string, password: string, currentSes
   }
 
   existing.lastLoginAt = new Date().toISOString();
-  await repository.saveUser(existing);
+  await repository.saveUser(existing, upgradedRecord);
 
   const { token } = await createSessionAsync(existing.id, false);
   const { passwordHash: _, ...cleanUser } = existing;
@@ -271,13 +302,19 @@ export function loginUser(email: string, password: string, currentSessionToken?:
 
   // Constant-time execution prevents timing attacks leaking email presence
   if (!existing || !existing.passwordHash) {
-    verifyPassword(password, DUMMY_HASH, DUMMY_SALT);
+    verifyPassword(password, DUMMY_HASH, DUMMY_SALT, DEFAULT_PBKDF2_ROUNDS);
     throw new Error('Email hoặc mật khẩu không chính xác');
   }
 
-  const [salt, storedHash] = existing.passwordHash.split(':');
-  if (!salt || !storedHash || !verifyPassword(password, storedHash, salt)) {
+  const parsed = parsePasswordRecord(existing.passwordHash);
+  if (!parsed.salt || !parsed.hash || !verifyPassword(password, parsed.hash, parsed.salt, parsed.rounds)) {
     throw new Error('Email hoặc mật khẩu không chính xác');
+  }
+
+  let upgradedRecord: string | undefined;
+  if (!parsed.isVersion2 || parsed.rounds < DEFAULT_PBKDF2_ROUNDS) {
+    const upgraded = hashPassword(password);
+    upgradedRecord = upgraded.record;
   }
 
   // Session rotation: revoke previous session token to prevent session fixation attacks
@@ -291,9 +328,9 @@ export function loginUser(email: string, password: string, currentSessionToken?:
 
   existing.lastLoginAt = new Date().toISOString();
   if (syncRepo.saveUserSync) {
-    syncRepo.saveUserSync(existing);
+    syncRepo.saveUserSync(existing, upgradedRecord);
   } else {
-    repository.saveUser(existing);
+    repository.saveUser(existing, upgradedRecord);
   }
 
   const { token } = createSession(existing.id, false);
@@ -338,10 +375,12 @@ export async function resetPasswordWithTokenAsync(token: string, newPassword: st
     return false;
   }
 
-  const { hash, salt } = await hashPasswordAsync(newPassword);
-  await repository.saveUser(user, `${salt}:${hash}`);
-  // Invalidate all active sessions for this user upon password reset
-  await repository.revokeUserSessions(userId);
+  const { record } = await hashPasswordAsync(newPassword);
+  await repository.runTransaction(async (txRepo) => {
+    await txRepo.saveUser(user, record);
+    // Invalidate all active sessions for this user upon password reset
+    await txRepo.revokeUserSessions(userId);
+  });
   return true;
 }
 
@@ -519,13 +558,11 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
   }
 
-  // 2. Fallback to Authorization Bearer or x-session-token header
+  // 2. Authorization Bearer header (Standard for REST API / CLI programmatic access)
   if (!token) {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7).trim();
-    } else if (req.headers['x-session-token']) {
-      token = String(req.headers['x-session-token']).trim();
     }
   }
 

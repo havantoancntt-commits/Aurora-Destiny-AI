@@ -211,7 +211,16 @@ export function createRateLimiter(config: RateLimitConfig) {
       }
 
       next();
-    } catch (err) {
+    } catch (err: any) {
+      if (err.message && err.message.includes('fail-closed policy active')) {
+        return res.status(503).json({
+          error: {
+            code: 'RATE_LIMITER_FAIL_CLOSED',
+            message: 'Dịch vụ kiểm soát tần suất tạm thời không khả dụng theo chính sách bảo vệ phân tán (fail-closed).',
+            requestId: req.requestId
+          }
+        });
+      }
       next(err);
     }
   };

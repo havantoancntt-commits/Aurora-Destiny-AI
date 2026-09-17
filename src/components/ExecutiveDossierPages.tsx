@@ -464,14 +464,14 @@ export const DossierPage3Decades: React.FC<PageProps> = ({
       )}
 
       {/* Blind Spot Warnings */}
-      {ensemble.blindSpotWarnings && ensemble.blindSpotWarnings.length > 0 && (
+      {ensemble.potentialBlindspots && ensemble.potentialBlindspots.length > 0 && (
         <div className="p-3 rounded-xl bg-amber-950/25 border border-amber-500/30 space-y-1">
           <div className="text-amber-300 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1">
             <AlertTriangle className="w-3 h-3 text-amber-400" />
             <span>Điểm Mù Tâm Lý &amp; Cảnh Báo Vận Trình</span>
           </div>
           <ul className="list-disc list-inside text-slate-300 text-[10px] space-y-0.5">
-            {ensemble.blindSpotWarnings.map((w, idx) => (
+            {ensemble.potentialBlindspots.map((w: string, idx: number) => (
               <li key={idx}>{w}</li>
             ))}
           </ul>

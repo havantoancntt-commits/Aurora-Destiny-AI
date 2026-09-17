@@ -1067,7 +1067,7 @@ export const DestinyDashboard: React.FC<Props> = ({
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
                   <span className="font-bold text-rose-300">Vận Trình Đại Vận & Lưu Niên</span>
                   {ziwei.currentDecade && (
-                    <span className="font-mono text-slate-400">Đại Vận {ziwei.currentDecade.decadeRange}</span>
+                    <span className="font-mono text-slate-400">Đại Vận {ziwei.currentDecade.startAge} - {ziwei.currentDecade.endAge} Tuổi</span>
                   )}
                 </div>
                 <p className="text-slate-300 leading-relaxed">

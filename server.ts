@@ -359,7 +359,6 @@ app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
     });
 
     setSessionCookie(res, result.token);
-    res.setHeader('x-session-token', result.token);
     res.status(201).json(result);
   } catch (err) {
     next(err);
@@ -381,7 +380,6 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
     });
 
     setSessionCookie(res, result.token);
-    res.setHeader('x-session-token', result.token);
     res.json(result);
   } catch (err) {
     next(err);
@@ -409,7 +407,6 @@ app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
   try {
     const result = await createGuestSessionAsync();
     setSessionCookie(res, result.token);
-    res.setHeader('x-session-token', result.token);
     res.json(result);
   } catch (err) {
     next(err);
