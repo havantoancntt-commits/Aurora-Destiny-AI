@@ -175,3 +175,22 @@ export const ResetPasswordSchema = z.object({
   token: z.string().min(10, 'Mã khôi phục không hợp lệ').max(128),
   newPassword: z.string().min(12, 'Mật khẩu mới tối thiểu 12 ký tự để đảm bảo an toàn').max(100)
 });
+
+// 11. Patron & Payment Integrity Schemas
+export const PatronCreateSchema = z.object({
+  name: z.string().trim().min(1, 'Tên hoặc pháp danh không được để trống').max(80),
+  tier: z.enum(['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh']).default('tam_tinh'),
+  amount: z.number().int().min(10000, 'Số tiền tối thiểu 10,000 VNĐ').max(100000000).optional(),
+  message: z.string().trim().max(300).optional(),
+  isAnonymous: z.boolean().optional().default(false)
+});
+
+export const PaymentWebhookSchema = z.object({
+  idempotencyKey: z.string().trim().min(8).max(128),
+  provider: z.string().trim().min(2).max(64),
+  patronId: z.string().trim().min(5).max(64),
+  paymentReference: z.string().trim().min(3).max(128),
+  amount: z.number().positive(),
+  timestamp: z.number().int().positive()
+});
+

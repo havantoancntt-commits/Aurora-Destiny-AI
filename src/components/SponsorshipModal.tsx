@@ -8,7 +8,7 @@
 // Legal Foundation: Article 457 of Vietnam Civil Code 2015
 // ==========================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -51,6 +51,9 @@ interface PatronRecord {
   contribution: string;
   note: string;
   date: string;
+  sealHash?: string;
+  status?: string;
+  verificationType?: string;
 }
 
 const INITIAL_PATRONS: PatronRecord[] = [
@@ -150,6 +153,24 @@ export const SponsorshipModal: React.FC<Props> = ({
   const [newPatronLocation, setNewPatronLocation] = useState('');
   const [newPatronNote, setNewPatronNote] = useState('');
   const [isSubmittedFeedback, setIsSubmittedFeedback] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync patrons from persistent backend API
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    fetch('/api/patrons')
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted && data?.patrons && Array.isArray(data.patrons) && data.patrons.length > 0) {
+          setPatrons(data.patrons);
+        }
+      })
+      .catch(err => {
+        console.warn('Could not fetch patrons list, keeping local default:', err);
+      });
+    return () => { isMounted = false; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -195,25 +216,59 @@ export const SponsorshipModal: React.FC<Props> = ({
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
-  const handleAddPatron = (e: React.FormEvent) => {
+  const handleAddPatron = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPatronName.trim() || !newPatronNote.trim()) return;
+    if (!newPatronName.trim() || !newPatronNote.trim() || isSubmitting) return;
 
+    setIsSubmitting(true);
     sacredSound.playTibetanBowl(432);
-    const newRecord: PatronRecord = {
-      id: `p-${Date.now()}`,
-      name: newPatronName.trim(),
-      location: newPatronLocation.trim() || 'Hữu duyên',
-      contribution: actualAmount > 0 ? `${actualAmount.toLocaleString('vi-VN')} VNĐ` : 'Tùy hỷ trợ duyên',
-      note: newPatronNote.trim(),
-      date: new Date().toLocaleDateString('vi-VN')
-    };
 
-    setPatrons([newRecord, ...patrons]);
-    setIsSubmittedFeedback(true);
-    setNewPatronName('');
-    setNewPatronLocation('');
-    setNewPatronNote('');
+    try {
+      const resp = await fetch('/api/patrons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newPatronName.trim(),
+          location: newPatronLocation.trim() || 'Hữu duyên',
+          note: newPatronNote.trim(),
+          amount: actualAmount > 0 ? actualAmount : undefined
+        })
+      });
+      const data = await resp.json();
+      if (data?.patron) {
+        setPatrons(prev => [data.patron, ...prev]);
+      } else {
+        const fallbackRecord: PatronRecord = {
+          id: `p-${Date.now()}`,
+          name: newPatronName.trim(),
+          location: newPatronLocation.trim() || 'Hữu duyên',
+          contribution: actualAmount > 0 ? `${actualAmount.toLocaleString('vi-VN')} VNĐ` : 'Tùy hỷ trợ duyên',
+          note: newPatronNote.trim(),
+          date: new Date().toLocaleDateString('vi-VN'),
+          status: 'PENDING'
+        };
+        setPatrons(prev => [fallbackRecord, ...prev]);
+      }
+      setIsSubmittedFeedback(true);
+      setNewPatronName('');
+      setNewPatronLocation('');
+      setNewPatronNote('');
+    } catch (err) {
+      console.warn('Submission failed, recording locally:', err);
+      const fallbackRecord: PatronRecord = {
+        id: `p-${Date.now()}`,
+        name: newPatronName.trim(),
+        location: newPatronLocation.trim() || 'Hữu duyên',
+        contribution: actualAmount > 0 ? `${actualAmount.toLocaleString('vi-VN')} VNĐ` : 'Tùy hỷ trợ duyên',
+        note: newPatronNote.trim(),
+        date: new Date().toLocaleDateString('vi-VN'),
+        status: 'PENDING'
+      };
+      setPatrons(prev => [fallbackRecord, ...prev]);
+      setIsSubmittedFeedback(true);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -773,12 +828,28 @@ export const SponsorshipModal: React.FC<Props> = ({
                     className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 hover:border-amber-400/30 transition-all"
                   >
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-white text-xs">{patron.name}</span>
                         <span className="text-[10px] text-slate-400 font-mono">({patron.location})</span>
                         <span className="px-2 py-0.2 rounded bg-amber-400/10 border border-amber-400/25 text-amber-300 text-[9px] font-mono font-bold">
                           {patron.contribution}
                         </span>
+                        {patron.status === 'VERIFIED' && (
+                          <span className="px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-[8px] font-mono font-bold flex items-center gap-1">
+                            <ShieldCheck className="w-2.5 h-2.5" />
+                            {patron.verificationType === 'DEMO_SAMPLE' ? 'MẪU MINH HỌA' : 'ĐÃ ĐỐI SOÁT'}
+                          </span>
+                        )}
+                        {patron.status === 'PENDING' && (
+                          <span className="px-1.5 py-0.2 rounded bg-yellow-500/15 border border-yellow-400/30 text-yellow-300 text-[8px] font-mono">
+                            ⏳ Chờ đối soát
+                          </span>
+                        )}
+                        {patron.sealHash && (
+                          <span className="text-[8px] text-slate-500 font-mono tracking-wider">
+                            {patron.sealHash}
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-slate-300/85 italic font-serif leading-relaxed">
                         "{patron.note}"

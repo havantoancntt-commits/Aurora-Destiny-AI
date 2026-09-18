@@ -7,7 +7,7 @@
 
 import pg from 'pg';
 import crypto from 'crypto';
-import { IAsyncDatabaseRepository, AuditLogEntry, FeatureFlag } from './repository';
+import { IAsyncDatabaseRepository, AuditLogEntry, FeatureFlag, PatronEntity, WebhookEventRecord } from './repository';
 import { UserAccount, UserPreferences, StoredSession, UserProfile } from '../types/user';
 import { CalculationResult } from '../types/destiny';
 import { HistoricalEvent, BacktestResult } from '../types/backtest';
@@ -797,6 +797,131 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
 
   async exportToPostgresSql(): Promise<string> {
     return '-- Current database engine is already native PostgreSQL.';
+  }
+
+  // --- PATRONS & PAYMENT INTEGRITY ---
+  async getPatrons(options?: { status?: 'PENDING' | 'VERIFIED' | 'REJECTED'; limit?: number }): Promise<PatronEntity[]> {
+    let sql = 'SELECT * FROM patrons';
+    const params: any[] = [];
+    if (options?.status) {
+      sql += ' WHERE status = $1';
+      params.push(options.status);
+    }
+    sql += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1);
+    params.push(options?.limit || 100);
+
+    const res = await this.query(sql, params);
+    return res.rows.map((r: any) => ({
+      id: r.id,
+      userId: r.user_id || undefined,
+      name: r.name,
+      tier: r.tier,
+      amount: r.amount ? parseFloat(r.amount) : undefined,
+      message: r.message || undefined,
+      status: r.status,
+      verificationType: r.verification_type,
+      sealHash: r.seal_hash,
+      paymentReference: r.payment_reference || undefined,
+      isAnonymous: Boolean(r.is_anonymous),
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      verifiedAt: r.verified_at ? new Date(r.verified_at).toISOString() : undefined
+    }));
+  }
+
+  async createPatron(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): Promise<PatronEntity> {
+    const id = patron.id || `ptr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    const now = new Date().toISOString();
+
+    const hashSeed = `${patron.name}_${now}_${crypto.randomBytes(8).toString('hex')}`;
+    let hashNum = 0x811c9dc5;
+    for (let i = 0; i < hashSeed.length; i++) {
+      hashNum ^= hashSeed.charCodeAt(i);
+      hashNum = (hashNum * 0x01000193) >>> 0;
+    }
+    const sealHash = `SEAL-HPPD-${hashNum.toString(16).toUpperCase().padStart(8, '0')}`;
+
+    const entity: PatronEntity = {
+      id,
+      userId: patron.userId,
+      name: patron.name,
+      tier: patron.tier,
+      amount: patron.amount,
+      message: patron.message,
+      status: patron.status || 'PENDING',
+      verificationType: patron.verificationType || 'UNVERIFIED',
+      sealHash,
+      paymentReference: patron.paymentReference,
+      isAnonymous: Boolean(patron.isAnonymous),
+      createdAt: now,
+      verifiedAt: patron.status === 'VERIFIED' ? now : undefined
+    };
+
+    await this.query(
+      `INSERT INTO patrons (id, user_id, name, tier, amount, message, status, verification_type, seal_hash, payment_reference, is_anonymous, created_at, verified_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        entity.id,
+        entity.userId || null,
+        entity.name,
+        entity.tier,
+        entity.amount || null,
+        entity.message || null,
+        entity.status,
+        entity.verificationType,
+        entity.sealHash,
+        entity.paymentReference || null,
+        entity.isAnonymous,
+        entity.createdAt,
+        entity.verifiedAt || null
+      ]
+    );
+
+    return entity;
+  }
+
+  async verifyPatron(id: string, paymentReference: string, verificationType: PatronEntity['verificationType'] = 'WEBHOOK_VERIFIED'): Promise<PatronEntity | null> {
+    const now = new Date().toISOString();
+    const res = await this.query(
+      `UPDATE patrons 
+       SET status = 'VERIFIED', verification_type = $1, payment_reference = $2, verified_at = $3
+       WHERE id = $4
+       RETURNING *`,
+      [verificationType, paymentReference, now, id]
+    );
+
+    if (res.rows.length === 0) return null;
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      userId: r.user_id || undefined,
+      name: r.name,
+      tier: r.tier,
+      amount: r.amount ? parseFloat(r.amount) : undefined,
+      message: r.message || undefined,
+      status: r.status,
+      verificationType: r.verification_type,
+      sealHash: r.seal_hash,
+      paymentReference: r.payment_reference || undefined,
+      isAnonymous: Boolean(r.is_anonymous),
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : now,
+      verifiedAt: r.verified_at ? new Date(r.verified_at).toISOString() : now
+    };
+  }
+
+  async isWebhookProcessed(idempotencyKey: string): Promise<boolean> {
+    const res = await this.query(
+      'SELECT 1 FROM payment_webhook_events WHERE idempotency_key = $1',
+      [idempotencyKey]
+    );
+    return res.rows.length > 0;
+  }
+
+  async recordWebhookEvent(event: WebhookEventRecord): Promise<void> {
+    await this.query(
+      `INSERT INTO payment_webhook_events (id, idempotency_key, provider, payload_hash, processed_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [event.id, event.idempotencyKey, event.provider, event.payloadHash, event.processedAt]
+    );
   }
 
   // --- REAL METRICS (ZERO HARDCODED VALUES) ---

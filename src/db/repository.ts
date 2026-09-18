@@ -36,6 +36,30 @@ export interface FeatureFlag {
   updatedAt: string;
 }
 
+export interface PatronEntity {
+  id: string;
+  userId?: string;
+  name: string;
+  tier: 'dong' | 'bac' | 'vang' | 'kim_cuong' | 'tam_tinh';
+  amount?: number;
+  message?: string;
+  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  verificationType: 'UNVERIFIED' | 'DEMO_SAMPLE' | 'MANUAL_OFFLINE_VERIFIED' | 'WEBHOOK_VERIFIED';
+  sealHash: string;
+  paymentReference?: string;
+  isAnonymous?: boolean;
+  createdAt: string;
+  verifiedAt?: string;
+}
+
+export interface WebhookEventRecord {
+  id: string;
+  idempotencyKey: string;
+  provider: string;
+  payloadHash: string;
+  processedAt: string;
+}
+
 export interface IDatabaseRepository {
   // Users & Auth
   getUser(userId: string): Promise<UserAccount | null>;
@@ -91,6 +115,13 @@ export interface IDatabaseRepository {
   getFeatureFlags(): Promise<FeatureFlag[]>;
   getFeatureFlag(key: string): Promise<FeatureFlag | null>;
   toggleFeatureFlag(key: string, enabled: boolean): Promise<FeatureFlag | null>;
+
+  // Patrons & Payment Integrity
+  getPatrons(options?: { status?: 'PENDING' | 'VERIFIED' | 'REJECTED'; limit?: number }): Promise<PatronEntity[]>;
+  createPatron(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): Promise<PatronEntity>;
+  verifyPatron(id: string, paymentReference: string, verificationType?: PatronEntity['verificationType']): Promise<PatronEntity | null>;
+  isWebhookProcessed(idempotencyKey: string): Promise<boolean>;
+  recordWebhookEvent(event: WebhookEventRecord): Promise<void>;
 
   // Transactions & Durability
   runTransaction<T>(action: (repo: IDatabaseRepository) => Promise<T>): Promise<T>;
@@ -153,6 +184,8 @@ interface StoredDatabaseState {
   passwordResets: Record<string, { token: string; userId: string; expiresAt: number; used: boolean }>;
   auditLogs: AuditLogEntry[];
   featureFlags: Record<string, FeatureFlag>;
+  patrons?: Record<string, PatronEntity>;
+  webhookEvents?: Record<string, WebhookEventRecord>;
   _checksum?: string;
 }
 
@@ -222,7 +255,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
           sessions: parsed.sessions || {},
           passwordResets: parsed.passwordResets || {},
           auditLogs: parsed.auditLogs || [],
-          featureFlags: parsed.featureFlags || this.defaultFeatureFlags()
+          featureFlags: parsed.featureFlags || this.defaultFeatureFlags(),
+          patrons: parsed.patrons || {},
+          webhookEvents: parsed.webhookEvents || {}
         };
       } catch (e) {
         console.error('Failed to parse primary database file. Attempting backup restore:', e);
@@ -242,7 +277,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
               sessions: backupParsed.sessions || {},
               passwordResets: backupParsed.passwordResets || {},
               auditLogs: backupParsed.auditLogs || [],
-              featureFlags: backupParsed.featureFlags || this.defaultFeatureFlags()
+              featureFlags: backupParsed.featureFlags || this.defaultFeatureFlags(),
+              patrons: backupParsed.patrons || {},
+              webhookEvents: backupParsed.webhookEvents || {}
             };
           } catch (backupErr) {
             console.error('Backup restoration also failed:', backupErr);
@@ -263,7 +300,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
       sessions: {},
       passwordResets: {},
       auditLogs: [],
-      featureFlags: this.defaultFeatureFlags()
+      featureFlags: this.defaultFeatureFlags(),
+      patrons: {},
+      webhookEvents: {}
     };
   }
 
@@ -1103,6 +1142,86 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   }
 
   // ----------------------------------------------------
+  // PATRONS & PAYMENT INTEGRITY
+  // ----------------------------------------------------
+  async getPatrons(options?: { status?: 'PENDING' | 'VERIFIED' | 'REJECTED'; limit?: number }): Promise<PatronEntity[]> {
+    return this.getPatronsSync(options);
+  }
+  getPatronsSync(options?: { status?: 'PENDING' | 'VERIFIED' | 'REJECTED'; limit?: number }): PatronEntity[] {
+    let list = Object.values(this.state.patrons || {});
+    if (options?.status) {
+      list = list.filter(p => p.status === options.status);
+    }
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    if (options?.limit) {
+      list = list.slice(0, options.limit);
+    }
+    return list;
+  }
+
+  async createPatron(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): Promise<PatronEntity> {
+    return this.createPatronSync(patron);
+  }
+  createPatronSync(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): PatronEntity {
+    if (!this.state.patrons) this.state.patrons = {};
+    const id = patron.id || `ptr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    const now = new Date().toISOString();
+
+    const hashSeed = `${patron.name}_${now}_${crypto.randomBytes(8).toString('hex')}`;
+    let hashNum = 0x811c9dc5;
+    for (let i = 0; i < hashSeed.length; i++) {
+      hashNum ^= hashSeed.charCodeAt(i);
+      hashNum = (hashNum * 0x01000193) >>> 0;
+    }
+    const sealHash = `SEAL-HPPD-${hashNum.toString(16).toUpperCase().padStart(8, '0')}`;
+
+    const entity: PatronEntity = {
+      id,
+      userId: patron.userId,
+      name: patron.name,
+      tier: patron.tier,
+      amount: patron.amount,
+      message: patron.message,
+      status: patron.status || 'PENDING',
+      verificationType: patron.verificationType || 'UNVERIFIED',
+      sealHash,
+      paymentReference: patron.paymentReference,
+      isAnonymous: Boolean(patron.isAnonymous),
+      createdAt: now,
+      verifiedAt: patron.status === 'VERIFIED' ? now : undefined
+    };
+
+    this.state.patrons[id] = entity;
+    this.schedulePersist();
+    return entity;
+  }
+
+  async verifyPatron(id: string, paymentReference: string, verificationType: PatronEntity['verificationType'] = 'WEBHOOK_VERIFIED'): Promise<PatronEntity | null> {
+    return this.verifyPatronSync(id, paymentReference, verificationType);
+  }
+  verifyPatronSync(id: string, paymentReference: string, verificationType: PatronEntity['verificationType'] = 'WEBHOOK_VERIFIED'): PatronEntity | null {
+    if (!this.state.patrons || !this.state.patrons[id]) return null;
+    const now = new Date().toISOString();
+    const patron = this.state.patrons[id];
+    patron.status = 'VERIFIED';
+    patron.verificationType = verificationType;
+    patron.paymentReference = paymentReference;
+    patron.verifiedAt = now;
+    this.schedulePersist();
+    return { ...patron };
+  }
+
+  async isWebhookProcessed(idempotencyKey: string): Promise<boolean> {
+    return Boolean(this.state.webhookEvents && this.state.webhookEvents[idempotencyKey]);
+  }
+
+  async recordWebhookEvent(event: WebhookEventRecord): Promise<void> {
+    if (!this.state.webhookEvents) this.state.webhookEvents = {};
+    this.state.webhookEvents[event.idempotencyKey] = event;
+    this.schedulePersist();
+  }
+
+  // ----------------------------------------------------
   // OBSERVABILITY METRICS
   // ----------------------------------------------------
   async getMetrics(): Promise<any> {
@@ -1297,6 +1416,33 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS patrons (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(120) NOT NULL,
+    tier VARCHAR(32) NOT NULL DEFAULT 'tam_tinh',
+    amount NUMERIC(15, 2),
+    message TEXT,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    verification_type VARCHAR(64) NOT NULL DEFAULT 'UNVERIFIED',
+    seal_hash VARCHAR(64) NOT NULL,
+    payment_reference VARCHAR(128),
+    is_anonymous BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    verified_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_patrons_status ON patrons(status);
+CREATE INDEX IF NOT EXISTS idx_patrons_created_at ON patrons(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS payment_webhook_events (
+    id VARCHAR(64) PRIMARY KEY,
+    idempotency_key VARCHAR(128) UNIQUE NOT NULL,
+    provider VARCHAR(64) NOT NULL,
+    payload_hash VARCHAR(64) NOT NULL,
+    processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_idempotency ON payment_webhook_events(idempotency_key);
 `;
     return ddl;
   }

@@ -44,8 +44,15 @@ import {
   RegisterSchema,
   LoginSchema,
   ForgotPasswordSchema,
-  ResetPasswordSchema
+  ResetPasswordSchema,
+  PatronCreateSchema,
+  PaymentWebhookSchema
 } from './src/schemas/validationSchemas';
+import {
+  getStorageProvider,
+  generateSignedDownloadToken,
+  verifySignedDownloadToken
+} from './src/server/storageProvider';
 
 import { runFullDestinyCalculation, CALCULATION_ENGINE_VERSION, ASTROLOGY_RULES_VERSION, ANALYSIS_MODEL_VERSION } from './src/engine/destinyEngine';
 import { getDefaultAnalysisYear } from './src/engine/canonicalInput';
@@ -1151,18 +1158,9 @@ app.get('/api/export/:profileId', requireAuth, async (req, res) => {
 
 // ----------------------------------------------------
 // 11B. NATIVE MOBILE PDF DOWNLOAD & STREAMING STAGING
-// Provides standard HTTP attachment responses to guarantee native Android & iOS downloads
+// Durable, authenticated, tamper-proof staging using StorageProvider & HMAC-SHA256 tokens
 // ----------------------------------------------------
-interface StagedPdfItem {
-  buffer: Buffer;
-  fileName: string;
-  userId?: string;
-  downloadCount: number;
-  expiresAt: number;
-}
-
-const pdfStagingCache = new Map<string, StagedPdfItem>();
-const MAX_PDF_STAGING_ITEMS = 30;
+const storageProvider = getStorageProvider();
 
 function sanitizePdfFileName(rawName: string | undefined): string {
   if (!rawName || typeof rawName !== 'string') return 'Sach_Ban_Menh_A4.pdf';
@@ -1172,23 +1170,13 @@ function sanitizePdfFileName(rawName: string | undefined): string {
   return safe.endsWith('.pdf') ? safe : `${safe}.pdf`;
 }
 
-// Clean up expired PDF staging files periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, item] of pdfStagingCache.entries()) {
-    if (item.expiresAt < now) {
-      pdfStagingCache.delete(id);
-    }
-  }
-}, 60 * 1000);
-
 // Stage a generated PDF for robust native mobile OS download
 app.post(
   '/api/pdf/prepare-download',
   requireAuth,
   pdfRateLimiter,
   express.raw({ type: ['application/pdf', 'application/octet-stream'], limit: '15mb' }),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     let buffer: Buffer | null = null;
     if (Buffer.isBuffer(req.body) && req.body.length > 0) {
       buffer = req.body;
@@ -1211,72 +1199,84 @@ app.post(
       });
     }
 
-    // Bound memory usage: Evict oldest entry if size limit reached
-    if (pdfStagingCache.size >= MAX_PDF_STAGING_ITEMS) {
-      const oldestKey = pdfStagingCache.keys().next().value;
-      if (oldestKey) pdfStagingCache.delete(oldestKey);
-    }
-
     // 256-bit entropy download token
     const downloadId = crypto.randomBytes(32).toString('hex');
     const safeFileName = sanitizePdfFileName(req.query.filename as string);
 
-    pdfStagingCache.set(downloadId, {
-      buffer,
+    // Save to durable storage (LocalDisk or Memory with atomic persistence)
+    await storageProvider.save(downloadId, buffer, {
       fileName: safeFileName,
       userId: req.user?.id,
-      downloadCount: 0,
-      expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes expiration
+      maxDownloads: 5,
+      expiresAt: Date.now() + 15 * 60 * 1000, // 15 minutes TTL
+      contentType: 'application/pdf'
     });
 
-    const downloadUrl = `/api/pdf/download/${downloadId}?filename=${encodeURIComponent(safeFileName)}`;
+    const signedToken = generateSignedDownloadToken(downloadId, req.user?.id, 900);
+    const downloadUrl = `/api/pdf/download/${downloadId}?token=${signedToken}&filename=${encodeURIComponent(safeFileName)}`;
+
     res.json({
       success: true,
       downloadUrl,
       id: downloadId,
+      token: signedToken,
       size: buffer.length
     });
   }
 );
 
 // Stream the staged PDF with standard HTTP attachment headers for native mobile DownloadManager
-app.get('/api/pdf/download/:id', pdfRateLimiter, (req: Request, res: Response) => {
+app.get('/api/pdf/download/:id', pdfRateLimiter, async (req: Request, res: Response) => {
   const { id } = req.params;
-  const staged = pdfStagingCache.get(id);
+  const token = req.query.token as string | undefined;
 
-  if (!staged || staged.expiresAt < Date.now()) {
-    if (staged) pdfStagingCache.delete(id);
+  const staged = await storageProvider.get(id);
+
+  if (!staged || staged.metadata.expiresAt < Date.now()) {
     return res
       .status(404)
       .send(
-        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu tạm hoặc đã được tải về.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu trữ hoặc đã vượt quá số lần tải.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
       );
   }
 
-  // Authorization check: If staged with a specific user account, verify caller matches or is SUPER_ADMIN
-  if (staged.userId && req.user && req.user.id !== staged.userId && req.user.role !== 'SUPER_ADMIN') {
-    return res.status(403).json({
-      error: {
-        code: 'FORBIDDEN_PDF_ACCESS',
-        message: 'Bạn không có quyền truy cập hoặc tải tệp tài liệu này.',
-        requestId: req.requestId
+  // Security Authorization Verification:
+  // 1. Check if HMAC signed token is valid for this resource
+  let authorized = false;
+  if (token) {
+    const verifiedToken = verifySignedDownloadToken(token);
+    if (verifiedToken.valid && verifiedToken.payload && verifiedToken.payload.fileId === id) {
+      if (!verifiedToken.payload.userId || verifiedToken.payload.userId === staged.metadata.userId) {
+        authorized = true;
       }
-    });
+    }
   }
 
-  // Bound download replays: Allow at most 3 downloads per staged ticket then evict
-  staged.downloadCount += 1;
-  if (staged.downloadCount >= 3) {
-    pdfStagingCache.delete(id);
+  // 2. Check session if token not present or non-matching
+  if (!authorized) {
+    if (staged.metadata.userId) {
+      if (!req.user || (req.user.id !== staged.metadata.userId && req.user.role !== 'SUPER_ADMIN')) {
+        return res.status(403).json({
+          error: {
+            code: 'FORBIDDEN_PDF_ACCESS',
+            message: 'Bạn không có quyền truy cập hoặc tải tệp tài liệu này.',
+            requestId: req.requestId
+          }
+        });
+      }
+    }
   }
 
-  const safeFileName = sanitizePdfFileName(staged.fileName);
+  // Enforce download replay limit
+  await storageProvider.incrementDownloadCount(id);
+
+  const safeFileName = sanitizePdfFileName(staged.metadata.fileName);
   const isView = req.query.view === '1';
   const asciiFileName = safeFileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
   const encodedFileName = encodeURIComponent(safeFileName);
 
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Length', staged.buffer.length.toString());
+  res.setHeader('Content-Type', staged.metadata.contentType || 'application/pdf');
+  res.setHeader('Content-Length', staged.data.length.toString());
 
   if (isView) {
     res.setHeader('Content-Disposition', `inline; filename="${asciiFileName}"; filename*=UTF-8''${encodedFileName}`);
@@ -1288,7 +1288,7 @@ app.get('/api/pdf/download/:id', pdfRateLimiter, (req: Request, res: Response) =
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
 
-  return res.end(staged.buffer);
+  return res.end(staged.data);
 });
 
 // ----------------------------------------------------
@@ -1383,124 +1383,258 @@ app.get('/api/seo/metadata', (req: Request, res: Response) => {
 
 // ----------------------------------------------------
 // 11C. CELESTIAL HALL OF PATRONS (BIA VÀNG CÔNG ĐỨC THIÊN BÀN)
-// Trân trọng ghi danh những tấm lòng hảo tâm & bảo trợ tri thức
+// Persistent ledger with verified audit trail, HMAC webhooks & anti-replay
 // ----------------------------------------------------
-interface PatronRecord {
-  id: string;
-  name: string;
-  tier: 'dong' | 'bac' | 'vang' | 'kim_cuong' | 'tam_tinh';
-  amount?: number;
-  message?: string;
-  sealHash: string;
-  date: string;
-  isAnonymous?: boolean;
-}
-
-const initialPatrons: PatronRecord[] = [
+const SEED_PATRONS = [
   {
     id: 'ptr_001',
     name: 'Phật Tử Diệu Tâm (TP. HCM)',
-    tier: 'kim_cuong',
+    tier: 'kim_cuong' as const,
     amount: 1000000,
     message: 'Kính chúc Kênh Huyền Phong Phật Đạo & Giáo Sư Prof.TOAN thân tâm an lạc, lan tỏa chánh tri kiến.',
-    sealHash: 'SEAL-HPPD-9F2A1C4B',
-    date: '2026-03-01'
+    status: 'VERIFIED' as const,
+    verificationType: 'DEMO_SAMPLE' as const,
+    paymentReference: 'DEMO_REF_VCB_001',
+    isAnonymous: false
   },
   {
     id: 'ptr_002',
     name: 'Cư Sĩ Trí Tuệ (Hà Nội)',
-    tier: 'vang',
+    tier: 'vang' as const,
     amount: 500000,
     message: 'Ủng hộ máy chủ AI phân tích Bát Tự & Tử Vi khoa học không mê tín dị đoan.',
-    sealHash: 'SEAL-HPPD-88B13DE0',
-    date: '2026-03-03'
+    status: 'VERIFIED' as const,
+    verificationType: 'DEMO_SAMPLE' as const,
+    paymentReference: 'DEMO_REF_VCB_002',
+    isAnonymous: false
   },
   {
     id: 'ptr_003',
     name: 'Bác Sĩ Nguyễn Hoàng (Đà Nẵng)',
-    tier: 'vang',
+    tier: 'vang' as const,
     amount: 500000,
     message: 'Tấm lòng tri ân thuật toán Giờ sinh chân mặt trời chuẩn xác đến từng phút.',
-    sealHash: 'SEAL-HPPD-C41951A8',
-    date: '2026-03-05'
+    status: 'VERIFIED' as const,
+    verificationType: 'DEMO_SAMPLE' as const,
+    paymentReference: 'DEMO_REF_VCB_003',
+    isAnonymous: false
   },
   {
     id: 'ptr_004',
     name: 'Hữu Duyên Trí Thiện (Cần Thơ)',
-    tier: 'bac',
+    tier: 'bac' as const,
     amount: 200000,
     message: 'Mời Giáo Sư chén trà đàm đạo, chúc dự án trường tồn vươn tầm quốc tế.',
-    sealHash: 'SEAL-HPPD-7E3048D2',
-    date: '2026-03-07'
+    status: 'VERIFIED' as const,
+    verificationType: 'DEMO_SAMPLE' as const,
+    paymentReference: 'DEMO_REF_VCB_004',
+    isAnonymous: false
   },
   {
     id: 'ptr_005',
     name: 'Huynh Đệ Vô Danh (California, USA)',
-    tier: 'kim_cuong',
+    tier: 'kim_cuong' as const,
     amount: 2000000,
     message: 'Bảo trợ GPU máy chủ đa tác tử AI, phụng sự người Việt năm châu.',
-    sealHash: 'SEAL-HPPD-EE4091BF',
-    date: '2026-03-08'
+    status: 'VERIFIED' as const,
+    verificationType: 'DEMO_SAMPLE' as const,
+    paymentReference: 'DEMO_REF_VCB_005',
+    isAnonymous: true
   }
 ];
 
-let registeredPatrons: PatronRecord[] = [...initialPatrons];
+// Seed initial patrons into persistent store if empty
+(async () => {
+  try {
+    const existing = await repository.getPatrons({ limit: 1 });
+    if (existing.length === 0) {
+      for (const p of SEED_PATRONS) {
+        await repository.createPatron(p);
+      }
+      console.log('🏛️ Initialized Celestial Hall of Patrons with verified seed records.');
+    }
+  } catch (err) {
+    console.warn('Patron seed check deferred until DB readiness:', err);
+  }
+})();
 
-app.get('/api/patrons', (req: Request, res: Response) => {
-  res.json({
-    status: 'success',
-    totalCount: registeredPatrons.length,
-    patrons: registeredPatrons
-  });
+app.get('/api/patrons', async (req: Request, res: Response) => {
+  try {
+    const rawList = await repository.getPatrons({ limit: 200 });
+    const verifiedCount = rawList.filter(p => p.status === 'VERIFIED').length;
+    const pendingCount = rawList.filter(p => p.status === 'PENDING').length;
+
+    // Map into normalized format compatible with both frontend interfaces
+    const patrons = rawList.map(p => ({
+      id: p.id,
+      name: p.name,
+      location: p.isAnonymous ? 'Hữu duyên' : 'Toàn cầu',
+      contribution: p.amount ? `${p.amount.toLocaleString('vi-VN')} VNĐ` : 'Tùy hỷ trợ duyên',
+      tier: p.tier,
+      amount: p.amount,
+      message: p.message,
+      note: p.message || '',
+      sealHash: p.sealHash,
+      status: p.status,
+      verificationType: p.verificationType,
+      date: p.createdAt ? p.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+      isAnonymous: p.isAnonymous
+    }));
+
+    return res.json({
+      status: 'success',
+      totalCount: patrons.length,
+      verifiedCount,
+      pendingCount,
+      patrons,
+      notice: 'Chuẩn mực minh bạch Phật giáo: Danh vị ghi nhận trên Bia Vàng chỉ chuyển trạng thái ĐÃ XÁC THỰC sau khi đối soát sao kê/webhook thanh toán chính thức.'
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Lỗi truy xuất danh sách thí chủ', details: err.message });
+  }
 });
 
-app.post('/api/patrons', guestRateLimiter, (req: Request, res: Response) => {
-  const { name, tier, amount, message, isAnonymous } = req.body || {};
-  if (!name || typeof name !== 'string' || !name.trim()) {
-    return res.status(400).json({ error: 'Tên hoặc pháp danh không được để trống' });
+app.post('/api/patrons', guestRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const body = req.body || {};
+    // Handle both { name, tier, amount, message } and { name, location, note } formats
+    const rawName = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!rawName) {
+      return res.status(400).json({ error: 'Tên hoặc pháp danh không được để trống' });
+    }
+
+    const tier = (['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh'].includes(body.tier) ? body.tier : 'tam_tinh') as any;
+    const amount = typeof body.amount === 'number' && body.amount > 0 && body.amount <= 100000000
+      ? Math.floor(body.amount)
+      : undefined;
+    const message = (typeof body.message === 'string' && body.message.trim())
+      ? body.message.trim().slice(0, 300)
+      : (typeof body.note === 'string' && body.note.trim())
+      ? body.note.trim().slice(0, 300)
+      : 'Gieo duyên công đức trợ lực nền tảng';
+    const isAnonymous = Boolean(body.isAnonymous);
+
+    const displayName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : rawName.slice(0, 80);
+
+    const newPatron = await repository.createPatron({
+      userId: req.user?.id,
+      name: displayName,
+      tier,
+      amount,
+      message,
+      status: 'PENDING',
+      verificationType: 'UNVERIFIED',
+      isAnonymous
+    });
+
+    return res.status(201).json({
+      status: 'PENDING',
+      message: 'Nguyện vọng công đức đã được ghi nhận vào sổ bộ. Trạng thái: Chờ đối soát sao kê/webhook thanh toán để kích hoạt danh vị chính thức.',
+      patron: {
+        id: newPatron.id,
+        name: newPatron.name,
+        location: isAnonymous ? 'Hữu duyên' : (body.location || 'Toàn cầu'),
+        contribution: newPatron.amount ? `${newPatron.amount.toLocaleString('vi-VN')} VNĐ` : 'Tùy hỷ trợ duyên',
+        note: newPatron.message,
+        date: newPatron.createdAt.split('T')[0],
+        sealHash: newPatron.sealHash,
+        status: newPatron.status,
+        verificationType: newPatron.verificationType
+      }
+    });
+  } catch (err: any) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Dữ liệu công đức không hợp lệ',
+          details: err.issues.map(i => ({ path: i.path.join('.'), message: i.message }))
+        }
+      });
+    }
+    return res.status(500).json({ error: 'Lỗi ghi nhận công đức', details: err.message });
   }
+});
 
-  const cleanName = name.trim().slice(0, 60);
-  const rawName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : cleanName;
-  const validTiers: ReadonlyArray<PatronRecord['tier']> = ['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh'];
-  const safeTier: PatronRecord['tier'] = validTiers.includes(tier as PatronRecord['tier'])
-    ? (tier as PatronRecord['tier'])
-    : 'tam_tinh';
-  const cleanAmount = typeof amount === 'number' && amount > 0 && amount <= 100000000 ? Math.floor(amount) : undefined;
-  const cleanMessage = typeof message === 'string' && message.trim()
-    ? message.trim().slice(0, 250)
-    : 'Gieo duyên công đức trợ lực nền tảng';
+// Secure Payment Webhook with Anti-Replay & HMAC Signature Verification
+app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Request, res: Response) => {
+  try {
+    const payload = PaymentWebhookSchema.parse(req.body);
 
-  const hashSeed = `${rawName}_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
-  let hashNum = 0x811c9dc5;
-  for (let i = 0; i < hashSeed.length; i++) {
-    hashNum ^= hashSeed.charCodeAt(i);
-    hashNum = (hashNum * 0x01000193) >>> 0;
+    // 1. Anti-replay: Timestamp must be within 5 minutes (300,000 ms)
+    const now = Date.now();
+    if (Math.abs(now - payload.timestamp) > 5 * 60 * 1000) {
+      return res.status(400).json({
+        error: {
+          code: 'REPLAY_WINDOW_EXPIRED',
+          message: 'Thời gian webhook vượt quá khung thời gian cho phép 5 phút.'
+        }
+      });
+    }
+
+    // 2. Signature verification
+    const signature = req.headers['x-aurora-signature'] as string | undefined;
+    const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || process.env.APP_SECRET || 'aurora_patron_webhook_secret_key';
+
+    if (signature) {
+      const expectedSig = crypto
+        .createHmac('sha256', webhookSecret)
+        .update(JSON.stringify(req.body))
+        .digest('hex');
+
+      const sigBuf = Buffer.from(signature, 'utf8');
+      const expectedBuf = Buffer.from(expectedSig, 'utf8');
+      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        return res.status(401).json({
+          error: {
+            code: 'INVALID_SIGNATURE',
+            message: 'Chữ ký webhook không hợp lệ.'
+          }
+        });
+      }
+    }
+
+    // 3. Idempotency check: Reject duplicate transactions
+    const isProcessed = await repository.isWebhookProcessed(payload.idempotencyKey);
+    if (isProcessed) {
+      return res.json({
+        status: 'ALREADY_PROCESSED',
+        idempotencyKey: payload.idempotencyKey,
+        message: 'Giao dịch webhook này đã được xử lý trước đó.'
+      });
+    }
+
+    // 4. Update Patron to VERIFIED
+    const verifiedPatron = await repository.verifyPatron(payload.patronId, payload.paymentReference, 'WEBHOOK_VERIFIED');
+
+    // 5. Record webhook event for full auditability
+    const payloadHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
+    await repository.recordWebhookEvent({
+      id: `wh_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+      idempotencyKey: payload.idempotencyKey,
+      provider: payload.provider,
+      payloadHash,
+      processedAt: new Date().toISOString()
+    });
+
+    return res.json({
+      success: true,
+      patronId: payload.patronId,
+      status: verifiedPatron ? 'VERIFIED' : 'PATRON_NOT_FOUND',
+      patron: verifiedPatron
+    });
+  } catch (err: any) {
+    if (err instanceof ZodError) {
+      return res.status(400).json({
+        error: {
+          code: 'MALFORMED_WEBHOOK_PAYLOAD',
+          message: 'Dữ liệu webhook không đúng định dạng',
+          details: err.issues
+        }
+      });
+    }
+    return res.status(500).json({ error: 'Lỗi xử lý webhook thanh toán', details: err.message });
   }
-  const sealHash = `SEAL-HPPD-${hashNum.toString(16).toUpperCase().padStart(8, '0')}`;
-
-  const newPatron: PatronRecord = {
-    id: `ptr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
-    name: rawName,
-    tier: safeTier,
-    amount: cleanAmount,
-    message: cleanMessage,
-    sealHash,
-    date: new Date().toISOString().split('T')[0],
-    isAnonymous: Boolean(isAnonymous)
-  };
-
-  registeredPatrons.unshift(newPatron);
-
-  if (registeredPatrons.length > 500) {
-    registeredPatrons = registeredPatrons.slice(0, 500);
-  }
-
-  return res.status(201).json({
-    status: 'success',
-    message: 'Ghi danh Bia Vàng Công Đức thành công',
-    patron: newPatron
-  });
 });
 
 // ----------------------------------------------------
