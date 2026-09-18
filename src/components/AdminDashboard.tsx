@@ -45,20 +45,18 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
   const fetchAdminData = async () => {
     try {
       setAuthError(null);
-      const token = api.getToken();
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
       const [resMetrics, resLogs, resFlags, resSec] = await Promise.all([
-        fetch('/api/metrics', { headers, credentials: 'same-origin' }).then(r => {
+        fetch('/api/metrics', { credentials: 'same-origin' }).then(r => {
           if (r.status === 401 || r.status === 403) throw new Error('Cần quyền Quản trị viên (Admin/Super Admin)');
           return r.json();
         }),
-        fetch('/api/audit-logs', { headers, credentials: 'same-origin' }).then(r => {
+        fetch('/api/audit-logs', { credentials: 'same-origin' }).then(r => {
           if (r.status === 401 || r.status === 403) return [];
           return r.json();
         }),
-        fetch('/api/feature-flags', { headers, credentials: 'same-origin' }).then(r => r.json()),
-        fetch('/api/admin/security-threats', { headers, credentials: 'same-origin' }).then(r => {
+        fetch('/api/feature-flags', { credentials: 'same-origin' }).then(r => r.json()),
+        fetch('/api/admin/security-threats', { credentials: 'same-origin' }).then(r => {
           if (r.ok) return r.json();
           return null;
         }).catch(() => null)

@@ -11,10 +11,26 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event - claim clients
+// Activate event - purge legacy caches & claim clients
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((name) => caches.delete(name))
+      );
+    }).then(() => self.clients.claim())
+  );
 });
+
+// Explicit fetch handler: Never intercept or cache sensitive /api/ endpoints, auth routes, or user documents
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  // Pass through all API calls, authentication requests, or downloads without Service Worker caching
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+});
+
 
 // Push notification event (triggered via Web Push API or backend push service)
 self.addEventListener('push', (event) => {

@@ -30,7 +30,8 @@ import {
   aiChatRateLimiter,
   scenarioRateLimiter,
   calculationRateLimiter,
-  adminRateLimiter
+  adminRateLimiter,
+  pdfRateLimiter
 } from './src/server/rateLimiter';
 import {
   ProfileCreateSchema,
@@ -177,10 +178,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const isMutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
   if (isMutating) {
     const hasSessionCookie = Boolean(req.cookies && req.cookies['aurora_session']);
-    const hasBearerAuth = Boolean(req.headers.authorization);
     
-    // When relying solely on ambient browser cookie for authorization, verify origin/referrer
-    if (hasSessionCookie && !hasBearerAuth) {
+    // When relying on ambient browser cookie for authorization, verify origin/referrer
+    if (hasSessionCookie) {
       const originHeader = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer as string).origin : undefined);
       const host = req.headers.host;
 
@@ -405,6 +405,10 @@ app.post('/api/auth/logout', requireAuth, async (req, res) => {
 // Auto-provision isolated guest session for first-time visitors
 app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
   try {
+    // If user already has an active registered session, preserve it and do not overwrite
+    if (req.user && req.user.role !== 'GUEST') {
+      return res.json({ user: req.user, message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
+    }
     const result = await createGuestSessionAsync();
     setSessionCookie(res, result.token);
     res.json({ user: result.user, message: 'Khởi tạo phiên khách thành công' });
@@ -1182,6 +1186,7 @@ setInterval(() => {
 app.post(
   '/api/pdf/prepare-download',
   requireAuth,
+  pdfRateLimiter,
   express.raw({ type: ['application/pdf', 'application/octet-stream'], limit: '15mb' }),
   (req: Request, res: Response) => {
     let buffer: Buffer | null = null;
@@ -1235,7 +1240,7 @@ app.post(
 );
 
 // Stream the staged PDF with standard HTTP attachment headers for native mobile DownloadManager
-app.get('/api/pdf/download/:id', (req: Request, res: Response) => {
+app.get('/api/pdf/download/:id', pdfRateLimiter, (req: Request, res: Response) => {
   const { id } = req.params;
   const staged = pdfStagingCache.get(id);
 
@@ -1246,6 +1251,17 @@ app.get('/api/pdf/download/:id', (req: Request, res: Response) => {
       .send(
         '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu tạm hoặc đã được tải về.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
       );
+  }
+
+  // Authorization check: If staged with a specific user account, verify caller matches or is SUPER_ADMIN
+  if (staged.userId && req.user && req.user.id !== staged.userId && req.user.role !== 'SUPER_ADMIN') {
+    return res.status(403).json({
+      error: {
+        code: 'FORBIDDEN_PDF_ACCESS',
+        message: 'Bạn không có quyền truy cập hoặc tải tệp tài liệu này.',
+        requestId: req.requestId
+      }
+    });
   }
 
   // Bound download replays: Allow at most 3 downloads per staged ticket then evict

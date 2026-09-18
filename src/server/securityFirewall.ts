@@ -61,7 +61,7 @@ export function setDistributedFirewallRedis(client: Redis | null): void {
 // Regular attack signatures
 const SQL_INJECTION_PATTERNS = [
   /(\b(UNION(\s+ALL)?|SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b.*\b(FROM|INTO|TABLE|DATABASE)\b)/i,
-  /(\b(OR|AND)\b\s+['"\d\w]+\s*=\s*['"\d\w]+(\s*--|\s*\/\*|\s*#))/i,
+  /(\b(OR|AND)\b\s+['"\d\w]+\s*=\s*['"\d\w]+)/i,
   /(--\s*$|\/\*.*\*\/|#\s*$)/,
   /(\b(WAITFOR\s+DELAY|SLEEP\s*\(\s*\d+\s*\)|BENCHMARK\s*\(\s*\d+\s*,\s*.*\)))/i,
   /(\bINFORMATION_SCHEMA\b|\bSYS\.TABLES\b|\bPG_CATALOG\b)/i
@@ -84,9 +84,10 @@ const PATH_TRAVERSAL_PATTERNS = [
 
 const XSS_PATTERNS = [
   /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i,
+  /<(iframe|object|embed|applet)\b/i,
   /javascript\s*:\s*[^\s]/i,
   /vbscript\s*:\s*[^\s]/i,
-  /on(error|load|click|mouseover|submit|focus|blur)\s*=\s*['"][^'"]*['"]/i,
+  /on(error|load|click|mouseover|submit|focus|blur|change)\s*=/i,
   /data:\s*text\/html/i
 ];
 
@@ -149,43 +150,71 @@ function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: Secu
       };
     }
 
-    // 1. Prototype pollution check
-    for (const pattern of PROTOTYPE_POLLUTION_PATTERNS) {
-      if (pattern.test(val)) {
-        return { detected: true, type: 'PROTOTYPE_POLLUTION', fragment: val.substring(0, 60) };
+    // Inspect original string as well as decoded representations to thwart URL and double-URL encoding evasion
+    const candidates: string[] = [val];
+    try {
+      const decodedOnce = decodeURIComponent(val);
+      if (decodedOnce !== val) {
+        candidates.push(decodedOnce);
+        try {
+          const decodedTwice = decodeURIComponent(decodedOnce);
+          if (decodedTwice !== decodedOnce) {
+            candidates.push(decodedTwice);
+          }
+        } catch {
+          // ignore malformed double-decoding
+        }
       }
+    } catch {
+      // ignore malformed URI encoding
     }
 
-    // 2. Path traversal
-    for (const pattern of PATH_TRAVERSAL_PATTERNS) {
-      if (pattern.test(val)) {
-        return { detected: true, type: 'PATH_TRAVERSAL', fragment: val.substring(0, 60) };
+    for (const str of candidates) {
+      // 1. Prototype pollution check
+      for (const pattern of PROTOTYPE_POLLUTION_PATTERNS) {
+        if (pattern.test(str)) {
+          return { detected: true, type: 'PROTOTYPE_POLLUTION', fragment: str.substring(0, 60) };
+        }
       }
-    }
 
-    // 3. Command injection
-    for (const pattern of COMMAND_INJECTION_PATTERNS) {
-      if (pattern.test(val)) {
-        return { detected: true, type: 'COMMAND_INJECTION', fragment: val.substring(0, 60) };
+      // 2. Path traversal
+      for (const pattern of PATH_TRAVERSAL_PATTERNS) {
+        if (pattern.test(str)) {
+          return { detected: true, type: 'PATH_TRAVERSAL', fragment: str.substring(0, 60) };
+        }
       }
-    }
 
-    // 4. SQL Injection
-    for (const pattern of SQL_INJECTION_PATTERNS) {
-      if (pattern.test(val)) {
-        return { detected: true, type: 'SQL_INJECTION', fragment: val.substring(0, 60) };
+      // 3. Command injection
+      for (const pattern of COMMAND_INJECTION_PATTERNS) {
+        if (pattern.test(str)) {
+          return { detected: true, type: 'COMMAND_INJECTION', fragment: str.substring(0, 60) };
+        }
       }
-    }
 
-    // 5. XSS
-    for (const pattern of XSS_PATTERNS) {
-      if (pattern.test(val)) {
-        return { detected: true, type: 'XSS_ATTACK', fragment: val.substring(0, 60) };
+      // 4. SQL Injection
+      for (const pattern of SQL_INJECTION_PATTERNS) {
+        if (pattern.test(str)) {
+          return { detected: true, type: 'SQL_INJECTION', fragment: str.substring(0, 60) };
+        }
+      }
+
+      // 5. XSS
+      for (const pattern of XSS_PATTERNS) {
+        if (pattern.test(str)) {
+          return { detected: true, type: 'XSS_ATTACK', fragment: str.substring(0, 60) };
+        }
       }
     }
   } else if (typeof val === 'object') {
-    // Check object keys for prototype pollution
-    for (const key of Object.keys(val as object)) {
+    // Check if the prototype itself was mutated or replaced
+    const proto = Object.getPrototypeOf(val);
+    if (proto !== null && proto !== Object.prototype && proto !== Array.prototype && proto !== Date.prototype && proto !== RegExp.prototype && proto !== Map.prototype && proto !== Set.prototype) {
+      return { detected: true, type: 'PROTOTYPE_POLLUTION', fragment: 'Altered object prototype detected' };
+    }
+
+    // Check own property names (including non-enumerable and symbol-adjacent keys)
+    const propertyNames = Object.getOwnPropertyNames(val as object);
+    for (const key of propertyNames) {
       if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
         return { detected: true, type: 'PROTOTYPE_POLLUTION', fragment: `Forbidden object key: ${key}` };
       }
@@ -307,6 +336,8 @@ export async function enterpriseSecurityFirewall(req: Request, res: Response, ne
     const isQuarantined = applySecurityPenalty(ip, threatResult.type, 3, `Attack signature: ${threatResult.type}`);
 
     return res.status(403).json({
+      threatType: threatResult.type,
+      quarantined: isQuarantined,
       error: {
         code: 'SECURITY_VIOLATION_BLOCKED',
         message: 'Yêu cầu của bạn đã bị từ chối do chứa mẫu tấn công hoặc dữ liệu can thiệp không an toàn.',

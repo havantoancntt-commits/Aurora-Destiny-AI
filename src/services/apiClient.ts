@@ -10,28 +10,20 @@ import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { MultiAgentEnsemble, ChatMessage, ScenarioAnalysisResult, DailyDestiny } from '../types/ai';
 
 class ApiClient {
-  private programmaticToken: string | null = null;
   private sessionInitialized = false;
   private sessionPromise: Promise<boolean> | null = null;
 
   constructor() {
-    // Cookie-based architecture: tokens reside exclusively in HttpOnly cookies, not localStorage
+    // Pure HttpOnly cookie architecture: authentication tokens reside exclusively in HttpOnly cookies
   }
 
-  public getToken(): string | null {
-    return this.programmaticToken;
-  }
-
-  public setToken(token: string) {
-    this.programmaticToken = token;
-  }
-
-  public clearToken() {
-    this.programmaticToken = null;
+  public resetSessionState() {
     this.sessionInitialized = false;
   }
 
-  // Ensure an authenticated session exists (auto-provisions guest session if none, with concurrency deduplication)
+  // Ensure an authenticated session exists:
+  // 1. Verifies if an existing authenticated session (registered or guest) is already active via /api/auth/me
+  // 2. Only auto-provisions a guest session if no active session exists, preventing session overwrites
   public async ensureSession(force = false): Promise<boolean> {
     if (this.sessionInitialized && !force) return true;
 
@@ -41,6 +33,19 @@ class ApiClient {
 
     this.sessionPromise = (async () => {
       try {
+        // Step 1: Check if an active session cookie already exists and is valid
+        if (!force) {
+          const meRes = await fetch('/api/auth/me', {
+            method: 'GET',
+            credentials: 'same-origin'
+          });
+          if (meRes.ok) {
+            this.sessionInitialized = true;
+            return true;
+          }
+        }
+
+        // Step 2: Only provision a new guest session if no valid session is active
         const res = await fetch('/api/auth/guest', {
           method: 'POST',
           credentials: 'same-origin'
@@ -64,23 +69,15 @@ class ApiClient {
     await this.ensureSession();
 
     const headers = new Headers(init?.headers || {});
-    if (this.programmaticToken && !headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${this.programmaticToken}`);
-    }
-
     const credentials = init?.credentials || 'same-origin';
     let res = await fetch(input, { ...init, headers, credentials });
 
     // Auto-heal on 401 UNAUTHENTICATED: Session expired, re-provision fresh guest session and retry once
     if (res.status === 401) {
-      this.clearToken();
+      this.resetSessionState();
       const provisioned = await this.ensureSession(true);
       if (provisioned) {
-        const retryHeaders = new Headers(init?.headers || {});
-        if (this.programmaticToken) {
-          retryHeaders.set('Authorization', `Bearer ${this.programmaticToken}`);
-        }
-        res = await fetch(input, { ...init, headers: retryHeaders, credentials });
+        res = await fetch(input, { ...init, headers, credentials });
       }
     }
 
@@ -119,7 +116,7 @@ class ApiClient {
   }
 
   public async logout() {
-    this.clearToken();
+    this.resetSessionState();
     const res = await fetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'same-origin'

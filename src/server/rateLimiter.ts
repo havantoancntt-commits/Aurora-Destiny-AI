@@ -278,3 +278,12 @@ export const adminRateLimiter = createRateLimiter({
   maxRequests: 60,
   message: 'Tần suất truy vấn quản trị viên vượt quá giới hạn (tối đa 60 yêu cầu/phút).'
 });
+
+// 5. PDF Staging & Download Rate Limiter
+export const pdfRateLimiter = createRateLimiter({
+  keyPrefix: 'rl_pdf',
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 15,
+  message: 'Tần suất xử lý hoặc tải tệp PDF vượt quá giới hạn cho phép (tối đa 15 yêu cầu/phút).'
+});
+
