@@ -121,11 +121,12 @@ async function runTests() {
   assert.strictEqual(afterCreate.length, initialCount + 1, 'Patron count should increase by 1');
 
   // Verify Patron via Webhook / Ledger Settlement
-  const verified = await repo.verifyPatron(newPatron.id, 'VCB_TRANS_998877', 'WEBHOOK_VERIFIED');
+  const testPaymentRef = `VCB_TRANS_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+  const verified = await repo.verifyPatron(newPatron.id, testPaymentRef, 'WEBHOOK_VERIFIED');
   assert(verified !== null, 'Verified patron must not be null');
   assert.strictEqual(verified.status, 'VERIFIED');
   assert.strictEqual(verified.verificationType, 'WEBHOOK_VERIFIED');
-  assert.strictEqual(verified.paymentReference, 'VCB_TRANS_998877');
+  assert.strictEqual(verified.paymentReference, testPaymentRef);
   assert(verified.verifiedAt !== undefined, 'verifiedAt timestamp must be set');
   console.log('✅ Patron CRUD & Verification tests passed.');
 
@@ -180,7 +181,7 @@ async function runTests() {
   assert.strictEqual(retrievedPatron.id, newPatron.id);
 
   // Test getPatronByPaymentReference
-  const byRef = await repo.getPatronByPaymentReference('VCB_TRANS_998877');
+  const byRef = await repo.getPatronByPaymentReference(testPaymentRef);
   assert(byRef !== null, 'getPatronByPaymentReference must find verified patron');
   assert.strictEqual(byRef.id, newPatron.id);
 
@@ -198,7 +199,7 @@ async function runTests() {
     verificationType: 'UNVERIFIED',
     isAnonymous: false
   });
-  const duplicateRefFound = await repo.getPatronByPaymentReference('VCB_TRANS_998877');
+  const duplicateRefFound = await repo.getPatronByPaymentReference(testPaymentRef);
   assert(duplicateRefFound !== null && duplicateRefFound.id !== anotherPatron.id, 'Duplicate payment reference across different patrons must be detected');
 
   // ----------------------------------------------------

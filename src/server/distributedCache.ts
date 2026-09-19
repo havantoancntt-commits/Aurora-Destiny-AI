@@ -90,7 +90,8 @@ export class RedisCacheStore implements IDistributedCache {
         lazyConnect: true,
         enableOfflineQueue: false,
         maxRetriesPerRequest: 1,
-        connectTimeout: 3000
+        connectTimeout: 3000,
+        retryStrategy: () => null
       });
       this.client.on('connect', () => {
         this.isConnected = true;
@@ -175,8 +176,13 @@ let activeCache: IDistributedCache;
 
 export function initCache(): IDistributedCache {
   if (!activeCache) {
-    if (process.env.REDIS_URL) {
-      activeCache = new RedisCacheStore(process.env.REDIS_URL);
+    const rawRedis = process.env.REDIS_URL;
+    const isRedisUrl = typeof rawRedis === 'string' &&
+      (rawRedis.startsWith('redis://') || rawRedis.startsWith('rediss://')) &&
+      !rawRedis.toLowerCase().includes('none');
+
+    if (isRedisUrl) {
+      activeCache = new RedisCacheStore(rawRedis);
     } else {
       if (process.env.NODE_ENV === 'production' && process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true') {
         throw new Error('FATAL: REDIS_URL is strictly required in production when REDIS_REQUIRED_IN_PRODUCTION=true.');

@@ -80,7 +80,8 @@ export class RedisRateLimitStore implements IRateLimitStore {
         lazyConnect: true,
         enableOfflineQueue: false,
         maxRetriesPerRequest: 1,
-        connectTimeout: 3000
+        connectTimeout: 3000,
+        retryStrategy: () => null
       });
       this.client.on('connect', () => {
         this.isConnected = true;
@@ -162,8 +163,13 @@ export class RedisRateLimitStore implements IRateLimitStore {
 
 // Global active store selection
 let activeStore: IRateLimitStore;
-if (process.env.REDIS_URL) {
-  activeStore = new RedisRateLimitStore(process.env.REDIS_URL);
+const rawRateLimitRedis = process.env.REDIS_URL;
+const isRateLimitRedisConfigured = typeof rawRateLimitRedis === 'string' &&
+  (rawRateLimitRedis.startsWith('redis://') || rawRateLimitRedis.startsWith('rediss://')) &&
+  !rawRateLimitRedis.toLowerCase().includes('none');
+
+if (isRateLimitRedisConfigured) {
+  activeStore = new RedisRateLimitStore(rawRateLimitRedis);
 } else {
   if (process.env.NODE_ENV === 'production' && process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true') {
     throw new Error('FATAL: REDIS_URL is strictly required in production when REDIS_REQUIRED_IN_PRODUCTION=true.');

@@ -309,7 +309,7 @@ app.get('/api/health', async (req, res) => {
       application: { status: 'pass' },
       database: {
         status: integrity.valid ? 'pass' : 'fail',
-        storageMode: metrics.storageMode || (process.env.DATABASE_URL ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
+        storageMode: metrics.storageMode || (process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith('postgresql://') || process.env.DATABASE_URL.startsWith('postgres://')) && !process.env.DATABASE_URL.toLowerCase().includes('none') ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
         integrityErrors: integrity.errors
       },
       ai: {

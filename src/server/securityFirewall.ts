@@ -38,19 +38,30 @@ const recentThreats: SecurityThreatRecord[] = [];
 const MAX_RECENT_THREATS = 200;
 
 let distributedRedis: Redis | null = null;
-if (process.env.REDIS_URL) {
+const rawFirewallRedis = process.env.REDIS_URL;
+const isFirewallRedisConfigured = typeof rawFirewallRedis === 'string' &&
+  (rawFirewallRedis.startsWith('redis://') || rawFirewallRedis.startsWith('rediss://')) &&
+  !rawFirewallRedis.toLowerCase().includes('none');
+
+if (isFirewallRedisConfigured) {
   try {
-    distributedRedis = new Redis(process.env.REDIS_URL, {
+    distributedRedis = new Redis(rawFirewallRedis, {
       maxRetriesPerRequest: 1,
       enableOfflineQueue: false,
       connectTimeout: 3000,
-      lazyConnect: true
+      lazyConnect: true,
+      retryStrategy: () => null
+    });
+    // Register error handler immediately on EventEmitter to prevent unhandled error events
+    distributedRedis.on('error', (err) => {
+      console.warn('⚠️ [Firewall] Redis connection error, continuing with local store:', err.message);
     });
     distributedRedis.connect().catch((err) => {
       console.warn('⚠️ [Firewall] Redis connection failed, continuing with local store:', err.message);
     });
   } catch (err: any) {
     console.warn('⚠️ [Firewall] Failed to initialize Redis client:', err.message);
+    distributedRedis = null;
   }
 }
 

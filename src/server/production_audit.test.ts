@@ -113,7 +113,12 @@ async function runProductionAuditTests() {
   console.log('▶ Test 4: PostgresDatabaseRepository Interface Parity & Real SQL');
 
   let poolToUse: any = undefined;
-  if (!process.env.DATABASE_URL) {
+  const rawDbUrl = process.env.DATABASE_URL;
+  const isRealPostgres = typeof rawDbUrl === 'string' &&
+    (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
+    !rawDbUrl.toLowerCase().includes('none');
+
+  if (!isRealPostgres) {
     const { newDb, DataType } = await import('pg-mem');
     const memDb = newDb();
     memDb.public.registerFunction({

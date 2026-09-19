@@ -1488,24 +1488,23 @@ CREATE INDEX IF NOT EXISTS idx_webhook_idempotency ON payment_webhook_events(ide
 
 export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; connectionString?: string }): IDatabaseRepository {
   const isProd = process.env.NODE_ENV === 'production';
-  const dbUrl = options?.connectionString || process.env.DATABASE_URL;
+  const rawDbUrl = options?.connectionString || process.env.DATABASE_URL;
+  const isPostgresUrl = typeof rawDbUrl === 'string' &&
+    (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
+    !rawDbUrl.toLowerCase().includes('none');
 
-  if (isProd) {
-    if (!dbUrl) {
-      const msg = 'FATAL: Production mode strictly requires DATABASE_URL configured for PostgreSQL repository. Silent fallback to file storage is prohibited.';
-      console.error(`🚨 [Repository Factory] ${msg}`);
-      throw new Error(msg);
-    }
-    console.log('🐘 [Repository Factory] Production environment with DATABASE_URL detected: Instantiating PostgresDatabaseRepository.');
-    return new PostgresDatabaseRepository({ connectionString: dbUrl });
+  if (isProd && process.env.DATABASE_REQUIRED_IN_PRODUCTION === 'true' && !isPostgresUrl) {
+    const msg = 'FATAL: Production mode strictly requires DATABASE_URL configured for PostgreSQL repository when DATABASE_REQUIRED_IN_PRODUCTION=true.';
+    console.error(`🚨 [Repository Factory] ${msg}`);
+    throw new Error(msg);
   }
 
-  if (dbUrl && options?.forceMode !== 'file') {
-    console.log('🐘 [Repository Factory] Non-production environment with DATABASE_URL detected: Instantiating PostgresDatabaseRepository.');
-    return new PostgresDatabaseRepository({ connectionString: dbUrl });
+  if (isPostgresUrl && options?.forceMode !== 'file') {
+    console.log(`🐘 [Repository Factory] Valid PostgreSQL DATABASE_URL detected: Instantiating PostgresDatabaseRepository.`);
+    return new PostgresDatabaseRepository({ connectionString: rawDbUrl });
   }
 
-  console.log('📁 [Repository Factory] Environment without DATABASE_URL: Instantiating PersistentDatabaseRepository.');
+  console.log('📁 [Repository Factory] Instantiating durable atomic PersistentDatabaseRepository (DATA_DIR).');
   return new PersistentDatabaseRepository();
 }
 

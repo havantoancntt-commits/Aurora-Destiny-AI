@@ -10,8 +10,13 @@ async function runPostgresIntegrationSuite() {
   console.log('🐘 [Suite] Starting Comprehensive PostgreSQL Integration Suite...');
 
   let poolToUse: any = undefined;
-  if (!process.env.DATABASE_URL) {
-    console.log('ℹ️ [Suite] DATABASE_URL not set — launching ephemeral PostgreSQL test instance via pg-mem...');
+  const rawDbUrl = process.env.DATABASE_URL;
+  const isRealPostgres = typeof rawDbUrl === 'string' &&
+    (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
+    !rawDbUrl.toLowerCase().includes('none');
+
+  if (!isRealPostgres) {
+    console.log('ℹ️ [Suite] DATABASE_URL not set or none — launching ephemeral PostgreSQL test instance via pg-mem...');
     const { newDb, DataType } = await import('pg-mem');
     const memDb = newDb();
     memDb.public.registerFunction({
