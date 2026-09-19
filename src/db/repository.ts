@@ -1249,17 +1249,45 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   getMetricsSync() {
     const now = Date.now();
     const twentyFourHoursAgo = now - 24 * 60 * 60 * 1000;
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
     
-    // Real calculation of active users in the last 24h based on session activity or user lastLoginAt
-    const activeUserIds = new Set<string>();
+    // Real calculation of active users in rolling windows (24h DAU, 7d WAU, 30d MAU)
+    const activeUserIds24h = new Set<string>();
+    const activeUserIds7d = new Set<string>();
+    const activeUserIds30d = new Set<string>();
+
     for (const session of Object.values(this.state.sessions)) {
       if (session.lastAccessedAt >= twentyFourHoursAgo) {
-        activeUserIds.add(session.userId);
+        activeUserIds24h.add(session.userId);
+      }
+      if (session.lastAccessedAt >= sevenDaysAgo) {
+        activeUserIds7d.add(session.userId);
+      }
+      if (session.lastAccessedAt >= thirtyDaysAgo) {
+        activeUserIds30d.add(session.userId);
       }
     }
     for (const user of Object.values(this.state.users)) {
-      if (user.lastLoginAt && new Date(user.lastLoginAt).getTime() >= twentyFourHoursAgo) {
-        activeUserIds.add(user.id);
+      const loginTime = user.lastLoginAt ? new Date(user.lastLoginAt).getTime() : 0;
+      if (loginTime >= twentyFourHoursAgo) {
+        activeUserIds24h.add(user.id);
+      }
+      if (loginTime >= sevenDaysAgo) {
+        activeUserIds7d.add(user.id);
+      }
+      if (loginTime >= thirtyDaysAgo) {
+        activeUserIds30d.add(user.id);
+      }
+    }
+
+    let registeredUsers = 0;
+    let guestUsers = 0;
+    for (const user of Object.values(this.state.users)) {
+      if (user.role === 'GUEST' || user.isGuest) {
+        guestUsers++;
+      } else {
+        registeredUsers++;
       }
     }
 
@@ -1272,7 +1300,12 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     const snap = telemetry.getSnapshot();
 
     return {
-      activeUsers24h: activeUserIds.size,
+      activeUsers24h: activeUserIds24h.size,
+      dau: activeUserIds24h.size,
+      wau: activeUserIds7d.size,
+      mau: activeUserIds30d.size,
+      registeredUsers,
+      guestUsers,
       totalUsers: userCount,
       totalProfiles: profileCount,
       totalProfilesStored: profileCount,
@@ -1281,6 +1314,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
       totalActiveSessions: activeSessions,
       totalAuditLogs: this.state.auditLogs.length,
       aiRequestsCount: snap.aiRequestsTotal,
+      aiRequestsTotal: snap.aiRequestsTotal,
+      aiSuccessTotal: snap.aiSuccessTotal,
+      aiFailureTotal: snap.aiFailureTotal,
       aiLatencyAvgMs: snap.aiLatencyAvgMs,
       aiLatencyP50Ms: snap.aiPercentiles.p50,
       aiLatencyP95Ms: snap.aiPercentiles.p95,

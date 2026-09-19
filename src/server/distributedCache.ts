@@ -203,3 +203,11 @@ export function getCache(): IDistributedCache {
 export function setCache(cache: IDistributedCache): void {
   activeCache = cache;
 }
+
+export function getCacheStatus(): { type: 'redis' | 'memory'; connected: boolean } {
+  const cache = getCache();
+  if (cache instanceof RedisCacheStore) {
+    return { type: 'redis', connected: (cache as any).isConnected };
+  }
+  return { type: 'memory', connected: true };
+}

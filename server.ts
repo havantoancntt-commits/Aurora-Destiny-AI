@@ -69,6 +69,7 @@ import {
   antiScrapingSweeperMiddleware
 } from './src/server/algorithmProtection';
 import { telemetry } from './src/telemetry/telemetryService';
+import { getCacheStatus } from './src/server/distributedCache';
 
 // Extend Express Request type with type-safe properties
 declare global {
@@ -337,6 +338,53 @@ app.get('/api/health/ready', async (req, res) => {
   } else {
     res.status(503).send('DATABASE_INTEGRITY_FAILED');
   }
+});
+
+app.get('/api/health/dependencies', async (req, res) => {
+  const integrity = await repository.verifyDatabaseIntegrity();
+  const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+  const circuitOpen = isCircuitBreakerOpen();
+  const cacheStatus = getCacheStatus();
+  const metrics = await repository.getMetrics();
+
+  const dependencies = {
+    application: {
+      status: 'healthy',
+      uptimeSeconds: Math.floor(process.uptime()),
+      version: '2.5.0'
+    },
+    database: {
+      status: integrity.valid ? 'healthy' : 'unhealthy',
+      storageMode: metrics.storageMode || (process.env.DATABASE_URL && !process.env.DATABASE_URL.toLowerCase().includes('none') ? 'postgresql' : 'atomic_file'),
+      errorCount: integrity.errors.length,
+      latencyMs: metrics.dbLatencyMs
+    },
+    aiProvider: {
+      status: hasGeminiKey ? (circuitOpen ? 'degraded_circuit_open' : 'healthy') : 'deterministic_fallback_active',
+      provider: 'google_genai',
+      fallbackEngineReady: true,
+      circuitBreakerOpen: circuitOpen
+    },
+    cache: {
+      status: cacheStatus.connected ? 'healthy' : 'degraded_local_memory',
+      backend: cacheStatus.type,
+      connected: cacheStatus.connected,
+      hitRatio: metrics.cacheHitRatio
+    },
+    storage: {
+      status: 'healthy',
+      mode: 'durable_persistent'
+    }
+  };
+
+  const allCrucialHealthy = dependencies.application.status === 'healthy' &&
+    dependencies.database.status === 'healthy';
+
+  res.status(allCrucialHealthy ? 200 : 503).json({
+    status: allCrucialHealthy ? (circuitOpen || !hasGeminiKey ? 'degraded' : 'healthy') : 'unhealthy',
+    timestamp: new Date().toISOString(),
+    dependencies
+  });
 });
 
 app.get('/api/metrics', requireAdmin, adminRateLimiter, async (req, res) => {

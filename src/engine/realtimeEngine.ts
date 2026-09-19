@@ -523,19 +523,19 @@ export function calculateRealtimeSnapshot(
   let quickRemedy = '';
 
   if (luckCategory === 'DAI_CAT') {
-    headlineMessage = `⚡ ĐẠI CÁT HOÀNG KIM (${luckPercentage}% MAY MẮN): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
-    actionGuidance = `Khí trường vũ trụ và mệnh bàn đồng pha tuyệt đối! Mọi hoạt động đầu tư, chốt đơn, ký kết, đàm phán đều có xác suất thắng lợi cao nhất.`;
-    mitigationProtocol = 'Nắm bắt ngay thời cơ hành động quyết đoán; từ trường của bạn đang được các cát tinh bảo bọc trọn vẹn.';
+    headlineMessage = `⚡ ĐẠI CÁT HOÀNG KIM (${luckPercentage}% ĐIỀU KIỆN THUẬN LỢI): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    actionGuidance = `Khí trường thời điểm và mệnh bàn đồng pha tương trợ tích cực. Hoạt động trao đổi, ký kết, đàm phán có cơ sở hỗ trợ năng lượng thuận lợi.`;
+    mitigationProtocol = 'Nắm bắt thời cơ hành động với kế hoạch rõ ràng; phát huy sự tự chủ và tập trung.';
     quickRemedy = 'Quay mặt về hướng ' + auspiciousDirection + ', mang theo vật phẩm màu ' + luckyColorName + ' để kích hoạt đỉnh cao tài lộc.';
   } else if (luckCategory === 'TIEU_CAT') {
-    headlineMessage = `✨ TIỂU CÁT HANH THÔNG (${luckPercentage}% MAY MẮN): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    headlineMessage = `✨ TIỂU CÁT HANH THÔNG (${luckPercentage}% ĐIỀU KIỆN THUẬN LỢI): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
     actionGuidance = `Thời điểm thuận lợi, nhân hòa, thích hợp gặp gỡ đối tác, xử lý việc trọng đại và đẩy nhanh tiến độ công việc.`;
     mitigationProtocol = 'Duy trì phong độ tích cực, chủ động trao đổi và chia sẻ cơ hội với đồng đội.';
     quickRemedy = 'Uống một ngụm trà ấm, hướng bàn làm việc về ' + auspiciousDirection + ' để duy trì dòng năng lượng hanh thông.';
   } else if (luckCategory === 'DAI_HUNG') {
-    headlineMessage = `🚨 CẢNH BÁO ĐẠI HUNG (${riskPercentage}% RỦI RO): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
-    actionGuidance = `Phát hiện xung khắc nghiêm trọng giữa thời khắc hiện tại và bản mệnh (${currentSlot.isClash ? 'Địa Chi Lục Xung kịch liệt' : 'Tương Khắc Ngũ Hành'}). Nguy cơ xui xẻo, trục trặc cao!`;
-    mitigationProtocol = 'Kích hoạt ngay chế độ phòng vệ tuyệt đối: Hoãn ký kết, không xuất tiền đầu tư, không tranh cãi, giữ tĩnh lặng.';
+    headlineMessage = `🚨 CẢNH BÁO THẬN TRỌNG CAO (${riskPercentage}% RỦI RO): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;
+    actionGuidance = `Phát hiện xung khắc giữa thời khắc hiện tại và bản mệnh (${currentSlot.isClash ? 'Địa Chi Lục Xung' : 'Tương Khắc Ngũ Hành'}). Cần cẩn trọng trong các quyết định quan trọng.`;
+    mitigationProtocol = 'Kích hoạt chế độ thận trọng: Rà soát kỹ điều khoản, không vội vàng giải ngân, giữ tâm thế bình tĩnh.';
     quickRemedy = 'Hóa giải tức thì: Tránh ra quyết định vội vàng trước ' + currentSlot.endHour + ':00. Uống nước lọc, hít sâu 3 hơi để ổn định từ trường.';
   } else if (luckCategory === 'TIEU_HUNG') {
     headlineMessage = `⚠️ CẢNH BÁO THẬN TRỌNG (${riskPercentage}% RỦI RO): Giờ ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (${currentSlot.zodiacStarName})`;

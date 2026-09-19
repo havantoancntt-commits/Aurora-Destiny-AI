@@ -4,8 +4,16 @@
 
 export interface ObservabilityMetrics {
   activeUsers24h: number;
+  dau?: number;
+  wau?: number;
+  mau?: number;
+  registeredUsers?: number;
+  guestUsers?: number;
   totalCalculations: number;
   aiRequestsCount: number;
+  aiRequestsTotal?: number;
+  aiSuccessTotal?: number;
+  aiFailureTotal?: number;
   aiLatencyAvgMs: number | null;
   aiSuccessRate: number | null; // percentage e.g. 99.4
   calculationDeterministicRate: number | null; // 100%

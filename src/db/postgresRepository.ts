@@ -977,14 +977,42 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
     let sessionCount = 0;
     let auditCount = 0;
 
+    let active24h = 0;
+    let active7d = 0;
+    let active30d = 0;
+    let registeredCount = 0;
+    let guestCount = 0;
+
     try {
-      const [uRes, pRes, cRes, eRes, sRes, aRes] = await Promise.all([
+      const [uRes, pRes, cRes, eRes, sRes, aRes, a24Res, a7Res, a30Res, regRes] = await Promise.all([
         this.query('SELECT COUNT(*) as c FROM users'),
         this.query('SELECT COUNT(*) as c FROM profiles'),
         this.query('SELECT COUNT(*) as c FROM calculations'),
         this.query('SELECT COUNT(*) as c FROM historical_events'),
         this.query('SELECT COUNT(*) as c FROM sessions WHERE expires_at > NOW()'),
-        this.query('SELECT COUNT(*) as c FROM audit_logs')
+        this.query('SELECT COUNT(*) as c FROM audit_logs'),
+        this.query(`
+          SELECT COUNT(DISTINCT user_id) as c FROM (
+            SELECT user_id FROM sessions WHERE last_accessed_at >= NOW() - INTERVAL '24 HOURS'
+            UNION
+            SELECT id as user_id FROM users WHERE last_login_at >= NOW() - INTERVAL '24 HOURS'
+          ) active_users_24h
+        `),
+        this.query(`
+          SELECT COUNT(DISTINCT user_id) as c FROM (
+            SELECT user_id FROM sessions WHERE last_accessed_at >= NOW() - INTERVAL '7 DAYS'
+            UNION
+            SELECT id as user_id FROM users WHERE last_login_at >= NOW() - INTERVAL '7 DAYS'
+          ) active_users_7d
+        `),
+        this.query(`
+          SELECT COUNT(DISTINCT user_id) as c FROM (
+            SELECT user_id FROM sessions WHERE last_accessed_at >= NOW() - INTERVAL '30 DAYS'
+            UNION
+            SELECT id as user_id FROM users WHERE last_login_at >= NOW() - INTERVAL '30 DAYS'
+          ) active_users_30d
+        `),
+        this.query("SELECT COUNT(*) as c FROM users WHERE role != 'GUEST'")
       ]);
 
       userCount = parseInt(uRes.rows[0]?.c || '0', 10);
@@ -993,12 +1021,22 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       eventCount = parseInt(eRes.rows[0]?.c || '0', 10);
       sessionCount = parseInt(sRes.rows[0]?.c || '0', 10);
       auditCount = parseInt(aRes.rows[0]?.c || '0', 10);
+      active24h = parseInt(a24Res.rows[0]?.c || '0', 10);
+      active7d = parseInt(a7Res.rows[0]?.c || '0', 10);
+      active30d = parseInt(a30Res.rows[0]?.c || '0', 10);
+      registeredCount = parseInt(regRes.rows[0]?.c || '0', 10);
+      guestCount = Math.max(0, userCount - registeredCount);
     } catch (err: any) {
       console.warn('[Metrics] Could not fetch real counts from PostgreSQL:', err.message);
     }
 
     return {
-      activeUsers24h: Math.max(sessionCount, userCount, 0),
+      activeUsers24h: active24h,
+      dau: active24h,
+      wau: active7d,
+      mau: active30d,
+      registeredUsers: registeredCount,
+      guestUsers: guestCount,
       totalUsers: userCount,
       totalProfiles: profileCount,
       totalProfilesStored: profileCount,
@@ -1007,6 +1045,9 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       totalActiveSessions: sessionCount,
       totalAuditLogs: auditCount,
       aiRequestsCount: snap.aiRequestsTotal,
+      aiRequestsTotal: snap.aiRequestsTotal,
+      aiSuccessTotal: snap.aiSuccessTotal,
+      aiFailureTotal: snap.aiFailureTotal,
       aiLatencyAvgMs: snap.aiLatencyAvgMs,
       aiLatencyP50Ms: snap.aiPercentiles.p50,
       aiLatencyP95Ms: snap.aiPercentiles.p95,
