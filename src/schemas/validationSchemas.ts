@@ -182,15 +182,17 @@ export const PatronCreateSchema = z.object({
   tier: z.enum(['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh']).default('tam_tinh'),
   amount: z.number().int().min(10000, 'Số tiền tối thiểu 10,000 VNĐ').max(100000000).optional(),
   message: z.string().trim().max(300).optional(),
+  note: z.string().trim().max(300).optional(),
+  location: z.string().trim().max(100).optional(),
   isAnonymous: z.boolean().optional().default(false)
 });
 
 export const PaymentWebhookSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(128),
-  provider: z.string().trim().min(2).max(64),
+  provider: z.enum(['VIETQR_VCB', 'MOMO', 'ZALOPAY', 'BANK_TRANSFER']),
   patronId: z.string().trim().min(5).max(64),
   paymentReference: z.string().trim().min(3).max(128),
-  amount: z.number().positive(),
-  timestamp: z.number().int().positive()
+  amount: z.number().positive('Số tiền thanh toán phải lớn hơn 0'),
+  timestamp: z.number().int().positive('Thời gian giao dịch không hợp lệ')
 });
 

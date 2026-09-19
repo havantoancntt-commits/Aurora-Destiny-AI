@@ -1444,19 +1444,26 @@ const SEED_PATRONS = [
 ];
 
 // Seed initial patrons into persistent store if empty
-(async () => {
-  try {
-    const existing = await repository.getPatrons({ limit: 1 });
-    if (existing.length === 0) {
-      for (const p of SEED_PATRONS) {
-        await repository.createPatron(p);
+const isProd = process.env.NODE_ENV === 'production';
+const shouldSeedDemo = process.env.ENABLE_DEMO_DATA === 'true' || (!isProd && process.env.ENABLE_DEMO_DATA !== 'false');
+
+if (shouldSeedDemo) {
+  (async () => {
+    try {
+      const existing = await repository.getPatrons({ limit: 1 });
+      if (existing.length === 0) {
+        for (const p of SEED_PATRONS) {
+          await repository.createPatron(p);
+        }
+        console.log('🏛️ [Demo Fixtures] Initialized Celestial Hall of Patrons with verified demo records.');
       }
-      console.log('🏛️ Initialized Celestial Hall of Patrons with verified seed records.');
+    } catch (err) {
+      console.warn('Patron seed check deferred until DB readiness:', err);
     }
-  } catch (err) {
-    console.warn('Patron seed check deferred until DB readiness:', err);
-  }
-})();
+  })();
+} else {
+  console.log('🏛️ [Production Mode] Demo patron seeding disabled (ENABLE_DEMO_DATA !== true).');
+}
 
 app.get('/api/patrons', async (req: Request, res: Response) => {
   try {
@@ -1490,37 +1497,22 @@ app.get('/api/patrons', async (req: Request, res: Response) => {
       notice: 'Chuẩn mực minh bạch Phật giáo: Danh vị ghi nhận trên Bia Vàng chỉ chuyển trạng thái ĐÃ XÁC THỰC sau khi đối soát sao kê/webhook thanh toán chính thức.'
     });
   } catch (err: any) {
-    return res.status(500).json({ error: 'Lỗi truy xuất danh sách thí chủ', details: err.message });
+    return res.status(500).json({ error: 'Lỗi truy xuất danh sách thí chủ', details: isProd ? undefined : err.message });
   }
 });
 
 app.post('/api/patrons', guestRateLimiter, async (req: Request, res: Response) => {
   try {
-    const body = req.body || {};
-    // Handle both { name, tier, amount, message } and { name, location, note } formats
-    const rawName = typeof body.name === 'string' ? body.name.trim() : '';
-    if (!rawName) {
-      return res.status(400).json({ error: 'Tên hoặc pháp danh không được để trống' });
-    }
-
-    const tier = (['dong', 'bac', 'vang', 'kim_cuong', 'tam_tinh'].includes(body.tier) ? body.tier : 'tam_tinh') as any;
-    const amount = typeof body.amount === 'number' && body.amount > 0 && body.amount <= 100000000
-      ? Math.floor(body.amount)
-      : undefined;
-    const message = (typeof body.message === 'string' && body.message.trim())
-      ? body.message.trim().slice(0, 300)
-      : (typeof body.note === 'string' && body.note.trim())
-      ? body.note.trim().slice(0, 300)
-      : 'Gieo duyên công đức trợ lực nền tảng';
-    const isAnonymous = Boolean(body.isAnonymous);
-
-    const displayName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : rawName.slice(0, 80);
+    const validated = PatronCreateSchema.parse(req.body);
+    const message = validated.message || validated.note || 'Gieo duyên công đức trợ lực nền tảng';
+    const isAnonymous = Boolean(validated.isAnonymous);
+    const displayName = isAnonymous ? 'Thí Chủ Hữu Duyên (Ẩn danh)' : validated.name;
 
     const newPatron = await repository.createPatron({
       userId: req.user?.id,
       name: displayName,
-      tier,
-      amount,
+      tier: validated.tier,
+      amount: validated.amount,
       message,
       status: 'PENDING',
       verificationType: 'UNVERIFIED',
@@ -1533,7 +1525,7 @@ app.post('/api/patrons', guestRateLimiter, async (req: Request, res: Response) =
       patron: {
         id: newPatron.id,
         name: newPatron.name,
-        location: isAnonymous ? 'Hữu duyên' : (body.location || 'Toàn cầu'),
+        location: isAnonymous ? 'Hữu duyên' : (validated.location || 'Toàn cầu'),
         contribution: newPatron.amount ? `${newPatron.amount.toLocaleString('vi-VN')} VNĐ` : 'Tùy hỷ trợ duyên',
         note: newPatron.message,
         date: newPatron.createdAt.split('T')[0],
@@ -1552,16 +1544,54 @@ app.post('/api/patrons', guestRateLimiter, async (req: Request, res: Response) =
         }
       });
     }
-    return res.status(500).json({ error: 'Lỗi ghi nhận công đức', details: err.message });
+    return res.status(500).json({ error: 'Lỗi ghi nhận công đức', details: isProd ? undefined : err.message });
   }
 });
 
-// Secure Payment Webhook with Anti-Replay & HMAC Signature Verification
+// Secure Payment Webhook with Anti-Replay, Required HMAC Signature & Payment Reconciliation
 app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Request, res: Response) => {
   try {
+    // 1. Signature MUST be present
+    const signature = req.headers['x-aurora-signature'] as string | undefined;
+    if (!signature) {
+      return res.status(401).json({
+        error: {
+          code: 'SIGNATURE_MISSING',
+          message: 'Thiếu chữ ký xác thực webhook (x-aurora-signature).'
+        }
+      });
+    }
+
+    let webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || process.env.APP_SECRET;
+    if (isProd) {
+      if (!webhookSecret) {
+        throw new Error('[FATAL SECURITY] PAYMENT_WEBHOOK_SECRET or APP_SECRET is strictly required in production.');
+      }
+    } else {
+      webhookSecret = webhookSecret || 'aurora_patron_webhook_dev_secret_only';
+    }
+
+    // Constant-time HMAC signature verification
+    const expectedSig = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const expectedBuf = Buffer.from(expectedSig, 'utf8');
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+      return res.status(401).json({
+        error: {
+          code: 'INVALID_SIGNATURE',
+          message: 'Chữ ký webhook không hợp lệ.'
+        }
+      });
+    }
+
+    // 2. Validate payload schema
     const payload = PaymentWebhookSchema.parse(req.body);
 
-    // 1. Anti-replay: Timestamp must be within 5 minutes (300,000 ms)
+    // 3. Anti-replay: Timestamp must be within 5 minutes (300,000 ms)
     const now = Date.now();
     if (Math.abs(now - payload.timestamp) > 5 * 60 * 1000) {
       return res.status(400).json({
@@ -1572,31 +1602,63 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
       });
     }
 
-    // 2. Signature verification
-    const signature = req.headers['x-aurora-signature'] as string | undefined;
-    const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET || process.env.APP_SECRET || 'aurora_patron_webhook_secret_key';
+    // 4. Verify patron exists
+    const targetPatron = await repository.getPatronById(payload.patronId);
+    if (!targetPatron) {
+      return res.status(404).json({
+        error: {
+          code: 'PATRON_NOT_FOUND',
+          message: 'Không tìm thấy hồ sơ thí chủ tương ứng.'
+        }
+      });
+    }
 
-    if (signature) {
-      const expectedSig = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
+    // 5. Payment Reconciliation: check if payment reference is already used by another patron
+    const existingWithRef = await repository.getPatronByPaymentReference(payload.paymentReference);
+    if (existingWithRef && existingWithRef.id !== payload.patronId) {
+      return res.status(400).json({
+        error: {
+          code: 'DUPLICATE_PAYMENT_REFERENCE',
+          message: 'Mã giao dịch này đã được ghi nhận cho một thí chủ khác.'
+        }
+      });
+    }
 
-      const sigBuf = Buffer.from(signature, 'utf8');
-      const expectedBuf = Buffer.from(expectedSig, 'utf8');
-      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-        return res.status(401).json({
+    // 6. Payment Reconciliation: compare amount if patron has an expected amount
+    if (targetPatron.amount !== undefined && targetPatron.amount !== null && targetPatron.amount > 0) {
+      if (payload.amount < targetPatron.amount) {
+        return res.status(400).json({
           error: {
-            code: 'INVALID_SIGNATURE',
-            message: 'Chữ ký webhook không hợp lệ.'
+            code: 'AMOUNT_MISMATCH',
+            message: `Số tiền thanh toán (${payload.amount.toLocaleString('vi-VN')} VNĐ) nhỏ hơn số tiền đã đăng ký (${targetPatron.amount.toLocaleString('vi-VN')} VNĐ).`
           }
         });
       }
     }
 
-    // 3. Idempotency check: Reject duplicate transactions
-    const isProcessed = await repository.isWebhookProcessed(payload.idempotencyKey);
-    if (isProcessed) {
+    // 7. Atomic Idempotency & Database Transaction
+    const txResult = await repository.runTransaction(async (txRepo) => {
+      const isProcessed = await txRepo.isWebhookProcessed(payload.idempotencyKey);
+      if (isProcessed) {
+        return { alreadyProcessed: true, verifiedPatron: null };
+      }
+
+      // Record webhook event for complete auditability
+      const payloadHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
+      await txRepo.recordWebhookEvent({
+        id: `wh_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+        idempotencyKey: payload.idempotencyKey,
+        provider: payload.provider,
+        payloadHash,
+        processedAt: new Date().toISOString()
+      });
+
+      // Update Patron to VERIFIED
+      const verified = await txRepo.verifyPatron(payload.patronId, payload.paymentReference, 'WEBHOOK_VERIFIED');
+      return { alreadyProcessed: false, verifiedPatron: verified };
+    });
+
+    if (txResult.alreadyProcessed) {
       return res.json({
         status: 'ALREADY_PROCESSED',
         idempotencyKey: payload.idempotencyKey,
@@ -1604,24 +1666,11 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
       });
     }
 
-    // 4. Update Patron to VERIFIED
-    const verifiedPatron = await repository.verifyPatron(payload.patronId, payload.paymentReference, 'WEBHOOK_VERIFIED');
-
-    // 5. Record webhook event for full auditability
-    const payloadHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
-    await repository.recordWebhookEvent({
-      id: `wh_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
-      idempotencyKey: payload.idempotencyKey,
-      provider: payload.provider,
-      payloadHash,
-      processedAt: new Date().toISOString()
-    });
-
     return res.json({
       success: true,
       patronId: payload.patronId,
-      status: verifiedPatron ? 'VERIFIED' : 'PATRON_NOT_FOUND',
-      patron: verifiedPatron
+      status: 'VERIFIED',
+      patron: txResult.verifiedPatron
     });
   } catch (err: any) {
     if (err instanceof ZodError) {
@@ -1629,11 +1678,11 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
         error: {
           code: 'MALFORMED_WEBHOOK_PAYLOAD',
           message: 'Dữ liệu webhook không đúng định dạng',
-          details: err.issues
+          details: err.issues.map(i => ({ path: i.path.join('.'), message: i.message }))
         }
       });
     }
-    return res.status(500).json({ error: 'Lỗi xử lý webhook thanh toán', details: err.message });
+    return res.status(500).json({ error: 'Lỗi xử lý webhook thanh toán', details: isProd ? undefined : err.message });
   }
 });
 

@@ -118,6 +118,8 @@ export interface IDatabaseRepository {
 
   // Patrons & Payment Integrity
   getPatrons(options?: { status?: 'PENDING' | 'VERIFIED' | 'REJECTED'; limit?: number }): Promise<PatronEntity[]>;
+  getPatronById(id: string): Promise<PatronEntity | null>;
+  getPatronByPaymentReference(paymentReference: string): Promise<PatronEntity | null>;
   createPatron(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): Promise<PatronEntity>;
   verifyPatron(id: string, paymentReference: string, verificationType?: PatronEntity['verificationType']): Promise<PatronEntity | null>;
   isWebhookProcessed(idempotencyKey: string): Promise<boolean>;
@@ -1159,6 +1161,23 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return list;
   }
 
+  async getPatronById(id: string): Promise<PatronEntity | null> {
+    return this.getPatronByIdSync(id);
+  }
+  getPatronByIdSync(id: string): PatronEntity | null {
+    if (!this.state.patrons || !this.state.patrons[id]) return null;
+    return { ...this.state.patrons[id] };
+  }
+
+  async getPatronByPaymentReference(paymentReference: string): Promise<PatronEntity | null> {
+    return this.getPatronByPaymentReferenceSync(paymentReference);
+  }
+  getPatronByPaymentReferenceSync(paymentReference: string): PatronEntity | null {
+    if (!this.state.patrons) return null;
+    const found = Object.values(this.state.patrons).find(p => p.paymentReference === paymentReference);
+    return found ? { ...found } : null;
+  }
+
   async createPatron(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): Promise<PatronEntity> {
     return this.createPatronSync(patron);
   }
@@ -1434,6 +1453,7 @@ CREATE TABLE IF NOT EXISTS patrons (
 );
 CREATE INDEX IF NOT EXISTS idx_patrons_status ON patrons(status);
 CREATE INDEX IF NOT EXISTS idx_patrons_created_at ON patrons(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_patrons_payment_reference ON patrons(payment_reference) WHERE payment_reference IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS payment_webhook_events (
     id VARCHAR(64) PRIMARY KEY,

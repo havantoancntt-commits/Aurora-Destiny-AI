@@ -148,7 +148,7 @@ export const SponsorshipModal: React.FC<Props> = ({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Patron messaging state
-  const [patrons, setPatrons] = useState<PatronRecord[]>(INITIAL_PATRONS);
+  const [patrons, setPatrons] = useState<PatronRecord[]>([]);
   const [newPatronName, setNewPatronName] = useState('');
   const [newPatronLocation, setNewPatronLocation] = useState('');
   const [newPatronNote, setNewPatronNote] = useState('');
@@ -162,12 +162,12 @@ export const SponsorshipModal: React.FC<Props> = ({
     fetch('/api/patrons')
       .then(res => res.json())
       .then(data => {
-        if (isMounted && data?.patrons && Array.isArray(data.patrons) && data.patrons.length > 0) {
+        if (isMounted && data?.patrons && Array.isArray(data.patrons)) {
           setPatrons(data.patrons);
         }
       })
       .catch(err => {
-        console.warn('Could not fetch patrons list, keeping local default:', err);
+        console.warn('Could not fetch patrons list:', err);
       });
     return () => { isMounted = false; };
   }, [isOpen]);
@@ -231,7 +231,7 @@ export const SponsorshipModal: React.FC<Props> = ({
           name: newPatronName.trim(),
           location: newPatronLocation.trim() || 'Hữu duyên',
           note: newPatronNote.trim(),
-          amount: actualAmount > 0 ? actualAmount : undefined
+          amount: actualAmount >= 10000 ? Math.floor(actualAmount) : undefined
         })
       });
       const data = await resp.json();
@@ -822,44 +822,55 @@ export const SponsorshipModal: React.FC<Props> = ({
 
               {/* Patrons list */}
               <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                {patrons.map((patron) => (
-                  <div
-                    key={patron.id}
-                    className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 hover:border-amber-400/30 transition-all"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-white text-xs">{patron.name}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">({patron.location})</span>
-                        <span className="px-2 py-0.2 rounded bg-amber-400/10 border border-amber-400/25 text-amber-300 text-[9px] font-mono font-bold">
-                          {patron.contribution}
-                        </span>
-                        {patron.status === 'VERIFIED' && (
-                          <span className="px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-[8px] font-mono font-bold flex items-center gap-1">
-                            <ShieldCheck className="w-2.5 h-2.5" />
-                            {patron.verificationType === 'DEMO_SAMPLE' ? 'MẪU MINH HỌA' : 'ĐÃ ĐỐI SOÁT'}
-                          </span>
-                        )}
-                        {patron.status === 'PENDING' && (
-                          <span className="px-1.5 py-0.2 rounded bg-yellow-500/15 border border-yellow-400/30 text-yellow-300 text-[8px] font-mono">
-                            ⏳ Chờ đối soát
-                          </span>
-                        )}
-                        {patron.sealHash && (
-                          <span className="text-[8px] text-slate-500 font-mono tracking-wider">
-                            {patron.sealHash}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-300/85 italic font-serif leading-relaxed">
-                        "{patron.note}"
-                      </p>
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-mono shrink-0">
-                      {patron.date}
-                    </span>
+                {patrons.length === 0 ? (
+                  <div className="p-6 rounded-xl bg-white/[0.02] border border-white/5 text-center space-y-2">
+                    <p className="text-xs text-amber-200/80 font-serif">
+                      Sổ vàng đang mở để đón nhận những hạt giống thiện lành đầu tiên.
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      Kính mời quý đạo hữu hoan hỷ phát tâm gieo duyên trợ lực nền tảng qua biểu mẫu bên dưới.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  patrons.map((patron) => (
+                    <div
+                      key={patron.id}
+                      className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 hover:border-amber-400/30 transition-all"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-white text-xs">{patron.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">({patron.location})</span>
+                          <span className="px-2 py-0.2 rounded bg-amber-400/10 border border-amber-400/25 text-amber-300 text-[9px] font-mono font-bold">
+                            {patron.contribution}
+                          </span>
+                          {patron.status === 'VERIFIED' && (
+                            <span className="px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-[8px] font-mono font-bold flex items-center gap-1">
+                              <ShieldCheck className="w-2.5 h-2.5" />
+                              {patron.verificationType === 'DEMO_SAMPLE' ? 'MẪU MINH HỌA' : 'ĐÃ ĐỐI SOÁT'}
+                            </span>
+                          )}
+                          {patron.status === 'PENDING' && (
+                            <span className="px-1.5 py-0.2 rounded bg-yellow-500/15 border border-yellow-400/30 text-yellow-300 text-[8px] font-mono">
+                              ⏳ Chờ đối soát
+                            </span>
+                          )}
+                          {patron.sealHash && (
+                            <span className="text-[8px] text-slate-500 font-mono tracking-wider">
+                              {patron.sealHash}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-300/85 italic font-serif leading-relaxed">
+                          "{patron.note}"
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                        {patron.date}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Message to Prof.TOAN Form */}

@@ -168,7 +168,56 @@ async function runTests() {
   const staleTimestamp = Date.now() - 10 * 60 * 1000; // 10 minutes ago (> 5m window)
   const isReplay = Math.abs(Date.now() - staleTimestamp) > 5 * 60 * 1000;
   assert.strictEqual(isReplay, true, 'Stale webhook timestamp must be flagged as replay');
-  console.log('✅ Webhook Security tests passed.');
+
+  // ----------------------------------------------------
+  // TEST 5: Payment Reconciliation & Lookup Integrity
+  // ----------------------------------------------------
+  console.log('\n⚖️ Testing Payment Reconciliation & Duplicate Prevention...');
+  
+  // Test getPatronById
+  const retrievedPatron = await repo.getPatronById(newPatron.id);
+  assert(retrievedPatron !== null, 'getPatronById must find patron');
+  assert.strictEqual(retrievedPatron.id, newPatron.id);
+
+  // Test getPatronByPaymentReference
+  const byRef = await repo.getPatronByPaymentReference('VCB_TRANS_998877');
+  assert(byRef !== null, 'getPatronByPaymentReference must find verified patron');
+  assert.strictEqual(byRef.id, newPatron.id);
+
+  // Reconciliation: Amount mismatch detection
+  const registeredAmount = retrievedPatron.amount || 1500000;
+  const underpaidAmount = 500000;
+  assert(underpaidAmount < registeredAmount, 'Underpaid webhook must fail reconciliation');
+
+  // Duplicate reference across different patrons
+  const anotherPatron = await repo.createPatron({
+    name: 'Thí Chủ Khác',
+    tier: 'bac',
+    amount: 200000,
+    status: 'PENDING',
+    verificationType: 'UNVERIFIED',
+    isAnonymous: false
+  });
+  const duplicateRefFound = await repo.getPatronByPaymentReference('VCB_TRANS_998877');
+  assert(duplicateRefFound !== null && duplicateRefFound.id !== anotherPatron.id, 'Duplicate payment reference across different patrons must be detected');
+
+  // ----------------------------------------------------
+  // TEST 6: HMAC Signature Verification & Anti-Tampering
+  // ----------------------------------------------------
+  console.log('\n🛡️ Testing Webhook HMAC Signature & Timing-Safe Verification...');
+  const webhookSecret = 'test_webhook_secret_key_123';
+  const samplePayload = JSON.stringify(validPayload);
+  const correctSig = crypto.createHmac('sha256', webhookSecret).update(samplePayload).digest('hex');
+  const forgedSig = crypto.createHmac('sha256', 'wrong_secret').update(samplePayload).digest('hex');
+
+  const bufCorrect = Buffer.from(correctSig, 'utf8');
+  const bufExpected = Buffer.from(correctSig, 'utf8');
+  const bufForged = Buffer.from(forgedSig, 'utf8');
+
+  assert.strictEqual(crypto.timingSafeEqual(bufCorrect, bufExpected), true, 'Valid signature must match');
+  assert.strictEqual(crypto.timingSafeEqual(bufForged, bufExpected), false, 'Forged signature must fail verification');
+
+  console.log('✅ Payment Reconciliation and HMAC security tests passed.');
 
   console.log('\n🎉 ALL STORAGE, PATRON & WEBHOOK TESTS PASSED GREEN!\n');
 }

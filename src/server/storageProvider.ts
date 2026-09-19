@@ -275,7 +275,14 @@ export function getStorageProvider(): IObjectStorageProvider {
 // Prevents token tampering, URL enumeration and replay attacks
 // ----------------------------------------------------
 function getSecret(): string {
-  return process.env.ALGORITHM_PROTECTION_SECRET || process.env.APP_SECRET || 'aurora_destiny_signed_token_fallback_key';
+  if (process.env.NODE_ENV === 'production') {
+    const secret = process.env.ALGORITHM_PROTECTION_SECRET || process.env.APP_SECRET;
+    if (!secret) {
+      throw new Error('[FATAL SECURITY] ALGORITHM_PROTECTION_SECRET or APP_SECRET is strictly required in production.');
+    }
+    return secret;
+  }
+  return process.env.ALGORITHM_PROTECTION_SECRET || process.env.APP_SECRET || 'aurora_destiny_signed_token_dev_key_only';
 }
 
 export interface SignedTokenPayload {

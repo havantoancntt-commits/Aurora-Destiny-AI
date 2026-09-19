@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS patrons (
 
 CREATE INDEX IF NOT EXISTS idx_patrons_status ON patrons(status);
 CREATE INDEX IF NOT EXISTS idx_patrons_created_at ON patrons(created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_patrons_payment_reference ON patrons(payment_reference) WHERE payment_reference IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS payment_webhook_events (
     id VARCHAR(64) PRIMARY KEY,

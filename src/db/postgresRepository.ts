@@ -828,6 +828,48 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
     }));
   }
 
+  async getPatronById(id: string): Promise<PatronEntity | null> {
+    const res = await this.query('SELECT * FROM patrons WHERE id = $1', [id]);
+    if (res.rows.length === 0) return null;
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      userId: r.user_id || undefined,
+      name: r.name,
+      tier: r.tier,
+      amount: r.amount ? parseFloat(r.amount) : undefined,
+      message: r.message || undefined,
+      status: r.status,
+      verificationType: r.verification_type,
+      sealHash: r.seal_hash,
+      paymentReference: r.payment_reference || undefined,
+      isAnonymous: Boolean(r.is_anonymous),
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      verifiedAt: r.verified_at ? new Date(r.verified_at).toISOString() : undefined
+    };
+  }
+
+  async getPatronByPaymentReference(paymentReference: string): Promise<PatronEntity | null> {
+    const res = await this.query('SELECT * FROM patrons WHERE payment_reference = $1', [paymentReference]);
+    if (res.rows.length === 0) return null;
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      userId: r.user_id || undefined,
+      name: r.name,
+      tier: r.tier,
+      amount: r.amount ? parseFloat(r.amount) : undefined,
+      message: r.message || undefined,
+      status: r.status,
+      verificationType: r.verification_type,
+      sealHash: r.seal_hash,
+      paymentReference: r.payment_reference || undefined,
+      isAnonymous: Boolean(r.is_anonymous),
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      verifiedAt: r.verified_at ? new Date(r.verified_at).toISOString() : undefined
+    };
+  }
+
   async createPatron(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): Promise<PatronEntity> {
     const id = patron.id || `ptr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
     const now = new Date().toISOString();
