@@ -123,6 +123,7 @@ export interface IDatabaseRepository {
   createPatron(patron: Omit<PatronEntity, 'id' | 'createdAt' | 'sealHash'> & { id?: string }): Promise<PatronEntity>;
   verifyPatron(id: string, paymentReference: string, verificationType?: PatronEntity['verificationType']): Promise<PatronEntity | null>;
   isWebhookProcessed(idempotencyKey: string): Promise<boolean>;
+  getWebhookEvent(idempotencyKey: string): Promise<WebhookEventRecord | null>;
   recordWebhookEvent(event: WebhookEventRecord): Promise<void>;
 
   // Transactions & Durability
@@ -191,6 +192,22 @@ interface StoredDatabaseState {
   _checksum?: string;
 }
 
+/**
+ * Deterministic JSON stringifier that sorts object keys recursively.
+ * Ensures consistent canonical hash calculation across runtimes, platforms and insertion order.
+ */
+export function deterministicStringify(val: any): string {
+  if (val === null || val === undefined) return 'null';
+  if (val instanceof Date) return JSON.stringify(val.toISOString());
+  if (typeof val !== 'object') return JSON.stringify(val);
+  if (Array.isArray(val)) {
+    return '[' + val.map(item => deterministicStringify(item)).join(',') + ']';
+  }
+  const keys = Object.keys(val).sort();
+  const pairs = keys.map(k => `${JSON.stringify(k)}:${deterministicStringify(val[k])}`);
+  return '{' + pairs.join(',') + '}';
+}
+
 export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, IDatabaseRepository {
   private dir: string;
   private filePath: string;
@@ -200,6 +217,7 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   private saveDebounceTimer: NodeJS.Timeout | null = null;
   private isWriting: boolean = false;
   private pendingWritePromise: Promise<void> | null = null;
+  private txMutex: Promise<void> = Promise.resolve();
 
   constructor(storageDir?: string) {
     this.dir = storageDir || process.env.DATA_DIR || path.join(process.cwd(), 'data');
@@ -216,7 +234,7 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   }
 
   private computeChecksum(data: any): string {
-    const serialized = JSON.stringify(data);
+    const serialized = deterministicStringify(data);
     return crypto.createHash('sha256').update(serialized).digest('hex');
   }
 
@@ -395,17 +413,27 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   // TRANSACTIONS & DURABILITY
   // ----------------------------------------------------
   async runTransaction<T>(action: (repo: any) => T | Promise<T>): Promise<T> {
-    // Snapshot state before executing transaction
-    const snapshot = JSON.stringify(this.state);
+    // Acquire transaction lock to guarantee serializability & atomic isolation
+    let releaseLock: () => void;
+    const lockPromise = new Promise<void>((resolve) => { releaseLock = resolve; });
+    const prevLock = this.txMutex;
+    this.txMutex = lockPromise;
+
+    await prevLock;
     try {
-      const result = await Promise.resolve(action(this));
-      this.schedulePersist();
-      return result;
-    } catch (err) {
-      // Rollback to prior snapshot on failure
-      this.state = JSON.parse(snapshot);
-      console.error('⚠️ Transaction failed and was rolled back successfully:', err);
-      throw err;
+      // Snapshot state before executing transaction
+      const snapshot = JSON.stringify(this.state);
+      try {
+        const result = await Promise.resolve(action(this));
+        this.schedulePersist();
+        return result;
+      } catch (err) {
+        // Rollback to prior snapshot on failure
+        this.state = JSON.parse(snapshot);
+        throw err;
+      }
+    } finally {
+      releaseLock!();
     }
   }
 
@@ -510,6 +538,35 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
       for (const [token, record] of Object.entries(this.state.passwordResets)) {
         if (!this.state.users[record.userId]) {
           errors.push(`Orphan password reset ${token.slice(0, 8)}...: user ${record.userId} does not exist.`);
+        }
+      }
+    }
+
+    // 10. Patrons check
+    if (this.state.patrons) {
+      const seenPaymentRefs = new Set<string>();
+      for (const [patronId, patron] of Object.entries(this.state.patrons)) {
+        if (patron.userId && !this.state.users[patron.userId]) {
+          errors.push(`Orphan patron ${patronId}: user ${patron.userId} does not exist.`);
+        }
+        if (patron.paymentReference) {
+          if (seenPaymentRefs.has(patron.paymentReference)) {
+            errors.push(`Duplicate paymentReference ${patron.paymentReference} in patron ${patronId}`);
+          } else {
+            seenPaymentRefs.add(patron.paymentReference);
+          }
+        }
+        if (patron.createdAt && isNaN(Date.parse(patron.createdAt))) {
+          errors.push(`Invalid createdAt timestamp on patron ${patronId}`);
+        }
+      }
+    }
+
+    // 11. Webhook Events check
+    if (this.state.webhookEvents) {
+      for (const [key, evt] of Object.entries(this.state.webhookEvents)) {
+        if (evt.processedAt && isNaN(Date.parse(evt.processedAt))) {
+          errors.push(`Invalid processedAt timestamp on webhook event ${key}`);
         }
       }
     }
@@ -1220,8 +1277,12 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   }
   verifyPatronSync(id: string, paymentReference: string, verificationType: PatronEntity['verificationType'] = 'WEBHOOK_VERIFIED'): PatronEntity | null {
     if (!this.state.patrons || !this.state.patrons[id]) return null;
-    const now = new Date().toISOString();
     const patron = this.state.patrons[id];
+    if (patron.status !== 'PENDING') {
+      // Strictly prevent PENDING -> VERIFIED -> VERIFIED transition
+      return { ...patron };
+    }
+    const now = new Date().toISOString();
     patron.status = 'VERIFIED';
     patron.verificationType = verificationType;
     patron.paymentReference = paymentReference;
@@ -1234,8 +1295,19 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return Boolean(this.state.webhookEvents && this.state.webhookEvents[idempotencyKey]);
   }
 
+  async getWebhookEvent(idempotencyKey: string): Promise<WebhookEventRecord | null> {
+    if (!this.state.webhookEvents) return null;
+    const evt = this.state.webhookEvents[idempotencyKey];
+    return evt ? { ...evt } : null;
+  }
+
   async recordWebhookEvent(event: WebhookEventRecord): Promise<void> {
     if (!this.state.webhookEvents) this.state.webhookEvents = {};
+    if (this.state.webhookEvents[event.idempotencyKey]) {
+      const err: any = new Error(`DUPLICATE_IDEMPOTENCY_KEY: ${event.idempotencyKey}`);
+      err.code = '23505';
+      throw err;
+    }
     this.state.webhookEvents[event.idempotencyKey] = event;
     this.schedulePersist();
   }

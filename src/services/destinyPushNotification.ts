@@ -185,9 +185,12 @@ function recordNotificationLog(log: Omit<CanChiNotificationLog, 'id' | 'timestam
   if (typeof window === 'undefined') return;
   try {
     const now = new Date();
+    const randomSuffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8)
+      : Date.now().toString(36);
     const fullLog: CanChiNotificationLog = {
       ...log,
-      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      id: `log_${Date.now()}_${randomSuffix}`,
       timestamp: Date.now(),
       timeFormatted: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} - ${now.getDate()}/${now.getMonth() + 1}`
     };

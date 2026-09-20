@@ -777,8 +777,39 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
         errors.push(`Found ${orphanEvents.rows.length} orphaned historical events.`);
       }
 
+      // 5. Deterministic fingerprint: compute hash over applied schema migrations + critical table counts & head IDs + error state
+      let migrationsState = '';
+      try {
+        const migRes = await this.query('SELECT version, checksum FROM schema_migrations ORDER BY version ASC');
+        migrationsState = migRes.rows.map((r: any) => `${r.version}:${r.checksum}`).join(',');
+      } catch {
+        migrationsState = 'migrations_table_unavailable';
+      }
+
+      let tablesState = '';
+      try {
+        const tablesRes = await this.query(`
+          SELECT 'users' as tbl, count(*) as c, coalesce(max(id), '') as m FROM users
+          UNION ALL
+          SELECT 'profiles' as tbl, count(*) as c, coalesce(max(id), '') as m FROM profiles
+          UNION ALL
+          SELECT 'calculations' as tbl, count(*) as c, coalesce(max(id), '') as m FROM calculations
+          UNION ALL
+          SELECT 'sessions' as tbl, count(*) as c, coalesce(max(token_hash), '') as m FROM sessions
+          UNION ALL
+          SELECT 'patrons' as tbl, count(*) as c, coalesce(max(id), '') as m FROM patrons
+          UNION ALL
+          SELECT 'payment_webhook_events' as tbl, count(*) as c, coalesce(max(id), '') as m FROM payment_webhook_events
+          ORDER BY tbl ASC
+        `);
+        tablesState = tablesRes.rows.map((r: any) => `${r.tbl}:${r.c}:${r.m}`).join('|');
+      } catch {
+        tablesState = 'tables_summary_unavailable';
+      }
+
+      const canonicalPayload = `schema:[${migrationsState}]|tables:[${tablesState}]|errors:[${errors.sort().join(';')}]`;
       const hash = crypto.createHash('sha256')
-        .update(`postgres_integrity_${Date.now()}_${errors.length}`)
+        .update(canonicalPayload)
         .digest('hex');
 
       return {
@@ -923,31 +954,36 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
 
   async verifyPatron(id: string, paymentReference: string, verificationType: PatronEntity['verificationType'] = 'WEBHOOK_VERIFIED'): Promise<PatronEntity | null> {
     const now = new Date().toISOString();
+    // Only transition from PENDING to VERIFIED
     const res = await this.query(
       `UPDATE patrons 
        SET status = 'VERIFIED', verification_type = $1, payment_reference = $2, verified_at = $3
-       WHERE id = $4
+       WHERE id = $4 AND status = 'PENDING'
        RETURNING *`,
       [verificationType, paymentReference, now, id]
     );
 
-    if (res.rows.length === 0) return null;
-    const r = res.rows[0];
-    return {
-      id: r.id,
-      userId: r.user_id || undefined,
-      name: r.name,
-      tier: r.tier,
-      amount: r.amount ? parseFloat(r.amount) : undefined,
-      message: r.message || undefined,
-      status: r.status,
-      verificationType: r.verification_type,
-      sealHash: r.seal_hash,
-      paymentReference: r.payment_reference || undefined,
-      isAnonymous: Boolean(r.is_anonymous),
-      createdAt: r.created_at ? new Date(r.created_at).toISOString() : now,
-      verifiedAt: r.verified_at ? new Date(r.verified_at).toISOString() : now
-    };
+    if (res.rows.length > 0) {
+      const r = res.rows[0];
+      return {
+        id: r.id,
+        userId: r.user_id || undefined,
+        name: r.name,
+        tier: r.tier,
+        amount: r.amount ? parseFloat(r.amount) : undefined,
+        message: r.message || undefined,
+        status: r.status,
+        verificationType: r.verification_type,
+        sealHash: r.seal_hash,
+        paymentReference: r.payment_reference || undefined,
+        isAnonymous: Boolean(r.is_anonymous),
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : now,
+        verifiedAt: r.verified_at ? new Date(r.verified_at).toISOString() : now
+      };
+    }
+
+    // If no row updated, retrieve existing patron without re-updating
+    return this.getPatronById(id);
   }
 
   async isWebhookProcessed(idempotencyKey: string): Promise<boolean> {
@@ -956,6 +992,22 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       [idempotencyKey]
     );
     return res.rows.length > 0;
+  }
+
+  async getWebhookEvent(idempotencyKey: string): Promise<WebhookEventRecord | null> {
+    const res = await this.query(
+      'SELECT id, idempotency_key, provider, payload_hash, processed_at FROM payment_webhook_events WHERE idempotency_key = $1',
+      [idempotencyKey]
+    );
+    if (res.rows.length === 0) return null;
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      idempotencyKey: r.idempotency_key,
+      provider: r.provider,
+      payloadHash: r.payload_hash,
+      processedAt: r.processed_at ? new Date(r.processed_at).toISOString() : new Date().toISOString()
+    };
   }
 
   async recordWebhookEvent(event: WebhookEventRecord): Promise<void> {

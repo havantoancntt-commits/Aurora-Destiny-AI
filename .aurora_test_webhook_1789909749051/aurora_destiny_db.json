@@ -1,0 +1,79 @@
+{
+  "users": {},
+  "preferences": {},
+  "profiles": {},
+  "calculations": {},
+  "historicalEvents": {},
+  "backtestResults": {},
+  "chatMessages": {},
+  "sessions": {},
+  "passwordResets": {},
+  "auditLogs": [],
+  "featureFlags": {
+    "enable_gemini_37_stream": {
+      "key": "enable_gemini_37_stream",
+      "name": "Gemini Ensemble Streaming",
+      "description": "Kích hoạt streaming token cho Multi-Agent Ensemble",
+      "enabled": true,
+      "updatedAt": "2026-09-20T13:09:09.052Z"
+    },
+    "enable_ziwei_3d_render": {
+      "key": "enable_ziwei_3d_render",
+      "name": "3D Cosmic Cipher Visualization",
+      "description": "Hiển thị mô hình Thiên Cầu 3D Tử Vi tương tác",
+      "enabled": true,
+      "updatedAt": "2026-09-20T13:09:09.052Z"
+    },
+    "strict_backtest_gate": {
+      "key": "strict_backtest_gate",
+      "name": "Strict Backtest Empirical Gate",
+      "description": "Yêu cầu tối thiểu 3 sự kiện để hiển thị Backtest Reliability Band",
+      "enabled": true,
+      "updatedAt": "2026-09-20T13:09:09.052Z"
+    },
+    "audit_logging_enabled": {
+      "key": "audit_logging_enabled",
+      "name": "Security Audit Trail",
+      "description": "Ghi nhật ký bảo mật và tuân thủ dữ liệu nhạy cảm",
+      "enabled": true,
+      "updatedAt": "2026-09-20T13:09:09.052Z"
+    }
+  },
+  "patrons": {
+    "ptr_1789909749053_071e96e4": {
+      "id": "ptr_1789909749053_071e96e4",
+      "name": "Thí Chủ Test Concurrency",
+      "tier": "vang",
+      "amount": 500000,
+      "message": "Test concurrency message",
+      "status": "VERIFIED",
+      "verificationType": "WEBHOOK_VERIFIED",
+      "sealHash": "SEAL-HPPD-9FF9944C",
+      "paymentReference": "PAY_REF_CONC_1789909749055",
+      "isAnonymous": false,
+      "createdAt": "2026-09-20T13:09:09.054Z",
+      "verifiedAt": "2026-09-20T13:09:09.055Z"
+    },
+    "ptr_1789909749056_2898d833": {
+      "id": "ptr_1789909749056_2898d833",
+      "name": "Thí Chủ B",
+      "tier": "bac",
+      "amount": 200000,
+      "status": "PENDING",
+      "verificationType": "UNVERIFIED",
+      "sealHash": "SEAL-HPPD-EAAA8A40",
+      "isAnonymous": false,
+      "createdAt": "2026-09-20T13:09:09.056Z"
+    }
+  },
+  "webhookEvents": {
+    "idem_race_1789909749055": {
+      "id": "wh_0_1789909749055",
+      "idempotencyKey": "idem_race_1789909749055",
+      "provider": "SEPAY",
+      "payloadHash": "ce9741fc747948f74751c57f160b6e08489db9245d8930919b1d77bfebc187ed",
+      "processedAt": "2026-09-20T13:09:09.055Z"
+    }
+  },
+  "_checksum": "82ce51df82cd22c11b9383b5242c8a554eb2181d8639027992078aef13ba3a39"
+}

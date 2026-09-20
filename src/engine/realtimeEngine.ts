@@ -15,9 +15,11 @@ import {
   STEM_KEYS,
   BRANCH_KEYS,
   ELEMENT_RELATIONS,
-  getTenGod
+  getTenGod,
+  getNaYin
 } from './canchi';
 import { gregorianToJulianDay, getSolarTerm } from './lunarSolar';
+import { calculateYearPillar, calculateMonthPillar, calculateDayPillar, calculateHourPillar } from './bazi';
 
 export type AlertLevel = 'GOLDEN_WINDOW' | 'BALANCED_FLOW' | 'CLASH_ANOMALY';
 
@@ -232,35 +234,59 @@ function getZodiacOffset(dayBranch: EarthlyBranch): number {
  */
 export function calculateRealtimeSnapshot(
   calculation: CalculationResult | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  timezoneOffset?: number
 ): RealtimeDestinySnapshot {
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
+  const tzOffset = timezoneOffset !== undefined 
+    ? timezoneOffset 
+    : (calculation?.inputSnapshot?.timezoneOffset ?? 7);
 
-  // 1. Compute Day Stem & Branch from Julian Day
-  const jd = gregorianToJulianDay(year, month, day);
-  // Gregorian epoch offset for stem & branch of day
-  const dayStemIdx = Math.abs((jd + 9) % 10);
-  const dayBranchIdx = Math.abs((jd + 1) % 12);
-  const dayStem = STEM_KEYS[dayStemIdx];
-  const dayBranch = BRANCH_KEYS[dayBranchIdx];
+  // Derive target local time accounting for timezone offset
+  const targetUtcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+  const localTargetDate = new Date(targetUtcMs + (tzOffset * 3600000));
+
+  const year = localTargetDate.getFullYear();
+  const month = localTargetDate.getMonth() + 1;
+  const day = localTargetDate.getDate();
+  const hours = localTargetDate.getHours();
+  const minutes = localTargetDate.getMinutes();
+  const seconds = localTargetDate.getSeconds();
+
+  // 1. Compute Astronomical Year & Month Pillars from Solar Terms & Sun Longitude
+  const yearPillarData = calculateYearPillar(year, month, day, tzOffset, hours, minutes);
+  const monthPillarData = calculateMonthPillar(yearPillarData.stem, year, month, day, tzOffset, hours, minutes);
+
+  const currentYearPillar = {
+    stem: STEMS[yearPillarData.stem].nameVi,
+    branch: BRANCHES[yearPillarData.branch].nameVi
+  };
+
+  const currentMonthPillar = {
+    stem: STEMS[monthPillarData.stem].nameVi,
+    branch: BRANCHES[monthPillarData.branch].nameVi
+  };
+
+  // 2. Compute Day Stem & Branch from Canonical Bazi Engine
+  const isLateRat = Boolean(calculation?.inputSnapshot?.isLateRat);
+  const dayPillarData = calculateDayPillar(year, month, day, hours, isLateRat);
+  const dayStem = dayPillarData.stem;
+  const dayBranch = dayPillarData.branch;
   const dayStemInfo = STEMS[dayStem];
   const dayBranchInfo = BRANCHES[dayBranch];
 
-  // 2. Solar Term (24 Tiết Khí)
+  // 3. Solar Term (24 Tiết Khí)
   const solarTerm = getSolarTerm(year, month, day);
 
-  // 3. Current Hour Branch and Stem
-  const currentBranchData = getBranchForTime(now);
-  const currentHourStem = getHourStemForDay(dayStem, currentBranchData.index);
+  // 4. Current Hour Branch and Stem from Canonical Bazi Engine
+  const hourPillarData = calculateHourPillar(dayStem, hours, minutes, isLateRat);
+  const currentBranchData = getBranchForTime(localTargetDate);
+  const currentHourStem = hourPillarData.stem;
+  const currentHourBranch = hourPillarData.branch;
   const currentHourStemInfo = STEMS[currentHourStem];
-  const currentHourBranchInfo = BRANCHES[currentBranchData.branch];
+  const currentHourBranchInfo = BRANCHES[currentHourBranch];
+  const hourNaYin = getNaYin(currentHourStem, currentHourBranch);
 
-  // 4. Calculate Seconds remaining in current 2-hour bracket
+  // 5. Calculate Seconds remaining in current 2-hour bracket
   let endHour = (Math.floor(hours / 2) * 2 + 1) % 24;
   if (hours % 2 === 0) endHour = (hours + 1) % 24;
   else endHour = (hours) % 24; // When odd hour, ends at end of next hour
@@ -556,14 +582,14 @@ export function calculateRealtimeSnapshot(
     hourStr: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     secondsRemainingInCurrentHour: secondsRemaining,
     timeRemainingFormatted,
-    currentYearPillar: { stem: 'Bính', branch: 'Ngọ' }, // Deterministic context
-    currentMonthPillar: { stem: 'Bính', branch: 'Thân' },
+    currentYearPillar,
+    currentMonthPillar,
     currentDayPillar: { stem: dayStemInfo.nameVi, branch: dayBranchInfo.nameVi, stemElement: dayStemInfo.element },
     currentHourPillar: {
       stem: currentHourStemInfo.nameVi,
       branch: currentHourBranchInfo.nameVi,
       element: currentHourStemInfo.element,
-      naYin: 'Thiên hà thuỷ'
+      naYin: hourNaYin
     },
     currentSlot,
     resonanceScore,

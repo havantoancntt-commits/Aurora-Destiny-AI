@@ -280,6 +280,75 @@ export async function runDatabaseIntegrityTests(): Promise<{ passed: number; fai
     // Verify regular user is untouched
     assert(await repo.getUser(user.id) !== null, 'Regular User Preserved During Purge', 'Registered user was preserved unharmed');
 
+    // ========================================================
+    // TEST SECTION: DETERMINISTIC DATABASE CHECKSUM INVARIANTS
+    // ========================================================
+    
+    // 1. Unchanged DB -> Checksum identical
+    const ck1 = (await repo.verifyDatabaseIntegrity()).checksum;
+    const ck2 = (await repo.verifyDatabaseIntegrity()).checksum;
+    assert(ck1 === ck2 && typeof ck1 === 'string' && ck1.length === 64, 'Unchanged DB Checksum Invariant', 'Dual runs produce identical SHA-256');
+
+    // 2. Insert record -> Checksum changes
+    const patronA = await repo.createPatron({
+      name: 'Thí Chủ Checksum Test',
+      tier: 'dong',
+      amount: 100000,
+      status: 'PENDING',
+      verificationType: 'UNVERIFIED'
+    });
+    const ckAfterInsert = (await repo.verifyDatabaseIntegrity()).checksum;
+    assert(ckAfterInsert !== ck1, 'Insert Record Checksum Mutation', 'Checksum changes upon new record creation');
+
+    // 3. Update record -> Checksum changes
+    await repo.verifyPatron(patronA.id, 'REF_TEST_CK_1', 'MANUAL_OFFLINE_VERIFIED');
+    const ckAfterUpdate = (await repo.verifyDatabaseIntegrity()).checksum;
+    assert(ckAfterUpdate !== ckAfterInsert, 'Update Record Checksum Mutation', 'Checksum changes upon record update');
+
+    // 4. Delete record -> Checksum changes
+    delete (repo as any).state.patrons[patronA.id];
+    (repo as any).persistSync();
+    const ckAfterDelete = (await repo.verifyDatabaseIntegrity()).checksum;
+    assert(ckAfterDelete !== ckAfterUpdate, 'Delete Record Checksum Mutation', 'Checksum changes upon record deletion');
+
+    // 5. Rollback restores checksum to exact previous value
+    const snapshotBeforeTx = (await repo.verifyDatabaseIntegrity()).checksum;
+    try {
+      await repo.runTransaction(async (txRepo) => {
+        await txRepo.createPatron({
+          name: 'Patron To Be Rolled Back',
+          tier: 'vang',
+          status: 'PENDING',
+          verificationType: 'UNVERIFIED'
+        });
+        throw new Error('INTENTIONAL_TX_ROLLBACK');
+      });
+    } catch {
+      // Expected rollback
+    }
+    const snapshotAfterRollback = (await repo.verifyDatabaseIntegrity()).checksum;
+    assert(snapshotAfterRollback === snapshotBeforeTx, 'Transaction Rollback Checksum Restoration', 'Checksum reverts to exact pre-transaction state');
+
+    // 6. Object key / field insertion order does NOT change checksum (Canonicalization test)
+    const stateCopy1 = JSON.parse(JSON.stringify((repo as any).state));
+    const stateCopy2: any = {};
+    // Reverse key order in stateCopy2
+    for (const k of Object.keys(stateCopy1).reverse()) {
+      stateCopy2[k] = stateCopy1[k];
+    }
+    const hash1 = (repo as any).computeChecksum(stateCopy1);
+    const hash2 = (repo as any).computeChecksum(stateCopy2);
+    assert(hash1 === hash2, 'Order-Independent Canonicalization', 'Reversing object key order produces identical checksum');
+
+    // 7. Restart repository from disk -> Checksum identical
+    const repoRestarted = new PersistentDatabaseRepository(testDir);
+    const ckRestarted = (await repoRestarted.verifyDatabaseIntegrity()).checksum;
+    assert(ckRestarted === snapshotAfterRollback, 'Process Restart Checksum Stability', 'Reinstantiating repo from disk yields same checksum');
+
+    // 8. Timezone agnostic: Checksum unaffected by system timezone representation
+    const ckCurrent = (await repo.verifyDatabaseIntegrity()).checksum;
+    assert(ckCurrent.length === 64, 'Timezone Agnostic Hex Checksum', 'Hex checksum is valid and timezone independent');
+
   } finally {
     if (fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true, force: true });

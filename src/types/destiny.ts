@@ -347,4 +347,29 @@ export interface CalculationResult {
     issuer: string;
     verified: boolean;
   };
+  provenance?: {
+    inputHash: string;
+    engineVersion: string;
+    engineVersions: {
+      baziEngineVersion: string;
+      ziweiEngineVersion: string;
+      temporalEngineVersion: string;
+      lunarEngineVersion: string;
+      realtimeEngineVersion: string;
+      aiInterpretationEngineVersion: string;
+    };
+    calculationVersion: string;
+    calendarConvention: string;
+    ziweiConvention: string;
+    solarTermConvention: string;
+    leapMonthConvention: string;
+    timezone: number;
+    timezoneName: string;
+    longitude?: number;
+    latitude?: number;
+    calculatedAt: string;
+    aiModelVersion?: string;
+    promptVersion?: string;
+    resultHash: string;
+  };
 }

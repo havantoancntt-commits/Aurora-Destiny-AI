@@ -391,16 +391,16 @@ export const RealTimeAlertCenter: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Luck vs Risk Probability Summary */}
+                {/* Luck vs Risk Heuristic Resonance Summary */}
                 <div className="w-full flex items-center justify-between gap-3 text-xs font-mono bg-black/60 px-3 py-1.5 rounded-xl border border-white/10">
                   <div className="text-left">
-                    <span className="text-[10px] text-slate-400 block">MAY MẮN:</span>
-                    <span className="font-bold text-emerald-400">{snapshot.luckPercentage}%</span>
+                    <span className="text-[10px] text-slate-400 block">CHỈ SỐ CÁT:</span>
+                    <span className="font-bold text-emerald-400">{snapshot.luckPercentage}/100</span>
                   </div>
                   <div className="w-px h-6 bg-white/10" />
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block">RỦI RO:</span>
-                    <span className="font-bold text-rose-400">{snapshot.riskPercentage}%</span>
+                    <span className="text-[10px] text-slate-400 block">CHỈ SỐ HUNG:</span>
+                    <span className="font-bold text-rose-400">{snapshot.riskPercentage}/100</span>
                   </div>
                 </div>
 

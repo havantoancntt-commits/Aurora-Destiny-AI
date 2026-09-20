@@ -187,29 +187,29 @@ export const RealTimeLuckRadarBar: React.FC<Props> = ({ calculation, onOpenFullR
           </div>
         </div>
 
-        {/* Center: Probability Metrics & Countdown */}
+        {/* Center: Heuristic Resonance Index & Countdown */}
         <div className="flex items-center gap-4 sm:gap-6 bg-black/40 rounded-xl px-4 py-2 border border-white/10 self-stretch sm:self-auto justify-between sm:justify-start">
-          {/* Luck Probability */}
+          {/* Luck Resonance Score */}
           <div className="text-left">
             <div className="text-[9px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1">
               <TrendingUp className="w-2.5 h-2.5 text-emerald-400" />
-              Tỷ Lệ Hên
+              Chỉ Số Cát
             </div>
             <div className="text-base sm:text-lg font-bold font-mono text-emerald-300 flex items-baseline gap-0.5">
-              <span>{luckPercentage}%</span>
+              <span>{luckPercentage}/100</span>
             </div>
           </div>
 
           <div className="w-px h-8 bg-white/10" />
 
-          {/* Risk Probability */}
+          {/* Risk Resonance Score */}
           <div className="text-left">
             <div className="text-[9px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1">
               <TrendingDown className="w-2.5 h-2.5 text-rose-400" />
-              Tỷ Lệ Xui
+              Chỉ Số Hung
             </div>
             <div className="text-base sm:text-lg font-bold font-mono text-rose-300 flex items-baseline gap-0.5">
-              <span>{riskPercentage}%</span>
+              <span>{riskPercentage}/100</span>
             </div>
           </div>
 

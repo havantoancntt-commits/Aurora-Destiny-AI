@@ -327,17 +327,74 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-app.get('/api/health/live', (req, res) => {
-  res.status(200).send('OK');
+app.get(['/health', '/api/health/live'], (req, res) => {
+  res.status(200).json({ status: 'healthy', process: 'alive', uptimeSeconds: Math.floor(process.uptime()) });
 });
 
-app.get('/api/health/ready', async (req, res) => {
+app.get(['/ready', '/api/health/ready'], async (req, res) => {
   const integrity = await repository.verifyDatabaseIntegrity();
   if (integrity.valid) {
-    res.status(200).send('READY');
+    res.status(200).json({ status: 'ready', database: 'connected' });
   } else {
-    res.status(503).send('DATABASE_INTEGRITY_FAILED');
+    res.status(503).json({ status: 'unavailable', reason: 'DATABASE_INTEGRITY_FAILED', errors: integrity.errors });
   }
+});
+
+app.get(['/health/database', '/api/health/database'], async (req, res) => {
+  const integrity = await repository.verifyDatabaseIntegrity();
+  const metrics = await repository.getMetrics();
+  const isHealthy = integrity.valid;
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'healthy' : 'unhealthy',
+    storageMode: metrics.storageMode || (process.env.DATABASE_URL && !process.env.DATABASE_URL.toLowerCase().includes('none') ? 'postgresql' : 'atomic_file'),
+    errorCount: integrity.errors.length,
+    errors: integrity.errors,
+    latencyMs: metrics.dbLatencyMs || 0
+  });
+});
+
+app.get(['/health/ai', '/api/health/ai'], (req, res) => {
+  const hasGeminiKey = !!process.env.GEMINI_API_KEY;
+  const circuitOpen = isCircuitBreakerOpen();
+  
+  let status: 'healthy' | 'degraded' = 'healthy';
+  let message = 'AI Provider online';
+  if (!hasGeminiKey) {
+    status = 'degraded';
+    message = 'Deterministic fallback engine active (GEMINI_API_KEY unconfigured)';
+  } else if (circuitOpen) {
+    status = 'degraded';
+    message = 'Circuit breaker open: deterministic fallback engine active';
+  }
+
+  // Gemini failure or lack of key never takes down the app — status is at worst degraded
+  res.status(200).json({
+    status,
+    provider: 'google_genai',
+    message,
+    fallbackEngineReady: true,
+    circuitBreakerOpen: circuitOpen
+  });
+});
+
+app.get(['/health/storage', '/api/health/storage'], async (req, res) => {
+  const metrics = await repository.getMetrics();
+  res.status(200).json({
+    status: 'healthy',
+    mode: metrics.storageMode || 'durable_persistent',
+    persisted: true
+  });
+});
+
+app.get(['/health/integrity', '/api/health/integrity'], async (req, res) => {
+  const integrity = await repository.verifyDatabaseIntegrity();
+  res.status(integrity.valid ? 200 : 503).json({
+    status: integrity.valid ? 'healthy' : 'unhealthy',
+    valid: integrity.valid,
+    checksum: integrity.checksum,
+    errors: integrity.errors,
+    verifiedAt: new Date().toISOString()
+  });
 });
 
 app.get('/api/health/dependencies', async (req, res) => {
@@ -1685,28 +1742,59 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
     }
 
     // 7. Atomic Idempotency & Database Transaction
-    const txResult = await repository.runTransaction(async (txRepo) => {
-      const isProcessed = await txRepo.isWebhookProcessed(payload.idempotencyKey);
-      if (isProcessed) {
-        return { alreadyProcessed: true, verifiedPatron: null };
-      }
+    let txResult: { alreadyProcessed: boolean; payloadConflict?: boolean; verifiedPatron: any };
+    try {
+      txResult = await repository.runTransaction(async (txRepo) => {
+        const payloadHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
+        const existingEvent = await txRepo.getWebhookEvent(payload.idempotencyKey);
+        
+        if (existingEvent) {
+          if (existingEvent.payloadHash !== payloadHash) {
+            return { alreadyProcessed: true, payloadConflict: true, verifiedPatron: null };
+          }
+          return { alreadyProcessed: true, payloadConflict: false, verifiedPatron: null };
+        }
 
-      // Record webhook event for complete auditability
-      const payloadHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
-      await txRepo.recordWebhookEvent({
-        id: `wh_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
-        idempotencyKey: payload.idempotencyKey,
-        provider: payload.provider,
-        payloadHash,
-        processedAt: new Date().toISOString()
+        const isProcessed = await txRepo.isWebhookProcessed(payload.idempotencyKey);
+        if (isProcessed) {
+          return { alreadyProcessed: true, payloadConflict: false, verifiedPatron: null };
+        }
+
+        // Record webhook event for complete auditability
+        await txRepo.recordWebhookEvent({
+          id: `wh_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+          idempotencyKey: payload.idempotencyKey,
+          provider: payload.provider,
+          payloadHash,
+          processedAt: new Date().toISOString()
+        });
+
+        // Update Patron to VERIFIED
+        const verified = await txRepo.verifyPatron(payload.patronId, payload.paymentReference, 'WEBHOOK_VERIFIED');
+        return { alreadyProcessed: false, verifiedPatron: verified };
       });
-
-      // Update Patron to VERIFIED
-      const verified = await txRepo.verifyPatron(payload.patronId, payload.paymentReference, 'WEBHOOK_VERIFIED');
-      return { alreadyProcessed: false, verifiedPatron: verified };
-    });
+    } catch (txErr: any) {
+      // Gracefully catch concurrent unique constraint violation (PostgreSQL 23505 or DUPLICATE_IDEMPOTENCY_KEY)
+      if (
+        txErr.code === '23505' || 
+        String(txErr.message).includes('idempotency_key') ||
+        String(txErr.message).includes('DUPLICATE_IDEMPOTENCY_KEY')
+      ) {
+        txResult = { alreadyProcessed: true, payloadConflict: false, verifiedPatron: await repository.getPatronById(payload.patronId) };
+      } else {
+        throw txErr;
+      }
+    }
 
     if (txResult.alreadyProcessed) {
+      if (txResult.payloadConflict) {
+        return res.status(409).json({
+          error: {
+            code: 'IDEMPOTENCY_KEY_PAYLOAD_MISMATCH',
+            message: 'Idempotency key này đã được sử dụng với payload khác. Không được phép tái sử dụng key.'
+          }
+        });
+      }
       return res.json({
         status: 'ALREADY_PROCESSED',
         idempotencyKey: payload.idempotencyKey,

@@ -9,6 +9,7 @@ import { calculateZiWeiChart } from './ziwei';
 import { calculateDecadeCycles, calculateAnnualTransits } from './temporal';
 import { evaluateConfidence } from './confidence';
 import { telemetry } from '../telemetry/telemetryService';
+import { buildCalculationProvenance } from './provenance';
 import type {
   DestinyCalculationOptions,
   CanonicalCalculationInput
@@ -151,7 +152,13 @@ export function runFullDestinyCalculation(
       longitudeCorrectionMinutes: canonicalInput.longitudeCorrectionMinutes,
       totalCorrectionMinutes: canonicalInput.totalCorrectionMinutes,
       dayShift: canonicalInput.dayShift
-    }
+    },
+    provenance: buildCalculationProvenance({
+      canonicalInput,
+      bazi,
+      ziwei,
+      calculatedAt: new Date().toISOString()
+    })
   };
 
   // 8. MAINTAIN BOUNDED LRU CACHE WITH REPLACEMENT POLICY

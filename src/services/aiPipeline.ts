@@ -100,7 +100,10 @@ export class DestinyAiPipeline {
   public static async execute(request: PipelineRequest): Promise<PipelineResult> {
     const startTime = Date.now();
     const stageLogs: PipelineStageLog[] = [];
-    const executionId = `pipe_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const randSuffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8)
+      : Date.now().toString(36);
+    const executionId = `pipe_${Date.now()}_${randSuffix}`;
 
     // Helper to log stages
     const logStage = (stage: number, name: string, status: 'passed' | 'warning' | 'failed', notes: string, t0: number) => {
