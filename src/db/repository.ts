@@ -1601,10 +1601,14 @@ export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; 
     (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
     !rawDbUrl.toLowerCase().includes('none');
 
-  if (isProd && process.env.DATABASE_REQUIRED_IN_PRODUCTION === 'true' && !isPostgresUrl) {
-    const msg = 'FATAL: Production mode strictly requires DATABASE_URL configured for PostgreSQL repository when DATABASE_REQUIRED_IN_PRODUCTION=true.';
-    console.error(`🚨 [Repository Factory] ${msg}`);
-    throw new Error(msg);
+  if (isProd && !isPostgresUrl && options?.forceMode !== 'file') {
+    if (process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
+      const msg = 'FATAL: Production mode strictly requires DATABASE_URL configured for PostgreSQL repository in multi-instance / serverless environments. Set ALLOW_FILE_STORAGE_IN_PRODUCTION=true only if running a single-instance container with durable persistent volume.';
+      console.error(`🚨 [Repository Factory] ${msg}`);
+      throw new Error(msg);
+    } else {
+      console.warn('⚠️ [Repository Factory] WARNING: Running PersistentDatabaseRepository in production because ALLOW_FILE_STORAGE_IN_PRODUCTION=true. Do not use across multiple instances!');
+    }
   }
 
   if (isPostgresUrl && options?.forceMode !== 'file') {

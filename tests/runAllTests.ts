@@ -47,11 +47,13 @@ export async function runMasterTestSuite() {
   allErrors.push(...cacheConvRes.errors);
 
   try {
-    await runAuditPhaseVerificationTests();
-    totalPassed += 5;
+    const auditRes = await runAuditPhaseVerificationTests();
+    totalPassed += auditRes.passed;
+    totalFailed += auditRes.failed;
+    allErrors.push(...auditRes.errors);
   } catch (err: any) {
     totalFailed += 1;
-    allErrors.push(`Audit Phase Verification: ${err.message}`);
+    allErrors.push(`Audit Phase Verification crashed: ${err.message}`);
   }
 
   const elapsed = Date.now() - start;

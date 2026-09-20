@@ -17,11 +17,34 @@ import { telemetry } from '../../src/telemetry/telemetryService';
 import { createRepository } from '../../src/db/repository';
 import { BirthData } from '../../src/types/destiny';
 
-export async function runAuditPhaseVerificationTests(): Promise<void> {
+export interface AuditPhaseVerificationResult {
+  passed: number;
+  failed: number;
+  errors: string[];
+  duration: number;
+}
+
+export async function runAuditPhaseVerificationTests(): Promise<AuditPhaseVerificationResult> {
+  const startTime = Date.now();
+  let passed = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
   console.log('🛡️ [Audit Phase Test] Verifying Core Algorithmic & Architectural Invariants...');
 
+  const runTest = async (name: string, fn: () => Promise<void> | void) => {
+    try {
+      await fn();
+      passed++;
+    } catch (err: any) {
+      failed++;
+      errors.push(`${name}: ${err?.message || String(err)}`);
+      console.error(`  ❌ [FAIL] ${name}:`, err);
+    }
+  };
+
   // Test 1: Dynamic Da Yun Calculation (Phases 2 & 3)
-  {
+  await runTest('Dynamic Solar-Term Da Yun Start Age', () => {
     const birthDataMaleYang: BirthData = {
       gender: 'Male',
       solarYear: 1990, // Canh Ngọ (Yang Metal)
@@ -50,10 +73,10 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
     assert.strictEqual(cycles[1].startAge, Number((cycles[0].startAge + 10).toFixed(1)), 'Next decade must be +10 years');
 
     console.log('  ✅ [PASS] Dynamic Solar-Term Da Yun Start Age (3 Days = 1 Year)');
-  }
+  });
 
   // Test 2: Phase 4 Backtest Zero-Event Null Score & Status
-  {
+  await runTest('Backtest Empirical Null-Safety on Zero-Event Input', () => {
     const birthData: BirthData = {
       gender: 'Female',
       solarYear: 1995,
@@ -113,10 +136,10 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
     assert.strictEqual(populatedBacktest.validationStatus, 'PRELIMINARY', '2 events should be PRELIMINARY validation');
 
     console.log('  ✅ [PASS] Backtest Empirical Null-Safety on Zero-Event Input');
-  }
+  });
 
   // Test 3: Distributed Sliding Window Rate Limiter Store
-  {
+  await runTest('Sliding Window Rate Limiter Store & Boundary Protection', async () => {
     const store = new MemoryRateLimitStore();
     const key = 'test_ip_127.0.0.1';
 
@@ -132,10 +155,10 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
 
     store.destroy();
     console.log('  ✅ [PASS] Sliding Window Rate Limiter Store & Boundary Protection');
-  }
+  });
 
   // Test 4: Telemetry Determinism & Claim Tracking
-  {
+  await runTest('Telemetry Determinism and Grounded Claims Verification', () => {
     telemetry.resetForTesting();
     telemetry.recordCalculation(15, true);
 
@@ -154,17 +177,17 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
     assert.strictEqual(snapshot.aiVerificationSuccessRate, 90);
 
     console.log('  ✅ [PASS] Telemetry Determinism and Grounded Claims Verification');
-  }
+  });
 
   // Test 5: Database Repository Factory
-  {
+  await runTest('Database Repository Factory Instantiation', () => {
     const repo = createRepository();
     assert(repo !== null && typeof repo.getUserByEmail === 'function', 'Repository must implement IDatabaseRepository');
     console.log('  ✅ [PASS] Database Repository Factory Instantiation');
-  }
+  });
 
   // Test 6: IANA Historical Timezone Resolution
-  {
+  await runTest('IANA Historical Timezone Offset Resolution (DST & Winter/Summer)', async () => {
     const { resolveHistoricalTimezoneOffset } = await import('../../src/engine/temporalCorrection');
     
     // Vietnam: UTC+7 constant
@@ -191,10 +214,10 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
     assert.strictEqual(lonWinter.offsetHours, 0, 'London Winter must resolve to UTC+0 (GMT)');
 
     console.log('  ✅ [PASS] IANA Historical Timezone Offset Resolution (DST & Winter/Summer)');
-  }
+  });
 
   // Test 7: Rate Limiter Fail-Closed Policy on Disconnected Redis
-  {
+  await runTest('Rate Limiter Fail-Closed Policy Enforcement', async () => {
     const { RedisRateLimitStore } = await import('../../src/server/rateLimiter');
     const fakeRedisClient: any = {
       on: () => {},
@@ -218,9 +241,11 @@ export async function runAuditPhaseVerificationTests(): Promise<void> {
     assert.strictEqual(failedClosed, true, 'Redis failure under RATE_LIMIT_FAIL_CLOSED=true must fail closed');
 
     console.log('  ✅ [PASS] Rate Limiter Fail-Closed Policy Enforcement');
-  }
+  });
 
-  console.log('📊 [Audit Phase Result]: 7 PASSED, 0 FAILED.\n');
+  const duration = Date.now() - startTime;
+  console.log(`📊 [Audit Phase Result]: ${passed} PASSED, ${failed} FAILED (${duration}ms).\n`);
+  return { passed, failed, errors, duration };
 }
 
 if (process.argv[1]?.includes('auditPhaseVerification.test.ts')) {
