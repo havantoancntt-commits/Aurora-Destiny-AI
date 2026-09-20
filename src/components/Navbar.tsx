@@ -24,7 +24,8 @@ import {
   Compass,
   Menu,
   MoreHorizontal,
-  Crown
+  Crown,
+  Users
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -49,6 +50,7 @@ interface Props {
   onOpenInternationalModal?: () => void;
   onOpenOracleModal?: () => void;
   onOpenTalismanModal?: () => void;
+  onOpenCommunityModal?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -67,7 +69,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenSponsorshipModal,
   onOpenInternationalModal,
   onOpenOracleModal,
-  onOpenTalismanModal
+  onOpenTalismanModal,
+  onOpenCommunityModal
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -274,6 +277,19 @@ export const Navbar: React.FC<Props> = ({
               </button>
             )}
 
+            {/* Desktop Direct Action: Kênh Mạng Xã Hội Chính Thức */}
+            {onOpenCommunityModal && (
+              <button
+                id="btn-nav-community-channels"
+                onClick={onOpenCommunityModal}
+                className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/30 text-cyan-200 hover:text-white text-xs transition-all cursor-pointer font-medium"
+                title="Mạng Xã Hội Chính Thức: TikTok • YouTube • Facebook"
+              >
+                <Users className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Mạng Xã Hội</span>
+              </button>
+            )}
+
             {/* Desktop Direct Action: Gieo Quẻ Kinh Dịch */}
             {onOpenOracleModal && (
               <button
@@ -465,6 +481,20 @@ export const Navbar: React.FC<Props> = ({
                       >
                         <Heart className="w-4 h-4 text-rose-400 shrink-0" />
                         <span>Đồng Hành &amp; Mời Cà Phê Kênh</span>
+                      </button>
+                    )}
+
+                    {/* Official Social Media Channels */}
+                    {onOpenCommunityModal && (
+                      <button
+                        onClick={() => {
+                          setShowMoreMenu(false);
+                          onOpenCommunityModal();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-cyan-200 hover:bg-white/5 transition-colors text-left cursor-pointer"
+                      >
+                        <Users className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <span>Mạng Xã Hội (TikTok, YT, FB)</span>
                       </button>
                     )}
 

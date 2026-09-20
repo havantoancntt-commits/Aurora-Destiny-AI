@@ -31,6 +31,7 @@ import { SocialShareCardModal } from './components/SocialShareCardModal';
 import { SeoKnowledgeModal } from './components/SeoKnowledgeModal';
 import { CelestialTalismanModal } from './components/CelestialTalismanModal';
 import { SponsorshipModal } from './components/SponsorshipModal';
+import { CommunitySocialModal } from './components/CommunitySocialModal';
 import { sacredSound } from './services/soundService';
 
 import { UserProfile, UserPreferences } from './types/user';
@@ -68,6 +69,7 @@ export default function App() {
   const [showSeoModal, setShowSeoModal] = useState<boolean>(false);
   const [showTalismanModal, setShowTalismanModal] = useState<boolean>(false);
   const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
+  const [showCommunityModal, setShowCommunityModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -406,6 +408,7 @@ export default function App() {
           onOpenInternationalModal={() => setShowInternationalModal(true)}
           onOpenTalismanModal={() => setShowTalismanModal(true)}
           onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
+          onOpenCommunityModal={() => setShowCommunityModal(true)}
         />
       </div>
 
@@ -575,6 +578,7 @@ export default function App() {
         onOpenTalismanModal={() => setShowTalismanModal(true)}
         onOpenLegalModal={() => setShowLegalModal(true)}
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
+        onOpenCommunityModal={() => setShowCommunityModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -700,6 +704,13 @@ export default function App() {
       <SponsorshipModal
         isOpen={showSponsorshipModal}
         onClose={() => setShowSponsorshipModal(false)}
+        language={language}
+      />
+
+      {/* Mạng Xã Hội Chính Thức Kênh Huyền Phong Phật Đạo (TikTok, YouTube, Facebook) */}
+      <CommunitySocialModal
+        isOpen={showCommunityModal}
+        onClose={() => setShowCommunityModal(false)}
         language={language}
       />
     </div>

@@ -22,9 +22,11 @@ import {
   Heart,
   QrCode,
   Crown,
-  Scale
+  Scale,
+  Users
 } from 'lucide-react';
 import { LanguageCode } from '../types/destiny';
+import { OfficialSocialChannels } from './OfficialSocialChannels';
 
 interface Props {
   language?: LanguageCode;
@@ -36,6 +38,7 @@ interface Props {
   onOpenSeoKnowledgeModal?: () => void;
   onOpenTalismanModal?: () => void;
   onOpenLegalModal?: () => void;
+  onOpenCommunityModal?: () => void;
   hasFloatingDock?: boolean;
 }
 
@@ -49,6 +52,7 @@ export const AppFooter: React.FC<Props> = ({
   onOpenSeoKnowledgeModal,
   onOpenTalismanModal,
   onOpenLegalModal,
+  onOpenCommunityModal,
   hasFloatingDock = false
 }) => {
   const [copied, setCopied] = useState(false);
@@ -177,6 +181,15 @@ export const AppFooter: React.FC<Props> = ({
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Official Social Media Channels Showcase */}
+        <div className="mb-12">
+          <OfficialSocialChannels
+            variant="grid"
+            onOpenCommunityModal={onOpenCommunityModal}
+            showTitle={true}
+          />
         </div>
 
         {/* 4-Column Directory Grid */}
@@ -318,6 +331,17 @@ export const AppFooter: React.FC<Props> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+            {onOpenCommunityModal && (
+              <button
+                id="btn-footer-community-modal"
+                onClick={onOpenCommunityModal}
+                className="text-cyan-300 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-semibold"
+                title="Mạng Xã Hội Chính Thức Kênh Huyền Phong Phật Đạo"
+              >
+                <Users className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{isVi ? 'Mạng Xã Hội Kênh' : 'Official Channels'}</span>
+              </button>
+            )}
             {onOpenTalismanModal && (
               <button
                 id="btn-footer-talisman-modal"

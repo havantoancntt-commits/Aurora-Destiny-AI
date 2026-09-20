@@ -33,10 +33,12 @@ import {
   Lock,
   Flame,
   ArrowRight,
-  HelpCircle
+  HelpCircle,
+  Users
 } from 'lucide-react';
 import { sacredSound } from '../services/soundService';
 import { LanguageCode } from '../types/destiny';
+import { OfficialSocialChannels } from './OfficialSocialChannels';
 
 interface Props {
   isOpen: boolean;
@@ -140,7 +142,7 @@ export const SponsorshipModal: React.FC<Props> = ({
   language = 'vi'
 }) => {
   const isVi = language === 'vi';
-  const [activeTab, setActiveTab] = useState<'qr' | 'tiers' | 'patrons' | 'transparency'>('qr');
+  const [activeTab, setActiveTab] = useState<'qr' | 'tiers' | 'patrons' | 'transparency' | 'channels'>('qr');
   const [paymentMethod, setPaymentMethod] = useState<'vcb' | 'momo' | 'zalopay'>('vcb');
   const [selectedTierAmount, setSelectedTierAmount] = useState<number>(50000);
   const [senderName, setSenderName] = useState<string>('');
@@ -379,6 +381,19 @@ export const SponsorshipModal: React.FC<Props> = ({
           >
             <ShieldCheck className="w-4 h-4" />
             <span>{isVi ? 'Minh Bạch Quỹ & Pháp Lý' : 'Transparency'}</span>
+          </button>
+
+          <button
+            id="tab-sponsor-channels"
+            onClick={() => setActiveTab('channels')}
+            className={`px-3 sm:px-4 py-2.5 rounded-t-xl transition-all border-b-2 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'channels'
+                ? 'border-cyan-400 text-cyan-300 bg-cyan-500/10 font-bold shadow-inner'
+                : 'border-transparent text-slate-400 hover:text-white'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>{isVi ? 'Mạng Xã Hội Chính Thức' : 'Official Channels'}</span>
           </button>
         </div>
 
@@ -741,6 +756,11 @@ export const SponsorshipModal: React.FC<Props> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Official Channels Quick Showcase */}
+              <div className="pt-4 border-t border-white/10">
+                <OfficialSocialChannels variant="compact" showTitle={true} />
+              </div>
             </div>
           )}
 
@@ -989,6 +1009,28 @@ export const SponsorshipModal: React.FC<Props> = ({
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ==================================================== */}
+          {/* TAB 5: OFFICIAL SOCIAL CHANNELS (TIKTOK/YT/FB)       */}
+          {/* ==================================================== */}
+          {activeTab === 'channels' && (
+            <div className="space-y-5">
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-red-500/10 to-blue-500/10 border border-white/15">
+                <div className="flex items-center gap-2 text-xs font-mono text-amber-300 mb-1">
+                  <Crown className="w-4 h-4 text-amber-400" />
+                  <span>Kênh Truyền Thông Trực Thuộc Hệ Thống</span>
+                </div>
+                <h3 className="text-base font-serif font-medium text-white">
+                  Kênh Huyền Phong Phật Đạo &amp; Giáo Sư - Prof.TOAN
+                </h3>
+                <p className="text-xs text-slate-300 font-light mt-1 leading-relaxed">
+                  Quý đạo hữu, học giả và người hữu duyên hãy nhấn theo dõi, đăng ký các kênh truyền thông chính thức dưới đây để nhận thông báo bài giảng mới, video luận giải Tử Vi Bát Tự và tham gia các buổi Livestream đàm đạo học thuật.
+                </p>
+              </div>
+
+              <OfficialSocialChannels variant="grid" showTitle={false} />
             </div>
           )}
         </div>
