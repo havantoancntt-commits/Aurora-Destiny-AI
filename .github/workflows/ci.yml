@@ -1,0 +1,41 @@
+name: CI/CD Pipeline - Aurora Destiny AI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  audit-and-verify:
+    name: Typecheck, Lint, Test & Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Clean Dependencies
+        run: npm ci
+
+      - name: Typecheck (TypeScript Static Analysis)
+        run: npm run lint
+
+      - name: Run Full Test Suite (Unit, Integration, Security, Engine Determinism)
+        run: npm test
+        env:
+          NODE_ENV: test
+          ALGORITHM_PROTECTION_SECRET: github_actions_ci_testing_secret_key_32bytes_minimum
+          PAYMENT_WEBHOOK_SECRET: github_actions_ci_webhook_secret_key_32bytes_min
+
+      - name: Production Build (Vite Client + Node Server Bundle)
+        run: npm run build
+        env:
+          NODE_ENV: production

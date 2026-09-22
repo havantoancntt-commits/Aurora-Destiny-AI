@@ -90,6 +90,8 @@ export default function App() {
   });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'local_only' | 'syncing' | 'sync_error'>('synced');
+  const [localProfileIds, setLocalProfileIds] = useState<Set<string>>(new Set());
 
   // Initial Load from API
   const loadInitialData = async () => {
@@ -100,6 +102,7 @@ export default function App() {
       // Fetch profiles
       const loadedProfiles = await api.getProfiles().catch(() => []);
       setProfiles(loadedProfiles);
+      setSyncStatus('synced');
 
       if (loadedProfiles.length === 0) {
         // Hoàn toàn không có lá số demo, mở ngay ô nhập thông tin khi người dùng vừa truy cập
@@ -144,6 +147,8 @@ export default function App() {
       if (me?.preferences) setPreferences(me.preferences);
     } catch (e) {
       console.error('API Error details:', e);
+      // Explicitly mark offline mode
+      setSyncStatus('local_only');
       // Offline fallback: giữ trạng thái sạch, mở ô nhập thông tin
       setShowOnboarding(true);
       setProfiles([]);
@@ -154,6 +159,43 @@ export default function App() {
       setEvents([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Retry synchronizing local-only profiles to server
+  const handleRetrySync = async () => {
+    if (localProfileIds.size === 0) {
+      setSyncStatus('synced');
+      return;
+    }
+    setSyncStatus('syncing');
+    try {
+      await api.ensureSession();
+      const idsToSync = Array.from(localProfileIds);
+      for (const localId of idsToSync) {
+        const localProf = profiles.find((p) => p.id === localId);
+        if (!localProf) continue;
+        const res = await api.createProfile({
+          name: localProf.name,
+          birthData: localProf.birthData,
+          behavioralContext: localProf.behavioralContext,
+          isPrimary: localProf.isPrimary
+        });
+        setProfiles((prev) => prev.map((p) => (p.id === localId ? res.profile : p)));
+        if (activeProfileId === localId) {
+          setActiveProfileId(res.profile.id);
+          setCalculation(res.calculation);
+        }
+        setLocalProfileIds((prev) => {
+          const next = new Set(prev);
+          next.delete(localId);
+          return next;
+        });
+      }
+      setSyncStatus('synced');
+    } catch (err) {
+      console.error('[Sync] Retry synchronization failed:', err);
+      setSyncStatus('sync_error');
     }
   };
 
@@ -257,6 +299,7 @@ export default function App() {
       setProfiles((prev) => [...prev, data.profile]);
       setActiveProfileId(data.profile.id);
       setCalculation(data.calculation);
+      setSyncStatus('synced');
 
       const bt = runBacktestAnalysis([], data.calculation);
       setBacktestResult(bt);
@@ -282,6 +325,8 @@ export default function App() {
       setProfiles((prev) => [...prev, newProfile]);
       setActiveProfileId(newProfile.id);
       setCalculation(newCalc);
+      setSyncStatus('local_only');
+      setLocalProfileIds((prev) => new Set(prev).add(newProfile.id));
       const bt = runBacktestAnalysis([], newCalc);
       setBacktestResult(bt);
       setEvents([]);
@@ -389,6 +434,31 @@ export default function App() {
           uncertaintyIndex={calculation?.confidence.uncertaintyIndex}
         />
       </div>
+
+      {/* Offline / Local-Only Sync Banner */}
+      {(syncStatus === 'local_only' || syncStatus === 'sync_error' || syncStatus === 'syncing') && (
+        <div id="offline-sync-indicator" className="relative z-20 bg-amber-950/90 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-2 shadow-sm backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : syncStatus === 'sync_error' ? 'bg-red-400' : 'bg-amber-400 animate-pulse'}`} />
+            <span>
+              <strong>{syncStatus === 'syncing' ? 'Đang đồng bộ...' : syncStatus === 'sync_error' ? 'Lỗi kết nối máy chủ:' : 'Chế độ Cục Bộ (Local-Only):'}</strong>{' '}
+              {syncStatus === 'syncing'
+                ? 'Đang gửi dữ liệu tính toán lên máy chủ lưu trữ an toàn.'
+                : syncStatus === 'sync_error'
+                ? 'Không thể kết nối máy chủ. Dữ liệu đang được lưu tạm trên trình duyệt của bạn.'
+                : 'Hồ sơ này đang hoạt động offline trên trình duyệt và chưa được đồng bộ lưu trữ vào máy chủ.'}
+            </span>
+          </div>
+          <button
+            id="btn-retry-sync"
+            onClick={handleRetrySync}
+            disabled={syncStatus === 'syncing'}
+            className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 border border-amber-400/40 rounded text-xs font-mono font-medium transition-colors disabled:opacity-50"
+          >
+            {syncStatus === 'syncing' ? 'Đang đồng bộ...' : 'Thử đồng bộ lại'}
+          </button>
+        </div>
+      )}
 
       {/* 2. Top Header Navigation */}
       <div className="relative z-30">

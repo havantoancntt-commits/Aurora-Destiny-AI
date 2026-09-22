@@ -725,6 +725,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.updatePreferencesSync(userId, prefs);
   }
   updatePreferencesSync(userId: string, prefs: Partial<UserPreferences>): UserPreferences {
+    if (!this.state.users[userId]) {
+      throw new Error(`Foreign key constraint failed: User '${userId}' does not exist.`);
+    }
     const current = this.getPreferencesSync(userId);
     const updated = { ...current, ...prefs };
     this.state.preferences[userId] = updated;
@@ -743,6 +746,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     this.saveSessionSync(session);
   }
   saveSessionSync(session: StoredSession): void {
+    if (!this.state.users[session.userId]) {
+      throw new Error(`Foreign key constraint failed: User '${session.userId}' does not exist.`);
+    }
     const tokenHash = this.hashToken(session.token);
     this.state.sessions[tokenHash] = { ...session, token: tokenHash };
     this.schedulePersist();
@@ -888,6 +894,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.createPasswordResetSync(userId);
   }
   createPasswordResetSync(userId: string): { token: string; expiresAt: number } {
+    if (!this.state.users[userId]) {
+      throw new Error(`Foreign key constraint failed: User '${userId}' does not exist.`);
+    }
     if (!this.state.passwordResets) {
       this.state.passwordResets = {};
     }
@@ -1041,10 +1050,11 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.saveCalculationSync(calc);
   }
   saveCalculationSync(calc: CalculationResult): CalculationResult {
-    this.state.calculations[calc.id] = calc;
-    if (this.state.profiles[calc.profileId]) {
-      this.state.profiles[calc.profileId].latestCalculationId = calc.id;
+    if (!this.state.profiles[calc.profileId]) {
+      throw new Error(`Foreign key constraint failed: Profile '${calc.profileId}' does not exist.`);
     }
+    this.state.calculations[calc.id] = calc;
+    this.state.profiles[calc.profileId].latestCalculationId = calc.id;
     this.schedulePersist();
     return calc;
   }
@@ -1063,6 +1073,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.addHistoricalEventSync(event);
   }
   addHistoricalEventSync(event: HistoricalEvent): HistoricalEvent {
+    if (!this.state.profiles[event.profileId]) {
+      throw new Error(`Foreign key constraint failed: Profile '${event.profileId}' does not exist.`);
+    }
     if (!this.state.historicalEvents[event.profileId]) {
       this.state.historicalEvents[event.profileId] = [];
     }
@@ -1098,6 +1111,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.saveBacktestResultSync(result);
   }
   saveBacktestResultSync(result: BacktestResult): BacktestResult {
+    if (result.profileId && !this.state.profiles[result.profileId]) {
+      throw new Error(`Foreign key constraint failed: Profile '${result.profileId}' does not exist.`);
+    }
     this.state.backtestResults[result.profileId] = result;
     this.schedulePersist();
     return result;
@@ -1117,6 +1133,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.addChatMessageSync(profileId, message);
   }
   addChatMessageSync(profileId: string, message: ChatMessage): ChatMessage {
+    if (!this.state.profiles[profileId]) {
+      throw new Error(`Foreign key constraint failed: Profile '${profileId}' does not exist.`);
+    }
     if (!this.state.chatMessages[profileId]) {
       this.state.chatMessages[profileId] = [];
     }
@@ -1596,10 +1615,21 @@ CREATE INDEX IF NOT EXISTS idx_webhook_idempotency ON payment_webhook_events(ide
 
 export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; connectionString?: string }): IDatabaseRepository {
   const isProd = process.env.NODE_ENV === 'production';
+  const provider = (process.env.DATABASE_PROVIDER || '').toLowerCase();
   const rawDbUrl = options?.connectionString || process.env.DATABASE_URL;
   const isPostgresUrl = typeof rawDbUrl === 'string' &&
     (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
     !rawDbUrl.toLowerCase().includes('none');
+
+  if ((provider === 'postgres' || provider === 'postgresql') && options?.forceMode !== 'file') {
+    if (!isPostgresUrl) {
+      const msg = 'FATAL: DATABASE_PROVIDER is explicitly set to "postgres" but DATABASE_URL is missing or invalid.';
+      console.error(`🚨 [Repository Factory] ${msg}`);
+      throw new Error(msg);
+    }
+    console.log(`🐘 [Repository Factory] DATABASE_PROVIDER="postgres" & valid DATABASE_URL: Instantiating PostgresDatabaseRepository.`);
+    return new PostgresDatabaseRepository({ connectionString: rawDbUrl });
+  }
 
   if (isProd && !isPostgresUrl && options?.forceMode !== 'file') {
     if (process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
@@ -1620,7 +1650,22 @@ export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; 
   return new PersistentDatabaseRepository();
 }
 
-export const persistentRepository: IDatabaseRepository = new PersistentDatabaseRepository();
+let _lazyPersistentRepo: PersistentDatabaseRepository | null = null;
+export function getPersistentRepository(): PersistentDatabaseRepository {
+  if (!_lazyPersistentRepo) {
+    _lazyPersistentRepo = new PersistentDatabaseRepository();
+  }
+  return _lazyPersistentRepo;
+}
+
+// Proxied export prevents eager instantiation at module import time
+export const persistentRepository: IDatabaseRepository = new Proxy({} as IDatabaseRepository, {
+  get(_target, prop) {
+    const instance = getPersistentRepository();
+    const val = (instance as any)[prop];
+    return typeof val === 'function' ? val.bind(instance) : val;
+  }
+});
 
 export function initializeRepository(): IDatabaseRepository {
   return createRepository();

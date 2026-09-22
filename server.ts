@@ -1867,6 +1867,23 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // 13. VITE MIDDLEWARE & STATIC ASSETS
 // ----------------------------------------------------
 async function startServer() {
+  // Validate critical environment variables in production
+  if (process.env.NODE_ENV === 'production') {
+    const missingVars: string[] = [];
+    if (!process.env.DATABASE_URL && process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
+      missingVars.push('DATABASE_URL (or explicitly set ALLOW_FILE_STORAGE_IN_PRODUCTION=true for single-instance container disk)');
+    }
+    const secretKey = process.env.ALGORITHM_PROTECTION_SECRET || process.env.APP_SECRET || process.env.SESSION_SECRET;
+    if (!secretKey || secretKey.length < 16) {
+      missingVars.push('ALGORITHM_PROTECTION_SECRET or APP_SECRET or SESSION_SECRET (minimum 16 characters for cryptographic signing)');
+    }
+    if (missingVars.length > 0) {
+      console.error('🚨 [FATAL STARTUP] Critical production environment variable(s) missing or insecure:');
+      missingVars.forEach(v => console.error(`   - ${v}`));
+      throw new Error(`Critical environment variables missing in production: ${missingVars.join(', ')}`);
+    }
+  }
+
   // Ensure database repository is initialized
   if (repository.ensureInitialized) {
     await repository.ensureInitialized();
