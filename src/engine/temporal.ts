@@ -198,13 +198,16 @@ export function calculateDecadeCycles(birthData: BirthData): DecadeCycle[] {
 
     const focalPalace = palacesOrder[(i - 1) % palacesOrder.length];
 
-    // Compute cycle harmony based on element relation to Day Master
+    // Compute cycle harmony based on element relation to Day Master (Section VI: rule-based heuristic with provenance)
     const dayMasterElement = STEMS[dayPB.stem].element;
-    let harmonyScore = 72;
-    if (element === dayMasterElement) harmonyScore = 80;
-    else if (ELEMENT_RELATIONS[dayMasterElement].generates === element) harmonyScore = 86; // Creative output
-    else if (ELEMENT_RELATIONS[dayMasterElement].generatedBy === element) harmonyScore = 90; // Nourishing resource
-    else if (ELEMENT_RELATIONS[element].overcomes === dayMasterElement) harmonyScore = 65; // Pressure & Discipline
+    let ruleBasedScore = 70; // Baseline neutral interaction
+    if (element === dayMasterElement) ruleBasedScore = 80; // Tỷ Kiếp: Đồng hành trợ lực
+    else if (ELEMENT_RELATIONS[dayMasterElement].generates === element) ruleBasedScore = 86; // Thực Thương: Tiết khí xuất lực sáng tạo
+    else if (ELEMENT_RELATIONS[dayMasterElement].generatedBy === element) ruleBasedScore = 90; // Chính/Thiên Ấn: Sinh phù nuôi dưỡng
+    else if (ELEMENT_RELATIONS[dayMasterElement].overcomes === element) ruleBasedScore = 75; // Tài Tinh: Nhật Chủ khắc chế hoạch định
+    else if (ELEMENT_RELATIONS[element].overcomes === dayMasterElement) ruleBasedScore = 65; // Quan Sát: Khắc chế kỷ luật & áp lực
+
+    const harmonyScore = ruleBasedScore;
 
     cycles.push({
       index: i,
@@ -218,6 +221,9 @@ export function calculateDecadeCycles(birthData: BirthData): DecadeCycle[] {
       tenGod,
       focalPalace,
       harmonyScore,
+      ruleBasedScore,
+      scoreType: 'RULE_BASED_HEURISTIC',
+      algorithmVersion: 'temporal-heuristic-v2',
       startAgeExact: daYunDetail.startAgeExact,
       direction: daYunDetail.direction,
       daYunCalculation: {
@@ -325,12 +331,13 @@ export function calculateSingleAnnualTransit(birthData: BirthData, yr: number): 
     }
   }
 
-  // 2. Baseline harmony from Day Master element relation
-  let baseHarmony = 72;
-  if (element === dayMasterElement) baseHarmony = 78;
-  else if (ELEMENT_RELATIONS[dayMasterElement].generates === element) baseHarmony = 84; // Creative output
-  else if (ELEMENT_RELATIONS[dayMasterElement].generatedBy === element) baseHarmony = 88; // Nourishing resource
-  else if (ELEMENT_RELATIONS[element].overcomes === dayMasterElement) baseHarmony = 64; // Pressure & Discipline
+  // 2. Baseline harmony from Day Master element relation (Section VI: rule-based heuristic with provenance)
+  let baseHarmony = 70; // Baseline neutral interaction
+  if (element === dayMasterElement) baseHarmony = 78; // Tỷ Kiếp
+  else if (ELEMENT_RELATIONS[dayMasterElement].generates === element) baseHarmony = 84; // Thực Thương
+  else if (ELEMENT_RELATIONS[dayMasterElement].generatedBy === element) baseHarmony = 88; // Chính/Thiên Ấn
+  else if (ELEMENT_RELATIONS[dayMasterElement].overcomes === element) baseHarmony = 76; // Tài Tinh
+  else if (ELEMENT_RELATIONS[element].overcomes === dayMasterElement) baseHarmony = 64; // Quan Sát
 
   // Apply interaction modulations deterministically (replaces arbitrary modulo operations)
   const adjustedHarmony = Math.min(95, Math.max(45, baseHarmony + combinationBonus - clashPenalty - harmPenalty));
@@ -376,6 +383,9 @@ export function calculateSingleAnnualTransit(birthData: BirthData, yr: number): 
     element,
     tenGod,
     overallScore: adjustedHarmony,
+    ruleBasedScore: adjustedHarmony,
+    scoreType: 'RULE_BASED_HEURISTIC',
+    algorithmVersion: 'temporal-heuristic-v2',
     careerScore,
     wealthScore,
     relationshipScore,

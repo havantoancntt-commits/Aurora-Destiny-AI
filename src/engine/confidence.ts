@@ -152,8 +152,85 @@ export function evaluateConfidence(
 
   const statisticalDisclaimer = 'Điểm số biểu thị mức độ hoàn thiện của tham số đầu vào và tính nhất quán toán học của thuật toán, không phải là xác suất khoa học thực nghiệm (empirical frequentist probability) hay cam kết tiên tri.';
 
+  // Section V: Standardized Provenance-based Components
+  const inputCompletenessComponent: ConfidenceMetrics['inputCompleteness'] = {
+    value: inputQuality,
+    source: 'USER_INPUT_SNAPSHOT',
+    method: 'PARAMETER_COMPLETENESS_RATIO',
+    version: 'v2.0.0',
+    status: 'MEASURED',
+    explanation: `Tỷ lệ hoàn thiện tham số đầu vào đạt ${inputQuality}% (ngày, giờ, phút, địa điểm, tọa độ).`
+  };
+
+  const calculationIntegrityComponent: ConfidenceMetrics['calculationIntegrityComponent'] = {
+    value: calculationIntegrity,
+    source: 'EPHEMERIS_SOLAR_TIME_ENGINE',
+    method: 'ASTRONOMICAL_TIME_DISCRETIZATION_RESOLUTION',
+    version: 'v2.0.0',
+    status: 'CALCULATED',
+    explanation: hasExactCoordinates && hasMinute && birthData.hasExactHour
+      ? 'Độ chính xác phép tính đạt mức tối đa (Phương trình Thời gian và hiệu chỉnh kinh tuyến thực).'
+      : birthData.hasExactHour
+        ? 'Tính toán dựa trên khung giờ dân dụng chuẩn.'
+        : 'Tính toán dựa trên ước lượng khung 2 giờ.'
+  };
+
+  const ruleConsistencyComponent: ConfidenceMetrics['ruleConsistency'] = {
+    value: validationScore,
+    source: 'INTERNAL_SYSTEM_INVARIANTS',
+    method: 'STRUCTURAL_INVARIANT_VALIDATION',
+    version: 'v2.0.0',
+    status: 'CALCULATED',
+    explanation: `Kiểm tra ${invariantChecksPassed}/${invariantChecksTotal} điều kiện bất biến toán học và cấu trúc lá số.`
+  };
+
+  const dataCoverageComponent: ConfidenceMetrics['dataCoverage'] = {
+    value: context?.bazi && context?.ziwei ? 100 : context?.bazi || context?.ziwei ? 50 : 0,
+    source: 'CHART_GENERATION_PIPELINE',
+    method: 'DATA_ENTITY_POPULATION_CHECK',
+    version: 'v2.0.0',
+    status: 'CALCULATED',
+    explanation: 'Mức độ bao phủ dữ liệu cấu trúc Bát tự và Tử Vi.'
+  };
+
+  const modelUncertaintyComponent: ConfidenceMetrics['modelUncertainty'] = {
+    value: uncertaintyIndex,
+    source: 'UNCERTAINTY_PROPAGATION_MODEL',
+    method: 'HOUR_BOUNDARY_AND_GEO_DEVIATION_ANALYSIS',
+    version: 'v2.0.0',
+    status: 'CALCULATED',
+    explanation: `Chỉ số độ bất định mô hình ước lượng ở mức ${uncertaintyIndex}/100.`
+  };
+
+  const empiricalValidationComponent: ConfidenceMetrics['empiricalValidation'] = {
+    value: hasEmpiricalEvents ? historicalValidation : null,
+    source: hasEmpiricalEvents ? 'USER_RETROSPECTIVE_EVENTS' : 'NONE',
+    method: 'RETROSPECTIVE_PATTERN_FIT',
+    version: 'v2.0.0',
+    status: hasEmpiricalEvents ? 'CALCULATED' : 'NOT_AVAILABLE',
+    explanation: hasEmpiricalEvents
+      ? `Điểm đối sánh hồi quy trên ${eventsCount} sự kiện do người dùng tự cung cấp.`
+      : 'Không có dữ liệu thực chứng lịch sử cá nhân để kiểm chứng mô hình.'
+  };
+
+  const statisticalConfidenceComponent: ConfidenceMetrics['statisticalConfidenceComponent'] = {
+    value: null,
+    source: 'NONE',
+    method: 'RANDOMIZED_CONTROLLED_TRIAL',
+    version: 'v2.0.0',
+    status: 'NOT_AVAILABLE',
+    explanation: 'Không có tập dữ liệu thực nghiệm độc lập mù đôi dân số rộng (double-blind randomized population dataset). Do đó chỉ số xác suất thống kê thực nghiệm không áp dụng.'
+  };
+
   return {
     scoreType: 'DETERMINISTIC',
+    inputCompleteness: inputCompletenessComponent,
+    calculationIntegrityComponent,
+    ruleConsistency: ruleConsistencyComponent,
+    dataCoverage: dataCoverageComponent,
+    modelUncertainty: modelUncertaintyComponent,
+    empiricalValidation: empiricalValidationComponent,
+    statisticalConfidenceComponent,
     calculationIntegrityScore: calculationIntegrity,
     dataCompletenessScore: inputQuality,
     ruleConsistencyScore: validationScore,

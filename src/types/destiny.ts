@@ -139,7 +139,11 @@ export interface ZiWeiPalace {
   majorStars: ZiWeiStar[];
   minorStars: ZiWeiStar[];
   transformations: string[];
-  score: number; // 0 - 100
+  score: number; // 0 - 100 (Legacy alias for heuristic rating)
+  heuristicRating?: number; // 0 - 100 (Heuristic convention based on star brightness & transformations)
+  ruleBasedRating?: number;
+  scoreType?: 'RULE_BASED_HEURISTIC';
+  ratingDisclaimer?: string;
   focalTheme: string;
   startAge?: number; // Đại vận bắt đầu từ tuổi
   endAge?: number; // Đại vận kết thúc ở tuổi
@@ -229,6 +233,9 @@ export interface DecadeCycle {
   tenGod: string;
   focalPalace: PalaceKey;
   harmonyScore: number; // 0 - 100
+  ruleBasedScore?: number; // 0 - 100 (Heuristic rule-based harmony index)
+  scoreType?: 'RULE_BASED_HEURISTIC';
+  algorithmVersion?: string;
   keyThemes: string[];
   opportunitySignals: string[];
   cautionSignals: string[];
@@ -249,6 +256,9 @@ export interface AnnualTransit {
   element: FiveElement;
   tenGod: string;
   overallScore: number; // 0 - 100 (Heuristic harmony index)
+  ruleBasedScore?: number;
+  scoreType?: 'RULE_BASED_HEURISTIC';
+  algorithmVersion?: string;
   careerScore: number;
   wealthScore: number;
   relationshipScore: number;
@@ -307,6 +317,15 @@ export interface BehavioralContext {
   personalNotes: string;
 }
 
+export interface ConfidenceProvenanceComponent {
+  value: number | null;
+  source: string;
+  method: string;
+  version: string;
+  status: 'MEASURED' | 'CALCULATED' | 'HEURISTIC' | 'NOT_AVAILABLE' | 'INSUFFICIENT_DATA';
+  explanation: string;
+}
+
 export interface ConfidenceMetrics {
   consistencyScore: number; // 0 - 100
   dataCompleteness: number; // 0 - 100
@@ -316,6 +335,14 @@ export interface ConfidenceMetrics {
   resolutionLevel: 'High' | 'Medium' | 'Estimated';
   assumptions: string[];
   limitations: string[];
+  // Standardized Provenance-based Components (Audit Section V)
+  inputCompleteness?: ConfidenceProvenanceComponent;
+  calculationIntegrityComponent?: ConfidenceProvenanceComponent;
+  ruleConsistency?: ConfidenceProvenanceComponent;
+  dataCoverage?: ConfidenceProvenanceComponent;
+  modelUncertainty?: ConfidenceProvenanceComponent;
+  empiricalValidation?: ConfidenceProvenanceComponent;
+  statisticalConfidenceComponent?: ConfidenceProvenanceComponent;
   // Distinct multi-dimensional confidence layers (Audit Section IV & Phase 7 Explicit Score Separation)
   scoreType: 'DETERMINISTIC' | 'HEURISTIC' | 'RETROSPECTIVE_PATTERN_FIT';
   calculationIntegrityScore: number; // 0 - 100: Astronomical and ephemeris calculation precision

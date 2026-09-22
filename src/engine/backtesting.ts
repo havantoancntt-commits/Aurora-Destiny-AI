@@ -38,6 +38,11 @@ export function runBacktestAnalysis(
       calculationId: calculation.id,
       timestamp: new Date().toISOString(),
       totalEventsAnalyzed: 0,
+      validationType: 'SELF_CONSISTENCY',
+      groundTruthSource: null,
+      sampleSize: null,
+      accuracy: null,
+      confidenceInterval: null,
       scoreType: 'INSUFFICIENT_DATA',
       destinyConsistencyScore: null, // Strictly null when no empirical data
       historicalHitRate: null,
@@ -218,6 +223,11 @@ export function runBacktestAnalysis(
     calculationId: calculation.id,
     timestamp: new Date().toISOString(),
     totalEventsAnalyzed: validPastEvents.length,
+    validationType: 'SELF_CONSISTENCY',
+    groundTruthSource: 'USER_SELF_REPORTED_EVENTS',
+    sampleSize: n,
+    accuracy: null, // Strictly null: retrospective self-consistency is distinct from independent empirical predictive accuracy
+    confidenceInterval: confidenceInterval95,
     scoreType: 'RETROSPECTIVE_PATTERN_FIT',
     destinyConsistencyScore,
     historicalHitRate,

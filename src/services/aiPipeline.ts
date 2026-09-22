@@ -23,6 +23,12 @@ export interface InternalQualityScore {
   personalizationScore: number; // 0-100 (Alignment with user career, goals, notes)
   responseQuality: number; // 0-100 (Clarity, ethical framing, actionable depth)
   overallQualityScore: number; // Weighted composite
+  // Explicit semantic confidence separation (Section VIII)
+  llmGenerationConfidence?: number; // Quality of generation, hallucination check, constraint satisfaction
+  astrologicalConsistency?: number; // Consistency between mathematical and symbolic chart components
+  empiricalPredictiveAccuracy?: number | null; // NULL: No independent empirical dataset with ground truth
+  modelGroundednessScore?: number; // Groundedness of AI synthesis in chart facts
+  synthesisHeuristicConfidence?: number; // Internal composite heuristic confidence (not probability/accuracy)
 }
 
 export interface PipelineStageLog {
@@ -445,7 +451,12 @@ export class DestinyAiPipeline {
       groundingScore,
       personalizationScore,
       responseQuality,
-      overallQualityScore
+      overallQualityScore,
+      llmGenerationConfidence: responseQuality,
+      astrologicalConsistency: consistencyScore,
+      empiricalPredictiveAccuracy: null, // Strictly null: repository has no empirical out-of-sample population dataset
+      modelGroundednessScore: groundingScore,
+      synthesisHeuristicConfidence: overallQualityScore
     };
   }
 }

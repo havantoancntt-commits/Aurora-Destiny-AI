@@ -52,6 +52,11 @@ export interface BacktestResult {
   calculationId: string;
   timestamp: string;
   totalEventsAnalyzed: number;
+  validationType?: 'SELF_CONSISTENCY' | 'INDEPENDENT_EMPIRICAL_VALIDATION';
+  groundTruthSource?: string | null;
+  sampleSize?: number | null;
+  accuracy?: number | null; // NULL unless independent empirical validation with ground truth
+  confidenceInterval?: { lower: number; upper: number } | null;
   scoreType: 'RETROSPECTIVE_PATTERN_FIT' | 'INSUFFICIENT_DATA' | 'OUT_OF_SAMPLE_VALIDATION' | 'BLIND_HISTORICAL_VALIDATION';
   destinyConsistencyScore: number | null; // NULL when no events provided (Audit Requirement Phase 4 & Phase 7)
   historicalHitRate: number | null; // NULL when no events provided

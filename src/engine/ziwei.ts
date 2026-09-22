@@ -527,9 +527,12 @@ export function calculateZiWeiChart(birthData: BirthData, options?: { analysisYe
       palaceStarScoreBonus += (mStar.type === 'Lucky' ? 4 : -4);
     });
 
-    // Score bounded between 40 and 99
+    // Heuristic palace score convention (Section VII: rule-based rating based on star brightness & transformations)
     const baseScore = 65;
     const score = Math.min(99, Math.max(40, baseScore + palaceStarScoreBonus));
+    const heuristicRating = score;
+    const ruleBasedRating = score;
+    const ratingDisclaimer = 'Điểm số mang tính quy ước dựa trên tương quan sao chính tinh / phụ tinh theo nguyên lý Tử Vi Đẩu Số, không phải xác suất thực tế.';
 
     const isBodyPalace = branchIdx === bodyPalaceBranchIdx;
 
@@ -543,6 +546,10 @@ export function calculateZiWeiChart(birthData: BirthData, options?: { analysisYe
       minorStars,
       transformations,
       score,
+      heuristicRating,
+      ruleBasedRating,
+      scoreType: 'RULE_BASED_HEURISTIC',
+      ratingDisclaimer,
       focalTheme: def.focalTheme,
       startAge,
       endAge,

@@ -56,9 +56,25 @@ export function evaluateWhatIfScenario(
   }
   const nextOppWave = nextTransit?.opportunityWave ?? currentTransit.opportunityWave;
 
-  const favorableEl = calculation.bazi.favorableElements?.join(' & ') || 'Chưa xác định';
-  const dmStrength = calculation.bazi.dayMasterStrength || 'Thân Cân Bằng';
-  const dmElement = calculation.bazi.dayMasterElement || 'Mộc';
+  // Section III: Day Master & Strength must be authentic calculations; no 'Mộc' or 'Thân Cân Bằng' fake defaults
+  if (!calculation.bazi?.dayMasterElement || !calculation.bazi?.dayMasterStrength) {
+    return {
+      id: `scn_${Date.now()}`,
+      userQuestion: question,
+      evaluatedAt: new Date().toISOString(),
+      contextSummary: 'Không đủ thông số bản mệnh Bát tự (Nhật Chủ / Vượng suy) để lập mô phỏng kịch bản.',
+      status: 'INSUFFICIENT_DATA',
+      missingReason: 'Thiếu dữ liệu Nhật Chủ (dayMasterElement) hoặc độ vượng suy (dayMasterStrength) trong kết quả tính toán.',
+      scenarios: [],
+      synthesisAdvice: 'Cần hoàn tất tính toán Bát tự đầy đủ trước khi chạy mô phỏng kịch bản.',
+      riskNotice: 'Hệ thống từ chối sử dụng giá trị mặc định cho Nhật Chủ hoặc độ vượng suy bản mệnh.'
+    };
+  }
+
+  const dmStrength = calculation.bazi.dayMasterStrength;
+  const dmElement = calculation.bazi.dayMasterElement;
+  const favorableList = calculation.bazi.favorableElements;
+  const favorableEl = (favorableList && favorableList.length > 0) ? favorableList.join(' & ') : 'Chưa xác định';
 
   // Deterministic scores grounded in authentic astrological calculations
   const rawCareer = calculation.ziwei.palaces?.career?.score ?? calculation.ziwei.palaces?.life?.score;
@@ -169,9 +185,22 @@ export function evaluateWhatIfScenario(
     }
   ];
 
-  // Dynamic advice identifying the highest alignment scenario
-  const sorted = [...scenarios].sort((a, b) => (b.energyAlignmentScore || 0) - (a.energyAlignmentScore || 0));
+  // Section III: Null-safe comparator: real numeric scores first (descending), null/unknown handled separately without converting null to 0
+  const sorted = [...scenarios].sort((a, b) => {
+    const aScore = a.energyAlignmentScore;
+    const bScore = b.energyAlignmentScore;
+    const aValid = typeof aScore === 'number' && !isNaN(aScore);
+    const bValid = typeof bScore === 'number' && !isNaN(bScore);
+    if (aValid && bValid) {
+      return (bScore as number) - (aScore as number);
+    }
+    if (aValid) return -1;
+    if (bValid) return 1;
+    return 0;
+  });
   const best = sorted[0];
+  const bestScoreText = typeof best.energyAlignmentScore === 'number' ? `${best.energyAlignmentScore}/100 điểm` : 'Chưa xác định';
+  const bestUncertaintyText = typeof best.uncertaintyScore === 'number' ? `độ bất định ${best.uncertaintyScore}/100` : 'độ bất định chưa xác định';
 
   return {
     id: `scn_${Date.now()}`,
@@ -180,7 +209,7 @@ export function evaluateWhatIfScenario(
     contextSummary: `Phân tích đối sánh dựa trên lá số Bát tự (Nhật chủ ${dmElement} - ${dmStrength}), hành Dụng Thần (${favorableEl}) và chu kỳ lưu niên ${currentYear}-${currentYear + 1}.`,
     status: 'AVAILABLE',
     scenarios,
-    synthesisAdvice: `Dữ liệu chu kỳ cho thấy ${best.title} đạt độ tương thích năng lượng cao nhất (${best.energyAlignmentScore}/100 điểm, độ bất định ${best.uncertaintyScore}/100). Đề xuất xây dựng kịch bản dự phòng trước khi ra quyết định dứt điểm.`,
+    synthesisAdvice: `Dữ liệu chu kỳ cho thấy ${best.title} đạt độ tương thích năng lượng cao nhất (${bestScoreText}, ${bestUncertaintyText}). Đề xuất xây dựng kịch bản dự phòng trước khi ra quyết định dứt điểm.`,
     riskNotice: 'Mọi kịch bản phân tích nhằm mục đích mở rộng góc nhìn tư duy chiến lược và tham khảo, không đại diện cho lời khuyên đầu tư hay cam kết chắc chắn.',
     provenance: {
       formulaVersion: 'v2.0.0-deterministic',

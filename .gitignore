@@ -10,3 +10,4 @@ backups/
 *.backup.json
 .env*
 !.env.example
+.aurora*
