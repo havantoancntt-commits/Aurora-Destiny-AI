@@ -135,7 +135,7 @@ export default function App() {
 
       let currentEnsemble = calcData.ensemble;
       if (!currentEnsemble && currentCalc && loadedProfiles[0]) {
-        currentEnsemble = generateMultiAgentEnsemble(loadedProfiles[0], currentCalc, currentBt?.destinyConsistencyScore || 75);
+        currentEnsemble = generateMultiAgentEnsemble(loadedProfiles[0], currentCalc, currentBt?.destinyConsistencyScore ?? null);
       }
       setEnsemble(currentEnsemble);
 
@@ -201,7 +201,7 @@ export default function App() {
 
       let currentEnsemble = calcData.ensemble;
       if (!currentEnsemble && currentCalc && prof) {
-        currentEnsemble = generateMultiAgentEnsemble(prof, currentCalc, currentBt?.destinyConsistencyScore || 75);
+        currentEnsemble = generateMultiAgentEnsemble(prof, currentCalc, currentBt?.destinyConsistencyScore ?? null);
       }
       setEnsemble(currentEnsemble);
     } catch (e) {

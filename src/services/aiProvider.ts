@@ -113,7 +113,7 @@ export class GeminiProvider implements AIProvider {
       `${baziPillars}\n` +
       `Dụng Thần Bát Tự: ${calc.bazi.favorableElements.join(', ')}. Kỵ Thần: ${calc.bazi.unfavorableElements.join(', ')}.\n` +
       `Cung Mệnh Tử Vi: ${calc.ziwei.palaces.life?.branch}, Chính tinh: ${calc.ziwei.palaces.life?.majorStars?.map(s => s.nameVi).join(', ') || 'Vô Chính Diệu'}.\n` +
-      `Lưu niên ${analysisYear}: Cơ hội ${currentTransit?.opportunityWave || 50}%, Thận trọng ${currentTransit?.cautionWave || 50}%.\n\n` +
+      `${currentTransit ? `Lưu niên ${analysisYear}: Cơ hội ${currentTransit.opportunityWave}%, Thận trọng ${currentTransit.cautionWave}%.` : `Lưu niên ${analysisYear}: Chưa đủ dữ liệu sóng Lưu Niên.`}\n\n` +
       `Câu hỏi người dùng: "${userMessage}"\n\n` +
       `Yêu cầu: Văn phong triết lý, nhân văn, khách quan, tôn trọng ý chí tự do (Free Will). Tuyệt đối không phán đoán mang tính mê tín đoan định hoặc y tế/đỏ đen.`;
 

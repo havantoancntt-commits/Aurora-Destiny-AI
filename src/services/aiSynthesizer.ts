@@ -29,13 +29,13 @@ export function generateMultiAgentEnsemble(
   const currentYear = targetYear;
   const currentTransit = calculation.annualTransits.find(t => t.year === targetYear) || calculation.annualTransits[0];
 
-  const hasBacktest = typeof backtestScore === 'number';
+  const hasBacktest = typeof backtestScore === 'number' && !isNaN(backtestScore);
   const overallConsistencyScore = hasBacktest
     ? Math.round((confidence.consistencyScore * 0.6) + (backtestScore * 0.4))
     : confidence.consistencyScore;
-  const baseCalcConfidence = calculation.confidence?.calculationIntegrity || 85;
-  const inputQuality = calculation.confidence?.inputQuality || 80;
-  const modelAgreement = calculation.confidence?.modelAgreement || 75;
+  const baseCalcConfidence = calculation.confidence?.calculationIntegrity ?? calculation.confidence?.calculationConfidence ?? 50;
+  const inputQuality = calculation.confidence?.dataCompletenessScore ?? calculation.confidence?.inputQuality ?? 40;
+  const modelAgreement = calculation.confidence?.heuristicPatternScore ?? calculation.confidence?.modelAgreement ?? 50;
 
   // Extract real star and pillar details
   const lifeMajorStars = ziwei.palaces.life?.majorStars || [];
@@ -56,12 +56,16 @@ export function generateMultiAgentEnsemble(
   const bodyPalaceName = ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc';
 
   // Dynamically compute domain-specific confidence scores grounded in calculation metrics
+  const rawConsistency = confidence.ruleConsistencyScore ?? confidence.consistencyScore ?? 50;
+  const rawValidation = confidence.validationScore ?? 50;
+  const rawUncertainty = confidence.uncertaintyIndex ?? 50;
+
   const baziConfidence = Math.min(99, Math.round(baseCalcConfidence * 0.5 + inputQuality * 0.3 + modelAgreement * 0.2));
   const ziweiConfidence = Math.min(99, Math.round(baseCalcConfidence * 0.4 + inputQuality * 0.4 + modelAgreement * 0.2));
-  const temporalConfidence = Math.min(99, Math.round(baziConfidence * 0.6 + (confidence.consistencyScore || 80) * 0.4));
+  const temporalConfidence = Math.min(99, Math.round(baziConfidence * 0.6 + rawConsistency * 0.4));
   const behavioralConfidence = Math.min(99, Math.round(inputQuality * 0.6 + overallConsistencyScore * 0.4));
-  const statisticalConfidence = Math.min(99, Math.round(overallConsistencyScore * 0.7 + (confidence.validationScore || 85) * 0.3));
-  const riskConfidence = Math.min(99, Math.max(50, 100 - (confidence.uncertaintyIndex || 15)));
+  const statisticalConfidence = Math.min(99, Math.round(overallConsistencyScore * 0.7 + rawValidation * 0.3));
+  const riskConfidence = Math.min(99, Math.max(20, 100 - rawUncertainty));
 
   // Agent 1: Traditional Astrology Analyst
   const traditionalAstrologyAgent = {
@@ -158,8 +162,12 @@ export function generateMultiAgentEnsemble(
     agentRole: 'Tích Hợp Ngữ Cảnh Hành Vi & Mục Tiêu Thực Tế',
     confidenceScore: behavioralConfidence,
     keyFindings: [
-      `Mục tiêu hàng đầu của người dùng: "${profile.behavioralContext.topPriority || 'Mở rộng quy mô sự nghiệp'}" tương thích cao với thế mạnh của Cung Mệnh và Quan Lộc.`,
-      `Lĩnh vực chuyên môn: ${profile.behavioralContext.careerField || 'Sáng tạo & Quản trị'} phát huy tối đa năng lực Dụng Thần ${favorableStr}.`,
+      profile.behavioralContext?.topPriority
+        ? `Mục tiêu hàng đầu của người dùng: "${profile.behavioralContext.topPriority}" tương thích với thế mạnh của Cung Mệnh và Quan Lộc.`
+        : `Chưa ghi nhận mục tiêu hành vi cụ thể trong hồ sơ; khuyến nghị thiết lập trọng tâm định hướng chiến lược theo quý.`,
+      profile.behavioralContext?.careerField
+        ? `Lĩnh vực chuyên môn: ${profile.behavioralContext.careerField} phát huy năng lực Dụng Thần ${favorableStr}.`
+        : `Lĩnh vực thế mạnh phù hợp với năng lực Dụng Thần ${favorableStr}.`,
       `Mô thức ra quyết định: Cần kết hợp giữa phân tích số liệu thực chứng và trực giác nhạy bén bẩm sinh.`
     ],
     recommendations: [
@@ -219,17 +227,27 @@ export function generateMultiAgentEnsemble(
   };
 
   // Synthesize Life Radar (8 Core Dimensions grounded in actual calculations)
+  const careerPalace = ziwei.palaces.career;
+  const wealthPalace = ziwei.palaces.wealth;
+  const spousePalace = ziwei.palaces.spouse;
+  const parentsPalace = ziwei.palaces.parents;
+  const lifePalace = ziwei.palaces.life;
+
   const lifeRadar = [
     {
       domain: 'Sự nghiệp & Vị thế',
       domainKey: 'career' as const,
-      score: ziwei.palaces.career?.score || 88,
-      trend: (ziwei.palaces.career?.score || 88) >= 80 ? ('Rising' as const) : ('Stable' as const),
+      score: typeof careerPalace?.score === 'number' ? careerPalace.score : null,
+      status: typeof careerPalace?.score === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof careerPalace?.score === 'number' ? undefined : 'Thiếu dữ liệu tính toán cung Quan Lộc',
+      trend: typeof careerPalace?.score === 'number' ? (careerPalace.score >= 80 ? ('Rising' as const) : ('Stable' as const)) : ('Indeterminate' as const),
       confidence: Math.round(ziweiConfidence * 0.6 + temporalConfidence * 0.4),
       supportingFactors: [
         `Cung Quan Lộc tọa thủ ${careerStarStr}`,
         `Cách cục ${bazi.structureType} bổ trợ năng lực điều hành`,
-        `Sóng cơ hội năm hiện tại đạt ${currentTransit.opportunityWave}%`
+        currentTransit?.opportunityWave !== undefined
+          ? `Sóng cơ hội năm hiện tại đạt ${currentTransit.opportunityWave}%`
+          : 'Chưa đủ dữ liệu sóng cơ hội năm hiện tại'
       ],
       uncertaintyFactors: [
         'Biến động kinh tế vĩ mô và cạnh tranh ngành',
@@ -239,8 +257,10 @@ export function generateMultiAgentEnsemble(
     {
       domain: 'Tài chính & Tài sản',
       domainKey: 'finance' as const,
-      score: ziwei.palaces.wealth?.score || 85,
-      trend: 'Stable' as const,
+      score: typeof wealthPalace?.score === 'number' ? wealthPalace.score : null,
+      status: typeof wealthPalace?.score === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof wealthPalace?.score === 'number' ? undefined : 'Thiếu dữ liệu tính toán cung Tài Bạch',
+      trend: typeof wealthPalace?.score === 'number' ? (wealthPalace.score >= 80 ? ('Rising' as const) : ('Stable' as const)) : ('Indeterminate' as const),
       confidence: Math.round(ziweiConfidence * 0.5 + baziConfidence * 0.5),
       supportingFactors: [
         `Cung Tài Bạch tọa thủ ${wealthStarStr}`,
@@ -255,11 +275,13 @@ export function generateMultiAgentEnsemble(
     {
       domain: 'Mối quan hệ & Tình cảm',
       domainKey: 'relationships' as const,
-      score: ziwei.palaces.spouse?.score || 78,
-      trend: 'Stable' as const,
+      score: typeof spousePalace?.score === 'number' ? spousePalace.score : null,
+      status: typeof spousePalace?.score === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof spousePalace?.score === 'number' ? undefined : 'Thiếu dữ liệu tính toán cung Phu Thê',
+      trend: typeof spousePalace?.score === 'number' ? (spousePalace.score >= 80 ? ('Rising' as const) : ('Stable' as const)) : ('Indeterminate' as const),
       confidence: Math.round(ziweiConfidence * 0.7 + behavioralConfidence * 0.3),
       supportingFactors: [
-        `Cung Phu Thê tại ${ziwei.palaces.spouse?.branch} (${ziwei.palaces.spouse?.score}đ) duy trì sự hài hòa`,
+        spousePalace ? `Cung Phu Thê tại ${spousePalace.branch} (${spousePalace.score}đ) duy trì sự hài hòa` : 'Cung Phu Thê chưa xác định',
         'Sự thấu hiểu và chia sẻ giá trị sống cốt lõi'
       ],
       uncertaintyFactors: [
@@ -270,11 +292,13 @@ export function generateMultiAgentEnsemble(
     {
       domain: 'Gia đình & Cội nguồn',
       domainKey: 'family' as const,
-      score: ziwei.palaces.parents?.score || 82,
-      trend: 'Rising' as const,
+      score: typeof parentsPalace?.score === 'number' ? parentsPalace.score : null,
+      status: typeof parentsPalace?.score === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof parentsPalace?.score === 'number' ? undefined : 'Thiếu dữ liệu tính toán cung Phụ Mẫu',
+      trend: typeof parentsPalace?.score === 'number' ? (parentsPalace.score >= 80 ? ('Rising' as const) : ('Stable' as const)) : ('Indeterminate' as const),
       confidence: Math.round(ziweiConfidence * 0.8 + inputQuality * 0.2),
       supportingFactors: [
-        `Cung Phụ Mẫu (${ziwei.palaces.parents?.score}đ) vững vàng, nền tảng phúc ấm tổ tiên`,
+        parentsPalace ? `Cung Phụ Mẫu (${parentsPalace.score}đ) vững vàng, nền tảng phúc ấm tổ tiên` : 'Cung Phụ Mẫu chưa xác định',
         'Sự nâng đỡ từ hậu phương gia đình tin cậy'
       ],
       uncertaintyFactors: [
@@ -284,8 +308,10 @@ export function generateMultiAgentEnsemble(
     {
       domain: 'Học tập & Trí tuệ',
       domainKey: 'learning' as const,
-      score: Math.min(96, (ziwei.palaces.life?.score || 85) + 6),
-      trend: 'Rising' as const,
+      score: typeof lifePalace?.score === 'number' ? lifePalace.score : null,
+      status: typeof lifePalace?.score === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof lifePalace?.score === 'number' ? undefined : 'Thiếu dữ liệu tính toán cung Mệnh',
+      trend: typeof lifePalace?.score === 'number' ? (lifePalace.score >= 80 ? ('Rising' as const) : ('Stable' as const)) : ('Indeterminate' as const),
       confidence: Math.round(baziConfidence * 0.5 + ziweiConfidence * 0.5),
       supportingFactors: [
         `Tư chất Nhật Chủ ${dm.nameVi} (${dm.element}) thông tuệ sắc sảo`,
@@ -298,8 +324,10 @@ export function generateMultiAgentEnsemble(
     {
       domain: 'Phát triển cá nhân',
       domainKey: 'growth' as const,
-      score: Math.min(95, (ziwei.palaces.life?.score || 85) + 4),
-      trend: 'Rising' as const,
+      score: typeof lifePalace?.score === 'number' ? lifePalace.score : null,
+      status: typeof lifePalace?.score === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof lifePalace?.score === 'number' ? undefined : 'Thiếu dữ liệu tính toán cung Mệnh',
+      trend: typeof lifePalace?.score === 'number' ? (lifePalace.score >= 80 ? ('Rising' as const) : ('Stable' as const)) : ('Indeterminate' as const),
       confidence: Math.round(ziweiConfidence * 0.6 + behavioralConfidence * 0.4),
       supportingFactors: [
         `Ý chí kiên định từ Cung Mệnh tọa ${lifeStarStr}`,
@@ -312,12 +340,14 @@ export function generateMultiAgentEnsemble(
     {
       domain: 'Cửa sổ Cơ hội',
       domainKey: 'opportunity' as const,
-      score: currentTransit.opportunityWave,
-      trend: currentTransit.opportunityWave >= 75 ? ('Rising' as const) : ('Stable' as const),
+      score: typeof currentTransit?.opportunityWave === 'number' ? currentTransit.opportunityWave : null,
+      status: typeof currentTransit?.opportunityWave === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof currentTransit?.opportunityWave === 'number' ? undefined : 'Thiếu dữ liệu sóng cơ hội Lưu Niên',
+      trend: typeof currentTransit?.opportunityWave === 'number' ? (currentTransit.opportunityWave >= 75 ? ('Rising' as const) : ('Stable' as const)) : ('Indeterminate' as const),
       confidence: temporalConfidence,
       supportingFactors: [
-        `Lưu Niên ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) tương tác tích cực`,
-        `Thời điểm hội tụ: ${currentTransit.recommendedFocus}`
+        currentTransit ? `Lưu Niên ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) tương tác tích cực` : 'Chưa có dữ liệu Lưu Niên',
+        currentTransit ? `Thời điểm hội tụ: ${currentTransit.recommendedFocus}` : 'Chưa xác định'
       ],
       uncertaintyFactors: [
         'Cần ra quyết định đúng lúc, tránh do dự lỡ nhịp'
@@ -326,7 +356,9 @@ export function generateMultiAgentEnsemble(
     {
       domain: 'Quản trị Rủi ro',
       domainKey: 'risk' as const,
-      score: Math.max(40, 100 - currentTransit.cautionWave),
+      score: typeof currentTransit?.cautionWave === 'number' ? Math.max(0, 100 - currentTransit.cautionWave) : null,
+      status: typeof currentTransit?.cautionWave === 'number' ? ('AVAILABLE' as const) : ('INSUFFICIENT_DATA' as const),
+      reason: typeof currentTransit?.cautionWave === 'number' ? undefined : 'Thiếu dữ liệu sóng thận trọng Lưu Niên',
       trend: 'Stable' as const,
       confidence: riskConfidence,
       supportingFactors: [

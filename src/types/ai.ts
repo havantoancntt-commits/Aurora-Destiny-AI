@@ -16,8 +16,10 @@ export interface AgentReport {
 export type LifeDomainItem = {
   domain: string;
   domainKey: 'career' | 'finance' | 'relationships' | 'family' | 'learning' | 'growth' | 'opportunity' | 'risk';
-  score: number;
-  trend: 'Rising' | 'Stable' | 'Volatile' | 'Receding';
+  score: number | null;
+  status?: 'AVAILABLE' | 'INSUFFICIENT_DATA';
+  reason?: string;
+  trend: 'Rising' | 'Stable' | 'Volatile' | 'Receding' | 'Indeterminate';
   confidence: number;
   supportingFactors: string[];
   uncertaintyFactors: string[];

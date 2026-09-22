@@ -101,7 +101,8 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
   const dataPolygonPoints = useMemo(() => {
     return radarDomains.map((item, i) => {
       const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
-      const r = Math.max(16, ((item.score || 50) / 100) * maxR);
+      const scoreVal = typeof item.score === 'number' ? item.score : 0;
+      const r = Math.max(16, (scoreVal / 100) * maxR);
       const x = cx + r * Math.cos(angle);
       const y = cy + r * Math.sin(angle);
       return `${x.toFixed(1)},${y.toFixed(1)}`;
@@ -112,7 +113,8 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
   const dataNodes = useMemo(() => {
     return radarDomains.map((item, i) => {
       const angle = (i * 2 * Math.PI) / totalAxes - Math.PI / 2;
-      const r = Math.max(16, ((item.score || 50) / 100) * maxR);
+      const scoreVal = typeof item.score === 'number' ? item.score : 0;
+      const r = Math.max(16, (scoreVal / 100) * maxR);
       const x = cx + r * Math.cos(angle);
       const y = cy + r * Math.sin(angle);
       const isSelected = item.domainKey === selectedDomainKey;
@@ -406,7 +408,7 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
                     fontWeight="bold"
                     fontFamily="monospace"
                   >
-                    {lbl.item.score}đ
+                    {lbl.item.score !== null && lbl.item.score !== undefined ? `${lbl.item.score}đ` : 'Chưa tính'}
                   </text>
 
                   {/* Foreground Domain Score Pill Subtext */}
@@ -418,6 +420,8 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
                     fill={
                       lbl.isSelected
                         ? '#a855f7'
+                        : lbl.item.score === null || lbl.item.score === undefined
+                        ? '#64748b'
                         : lbl.item.score >= 80
                         ? '#34d399'
                         : lbl.item.score <= 50
@@ -428,7 +432,7 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
                     fontWeight="700"
                     fontFamily="monospace"
                   >
-                    {lbl.item.score}đ
+                    {lbl.item.score !== null && lbl.item.score !== undefined ? `${lbl.item.score}đ` : 'Chưa tính'}
                   </text>
                 </g>
               ))}
@@ -441,7 +445,9 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
               <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
               <span className="text-slate-400 text-[11px]">Đang chọn:</span>
               <span className="font-semibold text-white text-[11px]">{selectedDomain.domain}</span>
-              <span className="text-teal-400 font-mono font-bold text-xs">({selectedDomain.score}/100)</span>
+              <span className="text-teal-400 font-mono font-bold text-xs">
+                ({selectedDomain.score !== null && selectedDomain.score !== undefined ? `${selectedDomain.score}/100` : 'Chưa đủ dữ liệu'})
+              </span>
             </div>
 
             <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
@@ -472,7 +478,13 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
             <div className="text-right">
               <div className="text-[10px] text-teal-400 uppercase tracking-wider">Chỉ Số Năng Lượng</div>
               <div className="text-2xl font-light font-mono text-white">
-                {selectedDomain.score}<span className="text-xs text-slate-400">/100</span>
+                {selectedDomain.score !== null && selectedDomain.score !== undefined ? (
+                  <>
+                    {selectedDomain.score}<span className="text-xs text-slate-400">/100</span>
+                  </>
+                ) : (
+                  <span className="text-sm font-normal text-amber-400">Chưa đủ dữ liệu</span>
+                )}
               </div>
             </div>
           </div>
@@ -535,7 +547,7 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
                   {domain.domain}
                 </span>
                 <span className="text-xs font-mono font-light text-white">
-                  {domain.score}
+                  {domain.score !== null && domain.score !== undefined ? `${domain.score}đ` : 'Chưa tính'}
                 </span>
               </div>
 
@@ -543,7 +555,7 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
               <div className="w-full bg-white/5 h-1.5 rounded-full mt-2.5 overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-purple-500 to-teal-400 h-full rounded-full transition-all"
-                  style={{ width: `${domain.score}%` }}
+                  style={{ width: `${domain.score ?? 0}%` }}
                 />
               </div>
 

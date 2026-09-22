@@ -176,12 +176,14 @@ export class DestinyAiPipeline {
       },
       {
         category: 'transit',
-        fact: `Lưu Niên ${targetYear}: Sóng cơ hội ${currentTransit?.opportunityWave || 70}%, Sóng thận trọng ${currentTransit?.cautionWave || 40}%`,
+        fact: `Lưu Niên ${targetYear}: ${currentTransit ? `Sóng cơ hội ${currentTransit.opportunityWave}%, Sóng thận trọng ${currentTransit.cautionWave}%` : 'Chưa đủ dữ liệu sóng Lưu Niên'}`,
         verifiedInChart: true
       },
       {
         category: 'backtest',
-        fact: `Chỉ số tương hợp lịch sử: ${request.backtest.destinyConsistencyScore}/100 trên ${request.backtest.totalEventsAnalyzed} sự kiện`,
+        fact: request.backtest.destinyConsistencyScore !== null && request.backtest.destinyConsistencyScore !== undefined
+          ? `Chỉ số tương hợp lịch sử: ${request.backtest.destinyConsistencyScore}/100 trên ${request.backtest.totalEventsAnalyzed} sự kiện`
+          : `Chưa có đủ sự kiện đối soát lịch sử (tổng: ${request.backtest.totalEventsAnalyzed} sự kiện)`,
         verifiedInChart: true
       }
     ];
@@ -207,8 +209,8 @@ export class DestinyAiPipeline {
       favorableElements: bazi.favorableElements,
       unfavorableElements: bazi.unfavorableElements,
       lifePalaceStarSummary: ziwei.palaces.life?.majorStars?.map(s => s.nameVi).join(', ') || 'Vô Chính Diệu',
-      currentYearOpportunityWave: currentTransit?.opportunityWave || 70,
-      currentYearCautionWave: currentTransit?.cautionWave || 40,
+      currentYearOpportunityWave: currentTransit?.opportunityWave ?? null,
+      currentYearCautionWave: currentTransit?.cautionWave ?? null,
       backtestConsistencyScore: request.backtest.destinyConsistencyScore
     };
     logStage(5, 'DOMAIN_CALCULATION', 'passed', 'Life domains and mathematical weights calculated.', s5Start);
@@ -218,7 +220,7 @@ export class DestinyAiPipeline {
     // -------------------------------------------------------------
     const s6Start = Date.now();
     const baziStrengthScore = (bazi.dayMasterStrength === 'Strong' || bazi.dayMasterStrength === 'Very Strong') ? 85 : (bazi.dayMasterStrength === 'Weak' || bazi.dayMasterStrength === 'Very Weak') ? 65 : 78;
-    const ziweiLifeScore = ziwei.palaces.life?.score || 80;
+    const ziweiLifeScore = typeof ziwei.palaces.life?.score === 'number' ? ziwei.palaces.life.score : baziStrengthScore;
     const scoreDiff = Math.abs(baziStrengthScore - ziweiLifeScore);
     const isHarmonious = scoreDiff <= 30;
     logStage(
@@ -333,7 +335,9 @@ export class DestinyAiPipeline {
     const s11Start = Date.now();
     const suggestedActions = [
       `Tập trung phân bổ thời gian vào việc phát huy Dụng Thần (${bazi.favorableElements.join(', ')})`,
-      `Chủ động kiểm soát rủi ro tài chính và tránh cam kết vội vàng trong các thời điểm thận trọng (${currentTransit?.cautionWave || 40}%)`,
+      currentTransit?.cautionWave !== undefined
+        ? `Chủ động kiểm soát rủi ro tài chính và tránh cam kết vội vàng trong các thời điểm thận trọng (${currentTransit.cautionWave}%)`
+        : `Chủ động kiểm soát rủi ro tài chính và duy trì kỷ luật quản trị dòng tiền an toàn`,
       `Rèn luyện tư duy tự chủ và duy trì kế hoạch phát triển cá nhân theo chu kỳ từng quý`
     ];
     logStage(11, 'RESPONSE_GENERATION', 'passed', 'Structured strategic response assembled with action plan.', s11Start);
