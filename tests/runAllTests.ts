@@ -10,6 +10,7 @@ import { runTimezoneCorrectionTests } from './timezone/timezoneCorrection.test';
 import { runBaziZiweiIntegrityTests } from './calculation/baziZiweiIntegrity.test';
 import { runCacheAndConventionRegressionTests } from './regression/cacheAndConventionRegression.test';
 import { runAuditPhaseVerificationTests } from './regression/auditPhaseVerification.test';
+import { runAntiHallucinationTests } from './calculation/antiHallucination.test';
 
 export async function runMasterTestSuite() {
   console.log('====================================================');
@@ -40,6 +41,11 @@ export async function runMasterTestSuite() {
   totalPassed += integrityRes.passed;
   totalFailed += integrityRes.failed;
   allErrors.push(...integrityRes.errors);
+
+  const antiHallucinationRes = runAntiHallucinationTests();
+  totalPassed += antiHallucinationRes.passed;
+  totalFailed += antiHallucinationRes.failed;
+  allErrors.push(...antiHallucinationRes.errors);
 
   const cacheConvRes = runCacheAndConventionRegressionTests();
   totalPassed += cacheConvRes.passed;

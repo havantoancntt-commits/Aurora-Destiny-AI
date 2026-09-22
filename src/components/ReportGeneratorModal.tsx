@@ -1007,10 +1007,12 @@ Bản quyền nghiên cứu: Aurora Destiny AI & GS.TOAN`;
               {/* 5. Backtesting Empirical Proof */}
               <div className="space-y-2">
                 <h2 className="text-xs font-bold text-emerald-300 uppercase tracking-wider font-cinzel">
-                  4. KIỂM CHỨNG LỊCH SỬ (BACKTESTING SCORE: {backtest?.destinyConsistencyScore ?? 75}/100)
+                  4. KIỂM CHỨNG LỊCH SỬ (BACKTESTING SCORE: {typeof backtest?.destinyConsistencyScore === 'number' ? `${backtest.destinyConsistencyScore}/100` : 'CHƯA KIỂM CHỨNG'})
                 </h2>
                 <div className="p-3 rounded-xl bg-slate-900 border border-emerald-900/40 text-xs space-y-1.5">
-                  <div>Độ tin cậy: <strong className="text-emerald-300">{backtest?.confidenceBand || 'Khả quan'}</strong> ({backtest?.totalEventsAnalyzed || 0} sự kiện đã kiểm chứng)</div>
+                  <div>
+                    Độ tin cậy: <strong className="text-emerald-300">{backtest?.confidenceBand || (backtest?.totalEventsAnalyzed ? 'Khả quan' : 'Chưa xác định')}</strong> ({backtest?.totalEventsAnalyzed || 0} sự kiện đã kiểm chứng)
+                  </div>
                   {backtest?.strengthsSummary && backtest.strengthsSummary.length > 0 && (
                     <ul className="list-disc list-inside text-slate-300 text-[11px] space-y-0.5">
                       {backtest.strengthsSummary.map((s, i) => (

@@ -115,9 +115,10 @@ export function generate100YearHeatmap(
       relationship = annualTransit.relationshipScore;
     } else {
       // Tính toán dựa trên độ hòa hợp đại vận và tương tác ngũ hành lưu niên thực tế
-      const decadeBaseline = typeof decadeObj?.harmonyScore === 'number'
+      const rawDecadeScore = typeof decadeObj?.harmonyScore === 'number'
         ? decadeObj.harmonyScore
-        : (calculation.ziwei?.palaces?.[decadePalaceKey]?.score ?? calculation.ziwei?.palaces?.life?.score ?? 60);
+        : (calculation.ziwei?.palaces?.[decadePalaceKey]?.score ?? calculation.ziwei?.palaces?.life?.score);
+      const decadeBaseline = typeof rawDecadeScore === 'number' ? rawDecadeScore : 0;
 
       const favorableElements = calculation.bazi?.favorableElements || [];
       const unfavorableElements = calculation.bazi?.unfavorableElements || [];

@@ -521,7 +521,9 @@ export const ReflectionJournal: React.FC<Props> = ({ calculation, language, onCl
 
               <div className="p-3 rounded-2xl bg-black/40 border border-white/10 text-center">
                 <div className="text-xl font-bold font-mono text-purple-400">
-                  {calculation.annualTransits[0]?.opportunityWave || 75}%
+                  {typeof calculation.annualTransits[0]?.opportunityWave === 'number'
+                    ? `${calculation.annualTransits[0].opportunityWave}%`
+                    : '—'}
                 </div>
                 <span className="text-[10px] text-slate-400">Sóng cơ hội lưu niên</span>
               </div>

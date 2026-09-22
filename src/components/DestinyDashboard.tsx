@@ -795,7 +795,7 @@ export const DestinyDashboard: React.FC<Props> = ({
                       )}
                     </div>
                     <span className="text-[10px] font-mono text-slate-400 font-bold">
-                      {pal?.score || 70}đ
+                      {typeof pal?.score === 'number' ? `${pal.score}đ` : '—'}
                     </span>
                   </div>
 

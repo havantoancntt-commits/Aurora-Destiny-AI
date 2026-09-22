@@ -189,7 +189,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     
     // When relying on ambient browser cookie for authorization, verify origin/referrer
     if (hasSessionCookie) {
-      const originHeader = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer as string).origin : undefined);
+      let originHeader = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+      if (!originHeader && typeof req.headers.referer === 'string') {
+        try {
+          originHeader = new URL(req.headers.referer).origin;
+        } catch {
+          originHeader = undefined;
+        }
+      }
       const host = req.headers.host;
 
       if (!originHeader || !isOriginAllowed(originHeader, host)) {

@@ -151,7 +151,7 @@ export async function generateDestinyChatResponse(
   const careerStars = calc.ziwei.palaces.career?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Quan Lộc Vô Chính Diệu';
   const wealthStars = calc.ziwei.palaces.wealth?.majorStars?.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ') || 'Tài Bạch Vô Chính Diệu';
 
-  const ziweiDetails = `Cục: ${calc.ziwei.elementBureau} (Số Cục: ${calc.ziwei.cucNumber || 4}). ` +
+  const ziweiDetails = `Cục: ${calc.ziwei.elementBureau} (Số Cục: ${calc.ziwei.cucNumber ?? 'Chưa xác định'}). ` +
     `Âm Dương Thể Chất: ${calc.ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${calc.ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). ` +
     `Tương Phối Mệnh - Cục: ${calc.ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} (${calc.ziwei.elementDestinyBureauHarmony?.quality || 'Bình Hòa'}). ` +
     `Cung Thân: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'} (${calc.ziwei.bodyPalaceAnalysis?.meaning || ''}). ` +
@@ -169,8 +169,8 @@ export async function generateDestinyChatResponse(
     `Trọng tâm: ${currentTransit.recommendedFocus}` : `Đang tính toán chu kỳ Lưu Niên ${analysisYear}`;
 
   const backtestSummary = backtest.totalEventsAnalyzed > 0
-    ? `Chỉ số Tương Hợp Lịch Sử: ${backtest.destinyConsistencyScore}/100 trên ${backtest.totalEventsAnalyzed} sự kiện thực tế (${backtest.confidenceBand}).`
-    : `Chưa có sự kiện thực chứng lịch sử. Chỉ số tin cậy mô hình: ${calc.confidence.consistencyScore}/100.`;
+    ? `Chỉ số Tương Hợp Lịch Sử (Retrospective Fit): ${backtest.destinyConsistencyScore}/100 trên ${backtest.totalEventsAnalyzed} sự kiện thực tế (${backtest.confidenceBand}).`
+    : 'Chưa có sự kiện thực chứng lịch sử (historicalPatternFitScore: null, statisticalConfidence: null).';
 
   const ai = getGemini();
 

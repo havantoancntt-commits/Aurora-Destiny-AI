@@ -61,10 +61,28 @@ export function evaluateWhatIfScenario(
   const dmElement = calculation.bazi.dayMasterElement || 'Mộc';
 
   // Deterministic scores grounded in authentic astrological calculations
-  const careerScore = calculation.ziwei.palaces?.career?.score ?? 60;
+  const rawCareer = calculation.ziwei.palaces?.career?.score ?? calculation.ziwei.palaces?.life?.score;
+  const rawIntegrity = calculation.confidence?.calculationIntegrityScore;
+  const rawUncertainty = calculation.confidence?.uncertaintyIndex;
+
+  if (typeof rawCareer !== 'number' || typeof rawIntegrity !== 'number') {
+    return {
+      id: `scn_${Date.now()}`,
+      userQuestion: question,
+      evaluatedAt: new Date().toISOString(),
+      contextSummary: 'Không đủ chỉ số cung chức Tử Vi hoặc độ tin cậy để lập mô phỏng kịch bản.',
+      status: 'INSUFFICIENT_DATA',
+      missingReason: 'Thiếu điểm số cung sự nghiệp (Quan Lộc/Mệnh) hoặc chỉ số tin cậy tính toán.',
+      scenarios: [],
+      synthesisAdvice: 'Cần hoàn tất tính toán lá số Tử Vi đầy đủ trước khi chạy kịch bản What-If.',
+      riskNotice: 'Hệ thống từ chối gán điểm mặc định khi thiếu dữ liệu nguồn.'
+    };
+  }
+
+  const careerScore = rawCareer;
   const travelScore = calculation.ziwei.palaces?.travel?.score ?? careerScore;
-  const integrityScore = calculation.confidence?.calculationIntegrityScore ?? 70;
-  const uncertaintyBase = calculation.confidence?.uncertaintyIndex ?? 30;
+  const integrityScore = rawIntegrity;
+  const uncertaintyBase = typeof rawUncertainty === 'number' ? rawUncertainty : Math.max(0, 100 - integrityScore);
 
   // Scenario A (Continue / Optimize current path):
   // Rewards high career palace score and low caution wave (stability)

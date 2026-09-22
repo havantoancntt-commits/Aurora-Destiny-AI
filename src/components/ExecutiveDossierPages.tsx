@@ -397,7 +397,9 @@ export const DossierPage3Decades: React.FC<PageProps> = ({
       <div className="space-y-1.5 my-1">
         <div className="text-[11px] font-bold text-amber-200 uppercase tracking-wider flex items-center justify-between">
           <span>Chu Trình Đại Vận (Thập Kỷ)</span>
-          <span className="text-[10px] font-mono text-slate-400">Kiểm định hồi quy: {backtest?.destinyConsistencyScore ?? 80}/100</span>
+          <span className="text-[10px] font-mono text-slate-400">
+            Kiểm định hồi quy: {typeof backtest?.destinyConsistencyScore === 'number' ? `${backtest.destinyConsistencyScore}/100` : 'Chưa kiểm định'}
+          </span>
         </div>
 
         <div className="grid grid-cols-1 gap-1.5">
@@ -542,7 +544,9 @@ export const DossierPage4ZiWei: React.FC<PageProps> = ({
                 <span className={`font-bold text-[11px] ${isLife ? 'text-purple-300' : isWealth || isCareer ? 'text-amber-300' : 'text-slate-300'}`}>
                   {def.nameVi}
                 </span>
-                <span className="font-mono text-[10px] text-slate-400">{pal?.score ?? 75}đ</span>
+                <span className="font-mono text-[10px] text-slate-400">
+                  {typeof pal?.score === 'number' ? `${pal.score}đ` : '—'}
+                </span>
               </div>
 
               <div className="text-[10px] text-slate-300 line-clamp-2 my-1">
