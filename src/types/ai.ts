@@ -63,8 +63,8 @@ export interface ScenarioOption {
   potentialAdvantages: string[];
   keyChallenges: string[];
   optimalTiming: string;
-  energyAlignmentScore: number; // 0 - 100
-  uncertaintyScore: number; // 0 - 100
+  energyAlignmentScore: number | null; // 0 - 100 or null if INSUFFICIENT_DATA
+  uncertaintyScore: number | null; // 0 - 100 or null if INSUFFICIENT_DATA
   requiredConditions: string[];
 }
 
@@ -73,26 +73,50 @@ export interface ScenarioAnalysisResult {
   userQuestion: string;
   evaluatedAt: string;
   contextSummary: string;
+  status?: 'AVAILABLE' | 'INSUFFICIENT_DATA';
+  missingReason?: string;
   scenarios: ScenarioOption[];
   synthesisAdvice: string;
   riskNotice: string;
+  provenance?: {
+    formulaVersion: string;
+    generatedAt: string;
+    sourceCalculationId?: string;
+    formulaDescription: string;
+    weights: Record<string, number>;
+    inputMetrics: Record<string, any>;
+    assumptions: string[];
+    limitations: string[];
+  };
 }
 
 export interface DailyDestiny {
+  status?: 'AVAILABLE' | 'INSUFFICIENT_DATA';
+  missingReason?: string;
+  type?: 'HEURISTIC';
+  formulaVersion?: string;
+  inputs?: {
+    dailyElement?: FiveElement;
+    dayMasterElement?: FiveElement;
+    isFavorable?: boolean;
+    isUnfavorable?: boolean;
+  };
+  weights?: Record<string, number>;
+  limitations?: string;
   date: string;
   lunarDateStr: string;
   dailyStemBranch: string;
   dailyElement: FiveElement;
   todayTheme: string;
-  harmonyLevel: number; // 0 - 100
+  harmonyLevel: number | null; // 0 - 100 or null if INSUFFICIENT_DATA
   elementBalancingTip: string;
   opportunities: string[];
   cautionSignals: string[];
   focalDomains: {
-    career: { score: number; note: string };
-    finance: { score: number; note: string };
-    relationships: { score: number; note: string };
-    personalGrowth: { score: number; note: string };
+    career: { score: number | null; note: string };
+    finance: { score: number | null; note: string };
+    relationships: { score: number | null; note: string };
+    personalGrowth: { score: number | null; note: string };
   };
   auspiciousHours: string[];
   incompatibleHours: string[];

@@ -88,26 +88,59 @@ export function generate100YearHeatmap(
     const yBranchInfo = BRANCHES[yBranch];
     const yearCanChiVi = `${yStemInfo?.nameVi || ''} ${yBranchInfo?.nameVi || ''}`;
 
-    // Tìm đại vận tương ứng
-    const decadeIdx = Math.min(decades.length > 0 ? decades.length - 1 : 9, Math.floor((age - 1) / 10));
+    // Tìm đại vận tương ứng theo tuổi thực tế
+    const matchingDecadeIdx = decades.findIndex(d => age >= d.startAge && age <= d.endAge);
+    const decadeIdx = matchingDecadeIdx !== -1
+      ? matchingDecadeIdx
+      : (age < (decades[0]?.startAge ?? 1) ? 0 : Math.min(decades.length - 1, Math.floor((age - 1) / 10)));
     const decadeObj = decades[decadeIdx] || decades[0];
     const decadeStartAge = decadeObj ? decadeObj.startAge : 1;
     const decadeEndAge = decadeObj ? decadeObj.endAge : 10;
     const decadePalaceKey = decadeObj ? decadeObj.focalPalace : 'life';
     const decadePalaceName = calculation.ziwei?.palaces?.[decadePalaceKey]?.nameVi || 'Mệnh Cung';
 
-    // Tính điểm động theo nhịp sóng hài sin và tương tác can chi
-    const phaseOffset = ((age * 7 + (solarYear % 12)) % 360) * (Math.PI / 180);
-    const wave = Math.sin(phaseOffset) * 16;
-    const decadeBaseline = decadeObj?.harmonyScore || 70;
+    // Kiểm tra nếu có dữ liệu lưu niên thực tế từ pipeline
+    const annualTransit = calculation.annualTransits?.find(t => t.year === solarYear);
+    let overall: number;
+    let wealth: number;
+    let career: number;
+    let health: number;
+    let relationship: number;
 
-    let overall = Math.round(decadeBaseline + wave);
-    overall = Math.max(30, Math.min(98, overall));
+    if (annualTransit) {
+      overall = annualTransit.overallScore;
+      wealth = annualTransit.wealthScore;
+      career = annualTransit.careerScore;
+      health = annualTransit.healthScore;
+      relationship = annualTransit.relationshipScore;
+    } else {
+      // Tính toán dựa trên độ hòa hợp đại vận và tương tác ngũ hành lưu niên thực tế
+      const decadeBaseline = typeof decadeObj?.harmonyScore === 'number'
+        ? decadeObj.harmonyScore
+        : (calculation.ziwei?.palaces?.[decadePalaceKey]?.score ?? calculation.ziwei?.palaces?.life?.score ?? 60);
 
-    const wealth = Math.max(25, Math.min(99, Math.round(overall + Math.sin(phaseOffset * 1.5) * 10)));
-    const career = Math.max(25, Math.min(99, Math.round(overall + Math.cos(phaseOffset * 1.2) * 8)));
-    const health = Math.max(25, Math.min(99, Math.round(overall - (age > 60 ? (age - 60) * 0.4 : 0))));
-    const relationship = Math.max(25, Math.min(99, Math.round(overall + Math.sin(phaseOffset * 0.8) * 9)));
+      const favorableElements = calculation.bazi?.favorableElements || [];
+      const unfavorableElements = calculation.bazi?.unfavorableElements || [];
+      const yElement = yStemInfo?.element;
+
+      let annualDelta = 0;
+      if (yElement && favorableElements.includes(yElement)) {
+        annualDelta += 8;
+      } else if (yElement && unfavorableElements.includes(yElement)) {
+        annualDelta -= 8;
+      }
+
+      overall = Math.max(25, Math.min(98, Math.round(decadeBaseline + annualDelta)));
+      const wealthPalace = calculation.ziwei?.palaces?.wealth?.score ?? overall;
+      const careerPalace = calculation.ziwei?.palaces?.career?.score ?? overall;
+      const spousePalace = calculation.ziwei?.palaces?.spouse?.score ?? overall;
+
+      wealth = Math.max(25, Math.min(99, Math.round(0.6 * wealthPalace + 0.4 * overall)));
+      career = Math.max(25, Math.min(99, Math.round(0.6 * careerPalace + 0.4 * overall)));
+      const ageHealthDeduction = age > 60 ? (age - 60) * 0.4 : 0;
+      health = Math.max(25, Math.min(99, Math.round(overall - ageHealthDeduction)));
+      relationship = Math.max(25, Math.min(99, Math.round(0.6 * spousePalace + 0.4 * overall)));
+    }
 
     // Phân loại Tier màu sắc
     let tier: HeatmapColorTier = 'BALANCED';

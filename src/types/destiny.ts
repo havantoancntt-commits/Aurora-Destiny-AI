@@ -335,6 +335,8 @@ export interface ConfidenceMetrics {
   historicalValidation: number; // 0 - 100: Strictly empirical score from verified backtest events
   historicalBacktestScore?: number; // Explicit empirical score (0 if no events)
   historicalBacktestStatus?: 'AVAILABLE' | 'NOT_AVAILABLE'; // Explicit semantic status
+  statisticalConfidence: number | null; // NULL if no randomized empirical population trial exists
+  statisticalConfidenceType: 'STATISTICAL_CONFIDENCE' | 'NOT_AVAILABLE';
   interpretiveConfidence: number; // 0 - 100: Bounded qualitative confidence for AI synthesis
   statisticalDisclaimer: string; // Explicit non-deterministic disclaimer
 }

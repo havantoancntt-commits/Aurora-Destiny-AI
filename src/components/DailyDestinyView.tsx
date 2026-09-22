@@ -137,8 +137,8 @@ export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpe
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-center justify-center px-6 py-4 rounded-2xl bg-black/60 border border-amber-500/40 shadow-inner">
               <div className="text-3xl font-light font-mono text-amber-400">
-                {dailyData.harmonyLevel}
-                <span className="text-sm font-normal text-slate-400">/100</span>
+                {dailyData.harmonyLevel !== null ? dailyData.harmonyLevel : '—'}
+                {dailyData.harmonyLevel !== null && <span className="text-sm font-normal text-slate-400">/100</span>}
               </div>
               <span className="text-[10px] text-amber-300 uppercase tracking-wider font-semibold mt-1">
                 Độ Thuận Khí
@@ -146,6 +146,15 @@ export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpe
             </div>
           </div>
         </div>
+
+        {dailyData.type === 'HEURISTIC' && (
+          <div className="mt-4 pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+              Heuristic Model {dailyData.formulaVersion}
+            </span>
+            <span className="italic">{dailyData.limitations}</span>
+          </div>
+        )}
       </motion.div>
 
       {/* 2. 4 FOCAL DOMAINS DAILY ENERGY */}
@@ -167,7 +176,9 @@ export const DailyDestinyView: React.FC<Props> = ({ calculation, language, onOpe
             <div>
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
                 <span className="text-xs font-bold text-slate-200">{label}</span>
-                <span className={`text-base font-bold font-mono ${color}`}>{data.score}đ</span>
+                <span className={`text-base font-bold font-mono ${color}`}>
+                  {data.score !== null ? `${data.score}đ` : '—'}
+                </span>
               </div>
               <p className="text-xs text-slate-300 mt-2.5 leading-relaxed">{data.note}</p>
             </div>

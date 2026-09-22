@@ -178,6 +178,8 @@ export function evaluateConfidence(
     historicalValidation,
     historicalBacktestScore,
     historicalBacktestStatus,
+    statisticalConfidence: null,
+    statisticalConfidenceType: 'NOT_AVAILABLE',
     interpretiveConfidence,
     statisticalDisclaimer
   };

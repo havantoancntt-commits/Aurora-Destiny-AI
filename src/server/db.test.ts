@@ -187,6 +187,8 @@ export async function runDatabaseIntegrityTests(): Promise<{ passed: number; fai
         resolutionLevel: 'High',
         calculationConfidence: 98,
         interpretiveConfidence: 85,
+        statisticalConfidence: null,
+        statisticalConfidenceType: 'NOT_AVAILABLE',
         historicalValidation: 0,
         consistencyScore: 90,
         validationScore: 100,

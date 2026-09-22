@@ -33,9 +33,9 @@ export function generateMultiAgentEnsemble(
   const overallConsistencyScore = hasBacktest
     ? Math.round((confidence.consistencyScore * 0.6) + (backtestScore * 0.4))
     : confidence.consistencyScore;
-  const baseCalcConfidence = calculation.confidence?.calculationIntegrity ?? calculation.confidence?.calculationConfidence ?? 50;
-  const inputQuality = calculation.confidence?.dataCompletenessScore ?? calculation.confidence?.inputQuality ?? 40;
-  const modelAgreement = calculation.confidence?.heuristicPatternScore ?? calculation.confidence?.modelAgreement ?? 50;
+  const baseCalcConfidence = calculation.confidence?.calculationIntegrityScore ?? calculation.confidence?.calculationIntegrity ?? calculation.confidence?.calculationConfidence ?? 0;
+  const inputQuality = calculation.confidence?.dataCompletenessScore ?? calculation.confidence?.inputQuality ?? 0;
+  const modelAgreement = calculation.confidence?.heuristicPatternScore ?? calculation.confidence?.modelAgreement ?? 0;
 
   // Extract real star and pillar details
   const lifeMajorStars = ziwei.palaces.life?.majorStars || [];
@@ -56,9 +56,9 @@ export function generateMultiAgentEnsemble(
   const bodyPalaceName = ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc';
 
   // Dynamically compute domain-specific confidence scores grounded in calculation metrics
-  const rawConsistency = confidence.ruleConsistencyScore ?? confidence.consistencyScore ?? 50;
-  const rawValidation = confidence.validationScore ?? 50;
-  const rawUncertainty = confidence.uncertaintyIndex ?? 50;
+  const rawConsistency = confidence.ruleConsistencyScore ?? confidence.consistencyScore ?? 0;
+  const rawValidation = confidence.validationScore ?? 0;
+  const rawUncertainty = confidence.uncertaintyIndex ?? 0;
 
   const baziConfidence = Math.min(99, Math.round(baseCalcConfidence * 0.5 + inputQuality * 0.3 + modelAgreement * 0.2));
   const ziweiConfidence = Math.min(99, Math.round(baseCalcConfidence * 0.4 + inputQuality * 0.4 + modelAgreement * 0.2));
@@ -425,8 +425,35 @@ export function computeDailyDestiny(
   calculation: CalculationResult,
   targetDate: Date = new Date()
 ): DailyDestiny {
+  if (!calculation || !calculation.bazi || !calculation.bazi.dayMasterElement) {
+    return {
+      status: 'INSUFFICIENT_DATA',
+      missingReason: 'Thiếu cấu trúc dữ liệu Bát Tự cơ bản để đối sánh nhịp khí Can Chi ngày.',
+      type: 'HEURISTIC',
+      formulaVersion: 'v2.0.0-heuristic',
+      limitations: 'Không thể tính toán khi thiếu thông tin ngày sinh và nhật chủ.',
+      date: targetDate.toLocaleDateString('vi-VN'),
+      lunarDateStr: '',
+      dailyStemBranch: '',
+      dailyElement: 'Wood',
+      todayTheme: 'Chưa đủ dữ liệu bản mệnh',
+      harmonyLevel: null,
+      elementBalancingTip: 'Cần hoàn tất tính toán lá số để kích hoạt radar nhịp ngày.',
+      opportunities: [],
+      cautionSignals: [],
+      focalDomains: {
+        career: { score: null, note: 'Chưa đủ dữ liệu' },
+        finance: { score: null, note: 'Chưa đủ dữ liệu' },
+        relationships: { score: null, note: 'Chưa đủ dữ liệu' },
+        personalGrowth: { score: null, note: 'Chưa đủ dữ liệu' }
+      },
+      auspiciousHours: [],
+      incompatibleHours: []
+    };
+  }
+
   const dmEl = calculation.bazi.dayMasterElement;
-  const favorableElements = calculation.bazi.favorableElements;
+  const favorableElements = calculation.bazi.favorableElements || [];
 
   const year = targetDate.getFullYear();
   const month = targetDate.getMonth() + 1;
@@ -440,26 +467,63 @@ export function computeDailyDestiny(
   const lunarInfo = convertSolarToLunar(year, month, day);
 
   // Determine Daily Harmony Score based on user's Dụng Thần and Day Master
-  let harmonyLevel = 76;
   const isFavorable = favorableElements.includes(dailyElement);
-  const isUnfavorable = calculation.bazi.unfavorableElements.includes(dailyElement);
+  const isUnfavorable = calculation.bazi.unfavorableElements?.includes(dailyElement) ?? false;
 
+  let harmonyLevel: number;
   if (isFavorable) {
     harmonyLevel = 88;
   } else if (isUnfavorable) {
-    harmonyLevel = 66;
+    harmonyLevel = 62;
   } else if (dailyElement === dmEl) {
-    harmonyLevel = 82;
-  } else if (ELEMENT_RELATIONS[dmEl].generates === dailyElement) {
-    harmonyLevel = 86;
-  } else if (ELEMENT_RELATIONS[dmEl].generatedBy === dailyElement) {
+    harmonyLevel = 80;
+  } else if (ELEMENT_RELATIONS[dmEl]?.generates === dailyElement) {
+    harmonyLevel = 75;
+  } else if (ELEMENT_RELATIONS[dmEl]?.generatedBy === dailyElement) {
     harmonyLevel = 85;
+  } else if (ELEMENT_RELATIONS[dmEl]?.overcomes === dailyElement) {
+    harmonyLevel = 70;
+  } else {
+    // overcomes dmEl (Officer/Pressure)
+    harmonyLevel = 65;
   }
+
+  const careerPalaceScore = calculation.ziwei?.palaces?.career?.score;
+  const wealthPalaceScore = calculation.ziwei?.palaces?.wealth?.score;
+  const spousePalaceScore = calculation.ziwei?.palaces?.spouse?.score;
+  const lifePalaceScore = calculation.ziwei?.palaces?.life?.score;
+
+  const careerScore = typeof careerPalaceScore === 'number'
+    ? Math.round(careerPalaceScore * 0.6 + harmonyLevel * 0.4)
+    : harmonyLevel;
+  const financeScore = typeof wealthPalaceScore === 'number'
+    ? Math.round(wealthPalaceScore * 0.6 + harmonyLevel * 0.4)
+    : harmonyLevel;
+  const relationshipsScore = typeof spousePalaceScore === 'number'
+    ? Math.round(spousePalaceScore * 0.6 + harmonyLevel * 0.4)
+    : harmonyLevel;
+  const growthScore = typeof lifePalaceScore === 'number'
+    ? Math.round(lifePalaceScore * 0.6 + harmonyLevel * 0.4)
+    : harmonyLevel;
 
   const dateStr = targetDate.toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const lunarStr = `Ngày ${lunarInfo.lunarDay} tháng ${lunarInfo.lunarMonth} ${lunarInfo.isLeapMonth ? '(Nhuận) ' : ''}Âm lịch (Tiết ${lunarInfo.solarTerm})`;
 
   return {
+    status: 'AVAILABLE',
+    type: 'HEURISTIC',
+    formulaVersion: 'v2.0.0-heuristic',
+    inputs: {
+      dailyElement,
+      dayMasterElement: dmEl,
+      isFavorable,
+      isUnfavorable
+    },
+    weights: {
+      palaceBaseWeight: 0.6,
+      dailyHarmonyWeight: 0.4
+    },
+    limitations: 'Chỉ số tương hợp ngày mang tính chất tham khảo nhịp điệu sinh học theo triết học phương Đông, không cấu thành xác suất thống kê.',
     date: dateStr,
     lunarDateStr: lunarStr,
     dailyStemBranch: `${STEMS[dailyStem].nameVi} ${BRANCHES[dailyBranch].nameVi}`,
@@ -481,10 +545,10 @@ export function computeDailyDestiny(
       'Kiểm tra kỹ lưỡng các điều khoản chi tiêu hoặc chuyển khoản đột xuất'
     ],
     focalDomains: {
-      career: { score: Math.min(96, harmonyLevel + 4), note: 'Thuận lợi cho các bước tiến điều hành và sáng tạo dự án.' },
-      finance: { score: Math.min(94, harmonyLevel - 2), note: 'Giữ kỷ luật tài chính, tránh mua sắm bốc đồng.' },
-      relationships: { score: Math.min(92, harmonyLevel + 2), note: 'Giao tiếp chân thành giúp củng cố niềm tin đôi bên.' },
-      personalGrowth: { score: Math.min(98, harmonyLevel + 6), note: 'Dành 20 phút cuối ngày để tự phản chiếu và đúc kết bài học.' }
+      career: { score: careerScore, note: 'Thuận lợi cho các bước tiến điều hành và sáng tạo dự án.' },
+      finance: { score: financeScore, note: 'Giữ kỷ luật tài chính, tránh mua sắm bốc đồng.' },
+      relationships: { score: relationshipsScore, note: 'Giao tiếp chân thành giúp củng cố niềm tin đôi bên.' },
+      personalGrowth: { score: growthScore, note: 'Dành 20 phút cuối ngày để tự phản chiếu và đúc kết bài học.' }
     },
     auspiciousHours: ['07:00 - 09:00 (Giờ Thìn)', '13:00 - 15:00 (Giờ Mùi)', '19:00 - 21:00 (Giờ Tuất)'],
     incompatibleHours: ['11:00 - 13:00 (Giờ Ngọ - Tránh ký kết vội vã)', '23:00 - 01:00 (Giờ Tý - Nên nghỉ ngơi tĩnh tâm)']

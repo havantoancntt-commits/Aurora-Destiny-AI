@@ -71,10 +71,14 @@ export interface BacktestResult {
   scientificMetrics?: {
     sampleSize: number;
     missingDataCount: number;
-    baselineHitRate: number;
+    baselineHitRate: number | null;
+    baselineType?: 'THEORETICAL_NULL_HYPOTHESIS_50_PERCENT' | 'EMPIRICAL_POPULATION_BASELINE' | 'NOT_APPLICABLE';
+    baselineNote?: string;
     falsePositivesCount: number;
     falseNegativesCount: number;
     calibrationDelta: number | null;
+    nullHypothesisDelta?: number | null;
+    nullHypothesisExplanation?: string;
     confidenceInterval95: { lower: number; upper: number } | null;
   };
   comparisons: CycleFitComparison[];

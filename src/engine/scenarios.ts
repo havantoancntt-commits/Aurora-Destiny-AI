@@ -1,11 +1,12 @@
 // ==========================================
 // WHAT-IF SCENARIO SIMULATION ENGINE
+// Deterministic Multi-Scenario Simulation with Strict Provenance
 // ==========================================
 
 import { ScenarioAnalysisResult, ScenarioOption } from '../types/ai';
 import { CalculationResult } from '../types/destiny';
 import { getDefaultAnalysisYear } from './canonicalInput';
-import { STEMS, BRANCHES } from './canchi';
+import { calculateSingleAnnualTransit } from './temporal';
 
 export function evaluateWhatIfScenario(
   question: string,
@@ -13,36 +14,74 @@ export function evaluateWhatIfScenario(
   targetYear?: number
 ): ScenarioAnalysisResult {
   const currentYear = targetYear || calculation?.analysisYear || getDefaultAnalysisYear(calculation?.canonicalInput?.timezoneOffset || 7);
-  const stemIdx = ((currentYear - 4) % 10 + 10) % 10;
-  const branchIdx = ((currentYear - 4) % 12 + 12) % 12;
-  const STEM_KEYS = ['Jia', 'Yi', 'Bing', 'Ding', 'Wu', 'Ji', 'Geng', 'Xin', 'Ren', 'Gui'] as const;
-  const BRANCH_KEYS = ['Zi', 'Chou', 'Yin_B', 'Mao', 'Chen', 'Si', 'Wu_B', 'Wei', 'Shen', 'You', 'Xu', 'Hai'] as const;
-  const fallbackStem = STEM_KEYS[stemIdx];
-  const fallbackBranch = BRANCH_KEYS[branchIdx];
 
-  const currentTransit = calculation?.annualTransits?.find((t) => t.year === currentYear) || calculation?.annualTransits?.[0] || {
-    year: currentYear,
-    stem: fallbackStem,
-    branch: fallbackBranch,
-    element: STEMS[fallbackStem]?.element || 'Fire',
-    tenGod: 'Chính Quan',
-    overallScore: 70,
-    careerScore: 70,
-    wealthScore: 70,
-    relationshipScore: 70,
-    healthScore: 70,
-    growthScore: 70,
-    opportunityWave: 70,
-    cautionWave: 30,
-    highlightSummary: 'Chu kỳ chuyển tiếp năng lượng',
-    recommendedFocus: 'Cân bằng và phát triển bền vững'
-  };
-  const nextTransit = calculation?.annualTransits?.find((t) => t.year === currentYear + 1) || calculation?.annualTransits?.[1] || calculation?.annualTransits?.[0] || currentTransit;
+  // Check data completeness - return INSUFFICIENT_DATA instead of generating fake scenarios
+  if (!calculation || !calculation.bazi || !calculation.ziwei) {
+    return {
+      id: `scn_${Date.now()}`,
+      userQuestion: question,
+      evaluatedAt: new Date().toISOString(),
+      contextSummary: 'Không đủ dữ liệu lá số gốc để thực hiện mô phỏng kịch bản What-If.',
+      status: 'INSUFFICIENT_DATA',
+      missingReason: 'Thiếu cấu trúc dữ liệu Bát Tự hoặc Tử Vi hoàn chỉnh từ pipeline tính toán.',
+      scenarios: [],
+      synthesisAdvice: 'Hệ thống từ chối tạo kịch bản suy diễn khi thiếu dữ liệu nền tảng nhằm bảo đảm tính trung thực.',
+      riskNotice: 'Cần hoàn thành tính toán lá số bản mệnh trước khi chạy mô phỏng kịch bản chiến lược.'
+    };
+  }
 
-  const favorableEl = calculation?.bazi?.favorableElements?.join(' & ') || 'Mộc & Hỏa';
-  const dmStrength = calculation?.bazi?.dayMasterStrength || 'Thân Cân Bằng';
+  // Resolve authentic transit for the target year
+  let currentTransit = calculation.annualTransits?.find((t) => t.year === currentYear);
+  if (!currentTransit && calculation.inputSnapshot) {
+    currentTransit = calculateSingleAnnualTransit(calculation.inputSnapshot, currentYear);
+  }
 
-  // Generate 3 structured options: A (Continue), B (Change/Pivot), C (Alternative/Hybrid)
+  if (!currentTransit) {
+    return {
+      id: `scn_${Date.now()}`,
+      userQuestion: question,
+      evaluatedAt: new Date().toISOString(),
+      contextSummary: `Không tìm thấy dữ liệu lưu niên năm ${currentYear} trong hệ thống.`,
+      status: 'INSUFFICIENT_DATA',
+      missingReason: `Không thể xác định chu kỳ lưu niên năm ${currentYear}.`,
+      scenarios: [],
+      synthesisAdvice: 'Không thể phân tích kịch bản khi thiếu tham số lưu niên thực tế.',
+      riskNotice: 'Hệ thống không tạo kịch bản giả lập khi thiếu chu kỳ năng lượng thời gian thực.'
+    };
+  }
+
+  let nextTransit = calculation.annualTransits?.find((t) => t.year === currentYear + 1);
+  if (!nextTransit && calculation.inputSnapshot) {
+    nextTransit = calculateSingleAnnualTransit(calculation.inputSnapshot, currentYear + 1);
+  }
+  const nextOppWave = nextTransit?.opportunityWave ?? currentTransit.opportunityWave;
+
+  const favorableEl = calculation.bazi.favorableElements?.join(' & ') || 'Chưa xác định';
+  const dmStrength = calculation.bazi.dayMasterStrength || 'Thân Cân Bằng';
+  const dmElement = calculation.bazi.dayMasterElement || 'Mộc';
+
+  // Deterministic scores grounded in authentic astrological calculations
+  const careerScore = calculation.ziwei.palaces?.career?.score ?? 60;
+  const travelScore = calculation.ziwei.palaces?.travel?.score ?? careerScore;
+  const integrityScore = calculation.confidence?.calculationIntegrityScore ?? 70;
+  const uncertaintyBase = calculation.confidence?.uncertaintyIndex ?? 30;
+
+  // Scenario A (Continue / Optimize current path):
+  // Rewards high career palace score and low caution wave (stability)
+  const stabilityIndex = 100 - currentTransit.cautionWave;
+  const energyAlignmentScoreA = Math.min(95, Math.max(25, Math.round(careerScore * 0.45 + stabilityIndex * 0.45 + integrityScore * 0.1)));
+  const uncertaintyScoreA = Math.min(85, Math.max(15, Math.round(currentTransit.cautionWave * 0.6 + uncertaintyBase * 0.4)));
+
+  // Scenario B (Pivot / Breakthrough):
+  // Driven by opportunity waves of current and next year plus travel/expansion palace
+  const energyAlignmentScoreB = Math.min(95, Math.max(25, Math.round(currentTransit.opportunityWave * 0.40 + nextOppWave * 0.35 + travelScore * 0.25)));
+  const uncertaintyScoreB = Math.min(90, Math.max(20, Math.round(currentTransit.cautionWave * 0.70 + uncertaintyBase * 0.30)));
+
+  // Scenario C (Hybrid / Staged pivot):
+  // Blended average of stability and exploration
+  const energyAlignmentScoreC = Math.round((energyAlignmentScoreA + energyAlignmentScoreB) / 2);
+  const uncertaintyScoreC = Math.round((uncertaintyScoreA + uncertaintyScoreB) / 2);
+
   const scenarios: ScenarioOption[] = [
     {
       scenarioId: 'A',
@@ -51,7 +90,7 @@ export function evaluateWhatIfScenario(
       description: 'Giữ nguyên vị trí hoặc mô hình hiện có, tập trung tích lũy nguồn lực, chuyên môn hóa và củng cố liên minh nội bộ.',
       potentialAdvantages: [
         'Giảm thiểu biên độ rủi ro biến động dòng tiền trong ngắn hạn',
-        'Tận dụng triệt để nền tảng tích lũy sẵn có của cung Mệnh/Quan',
+        'Tận dụng triệt để nền tảng tích lũy sẵn có của cung Quan Lộc',
         'Bảo toàn năng lượng để chuẩn bị cho chu kỳ bứt phá tiếp theo'
       ],
       keyChallenges: [
@@ -59,8 +98,8 @@ export function evaluateWhatIfScenario(
         'Cảm giác trì trệ nếu môi trường bên ngoài chuyển đổi quá nhanh'
       ],
       optimalTiming: `Quý 1 - Quý 3 năm ${currentYear} (Giai đoạn tích tụ năng lượng)`,
-      energyAlignmentScore: 74,
-      uncertaintyScore: 25,
+      energyAlignmentScore: energyAlignmentScoreA,
+      uncertaintyScore: uncertaintyScoreA,
       requiredConditions: [
         'Môi trường công việc/tài chính hiện tại vẫn đảm bảo dòng tiền ổn định',
         'Tâm lý cá nhân hướng tới sự an toàn và củng cố năng lực'
@@ -73,19 +112,19 @@ export function evaluateWhatIfScenario(
       description: 'Chủ động khởi xướng bước ngoặt: đổi việc, khởi nghiệp, mở rộng quy mô kinh doanh hoặc chuyển đổi địa bàn hoạt động.',
       potentialAdvantages: [
         'Kích hoạt năng lượng Thiên Di và Quan Lộc mở rộng biên độ danh tiếng',
-        'Cơ hội đón đầu sóng cơ hội năm ' + (currentYear + 1) + ' (' + nextTransit.opportunityWave + '%)',
+        `Cơ hội đón đầu sóng cơ hội năm ${currentYear + 1} (${nextOppWave}%)`,
         'Tạo đòn bẩy thu nhập và nâng cấp mạng lưới đối tác chiến lược'
       ],
       keyChallenges: [
         'Áp lực thích nghi với môi trường mới và rủi ro thời gian hòa vốn ban đầu',
-        'Đòi hỏi kiểm soát chặt chẽ các chỉ số sóng thận trọng (' + currentTransit.cautionWave + '%)'
+        `Đòi hỏi kiểm soát chặt chẽ các chỉ số sóng thận trọng (${currentTransit.cautionWave}%)`
       ],
       optimalTiming: `Cuối năm ${currentYear} đến đầu năm ${currentYear + 1}`,
-      energyAlignmentScore: 86,
-      uncertaintyScore: 38,
+      energyAlignmentScore: energyAlignmentScoreB,
+      uncertaintyScore: uncertaintyScoreB,
       requiredConditions: [
         'Chuẩn bị quỹ dự phòng tài chính tối thiểu 6-9 tháng chi phí',
-        'Lựa chọn lĩnh vực bổ trợ hành ' + favorableEl + ' (hành tương sinh với Nhật Chủ)'
+        `Lựa chọn lĩnh vực bổ trợ hành ${favorableEl} (hành tương sinh với Nhật Chủ)`
       ]
     },
     {
@@ -96,15 +135,15 @@ export function evaluateWhatIfScenario(
       potentialAdvantages: [
         'Cân bằng hoàn hảo giữa an toàn tài chính và khát vọng thử thách mới',
         'Kiểm nghiệm phản hồi thị trường thực tế mà không cần chịu rủi ro sụp đổ',
-        'Phù hợp với đặc tính ' + dmStrength + ' của bản mệnh'
+        `Phù hợp với đặc tính ${dmStrength} của bản mệnh`
       ],
       keyChallenges: [
         'Đòi hỏi kỷ luật quản lý thời gian cao để tránh quá tải thể lực',
         'Phân tán sự tập trung nếu không phân định rõ ranh giới ưu tiên'
       ],
-      optimalTiming: `Triển khai ngay trong vòng 60-90 ngày tới`,
-      energyAlignmentScore: 82,
-      uncertaintyScore: 30,
+      optimalTiming: 'Triển khai thử nghiệm theo giai đoạn trong vòng 60-90 ngày tới',
+      energyAlignmentScore: energyAlignmentScoreC,
+      uncertaintyScore: uncertaintyScoreC,
       requiredConditions: [
         'Có đối tác tin cậy cùng gánh vác phần vận hành vi mô',
         'Thiết lập mốc đánh giá hiệu quả định kỳ sau mỗi 90 ngày'
@@ -112,13 +151,48 @@ export function evaluateWhatIfScenario(
     }
   ];
 
+  // Dynamic advice identifying the highest alignment scenario
+  const sorted = [...scenarios].sort((a, b) => (b.energyAlignmentScore || 0) - (a.energyAlignmentScore || 0));
+  const best = sorted[0];
+
   return {
     id: `scn_${Date.now()}`,
     userQuestion: question,
     evaluatedAt: new Date().toISOString(),
-    contextSummary: `Phân tích đối sánh dựa trên lá số Bát tự (Nhật chủ ${calculation?.bazi?.dayMasterElement || 'Hỏa'} - ${dmStrength}), hành Dụng Thần (${favorableEl}) và chu kỳ lưu niên ${currentYear}-${currentYear + 1}.`,
+    contextSummary: `Phân tích đối sánh dựa trên lá số Bát tự (Nhật chủ ${dmElement} - ${dmStrength}), hành Dụng Thần (${favorableEl}) và chu kỳ lưu niên ${currentYear}-${currentYear + 1}.`,
+    status: 'AVAILABLE',
     scenarios,
-    synthesisAdvice: `Dữ liệu chu kỳ cho thấy Kịch bản B hoặc C có độ cộng hưởng năng lượng cao hơn (+82 đến +86 điểm), tuy nhiên cần lưu ý chuẩn bị kịch bản phòng vệ trước khi ra quyết định dứt điểm.`,
-    riskNotice: 'Mọi kịch bản phân tích nhằm mục đích mở rộng góc nhìn tư duy chiến lược và tham khảo, không đại diện cho lời khuyên đầu tư hay cam kết chắc chắn.'
+    synthesisAdvice: `Dữ liệu chu kỳ cho thấy ${best.title} đạt độ tương thích năng lượng cao nhất (${best.energyAlignmentScore}/100 điểm, độ bất định ${best.uncertaintyScore}/100). Đề xuất xây dựng kịch bản dự phòng trước khi ra quyết định dứt điểm.`,
+    riskNotice: 'Mọi kịch bản phân tích nhằm mục đích mở rộng góc nhìn tư duy chiến lược và tham khảo, không đại diện cho lời khuyên đầu tư hay cam kết chắc chắn.',
+    provenance: {
+      formulaVersion: 'v2.0.0-deterministic',
+      generatedAt: new Date().toISOString(),
+      sourceCalculationId: calculation.id,
+      formulaDescription: 'Điểm tương thích năng lượng kịch bản được tính từ trọng số điểm cung Tử Vi (Quan Lộc/Thiên Di), sóng Cơ hội (opportunityWave) và sóng Thận trọng (cautionWave) của lưu niên.',
+      weights: {
+        scenarioA_career: 0.45,
+        scenarioA_stability: 0.45,
+        scenarioB_opportunity: 0.40,
+        scenarioB_nextOpportunity: 0.35,
+        scenarioB_palace: 0.25
+      },
+      inputMetrics: {
+        analysisYear: currentYear,
+        careerPalaceScore: careerScore,
+        travelPalaceScore: travelScore,
+        opportunityWave: currentTransit.opportunityWave,
+        cautionWave: currentTransit.cautionWave,
+        dayMasterElement: dmElement,
+        favorableElements: calculation.bazi.favorableElements
+      },
+      assumptions: [
+        `Phân tích căn cứ trên chu kỳ lưu niên ${currentTransit.year} (${currentTransit.tenGod}).`,
+        'Các kịch bản giả định người dùng duy trì nỗ lực hành động nhất quán.'
+      ],
+      limitations: [
+        'Điểm tương hợp không phải là cam kết thành công tuyệt đối mà là chỉ số định hướng năng lượng.',
+        'Người dùng cần cân nhắc các yếu tố thực tế về vốn, pháp lý và sức khỏe trước khi quyết định.'
+      ]
+    }
   };
 }
