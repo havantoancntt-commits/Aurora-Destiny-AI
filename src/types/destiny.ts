@@ -67,6 +67,26 @@ export interface PillarData {
   naYin: string; // Nạp âm
   tenGod: string; // Thập thần
   strength: number; // 0-100
+  isEstimated?: boolean; // Cờ cảnh báo trụ giờ ước lượng khi thiếu giờ sinh chính xác
+}
+
+export interface BaZiInteraction {
+  type: 'Can_Hop' | 'Can_Xung' | 'Chi_Luc_Hop' | 'Chi_Luc_Xung' | 'Chi_Tam_Hop' | 'Chi_Tam_Hoi' | 'Chi_Tuong_Hinh' | 'Chi_Tuong_Hai' | 'Chi_Tuong_Pha';
+  nameVi: string;
+  involvedPillars: ('Năm' | 'Tháng' | 'Ngày' | 'Giờ')[];
+  branchesOrStems: string[];
+  description: string;
+  nature: 'Cát' | 'Hung' | 'Trung tính' | 'Biến hóa';
+}
+
+export interface BaZiStructureDetails {
+  primaryPattern: string;
+  patternSource: 'Bản Khí Thấu Can' | 'Trung Khí Thấu Can' | 'Dư Khí Thấu Can' | 'Nguyệt Lệnh Đắc Khí' | 'Kiến Lộc Quy Cách' | 'Dương Nhận Quy Cách' | 'Biến Cách Tòng Cách' | 'Chuyên Vượng Cách';
+  penetratingStem?: HeavenlyStem;
+  monthCommanderBranch: EarthlyBranch;
+  monthCommanderStem: HeavenlyStem;
+  school: string;
+  explanation: string;
 }
 
 export interface BaZiChart {
@@ -82,6 +102,8 @@ export interface BaZiChart {
   unfavorableElements: FiveElement[]; // Kỵ Thần
   structureType: string; // Cách cục (e.g. Chính Quan Cách, Thiên Tài Cách,...)
   tenGodDistribution: Record<string, number>;
+  interactions?: BaZiInteraction[];
+  structureDetails?: BaZiStructureDetails;
 }
 
 export type PalaceKey =
@@ -191,6 +213,8 @@ export interface ZiWeiChart {
     rulesVersion: string;
     description: string;
   };
+  isEstimatedHour?: boolean;
+  hourUncertaintyWarning?: string;
 }
 
 export interface DecadeCycle {
@@ -371,5 +395,10 @@ export interface CalculationResult {
     aiModelVersion?: string;
     promptVersion?: string;
     resultHash: string;
+  };
+  dataQualityStatus?: {
+    hasExactHour: boolean;
+    hourStatus: 'EXACT' | 'APPROXIMATE_ESTIMATE';
+    warningVi?: string;
   };
 }

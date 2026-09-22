@@ -83,21 +83,28 @@ export function generateMultiAgentEnsemble(
   };
 
   // Agent 2: BaZi Specialist
+  const baziInteractionsSummary = (bazi.interactions && bazi.interactions.length > 0)
+    ? bazi.interactions.slice(0, 3).map(i => `${i.nameVi} [${i.involvedPillars.join('-')}]: ${i.nature}`).join('; ')
+    : 'Tứ trụ tương đối bình ổn, không phát sinh đại xung khắc trực diện';
+
   const baziAnalystAgent = {
     agentName: 'Agent 2 — BaZi Four Pillars Specialist',
     agentRole: 'Bát Tự & Thập Thần Cấu Trúc Học',
     confidenceScore: baziConfidence,
     keyFindings: [
-      `Tứ Trụ Mệnh Bàn: Năm [${STEMS[bazi.yearPillar.stem].nameVi} ${BRANCHES[bazi.yearPillar.branch].nameVi} - ${bazi.yearPillar.tenGod}], Tháng [${STEMS[bazi.monthPillar.stem].nameVi} ${BRANCHES[bazi.monthPillar.branch].nameVi} - ${bazi.monthPillar.tenGod}], Ngày [${STEMS[bazi.dayPillar.stem].nameVi} ${BRANCHES[bazi.dayPillar.branch].nameVi} - Nhật Chủ], Giờ [${STEMS[bazi.hourPillar.stem].nameVi} ${BRANCHES[bazi.hourPillar.branch].nameVi} - ${bazi.hourPillar.tenGod}].`,
-      `Cách Cục chuẩn xác: ${bazi.structureType}. Nhật Chủ ${dm.nameVi} đạt trạng thái ${bazi.dayMasterStrength}.`,
-      `Trọng tâm Dụng Thần: Ưu tiên hành ${favorableStr} để sinh trợ khí lực, khai thông tài trí và tạo sức bật chuyên môn.`
+      `Tứ Trụ Mệnh Bàn: Năm [${STEMS[bazi.yearPillar.stem].nameVi} ${BRANCHES[bazi.yearPillar.branch].nameVi} - ${bazi.yearPillar.tenGod}], Tháng [${STEMS[bazi.monthPillar.stem].nameVi} ${BRANCHES[bazi.monthPillar.branch].nameVi} - ${bazi.monthPillar.tenGod}], Ngày [${STEMS[bazi.dayPillar.stem].nameVi} ${BRANCHES[bazi.dayPillar.branch].nameVi} - Nhật Chủ], Giờ [${STEMS[bazi.hourPillar.stem].nameVi} ${BRANCHES[bazi.hourPillar.branch].nameVi} - ${bazi.hourPillar.tenGod}${bazi.hourPillar.isEstimated ? ' (Ước lượng)' : ''}].`,
+      `Cách Cục Tử Bình: ${bazi.structureType}${bazi.structureDetails?.patternSource ? ` (Quy chuẩn: ${bazi.structureDetails.patternSource})` : ''}. Nhật Chủ ${dm.nameVi} đạt trạng thái ${bazi.dayMasterStrength}.`,
+      bazi.structureDetails?.explanation || `Trọng tâm Dụng Thần: Ưu tiên hành ${favorableStr} để sinh trợ khí lực, khai thông tài trí và tạo sức bật chuyên môn.`,
+      `Tương Tác Trụ: ${baziInteractionsSummary}.`
     ],
     recommendations: [
       `Tập trung vào thế mạnh cốt lõi của Cách Cục (${bazi.structureType}), kết hợp liên minh với đối tác mang ngũ hành bổ trợ (${favorableStr}).`,
       `Tạo cơ chế làm việc theo quy trình chuẩn mực, kiểm soát sự phân tán nguồn lực.`
     ],
     riskNotations: [
-      `Cần đề phòng sự bảo thủ hoặc kiên quyết thái quá khi bước vào chu kỳ Thiên Khắc Địa Xung.`
+      bazi.hourPillar.isEstimated
+        ? 'Dữ liệu thiếu giờ sinh chính xác: Trụ Giờ đang mang tính ước lượng tham khảo, không suy diễn võ đoán phần hậu vận và quan hệ con cái.'
+        : 'Cần đề phòng sự bảo thủ hoặc kiên quyết thái quá khi bước vào chu kỳ Thiên Khắc Địa Xung.'
     ]
   };
 
@@ -119,7 +126,9 @@ export function generateMultiAgentEnsemble(
       ...(ziwei.authenticAnalysis?.strategicAdvice ? [ziwei.authenticAnalysis.strategicAdvice.split('. ')[0] + '.'] : [])
     ],
     riskNotations: [
-      `Cung Tật Ách (${ziwei.palaces.health.score}đ) khuyến nghị chú ý cân bằng giấc ngủ, hệ tiêu hóa và duy trì thể chất đều đặn.`,
+      ziwei.isEstimatedHour
+        ? (ziwei.hourUncertaintyWarning || 'Thiếu giờ sinh chính xác: Cung Mệnh/Thân và các sao an theo giờ ở mức tham khảo ước tính.')
+        : `Cung Tật Ách (${ziwei.palaces.health.score}đ) khuyến nghị chú ý cân bằng giấc ngủ, hệ tiêu hóa và duy trì thể chất đều đặn.`,
       ...(ziwei.palaces.life?.tuanTriet ? [`Cung Mệnh ngộ ${ziwei.palaces.life.tuanTriet.join(' & ')}: đòi hỏi sự bền chí và tôi luyện qua thử thách trước khi phát huy trọn vẹn tiềm năng.`] : [])
     ]
   };
@@ -186,16 +195,21 @@ export function generateMultiAgentEnsemble(
   };
 
   // Agent 7: Risk & Uncertainty Analyst
+  const isEstimatedHour = !calculation.canonicalInput.hasExactHour || bazi.hourPillar.isEstimated;
   const riskUncertaintyAgent = {
     agentName: 'Agent 7 — Risk & Uncertainty Analyst',
     agentRole: 'Quản Trị Rủi Ro & Ranh Giới Bất Định',
     confidenceScore: riskConfidence,
     keyFindings: [
       `Chỉ số Bất Định (Uncertainty Index): ${confidence.uncertaintyIndex}/100. Biên độ an toàn vận trình ổn định.`,
+      isEstimatedHour
+        ? 'Cảnh báo tính toàn vẹn dữ liệu: Giờ sinh chưa xác nhận chính xác. Độ bất định đối với các cung vị và sao an theo giờ tăng cao; kết quả mang tính chất tham vấn định hướng.'
+        : 'Độ tin cậy thời gian: Dữ liệu giờ sinh chuẩn xác, mô hình thiên văn hiệu chỉnh Giờ Mặt Trời Thật (True Solar Time) với độ tin cậy tối ưu.',
       `Điểm tựa rủi ro: Duy trì tỷ lệ đòn bẩy tài chính và nợ vay ở mức dưới 35% tổng tài sản.`,
       `Ranh giới cảnh báo: Tránh các quyết định thay đổi môi trường đột ngột mà thiếu sự chuẩn bị nguồn lực 3-6 tháng.`
     ],
     recommendations: [
+      ...(isEstimatedHour ? ['Nên xác thực lại giờ sinh chính xác với người thân hoặc giấy khai sinh để hiệu chuẩn tối đa lá số.'] : []),
       `Thiết lập ngưỡng dừng lỗ (Stop-loss threshold) rõ ràng trước mọi quyết định đầu tư hay chuyển hướng nghề nghiệp.`,
       `Luôn có kế hoạch dự phòng (Plan B) chi tiết cho các dự án quan trọng.`
     ],

@@ -8,7 +8,9 @@ import {
   FiveElement,
   BaZiChart,
   PillarData,
-  BirthData
+  BirthData,
+  BaZiInteraction,
+  BaZiStructureDetails
 } from '../types/destiny';
 import {
   STEM_KEYS,
@@ -333,9 +335,29 @@ export function calculateBaZiChart(birthData: BirthData): BaZiChart {
     unfavorableElements.push(ELEMENT_RELATIONS[dayMasterElement].overcomeBy); // Officer
   }
 
-  // Structure Type (Cách Cục) based on Month Branch's primary hidden stem
-  const monthHiddenGod = monthPillar.hiddenStems[0]?.tenGod || 'Chính Quan';
-  const structureType = `${monthHiddenGod} Cách`;
+  // Flag hour pillar as estimated if exact birth hour is not confirmed
+  hourPillar.isEstimated = !birthData.hasExactHour;
+
+  // Multi-tier Orthodox Ziping Structure Engine (Tử Bình Chân Thuyên)
+  const structureDetails = determineZipingStructure({
+    dayMaster,
+    dayMasterStrength,
+    monthPillar,
+    yearPillar,
+    hourPillar,
+    elementBalance,
+    tenGodDistribution: {}
+  });
+  const structureType = structureDetails.primaryPattern;
+
+  // Inter-Pillar Interactions (Thiên Can Hợp/Xung, Địa Chi Lục Hợp/Xung/Tam Hợp/Tam Hội/Hình/Hại/Phá)
+  const interactions = calculateBaZiInteractions({
+    yearPillar,
+    monthPillar,
+    dayPillar,
+    hourPillar,
+    dayMaster
+  });
 
   // Ten Gods Distribution
   const tenGodDistribution: Record<string, number> = {};
@@ -358,6 +380,458 @@ export function calculateBaZiChart(birthData: BirthData): BaZiChart {
     favorableElements,
     unfavorableElements,
     structureType,
+    structureDetails,
+    interactions,
     tenGodDistribution
   };
+}
+
+/**
+ * ============================================================================
+ * ORTHODOX MULTI-TIER ZIPING STRUCTURE ENGINE (TỬ BÌNH CHÂN THUYÊN)
+ * ============================================================================
+ */
+export function determineZipingStructure(params: {
+  dayMaster: HeavenlyStem;
+  dayMasterStrength: BaZiChart['dayMasterStrength'];
+  monthPillar: PillarData;
+  yearPillar: PillarData;
+  hourPillar: PillarData;
+  elementBalance: Record<FiveElement, number>;
+  tenGodDistribution: Record<string, number>;
+}): BaZiStructureDetails {
+  const { dayMaster, dayMasterStrength, monthPillar, yearPillar, hourPillar, elementBalance } = params;
+  const monthBranch = monthPillar.branch;
+  const monthBranchInfo = BRANCHES[monthBranch];
+  const hiddenStems = monthBranchInfo.hiddenStems;
+  const primaryHiddenStem = hiddenStems[0];
+  const dmElement = STEMS[dayMaster].element;
+
+  // Check special transformed / following structures first (Ngoại Cách / Biến Cách)
+  if (dayMasterStrength === 'Very Weak') {
+    const resourceEl = ELEMENT_RELATIONS[dmElement].generatedBy;
+    const sameEl = dmElement;
+    const selfWeight = (elementBalance[resourceEl] || 0) + (elementBalance[sameEl] || 0);
+
+    if (selfWeight <= 15) {
+      const wealthEl = ELEMENT_RELATIONS[dmElement].overcomes;
+      const officerEl = ELEMENT_RELATIONS[dmElement].overcomeBy;
+      const outputEl = ELEMENT_RELATIONS[dmElement].generates;
+
+      if ((elementBalance[officerEl] || 0) >= 42) {
+        return {
+          primaryPattern: 'Tòng Sát Cách',
+          patternSource: 'Biến Cách Tòng Cách',
+          monthCommanderBranch: monthBranch,
+          monthCommanderStem: primaryHiddenStem,
+          school: 'Tử Bình Ngoại Cách (Follow Officer/Killings Pattern)',
+          explanation: 'Nhật Chủ cực nhược, không có tỷ kiếp ấn thụ trợ lực, Quan Sát khí thế hùng hậu áp đảo. Quy về Tòng Sát Cách, lấy Quan Sát và Tài làm hỷ thần.'
+        };
+      }
+      if ((elementBalance[wealthEl] || 0) >= 42) {
+        return {
+          primaryPattern: 'Tòng Tài Cách',
+          patternSource: 'Biến Cách Tòng Cách',
+          monthCommanderBranch: monthBranch,
+          monthCommanderStem: primaryHiddenStem,
+          school: 'Tử Bình Ngoại Cách (Follow Wealth Pattern)',
+          explanation: 'Nhật Chủ suy nhược không căn khí, Tài tinh chiếm ưu thế tuyệt đối trong tứ trụ. Quy về Tòng Tài Cách, thuận thế dụng Tài Thương.'
+        };
+      }
+      if ((elementBalance[outputEl] || 0) >= 42) {
+        return {
+          primaryPattern: 'Tòng Nhi Cách',
+          patternSource: 'Biến Cách Tòng Cách',
+          monthCommanderBranch: monthBranch,
+          monthCommanderStem: primaryHiddenStem,
+          school: 'Tử Bình Ngoại Cách (Follow Output/Child Pattern)',
+          explanation: 'Nhật Chủ quy thuận dòng khí Thực Thần Thương Quan tiết tú thuần túy. Quy về Tòng Nhi Cách, kỵ Ấn thụ xung khắc dòng tiết tú.'
+        };
+      }
+    }
+  } else if (dayMasterStrength === 'Very Strong') {
+    const sameElWeight = elementBalance[dmElement] || 0;
+    const resourceElWeight = elementBalance[ELEMENT_RELATIONS[dmElement].generatedBy] || 0;
+    if (sameElWeight + resourceElWeight >= 78) {
+      const specialChuyenVuongNames: Record<FiveElement, string> = {
+        Wood: 'Khúc Trực Cách (Mộc Chuyên Vượng)',
+        Fire: 'Viêm Thượng Cách (Hỏa Chuyên Vượng)',
+        Earth: 'Giá Sắc Cách (Thổ Chuyên Vượng)',
+        Metal: 'Tòng Cách (Kim Chuyên Vượng)',
+        Water: 'Nhuận Hạ Cách (Thủy Chuyên Vượng)'
+      };
+      return {
+        primaryPattern: specialChuyenVuongNames[dmElement] || 'Chuyên Vượng Cách',
+        patternSource: 'Chuyên Vượng Cách',
+        monthCommanderBranch: monthBranch,
+        monthCommanderStem: primaryHiddenStem,
+        school: 'Tử Bình Chuyên Vượng (Dominant Element Pattern)',
+        explanation: 'Khí thế một hành thuần khiết, Nhật Chủ đắc lệnh đắc địa cực vượng, nghi thuận khí thế tiết tú bằng Thực Thương hoặc Tỷ Kiếp.'
+      };
+    }
+  }
+
+  // Orthodox Ziping Multi-tier Evaluation:
+  // Step 1: Check if Month Branch hidden stems penetrate to Year, Month, or Hour Heavenly Stems
+  const exposedStems = [yearPillar.stem, monthPillar.stem, hourPillar.stem];
+  
+  // Priority A: Month Branch Primary Hidden Stem (Bản Khí) penetrates
+  if (exposedStems.includes(primaryHiddenStem)) {
+    const tenGodName = getTenGod(dayMaster, primaryHiddenStem).nameVi;
+    let patternName = `${tenGodName} Cách`;
+    if (tenGodName === 'Tỷ Kiên') patternName = 'Kiến Lộc Cách';
+    else if (tenGodName === 'Kiếp Tài') patternName = STEMS[dayMaster].yinYang === 'Yang' ? 'Dương Nhận Cách' : 'Nguyệt Kiếp Cách';
+
+    return {
+      primaryPattern: patternName,
+      patternSource: 'Bản Khí Thấu Can',
+      penetratingStem: primaryHiddenStem,
+      monthCommanderBranch: monthBranch,
+      monthCommanderStem: primaryHiddenStem,
+      school: 'Tử Bình Chân Thuyên (Orthodox Ziping - Primary Root Penetration)',
+      explanation: `Bản khí ${STEMS[primaryHiddenStem].nameVi} của Nguyệt Lệnh ${BRANCHES[monthBranch].nameVi} thấu xuất lên Thiên Can làm chủ quản khí, xác lập chính cách ${patternName}.`
+    };
+  }
+
+  // Priority B: Secondary Hidden Stems (Trung Khí / Dư Khí) penetrate
+  for (let i = 1; i < hiddenStems.length; i++) {
+    const secondaryStem = hiddenStems[i];
+    if (exposedStems.includes(secondaryStem)) {
+      const tenGodName = getTenGod(dayMaster, secondaryStem).nameVi;
+      let patternName = `${tenGodName} Cách`;
+      if (tenGodName === 'Tỷ Kiên') patternName = 'Kiến Lộc Quy Cách';
+      else if (tenGodName === 'Kiếp Tài') patternName = 'Dương Nhận Quy Cách';
+
+      return {
+        primaryPattern: patternName,
+        patternSource: i === 1 ? 'Trung Khí Thấu Can' : 'Dư Khí Thấu Can',
+        penetratingStem: secondaryStem,
+        monthCommanderBranch: monthBranch,
+        monthCommanderStem: primaryHiddenStem,
+        school: 'Tử Bình Chân Thuyên (Orthodox Ziping - Secondary Stem Penetration)',
+        explanation: `Khí ${STEMS[secondaryStem].nameVi} tàng ẩn trong Nguyệt Lệnh thấu lên Thiên Can, dẫn xuất năng lượng thành ${patternName}.`
+      };
+    }
+  }
+
+  // Priority C: No hidden stem penetrates. Month Branch Primary Stem governs by position
+  const primaryTenGod = getTenGod(dayMaster, primaryHiddenStem).nameVi;
+  if (primaryTenGod === 'Tỷ Kiên') {
+    return {
+      primaryPattern: 'Kiến Lộc Cách',
+      patternSource: 'Kiến Lộc Quy Cách',
+      monthCommanderBranch: monthBranch,
+      monthCommanderStem: primaryHiddenStem,
+      school: 'Tử Bình Chân Thuyên (Orthodox Ziping - Month Friend Branch)',
+      explanation: `Nguyệt Lệnh tọa Lộc Thần (${STEMS[primaryHiddenStem].nameVi}), không thấu can nhưng đắc lệnh chuyên vượng, quy về Kiến Lộc Cách. Cần Quan Sát hoặc Tài tinh khai hoa.`
+    };
+  }
+  if (primaryTenGod === 'Kiếp Tài') {
+    const isYang = STEMS[dayMaster].yinYang === 'Yang';
+    const patternName = isYang ? 'Dương Nhận Cách' : 'Nguyệt Kiếp Cách';
+    return {
+      primaryPattern: patternName,
+      patternSource: 'Dương Nhận Quy Cách',
+      monthCommanderBranch: monthBranch,
+      monthCommanderStem: primaryHiddenStem,
+      school: 'Tử Bình Chân Thuyên (Orthodox Ziping - Blade/Rob Wealth Branch)',
+      explanation: `Nguyệt Lệnh tọa ${isYang ? 'Dương Nhận' : 'Nguyệt Kiếp'}, khí lực dũng mãnh, cần Thất Sát chế ngự hoặc Thực Thương tiết tú.`
+    };
+  }
+
+  return {
+    primaryPattern: `${primaryTenGod} Cách`,
+    patternSource: 'Nguyệt Lệnh Đắc Khí',
+    monthCommanderBranch: monthBranch,
+    monthCommanderStem: primaryHiddenStem,
+    school: 'Tử Bình Chân Thuyên (Orthodox Ziping - Direct Month Commander)',
+    explanation: `Các can tàng ẩn không thấu xuất, lấy Bản Khí Nguyệt Lệnh (${STEMS[primaryHiddenStem].nameVi} - ${primaryTenGod}) làm trụ cột xác lập quy cách.`
+  };
+}
+
+/**
+ * ============================================================================
+ * INTER-PILLAR INTERACTIONS ENGINE (HỢP, XUNG, HÌNH, HẠI, PHÁ, TAM HỢP, TAM HỘI)
+ * ============================================================================
+ */
+export function calculateBaZiInteractions(pillars: {
+  yearPillar: PillarData;
+  monthPillar: PillarData;
+  dayPillar: PillarData;
+  hourPillar: PillarData;
+  dayMaster: HeavenlyStem;
+}): BaZiInteraction[] {
+  const interactions: BaZiInteraction[] = [];
+  const { yearPillar, monthPillar, dayPillar, hourPillar } = pillars;
+
+  const pillarList: { name: 'Năm' | 'Tháng' | 'Ngày' | 'Giờ'; stem: HeavenlyStem; branch: EarthlyBranch }[] = [
+    { name: 'Năm', stem: yearPillar.stem, branch: yearPillar.branch },
+    { name: 'Tháng', stem: monthPillar.stem, branch: monthPillar.branch },
+    { name: 'Ngày', stem: dayPillar.stem, branch: dayPillar.branch },
+    { name: 'Giờ', stem: hourPillar.stem, branch: hourPillar.branch }
+  ];
+
+  // 1. THIÊN CAN TƯƠNG HỢP (Ngũ Hợp)
+  const CAN_HOP_MAP: Record<string, { partner: HeavenlyStem; transformedEl: FiveElement; desc: string }> = {
+    Jia: { partner: 'Ji', transformedEl: 'Earth', desc: 'Giáp - Kỷ hợp Hóa Thổ (Trung Chính Chi Hợp, chủ về đức độ, tín nghĩa)' },
+    Ji: { partner: 'Jia', transformedEl: 'Earth', desc: 'Giáp - Kỷ hợp Hóa Thổ (Trung Chính Chi Hợp, chủ về đức độ, tín nghĩa)' },
+    Yi: { partner: 'Geng', transformedEl: 'Metal', desc: 'Ất - Canh hợp Hóa Kim (Nhân Nghĩa Chi Hợp, chủ về quyết đoán, kỷ cương)' },
+    Geng: { partner: 'Yi', transformedEl: 'Metal', desc: 'Ất - Canh hợp Hóa Kim (Nhân Nghĩa Chi Hợp, chủ về quyết đoán, kỷ cương)' },
+    Bing: { partner: 'Xin', transformedEl: 'Water', desc: 'Bính - Tân hợp Hóa Thủy (Uy Chế Chi Hợp, chủ về quyền uy, tài hoa biến hóa)' },
+    Xin: { partner: 'Bing', transformedEl: 'Water', desc: 'Bính - Tân hợp Hóa Thủy (Uy Chế Chi Hợp, chủ về quyền uy, tài hoa biến hóa)' },
+    Ding: { partner: 'Ren', transformedEl: 'Wood', desc: 'Đinh - Nhâm hợp Hóa Mộc (Nhân Thọ Chi Hợp, chủ về từ tâm, tình cảm sâu sắc)' },
+    Ren: { partner: 'Ding', transformedEl: 'Wood', desc: 'Đinh - Nhâm hợp Hóa Mộc (Nhân Thọ Chi Hợp, chủ về từ tâm, tình cảm sâu sắc)' },
+    Wu: { partner: 'Gui', transformedEl: 'Fire', desc: 'Mậu - Quý hợp Hóa Hỏa (Vô Tình Chi Hợp, chủ về sắc sảo, thông tuệ)' },
+    Gui: { partner: 'Wu', transformedEl: 'Fire', desc: 'Mậu - Quý hợp Hóa Hỏa (Vô Tình Chi Hợp, chủ về sắc sảo, thông tuệ)' }
+  };
+
+  // 2. THIÊN CAN TƯƠNG XUNG
+  const CAN_XUNG_MAP: Record<string, HeavenlyStem> = {
+    Jia: 'Geng', Geng: 'Jia',
+    Yi: 'Xin', Xin: 'Yi',
+    Bing: 'Ren', Ren: 'Bing',
+    Ding: 'Gui', Gui: 'Ding'
+  };
+
+  // Check pairwise Stems
+  for (let i = 0; i < pillarList.length; i++) {
+    for (let j = i + 1; j < pillarList.length; j++) {
+      const p1 = pillarList[i];
+      const p2 = pillarList[j];
+
+      // Check Can Hợp
+      const hopInfo = CAN_HOP_MAP[p1.stem];
+      if (hopInfo && hopInfo.partner === p2.stem) {
+        interactions.push({
+          type: 'Can_Hop',
+          nameVi: `Thiên Can Tương Hợp (${STEMS[p1.stem].nameVi} - ${STEMS[p2.stem].nameVi})`,
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.stem, p2.stem],
+          description: hopInfo.desc,
+          nature: 'Cát'
+        });
+      }
+
+      // Check Can Xung
+      if (CAN_XUNG_MAP[p1.stem] === p2.stem) {
+        interactions.push({
+          type: 'Can_Xung',
+          nameVi: `Thiên Can Tương Xung (${STEMS[p1.stem].nameVi} - ${STEMS[p2.stem].nameVi})`,
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.stem, p2.stem],
+          description: `Trụ ${p1.name} (${STEMS[p1.stem].nameVi}) tương xung với Trụ ${p2.name} (${STEMS[p2.stem].nameVi}), tạo ra biến động và đối kháng năng lượng trực diện.`,
+          nature: 'Hung'
+        });
+      }
+    }
+  }
+
+  // 3. ĐỊA CHI LỤC HỢP
+  const LUC_HOP_MAP: Record<string, { partner: EarthlyBranch; element: FiveElement; desc: string }> = {
+    Zi: { partner: 'Chou', element: 'Earth', desc: 'Tý - Sửu hợp Hóa Thổ' },
+    Chou: { partner: 'Zi', element: 'Earth', desc: 'Tý - Sửu hợp Hóa Thổ' },
+    Yin_B: { partner: 'Hai', element: 'Wood', desc: 'Dần - Hợi hợp Hóa Mộc' },
+    Hai: { partner: 'Yin_B', element: 'Wood', desc: 'Dần - Hợi hợp Hóa Mộc' },
+    Mao: { partner: 'Xu', element: 'Fire', desc: 'Mão - Tuất hợp Hóa Hỏa' },
+    Xu: { partner: 'Mao', element: 'Fire', desc: 'Mão - Tuất hợp Hóa Hỏa' },
+    Chen: { partner: 'You', element: 'Metal', desc: 'Thìn - Dậu hợp Hóa Kim' },
+    You: { partner: 'Chen', element: 'Metal', desc: 'Thìn - Dậu hợp Hóa Kim' },
+    Si: { partner: 'Shen', element: 'Water', desc: 'Tỵ - Thân hợp Hóa Thủy' },
+    Shen: { partner: 'Si', element: 'Water', desc: 'Tỵ - Thân hợp Hóa Thủy' },
+    Wu_B: { partner: 'Wei', element: 'Fire', desc: 'Ngọ - Mùi hợp Hóa Nhật Nguyệt (Thái Dương / Thái Âm)' },
+    Wei: { partner: 'Wu_B', element: 'Fire', desc: 'Ngọ - Mùi hợp Hóa Nhật Nguyệt (Thái Dương / Thái Âm)' }
+  };
+
+  // 4. ĐỊA CHI LỤC XUNG
+  const LUC_XUNG_MAP: Record<string, { partner: EarthlyBranch; desc: string }> = {
+    Zi: { partner: 'Wu_B', desc: 'Tý - Ngọ tương xung (Thủy Hỏa tương kích, dao động bất định)' },
+    Wu_B: { partner: 'Zi', desc: 'Tý - Ngọ tương xung (Thủy Hỏa tương kích, dao động bất định)' },
+    Chou: { partner: 'Wei', desc: 'Sửu - Mùi tương xung (Thổ khí tương xung, khai mở xung khố)' },
+    Wei: { partner: 'Chou', desc: 'Sửu - Mùi tương xung (Thổ khí tương xung, khai mở xung khố)' },
+    Yin_B: { partner: 'Shen', desc: 'Dần - Thân tương xung (Kim Mộc giao chiến, dịch mã động chuyển)' },
+    Shen: { partner: 'Yin_B', desc: 'Dần - Thân tương xung (Kim Mộc giao chiến, dịch mã động chuyển)' },
+    Mao: { partner: 'You', desc: 'Mão - Dậu tương xung (Kim Mộc tương khắc, biến chuyển tình cảm và môi trường)' },
+    You: { partner: 'Mao', desc: 'Mão - Dậu tương xung (Kim Mộc tương khắc, biến chuyển tình cảm và môi trường)' },
+    Chen: { partner: 'Xu', desc: 'Thìn - Tuất tương xung (Khố địa tương xung, biến động sản nghiệp)' },
+    Xu: { partner: 'Chen', desc: 'Thìn - Tuất tương xung (Khố địa tương xung, biến động sản nghiệp)' },
+    Si: { partner: 'Hai', desc: 'Tỵ - Hợi tương xung (Thủy Hỏa tương xung, dịch chuyển ngoại cảnh)' },
+    Hai: { partner: 'Si', desc: 'Tỵ - Hợi tương xung (Thủy Hỏa tương xung, dịch chuyển ngoại cảnh)' }
+  };
+
+  // 5. ĐỊA CHI LỤC HẠI
+  const LUC_HAI_MAP: Record<string, { partner: EarthlyBranch; desc: string }> = {
+    Zi: { partner: 'Wei', desc: 'Tý - Mùi tương hại' },
+    Wei: { partner: 'Zi', desc: 'Tý - Mùi tương hại' },
+    Chou: { partner: 'Wu_B', desc: 'Sửu - Ngọ tương hại' },
+    Wu_B: { partner: 'Chou', desc: 'Sửu - Ngọ tương hại' },
+    Yin_B: { partner: 'Si', desc: 'Dần - Tỵ tương hại' },
+    Si: { partner: 'Yin_B', desc: 'Dần - Tỵ tương hại' },
+    Mao: { partner: 'Chen', desc: 'Mão - Thìn tương hại' },
+    Chen: { partner: 'Mao', desc: 'Mão - Thìn tương hại' },
+    Shen: { partner: 'Hai', desc: 'Thân - Hợi tương hại' },
+    Hai: { partner: 'Shen', desc: 'Thân - Hợi tương hại' },
+    You: { partner: 'Xu', desc: 'Dậu - Tuất tương hại' },
+    Xu: { partner: 'You', desc: 'Dậu - Tuất tương hại' }
+  };
+
+  // 6. ĐỊA CHI TƯƠNG PHÁ
+  const TUONG_PHA_MAP: Record<string, { partner: EarthlyBranch; desc: string }> = {
+    Zi: { partner: 'You', desc: 'Tý - Dậu tương phá' },
+    You: { partner: 'Zi', desc: 'Tý - Dậu tương phá' },
+    Mao: { partner: 'Wu_B', desc: 'Mão - Ngọ tương phá' },
+    Wu_B: { partner: 'Mao', desc: 'Mão - Ngọ tương phá' },
+    Chen: { partner: 'Chou', desc: 'Thìn - Sửu tương phá' },
+    Chou: { partner: 'Chen', desc: 'Thìn - Sửu tương phá' },
+    Si: { partner: 'Shen', desc: 'Tỵ - Thân tương phá' },
+    Shen: { partner: 'Si', desc: 'Tỵ - Thân tương phá' },
+    Yin_B: { partner: 'Hai', desc: 'Dần - Hợi tương phá' },
+    Hai: { partner: 'Yin_B', desc: 'Dần - Hợi tương phá' },
+    Xu: { partner: 'Wei', desc: 'Tuất - Mùi tương phá' },
+    Wei: { partner: 'Xu', desc: 'Tuất - Mùi tương phá' }
+  };
+
+  // Check pairwise Branches
+  for (let i = 0; i < pillarList.length; i++) {
+    for (let j = i + 1; j < pillarList.length; j++) {
+      const p1 = pillarList[i];
+      const p2 = pillarList[j];
+
+      // Lục Hợp
+      const lucHop = LUC_HOP_MAP[p1.branch];
+      if (lucHop && lucHop.partner === p2.branch) {
+        interactions.push({
+          type: 'Chi_Luc_Hop',
+          nameVi: `Địa Chi Lục Hợp (${BRANCHES[p1.branch].nameVi} - ${BRANCHES[p2.branch].nameVi})`,
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.branch, p2.branch],
+          description: `${lucHop.desc} giữa Trụ ${p1.name} và Trụ ${p2.name}, tạo sự hòa hợp kết nối vững chắc.`,
+          nature: 'Cát'
+        });
+      }
+
+      // Lục Xung
+      const lucXung = LUC_XUNG_MAP[p1.branch];
+      if (lucXung && lucXung.partner === p2.branch) {
+        interactions.push({
+          type: 'Chi_Luc_Xung',
+          nameVi: `Địa Chi Lục Xung (${BRANCHES[p1.branch].nameVi} - ${BRANCHES[p2.branch].nameVi})`,
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.branch, p2.branch],
+          description: `${lucXung.desc} giữa Trụ ${p1.name} và Trụ ${p2.name}, chủ về biến động môi trường hoặc xung đột quan điểm.`,
+          nature: 'Hung'
+        });
+      }
+
+      // Lục Hại
+      const lucHai = LUC_HAI_MAP[p1.branch];
+      if (lucHai && lucHai.partner === p2.branch) {
+        interactions.push({
+          type: 'Chi_Tuong_Hai',
+          nameVi: `Địa Chi Tương Hại (${BRANCHES[p1.branch].nameVi} - ${BRANCHES[p2.branch].nameVi})`,
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.branch, p2.branch],
+          description: `${lucHai.desc} giữa Trụ ${p1.name} và Trụ ${p2.name}, cảnh báo bất đồng ngầm hoặc trở lực bất ngờ.`,
+          nature: 'Hung'
+        });
+      }
+
+      // Tương Phá
+      const tuongPha = TUONG_PHA_MAP[p1.branch];
+      if (tuongPha && tuongPha.partner === p2.branch) {
+        interactions.push({
+          type: 'Chi_Tuong_Pha',
+          nameVi: `Địa Chi Tương Phá (${BRANCHES[p1.branch].nameVi} - ${BRANCHES[p2.branch].nameVi})`,
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.branch, p2.branch],
+          description: `${tuongPha.desc} giữa Trụ ${p1.name} và Trụ ${p2.name}.`,
+          nature: 'Hung'
+        });
+      }
+
+      // Tự Hình (Thìn-Thìn, Ngọ-Ngọ, Dậu-Dậu, Hợi-Hợi)
+      if (p1.branch === p2.branch && ['Chen', 'Wu_B', 'You', 'Hai'].includes(p1.branch)) {
+        interactions.push({
+          type: 'Chi_Tuong_Hinh',
+          nameVi: `Địa Chi Tự Hình (${BRANCHES[p1.branch].nameVi} - ${BRANCHES[p2.branch].nameVi})`,
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.branch, p2.branch],
+          description: `Trụ ${p1.name} và Trụ ${p2.name} đồng tọa ${BRANCHES[p1.branch].nameVi} phạm Tự Hình, chủ về nội tâm tự dằn vặt hoặc tự tạo áp lực quá tải.`,
+          nature: 'Hung'
+        });
+      }
+
+      // Tý - Mão Vô Lễ Hình
+      if ((p1.branch === 'Zi' && p2.branch === 'Mao') || (p1.branch === 'Mao' && p2.branch === 'Zi')) {
+        interactions.push({
+          type: 'Chi_Tuong_Hinh',
+          nameVi: 'Địa Chi Tương Hình (Tý - Mão Vô Lễ Hình)',
+          involvedPillars: [p1.name, p2.name],
+          branchesOrStems: [p1.branch, p2.branch],
+          description: 'Tý - Mão tương hình (Vô Lễ Chi Hình), cần thận trọng trong giao tiếp ứng xử, tuân thủ phép tắc lễ nghĩa.',
+          nature: 'Hung'
+        });
+      }
+    }
+  }
+
+  // 7. TAM HỢP CỤC & TAM HỘI CỤC (Multi-branch check)
+  const allBranches = pillarList.map(p => p.branch);
+  const TAM_HOP_CONFIGS = [
+    { branches: ['Shen', 'Zi', 'Chen'] as EarthlyBranch[], element: 'Water', name: 'Thân - Tý - Thìn Tam Hợp Thủy Cục' },
+    { branches: ['Hai', 'Mao', 'Wei'] as EarthlyBranch[], element: 'Wood', name: 'Hợi - Mão - Mùi Tam Hợp Mộc Cục' },
+    { branches: ['Yin_B', 'Wu_B', 'Xu'] as EarthlyBranch[], element: 'Fire', name: 'Dần - Ngọ - Tuất Tam Hợp Hỏa Cục' },
+    { branches: ['Si', 'You', 'Chou'] as EarthlyBranch[], element: 'Metal', name: 'Tỵ - Dậu - Sửu Tam Hợp Kim Cục' }
+  ];
+
+  TAM_HOP_CONFIGS.forEach(th => {
+    const matchedPillars = pillarList.filter(p => th.branches.includes(p.branch));
+    const uniqueMatchedBranches = new Set(matchedPillars.map(p => p.branch));
+    if (uniqueMatchedBranches.size === 3) {
+      interactions.push({
+        type: 'Chi_Tam_Hop',
+        nameVi: th.name,
+        involvedPillars: matchedPillars.map(p => p.name),
+        branchesOrStems: Array.from(uniqueMatchedBranches),
+        description: `Tứ trụ hội đủ tam hợp cục ${th.name}, hóa khí ${th.element} cực vượng, định hình xu thế năng lượng chủ đạo.`,
+        nature: 'Biến hóa'
+      });
+    } else if (uniqueMatchedBranches.size === 2) {
+      // Check if cardinal branch (Tý, Mão, Ngọ, Dậu) is present for Ban Hop
+      const cardinal = th.branches[1];
+      if (uniqueMatchedBranches.has(cardinal)) {
+        interactions.push({
+          type: 'Chi_Tam_Hop',
+          nameVi: `Bán Tam Hợp (${th.name.split(' ')[0]} hướng ${th.element})`,
+          involvedPillars: matchedPillars.map(p => p.name),
+          branchesOrStems: Array.from(uniqueMatchedBranches),
+          description: `Đắc bán tam hợp tụ khí về hành ${th.element}, gia tăng sinh lực hòa hợp.`,
+          nature: 'Cát'
+        });
+      }
+    }
+  });
+
+  const TAM_HOI_CONFIGS = [
+    { branches: ['Yin_B', 'Mao', 'Chen'] as EarthlyBranch[], element: 'Wood', name: 'Dần - Mão - Thìn Tam Hội Đông Phương Mộc' },
+    { branches: ['Si', 'Wu_B', 'Wei'] as EarthlyBranch[], element: 'Fire', name: 'Tỵ - Ngọ - Mùi Tam Hội Nam Phương Hỏa' },
+    { branches: ['Shen', 'You', 'Xu'] as EarthlyBranch[], element: 'Metal', name: 'Thân - Dậu - Tuất Tam Hội Tây Phương Kim' },
+    { branches: ['Hai', 'Zi', 'Chou'] as EarthlyBranch[], element: 'Water', name: 'Hợi - Tý - Sửu Tam Hội Bắc Phương Thủy' }
+  ];
+
+  TAM_HOI_CONFIGS.forEach(hoi => {
+    const matchedPillars = pillarList.filter(p => hoi.branches.includes(p.branch));
+    const uniqueMatchedBranches = new Set(matchedPillars.map(p => p.branch));
+    if (uniqueMatchedBranches.size === 3) {
+      interactions.push({
+        type: 'Chi_Tam_Hoi',
+        nameVi: hoi.name,
+        involvedPillars: matchedPillars.map(p => p.name),
+        branchesOrStems: Array.from(uniqueMatchedBranches),
+        description: `Hội tụ trọn vẹn tam hội toàn phương ${hoi.name}, khí thế phương vị cực kỳ hùng hậu.`,
+        nature: 'Biến hóa'
+      });
+    }
+  });
+
+  return interactions;
 }

@@ -685,6 +685,10 @@ export function calculateZiWeiChart(birthData: BirthData, options?: { analysisYe
       relationshipsAndFamily: authenticReport.bodyPalaceAnalysis.lifeImpact,
       decadeAndCurrentYearGuidance: `${authenticReport.currentDecade.evaluation} ${authenticReport.currentYearTransit.summary}`,
       strategicAdvice: authenticReport.strategicEmpowerment.join(' ')
-    }
+    },
+    isEstimatedHour: !birthData.hasExactHour,
+    hourUncertaintyWarning: !birthData.hasExactHour
+      ? 'Không đủ dữ liệu giờ sinh để kết luận chính xác các yếu tố phụ thuộc giờ sinh (Cung Mệnh, Cung Thân và các sao an theo giờ như Văn Xương, Văn Khúc, Địa Không, Địa Kiếp, Hỏa Tinh, Linh Tinh). Kết quả đang hiển thị theo giờ ước lượng tham khảo, khuyến nghị xác thực lại giờ sinh để có lá số chuẩn xác nhất.'
+      : undefined
   };
 }

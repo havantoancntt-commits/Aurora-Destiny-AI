@@ -158,7 +158,14 @@ export function runFullDestinyCalculation(
       bazi,
       ziwei,
       calculatedAt: new Date().toISOString()
-    })
+    }),
+    dataQualityStatus: {
+      hasExactHour: canonicalInput.hasExactHour,
+      hourStatus: canonicalInput.hasExactHour ? 'EXACT' : 'APPROXIMATE_ESTIMATE',
+      warningVi: !canonicalInput.hasExactHour
+        ? 'Không đủ dữ liệu giờ sinh để kết luận chính xác các yếu tố phụ thuộc giờ sinh. Trụ Giờ Bát Tự và Cung Mệnh/Thân Tử Vi đang mang tính ước lượng tham khảo.'
+        : undefined
+    }
   };
 
   // 8. MAINTAIN BOUNDED LRU CACHE WITH REPLACEMENT POLICY
