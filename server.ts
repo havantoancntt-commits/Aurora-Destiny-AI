@@ -36,7 +36,8 @@ import {
   scenarioRateLimiter,
   calculationRateLimiter,
   adminRateLimiter,
-  pdfRateLimiter
+  pdfRateLimiter,
+  webhookRateLimiter
 } from './src/server/rateLimiter';
 import {
   ProfileCreateSchema,
@@ -155,7 +156,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Helper for strict origin matching (Section XIX CSRF Specification)
-function isOriginAllowed(originHeader: string | undefined, hostHeader: string | undefined): boolean {
+export function isOriginAllowed(originHeader: string | undefined, hostHeader: string | undefined): boolean {
   if (!originHeader) return false;
   try {
     const originUrl = new URL(originHeader);
@@ -179,13 +180,15 @@ function isOriginAllowed(originHeader: string | undefined, hostHeader: string | 
       }
     }
 
-    // 3. AI Studio preview, Cloud Run, and local development origins
+    // In production: reject any origin not explicitly allowlisted (no wildcards)
+    if (isProd) {
+      return false;
+    }
+
+    // In development / test environment only:
     if (
       originUrl.hostname === 'localhost' ||
       originUrl.hostname === '127.0.0.1' ||
-      originUrl.hostname.endsWith('.run.app') ||
-      originUrl.hostname.endsWith('.google.com') ||
-      originUrl.hostname.endsWith('.googleusercontent.com') ||
       originStr === 'https://aistudio.google.com' ||
       originStr === 'https://ai.studio'
     ) {
@@ -1689,8 +1692,8 @@ app.post('/api/patrons', guestRateLimiter, async (req: Request, res: Response) =
 });
 
 // Secure Payment Webhook with Anti-Replay, Required HMAC Signature & Payment Reconciliation
-// Pipeline: raw request body -> HMAC verification -> constant-time comparison -> payload parsing -> schema validation -> business processing
-app.post('/api/patrons/webhook', async (req: Request, res: Response) => {
+// Pipeline: raw request body -> rate limiter -> HMAC verification -> constant-time comparison -> payload parsing -> schema validation -> business processing
+app.post('/api/patrons/webhook', webhookRateLimiter, async (req: Request, res: Response) => {
   try {
     // 1. Signature MUST be present
     const signature = req.headers['x-aurora-signature'] as string | undefined;

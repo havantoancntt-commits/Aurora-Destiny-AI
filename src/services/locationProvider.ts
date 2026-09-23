@@ -308,6 +308,10 @@ function normalizeSearchString(str: string): string {
     .trim();
 }
 
+export type LocationResolutionResult =
+  | { success: true; location: LocationData; matchType: 'EXACT' | 'SUBSTRING' }
+  | { success: false; error: 'CITY_NOT_FOUND' | 'AMBIGUOUS_CITY' | 'INVALID_QUERY'; candidates?: LocationData[] };
+
 export class LocationProvider {
   private locations: LocationData[] = [...KNOWN_LOCATIONS];
   private externalGeocoder: GeocodingProvider | null = null;
@@ -326,32 +330,82 @@ export class LocationProvider {
     return [...this.locations];
   }
 
+  /**
+   * Resolves a city query strictly to known locations without silent fallback to another city.
+   * If city is not found, returns null (or CITY_NOT_FOUND via resolveCanonicalLocation).
+   */
   public resolveLocation(query: string, country?: string): LocationData | null {
-    if (!query || query.trim() === '') return null;
-    const cleanQuery = normalizeSearchString(query);
-    const cleanCountry = country ? normalizeSearchString(country) : '';
+    const res = this.resolveCanonicalLocation(query, country);
+    return res.success ? res.location : null;
+  }
 
-    // 1. Exact or prefix match
-    let match = this.locations.find(loc => {
-      const locCityNorm = normalizeSearchString(loc.city);
-      const cityMatches = locCityNorm === cleanQuery || locCityNorm.includes(cleanQuery) || cleanQuery.includes(locCityNorm);
-      if (!cityMatches) return false;
-      if (cleanCountry) {
-        const locCountryNorm = normalizeSearchString(loc.country);
-        return locCountryNorm.includes(cleanCountry) || cleanCountry.includes(locCountryNorm);
-      }
-      return true;
-    });
-
-    if (match) return match;
-
-    // 2. Fallback search by country if city is generic
-    if (cleanCountry) {
-      match = this.locations.find(loc => normalizeSearchString(loc.country).includes(cleanCountry));
-      if (match) return match;
+  /**
+   * Deterministic canonical resolution:
+   * 1. Validates query.
+   * 2. Tries exact normalized city name match.
+   * 3. Tries substring / word boundary match.
+   * 4. If multiple candidates match, detects ambiguous matches.
+   * 5. NEVER falls back to returning the first city of the country.
+   */
+  public resolveCanonicalLocation(query: string, country?: string): LocationResolutionResult {
+    if (!query || typeof query !== 'string' || query.trim() === '') {
+      return { success: false, error: 'INVALID_QUERY' };
     }
 
-    return null;
+    const cleanQuery = normalizeSearchString(query);
+    if (!cleanQuery) {
+      return { success: false, error: 'INVALID_QUERY' };
+    }
+    const cleanCountry = country ? normalizeSearchString(country) : '';
+
+    // Step 1: Filter by country if country is specified
+    const eligibleLocations = cleanCountry
+      ? this.locations.filter(loc => {
+          const locCountryNorm = normalizeSearchString(loc.country);
+          const locCodeNorm = normalizeSearchString(loc.countryCode);
+          return locCountryNorm.includes(cleanCountry) || cleanCountry.includes(locCountryNorm) || locCodeNorm === cleanCountry;
+        })
+      : this.locations;
+
+    // Step 2: Exact city name match
+    const exactMatches = eligibleLocations.filter(loc => {
+      const locCityNorm = normalizeSearchString(loc.city);
+      return locCityNorm === cleanQuery;
+    });
+
+    if (exactMatches.length === 1) {
+      return { success: true, location: exactMatches[0], matchType: 'EXACT' };
+    }
+    if (exactMatches.length > 1) {
+      // Multiple exact matches (e.g. across different regions)
+      return { success: true, location: exactMatches[0], matchType: 'EXACT' };
+    }
+
+    // Step 3: Prefix or containment match on city name
+    const partialMatches = eligibleLocations.filter(loc => {
+      const locCityNorm = normalizeSearchString(loc.city);
+      return locCityNorm.includes(cleanQuery) || cleanQuery.includes(locCityNorm);
+    });
+
+    if (partialMatches.length === 1) {
+      return { success: true, location: partialMatches[0], matchType: 'SUBSTRING' };
+    }
+
+    if (partialMatches.length > 1) {
+      // Check if one candidate is a significantly closer prefix
+      const prefixMatches = partialMatches.filter(loc => normalizeSearchString(loc.city).startsWith(cleanQuery));
+      if (prefixMatches.length === 1) {
+        return { success: true, location: prefixMatches[0], matchType: 'SUBSTRING' };
+      }
+      return {
+        success: false,
+        error: 'AMBIGUOUS_CITY',
+        candidates: partialMatches.slice(0, 5)
+      };
+    }
+
+    // Explicit rejection: DO NOT fall back to any other city!
+    return { success: false, error: 'CITY_NOT_FOUND' };
   }
 
   public registerLocation(location: LocationData): void {

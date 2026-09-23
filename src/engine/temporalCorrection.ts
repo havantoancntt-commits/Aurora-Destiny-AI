@@ -163,7 +163,7 @@ export function resolveEffectiveBirthTime(
   // 1. Resolve geographic longitude & latitude
   let longitude = birthData.longitude;
   let latitude = birthData.latitude;
-  let locationLabel = birthData.birthCity || 'Hanoi';
+  let locationLabel = birthData.birthCity || 'Standard Meridian';
 
   if (longitude === undefined || longitude === null) {
     const loc = explicitLocation || locationProvider.resolveLocation(birthData.birthCity, birthData.birthCountry);

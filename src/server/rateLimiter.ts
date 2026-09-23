@@ -13,6 +13,7 @@ export interface RateLimitConfig {
   maxRequests: number;
   message: string;
   keyPrefix: string;
+  isSensitiveEndpoint?: boolean;
 }
 
 export interface RateLimitResult {
@@ -21,7 +22,7 @@ export interface RateLimitResult {
 }
 
 export interface IRateLimitStore {
-  increment(key: string, windowMs: number): Promise<RateLimitResult>;
+  increment(key: string, windowMs: number, isSensitive?: boolean): Promise<RateLimitResult>;
   reset(key: string): Promise<void>;
 }
 
@@ -46,7 +47,7 @@ export class MemoryRateLimitStore implements IRateLimitStore {
     }
   }
 
-  async increment(key: string, windowMs: number): Promise<RateLimitResult> {
+  async increment(key: string, windowMs: number, isSensitive?: boolean): Promise<RateLimitResult> {
     const now = Date.now();
     const existing = this.store.get(key) || [];
     const valid = existing.filter(t => now - t < windowMs);
@@ -100,12 +101,15 @@ export class RedisRateLimitStore implements IRateLimitStore {
     }
   }
 
-  async increment(key: string, windowMs: number): Promise<RateLimitResult> {
+  async increment(key: string, windowMs: number, isSensitive = false): Promise<RateLimitResult> {
     if (!this.isConnected) {
-      if (process.env.RATE_LIMIT_FAIL_CLOSED === 'true' || (process.env.NODE_ENV === 'production' && process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true')) {
+      const mustFailClosed =
+        process.env.RATE_LIMIT_FAIL_CLOSED === 'true' ||
+        (process.env.NODE_ENV === 'production' && (process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true' || isSensitive));
+      if (mustFailClosed) {
         throw new Error('Rate limiter service temporarily unavailable (distributed fail-closed policy active).');
       }
-      return this.localFallback.increment(key, windowMs);
+      return this.localFallback.increment(key, windowMs, isSensitive);
     }
 
     try {
@@ -141,10 +145,13 @@ export class RedisRateLimitStore implements IRateLimitStore {
       return { count, resetAt };
     } catch (err: any) {
       console.warn('⚠️ [RateLimiter] Redis command failed:', err.message);
-      if (process.env.RATE_LIMIT_FAIL_CLOSED === 'true') {
+      const mustFailClosed =
+        process.env.RATE_LIMIT_FAIL_CLOSED === 'true' ||
+        (process.env.NODE_ENV === 'production' && (process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true' || isSensitive));
+      if (mustFailClosed) {
         throw new Error('Rate limiter service temporarily unavailable (distributed fail-closed policy active).');
       }
-      return this.localFallback.increment(key, windowMs);
+      return this.localFallback.increment(key, windowMs, isSensitive);
     }
   }
 
@@ -195,7 +202,7 @@ export function createRateLimiter(config: RateLimitConfig) {
       const key = `${config.keyPrefix}:${identifier}`;
 
       const now = Date.now();
-      const record = await activeStore.increment(key, config.windowMs);
+      const record = await activeStore.increment(key, config.windowMs, config.isSensitiveEndpoint);
 
       const remaining = Math.max(0, config.maxRequests - record.count);
       const resetSeconds = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
@@ -232,19 +239,21 @@ export function createRateLimiter(config: RateLimitConfig) {
   };
 }
 
-// 1. Auth Rate Limiters (Brute force defense)
+// 1. Auth Rate Limiters (Brute force defense - Sensitive endpoints)
 export const loginRateLimiter = createRateLimiter({
   keyPrefix: 'rl_login',
   windowMs: 15 * 60 * 1000, // 15 minutes
   maxRequests: 5,
-  message: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau 15 phút.'
+  message: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau 15 phút.',
+  isSensitiveEndpoint: true
 });
 
 export const registerRateLimiter = createRateLimiter({
   keyPrefix: 'rl_register',
   windowMs: 60 * 60 * 1000, // 1 hour
   maxRequests: 5,
-  message: 'Giới hạn tạo tài khoản tối đa 5 lần mỗi giờ.'
+  message: 'Giới hạn tạo tài khoản tối đa 5 lần mỗi giờ.',
+  isSensitiveEndpoint: true
 });
 
 export const guestRateLimiter = createRateLimiter({
@@ -254,27 +263,30 @@ export const guestRateLimiter = createRateLimiter({
   message: 'Giới hạn tạo phiên khách tạm thời đạt mức tối đa. Vui lòng thử lại sau.'
 });
 
-// 2. AI Chat & Scenario Rate Limiters
+// 2. AI Chat & Scenario Rate Limiters (Sensitive LLM endpoints)
 export const aiChatRateLimiter = createRateLimiter({
   keyPrefix: 'rl_ai_chat',
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 15,
-  message: 'Tần suất gửi tin nhắn AI vượt quá mức cho phép (tối đa 15 tin nhắn/phút).'
+  message: 'Tần suất gửi tin nhắn AI vượt quá mức cho phép (tối đa 15 tin nhắn/phút).',
+  isSensitiveEndpoint: true
 });
 
 export const scenarioRateLimiter = createRateLimiter({
   keyPrefix: 'rl_scenario',
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 15,
-  message: 'Tần suất mô phỏng kịch bản vượt quá giới hạn (tối đa 15 kịch bản/phút).'
+  message: 'Tần suất mô phỏng kịch bản vượt quá giới hạn (tối đa 15 kịch bản/phút).',
+  isSensitiveEndpoint: true
 });
 
-// 3. Calculation Engine Rate Limiter
+// 3. Calculation Engine Rate Limiter (Core deterministic engine)
 export const calculationRateLimiter = createRateLimiter({
   keyPrefix: 'rl_calc',
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 25,
-  message: 'Tần suất tính toán lá số vượt quá giới hạn cho phép.'
+  message: 'Tần suất tính toán lá số vượt quá giới hạn cho phép.',
+  isSensitiveEndpoint: true
 });
 
 // 4. Admin API Rate Limiter
@@ -291,5 +303,14 @@ export const pdfRateLimiter = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 15,
   message: 'Tần suất xử lý hoặc tải tệp PDF vượt quá giới hạn cho phép (tối đa 15 yêu cầu/phút).'
+});
+
+// 6. Webhook Rate Limiter (Sensitive payment gateway ingestion)
+export const webhookRateLimiter = createRateLimiter({
+  keyPrefix: 'rl_webhook',
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 60,
+  message: 'Tần suất gửi webhook vượt quá giới hạn an toàn.',
+  isSensitiveEndpoint: true
 });
 

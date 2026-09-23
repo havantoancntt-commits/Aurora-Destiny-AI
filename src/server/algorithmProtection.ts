@@ -53,6 +53,148 @@ if (sweepCleanupInterval.unref) {
 }
 
 /**
+ * Deterministic JSON serialization for canonical hashing.
+ * Recursively sorts all object keys to ensure invariant hash representation.
+ */
+export function canonicalStringify(val: any): string {
+  if (val === null || val === undefined) return 'null';
+  if (typeof val === 'number') {
+    if (!Number.isFinite(val)) return 'null';
+    return Object.is(val, -0) ? '0' : val.toString();
+  }
+  if (typeof val === 'boolean') return val ? 'true' : 'false';
+  if (typeof val === 'string') return JSON.stringify(val);
+  if (Array.isArray(val)) {
+    return '[' + val.map(item => canonicalStringify(item)).join(',') + ']';
+  }
+  if (typeof val === 'object') {
+    const keys = Object.keys(val).sort();
+    const pairs = keys
+      .filter(k => val[k] !== undefined)
+      .map(k => `${JSON.stringify(k)}:${canonicalStringify(val[k])}`);
+    return '{' + pairs.join(',') + '}';
+  }
+  return JSON.stringify(val);
+}
+
+/**
+ * Extracts comprehensive invariant astrological calculation coordinates.
+ * Excludes transient cache fields, runtime metadata, and the signature itself.
+ */
+export function extractCanonicalCalculationPayload(calc: CalculationResult): any {
+  return {
+    engineId: ALGORITHM_ENGINE_ID,
+    id: calc.id,
+    profileId: calc.profileId,
+    analysisYear: calc.analysisYear,
+    astrologyRulesVersion: calc.astrologyRulesVersion,
+    calculationVersion: calc.calculationVersion,
+    inputSnapshot: {
+      solarYear: calc.inputSnapshot.solarYear,
+      solarMonth: calc.inputSnapshot.solarMonth,
+      solarDay: calc.inputSnapshot.solarDay,
+      solarHour: calc.inputSnapshot.solarHour,
+      solarMinute: calc.inputSnapshot.solarMinute,
+      hasExactHour: calc.inputSnapshot.hasExactHour,
+      gender: calc.inputSnapshot.gender,
+      calendarSystem: calc.inputSnapshot.calendarSystem,
+      timeConvention: calc.inputSnapshot.timeConvention,
+      timezoneOffset: calc.inputSnapshot.timezoneOffset,
+      timezoneName: calc.inputSnapshot.timezoneName,
+      birthCity: calc.inputSnapshot.birthCity,
+      birthCountry: calc.inputSnapshot.birthCountry,
+      longitude: calc.inputSnapshot.longitude,
+      latitude: calc.inputSnapshot.latitude,
+      isLateRat: calc.inputSnapshot.isLateRat
+    },
+    effectiveBirthTime: calc.effectiveBirthTime ? {
+      effectiveDate: calc.effectiveBirthTime.effectiveDate,
+      effectiveHour: calc.effectiveBirthTime.effectiveHour,
+      effectiveMinute: calc.effectiveBirthTime.effectiveMinute,
+      equationOfTimeMinutes: calc.effectiveBirthTime.equationOfTimeMinutes,
+      longitudeCorrectionMinutes: calc.effectiveBirthTime.longitudeCorrectionMinutes,
+      timeConvention: calc.effectiveBirthTime.timeConvention,
+      dayShift: calc.effectiveBirthTime.dayShift
+    } : null,
+    bazi: {
+      yearPillar: {
+        stem: calc.bazi.yearPillar.stem,
+        branch: calc.bazi.yearPillar.branch,
+        tenGod: calc.bazi.yearPillar.tenGod,
+        naYin: calc.bazi.yearPillar.naYin,
+        hiddenStems: calc.bazi.yearPillar.hiddenStems
+      },
+      monthPillar: {
+        stem: calc.bazi.monthPillar.stem,
+        branch: calc.bazi.monthPillar.branch,
+        tenGod: calc.bazi.monthPillar.tenGod,
+        naYin: calc.bazi.monthPillar.naYin,
+        hiddenStems: calc.bazi.monthPillar.hiddenStems
+      },
+      dayPillar: {
+        stem: calc.bazi.dayPillar.stem,
+        branch: calc.bazi.dayPillar.branch,
+        tenGod: calc.bazi.dayPillar.tenGod,
+        naYin: calc.bazi.dayPillar.naYin,
+        hiddenStems: calc.bazi.dayPillar.hiddenStems
+      },
+      hourPillar: {
+        stem: calc.bazi.hourPillar.stem,
+        branch: calc.bazi.hourPillar.branch,
+        tenGod: calc.bazi.hourPillar.tenGod,
+        naYin: calc.bazi.hourPillar.naYin,
+        hiddenStems: calc.bazi.hourPillar.hiddenStems,
+        isEstimated: calc.bazi.hourPillar.isEstimated
+      },
+      dayMaster: calc.bazi.dayMaster,
+      dayMasterElement: calc.bazi.dayMasterElement,
+      dayMasterStrength: calc.bazi.dayMasterStrength,
+      structureType: calc.bazi.structureType,
+      favorableElements: calc.bazi.favorableElements,
+      unfavorableElements: calc.bazi.unfavorableElements,
+      elementBalance: calc.bazi.elementBalance,
+      interactions: (calc.bazi.interactions || []).map(i => ({
+        type: i.type,
+        involvedPillars: i.involvedPillars,
+        nature: i.nature
+      }))
+    },
+    ziwei: {
+      elementBureau: calc.ziwei.elementBureau,
+      cucNumber: calc.ziwei.cucNumber,
+      lifePalaceKey: calc.ziwei.lifePalaceKey,
+      bodyPalaceKey: calc.ziwei.bodyPalaceKey,
+      tuanTriet: (calc.ziwei as any).tuanTriet,
+      palaces: Object.entries(calc.ziwei.palaces || {}).map(([key, p]) => ({
+        key,
+        branch: p.branch,
+        stem: p.stem,
+        nameVi: p.nameVi,
+        majorStars: (p.majorStars || []).map(s => ({
+          nameVi: s.nameVi,
+          element: s.element,
+          brightness: s.brightness,
+          transformation: s.transformation || null
+        })),
+        minorStars: (p.minorStars || []).map(s => ({
+          nameVi: s.nameVi,
+          type: s.type
+        }))
+      }))
+    }
+  };
+}
+
+/**
+ * Computes canonical SHA-256 hash over all critical astrological coordinates.
+ */
+export function computeCanonicalAlgorithmHash(calc: CalculationResult): string {
+  const payload = extractCanonicalCalculationPayload(calc);
+  const serialized = canonicalStringify(payload);
+  return crypto.createHash('sha256').update(serialized).digest('hex');
+}
+
+/**
  * Generate a tamper-evident cryptographic HMAC-SHA256 signature for a calculation.
  * Ensures calculations cannot be forged, duplicated by third parties, or tampered with.
  */
@@ -64,27 +206,7 @@ export function generateAlgorithmSignature(calc: CalculationResult): {
   verified: boolean;
 } {
   const now = new Date().toISOString();
-  
-  // Construct invariant canonical payload from core astrological coordinates
-  const canonicalPayload = [
-    calc.id,
-    calc.profileId,
-    calc.inputSnapshot.solarYear,
-    calc.inputSnapshot.solarMonth,
-    calc.inputSnapshot.solarDay,
-    calc.inputSnapshot.solarHour,
-    calc.inputSnapshot.solarMinute,
-    calc.inputSnapshot.gender,
-    calc.bazi.dayMaster,
-    calc.bazi.dayMasterElement,
-    calc.bazi.structureType,
-    calc.ziwei.elementBureau,
-    calc.ziwei.lifePalaceKey,
-    calc.ziwei.bodyPalaceKey,
-    ALGORITHM_ENGINE_ID
-  ].join('::');
-
-  const algorithmHash = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
+  const algorithmHash = computeCanonicalAlgorithmHash(calc);
   const signature = crypto.createHmac('sha256', getAlgorithmMasterSecret())
     .update(`${algorithmHash}::${now}::${ISSUER_NAME}`)
     .digest('hex');
@@ -101,36 +223,27 @@ export function generateAlgorithmSignature(calc: CalculationResult): {
 /**
  * Verifies if a given calculation's cryptographic seal is authentic and untampered
  */
-export function verifyAlgorithmSignature(calc: CalculationResult): boolean {
+export function verifyAlgorithmSignature(calc: CalculationResult, maxAgeMs?: number): boolean {
   if (!calc.cryptographicSignature) return false;
 
   const { signature, sealTimestamp, algorithmHash } = calc.cryptographicSignature;
+  if (!signature || !sealTimestamp || !algorithmHash) return false;
 
-  // Re-verify canonical hash
-  const canonicalPayload = [
-    calc.id,
-    calc.profileId,
-    calc.inputSnapshot.solarYear,
-    calc.inputSnapshot.solarMonth,
-    calc.inputSnapshot.solarDay,
-    calc.inputSnapshot.solarHour,
-    calc.inputSnapshot.solarMinute,
-    calc.inputSnapshot.gender,
-    calc.bazi.dayMaster,
-    calc.bazi.dayMasterElement,
-    calc.bazi.structureType,
-    calc.ziwei.elementBureau,
-    calc.ziwei.lifePalaceKey,
-    calc.ziwei.bodyPalaceKey,
-    ALGORITHM_ENGINE_ID
-  ].join('::');
+  // Optional replay / age boundary check
+  if (maxAgeMs && maxAgeMs > 0) {
+    const ts = new Date(sealTimestamp).getTime();
+    if (isNaN(ts) || Date.now() - ts > maxAgeMs) {
+      return false;
+    }
+  }
 
-  const expectedHash = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
+  // 1. Re-verify canonical hash over entire astrological dataset
+  const expectedHash = computeCanonicalAlgorithmHash(calc);
   if (expectedHash !== algorithmHash) {
     return false;
   }
 
-  // Re-verify HMAC signature with constant-time equality check
+  // 2. Re-verify HMAC signature with constant-time equality check
   const expectedSig = crypto.createHmac('sha256', getAlgorithmMasterSecret())
     .update(`${expectedHash}::${sealTimestamp}::${ISSUER_NAME}`)
     .digest('hex');
