@@ -566,6 +566,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     }
   }
 
+  // 3. Custom session headers for iframe and cross-origin environments where cookies are restricted
+  if (!token) {
+    const customHeader = req.headers['x-session-token'] || req.headers['x-aurora-token'];
+    if (typeof customHeader === 'string' && customHeader.trim()) {
+      token = customHeader.trim();
+    }
+  }
+
   if (token) {
     req.sessionToken = token;
     try {

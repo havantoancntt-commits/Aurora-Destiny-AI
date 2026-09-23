@@ -3,7 +3,7 @@
 // Cryptographic trace of: data + conventions + engine versions + hashes
 // ==========================================
 
-import crypto from 'crypto';
+import { sha256 } from './sha256';
 import { BirthData, BaZiChart, ZiWeiChart } from '../types/destiny';
 
 export interface EngineVersions {
@@ -67,7 +67,7 @@ export function computeInputHash(canonicalInput: any): string {
     analysisYear: canonicalInput.analysisYear
   };
   const str = JSON.stringify(canonicalObj, Object.keys(canonicalObj).sort());
-  return crypto.createHash('sha256').update(str).digest('hex');
+  return sha256(str);
 }
 
 /**
@@ -91,7 +91,7 @@ export function computeResultHash(bazi: BaZiChart, ziwei: ZiWeiChart): string {
     }
   };
   const str = JSON.stringify(coreResult);
-  return crypto.createHash('sha256').update(str).digest('hex');
+  return sha256(str);
 }
 
 /**

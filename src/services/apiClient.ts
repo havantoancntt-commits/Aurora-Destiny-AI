@@ -12,20 +12,41 @@ import { MultiAgentEnsemble, ChatMessage, ScenarioAnalysisResult, DailyDestiny }
 class ApiClient {
   private sessionInitialized = false;
   private sessionPromise: Promise<boolean> | null = null;
+  private token: string | null = null;
 
   constructor() {
-    // Pure HttpOnly cookie architecture: authentication tokens reside exclusively in HttpOnly cookies
+    try {
+      this.token = typeof window !== 'undefined' ? localStorage.getItem('aurora_session_token') : null;
+    } catch {
+      this.token = null;
+    }
+  }
+
+  public setToken(token: string | null) {
+    this.token = token;
+    try {
+      if (typeof window !== 'undefined') {
+        if (token) {
+          localStorage.setItem('aurora_session_token', token);
+        } else {
+          localStorage.removeItem('aurora_session_token');
+        }
+      }
+    } catch {
+      // localStorage may fail in third-party sandboxed iframes
+    }
   }
 
   public resetSessionState() {
     this.sessionInitialized = false;
+    this.setToken(null);
   }
 
   // Ensure an authenticated session exists:
   // 1. Verifies if an existing authenticated session (registered or guest) is already active via /api/auth/me
   // 2. Only auto-provisions a guest session if no active session exists, preventing session overwrites
   public async ensureSession(force = false): Promise<boolean> {
-    if (this.sessionInitialized && !force) return true;
+    if (this.sessionInitialized && !force && this.token) return true;
 
     if (this.sessionPromise) {
       return this.sessionPromise;
@@ -33,11 +54,20 @@ class ApiClient {
 
     this.sessionPromise = (async () => {
       try {
-        // Step 1: Check if an active session cookie already exists and is valid
-        if (!force) {
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json'
+        };
+        if (this.token) {
+          headers['Authorization'] = `Bearer ${this.token}`;
+          headers['x-session-token'] = this.token;
+        }
+
+        // Step 1: Check if an active session cookie or token already exists and is valid
+        if (!force && this.token) {
           const meRes = await fetch('/api/auth/me', {
             method: 'GET',
-            credentials: 'same-origin'
+            headers,
+            credentials: 'include'
           });
           if (meRes.ok) {
             this.sessionInitialized = true;
@@ -45,12 +75,17 @@ class ApiClient {
           }
         }
 
-        // Step 2: Only provision a new guest session if no valid session is active
+        // Step 2: Auto-provision a new guest session if no valid session is active
         const res = await fetch('/api/auth/guest', {
           method: 'POST',
-          credentials: 'same-origin'
+          headers,
+          credentials: 'include'
         });
         if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data?.token) {
+            this.setToken(data.token);
+          }
           this.sessionInitialized = true;
           return true;
         }
@@ -69,15 +104,28 @@ class ApiClient {
     await this.ensureSession();
 
     const headers = new Headers(init?.headers || {});
-    const credentials = init?.credentials || 'same-origin';
+    if (this.token) {
+      if (!headers.has('Authorization')) {
+        headers.set('Authorization', `Bearer ${this.token}`);
+      }
+      if (!headers.has('x-session-token')) {
+        headers.set('x-session-token', this.token);
+      }
+    }
+    const credentials = init?.credentials || 'include';
     let res = await fetch(input, { ...init, headers, credentials });
 
-    // Auto-heal on 401 UNAUTHENTICATED: Session expired, re-provision fresh guest session and retry once
+    // Auto-heal on 401 UNAUTHENTICATED: Session expired or invalid, re-provision fresh guest session and retry once
     if (res.status === 401) {
       this.resetSessionState();
       const provisioned = await this.ensureSession(true);
       if (provisioned) {
-        res = await fetch(input, { ...init, headers, credentials });
+        const retryHeaders = new Headers(init?.headers || {});
+        if (this.token) {
+          retryHeaders.set('Authorization', `Bearer ${this.token}`);
+          retryHeaders.set('x-session-token', this.token);
+        }
+        res = await fetch(input, { ...init, headers: retryHeaders, credentials });
       }
     }
 
@@ -89,37 +137,57 @@ class ApiClient {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
+      credentials: 'include',
       body: JSON.stringify({ email, password, fullName })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `Đăng ký thất bại (${res.status})`);
     }
+    const data = await res.json();
+    if (data?.token) {
+      this.setToken(data.token);
+    }
     this.sessionInitialized = true;
-    return res.json();
+    return data;
   }
 
   public async login(email: string, password: string) {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+      headers['x-session-token'] = this.token;
+    }
     const res = await fetch('/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
+      headers,
+      credentials: 'include',
       body: JSON.stringify({ email, password })
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `Đăng nhập thất bại (${res.status})`);
     }
+    const data = await res.json();
+    if (data?.token) {
+      this.setToken(data.token);
+    }
     this.sessionInitialized = true;
-    return res.json();
+    return data;
   }
 
   public async logout() {
+    const token = this.token;
     this.resetSessionState();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+      headers['x-session-token'] = token;
+    }
     const res = await fetch('/api/auth/logout', {
       method: 'POST',
-      credentials: 'same-origin'
+      headers,
+      credentials: 'include'
     });
     if (!res.ok) {
       throw new Error(`Đăng xuất thất bại (${res.status})`);

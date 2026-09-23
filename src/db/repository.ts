@@ -1621,6 +1621,16 @@ export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; 
     (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
     !rawDbUrl.toLowerCase().includes('none');
 
+  if (options?.forceMode === 'postgresql') {
+    if (!isPostgresUrl) {
+      const msg = 'FATAL: forceMode="postgresql" requested but DATABASE_URL is missing or invalid.';
+      console.error(`🚨 [Repository Factory] ${msg}`);
+      throw new Error(msg);
+    }
+    console.log(`🐘 [Repository Factory] forceMode="postgresql" & valid DATABASE_URL: Instantiating PostgresDatabaseRepository.`);
+    return new PostgresDatabaseRepository({ connectionString: rawDbUrl });
+  }
+
   if ((provider === 'postgres' || provider === 'postgresql') && options?.forceMode !== 'file') {
     if (!isPostgresUrl) {
       const msg = 'FATAL: DATABASE_PROVIDER is explicitly set to "postgres" but DATABASE_URL is missing or invalid.';

@@ -217,6 +217,11 @@ function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: Secu
       }
     }
   } else if (typeof val === 'object') {
+    // Binary buffers (e.g. raw webhook payload or file streams) are raw bytes, not pollution attacks
+    if (Buffer.isBuffer(val) || val instanceof Uint8Array) {
+      return { detected: false };
+    }
+
     // Check if the prototype itself was mutated or replaced
     const proto = Object.getPrototypeOf(val);
     if (proto !== null && proto !== Object.prototype && proto !== Array.prototype && proto !== Date.prototype && proto !== RegExp.prototype && proto !== Map.prototype && proto !== Set.prototype) {

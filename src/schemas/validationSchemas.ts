@@ -189,7 +189,7 @@ export const PatronCreateSchema = z.object({
 
 export const PaymentWebhookSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(128),
-  provider: z.enum(['VIETQR_VCB', 'MOMO', 'ZALOPAY', 'BANK_TRANSFER']),
+  provider: z.enum(['VIETQR', 'VIETQR_VCB', 'MOMO', 'ZALOPAY', 'BANK_TRANSFER']),
   patronId: z.string().trim().min(5).max(64),
   paymentReference: z.string().trim().min(3).max(128),
   amount: z.number().positive('Số tiền thanh toán phải lớn hơn 0'),

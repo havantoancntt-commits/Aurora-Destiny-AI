@@ -100,13 +100,17 @@ export class AppError extends Error {
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Trust reverse proxy configurable by environment (defaults to 1 hop behind Cloud Run/Nginx)
 const trustProxySetting = process.env.TRUST_PROXY
   ? (process.env.TRUST_PROXY === 'true' ? 'loopback, linklocal, uniquelocal' : (!isNaN(Number(process.env.TRUST_PROXY)) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY))
   : (process.env.NODE_ENV === 'production' ? 1 : 'loopback');
 app.set('trust proxy', trustProxySetting);
+
+// Dedicated raw body parser for payment webhooks BEFORE global json parser
+// Preserves authentic wire bytes for HMAC-SHA256 signature verification without double parsing
+app.use('/api/patrons/webhook', express.raw({ type: '*/*', limit: '64kb' }));
 
 // Security: parse JSON with strict size limit and retain rawBody buffer for cryptographic webhook verification
 app.use(express.json({
@@ -175,14 +179,17 @@ function isOriginAllowed(originHeader: string | undefined, hostHeader: string | 
       }
     }
 
-    // 3. Local development and AI Studio preview origins (strictly non-production)
-    if (!isProd) {
-      if (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1') {
-        return true;
-      }
-      if (originStr === 'https://aistudio.google.com' || originStr === 'https://ai.studio') {
-        return true;
-      }
+    // 3. AI Studio preview, Cloud Run, and local development origins
+    if (
+      originUrl.hostname === 'localhost' ||
+      originUrl.hostname === '127.0.0.1' ||
+      originUrl.hostname.endsWith('.run.app') ||
+      originUrl.hostname.endsWith('.google.com') ||
+      originUrl.hostname.endsWith('.googleusercontent.com') ||
+      originStr === 'https://aistudio.google.com' ||
+      originStr === 'https://ai.studio'
+    ) {
+      return true;
     }
 
     return false;
@@ -195,6 +202,17 @@ function isOriginAllowed(originHeader: string | undefined, hostHeader: string | 
 app.use((req: Request, res: Response, next: NextFunction) => {
   const isMutating = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
   if (isMutating) {
+    // When request carries explicit authentication headers (Authorization / x-session-token),
+    // it cannot be forged by ambient cross-site requests (CSRF is not applicable)
+    const hasExplicitAuthHeader = Boolean(
+      req.headers.authorization ||
+      req.headers['x-session-token'] ||
+      req.headers['x-aurora-token']
+    );
+    if (hasExplicitAuthHeader) {
+      return next();
+    }
+
     const hasSessionCookie = Boolean(req.cookies && req.cookies['aurora_session']);
     
     // When relying on ambient browser cookie for authorization, verify origin/referrer
@@ -229,7 +247,7 @@ function setSessionCookie(res: Response, token: string): void {
   res.cookie('aurora_session', token, {
     httpOnly: true,
     secure: isProd,
-    sameSite: 'lax',
+    sameSite: isProd ? 'none' : 'lax', // 'none' + secure enables iframe embedding in production
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
@@ -240,7 +258,7 @@ function clearSessionCookie(res: Response): void {
   res.clearCookie('aurora_session', {
     httpOnly: true,
     secure: isProd,
-    sameSite: 'lax',
+    sameSite: isProd ? 'none' : 'lax',
     path: '/'
   });
 }
@@ -488,7 +506,7 @@ app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
     });
 
     setSessionCookie(res, result.token);
-    res.status(201).json({ user: result.user, message: 'Đăng ký tài khoản thành công' });
+    res.status(201).json({ user: result.user, token: result.token, message: 'Đăng ký tài khoản thành công' });
   } catch (err) {
     next(err);
   }
@@ -509,7 +527,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
     });
 
     setSessionCookie(res, result.token);
-    res.json({ user: result.user, message: 'Đăng nhập thành công' });
+    res.json({ user: result.user, token: result.token, message: 'Đăng nhập thành công' });
   } catch (err) {
     next(err);
   }
@@ -536,11 +554,11 @@ app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
   try {
     // If user already has an active registered session, preserve it and do not overwrite
     if (req.user && req.user.role !== 'GUEST') {
-      return res.json({ user: req.user, message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
+      return res.json({ user: req.user, token: req.sessionToken, message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
     }
     const result = await createGuestSessionAsync();
     setSessionCookie(res, result.token);
-    res.json({ user: result.user, message: 'Khởi tạo phiên khách thành công' });
+    res.json({ user: result.user, token: result.token, message: 'Khởi tạo phiên khách thành công' });
   } catch (err) {
     next(err);
   }
@@ -715,8 +733,8 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
       computedCalc.cryptographicSignature = generateAlgorithmSignature(computedCalc);
       createdProfile.latestCalculationId = computedCalc.id;
 
-      await repo.saveCalculation(computedCalc);
       await repo.saveProfile(createdProfile);
+      await repo.saveCalculation(computedCalc);
 
       const initialBt = runBacktestAnalysis([], computedCalc);
       await repo.saveBacktestResult(initialBt);
@@ -1671,7 +1689,8 @@ app.post('/api/patrons', guestRateLimiter, async (req: Request, res: Response) =
 });
 
 // Secure Payment Webhook with Anti-Replay, Required HMAC Signature & Payment Reconciliation
-app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Request, res: Response) => {
+// Pipeline: raw request body -> HMAC verification -> constant-time comparison -> payload parsing -> schema validation -> business processing
+app.post('/api/patrons/webhook', async (req: Request, res: Response) => {
   try {
     // 1. Signature MUST be present
     const signature = req.headers['x-aurora-signature'] as string | undefined;
@@ -1680,6 +1699,32 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
         error: {
           code: 'SIGNATURE_MISSING',
           message: 'Thiếu chữ ký xác thực webhook (x-aurora-signature).'
+        }
+      });
+    }
+
+    // 2. Extract authentic raw body Buffer
+    let rawBodyBuf: Buffer;
+    if (Buffer.isBuffer(req.body)) {
+      rawBodyBuf = req.body;
+    } else if (Buffer.isBuffer((req as any).rawBody)) {
+      rawBodyBuf = (req as any).rawBody;
+    } else if (typeof req.body === 'string') {
+      rawBodyBuf = Buffer.from(req.body, 'utf8');
+    } else {
+      return res.status(400).json({
+        error: {
+          code: 'EMPTY_BODY',
+          message: 'Dữ liệu webhook không được để trống.'
+        }
+      });
+    }
+
+    if (rawBodyBuf.length === 0) {
+      return res.status(400).json({
+        error: {
+          code: 'EMPTY_BODY',
+          message: 'Dữ liệu webhook không được để trống.'
         }
       });
     }
@@ -1693,8 +1738,7 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
       webhookSecret = webhookSecret || 'aurora_patron_webhook_dev_secret_only';
     }
 
-    // Constant-time HMAC signature verification on authentic raw body
-    const rawBodyBuf = (req as any).rawBody || Buffer.from(JSON.stringify(req.body), 'utf8');
+    // 3. Constant-time HMAC signature verification strictly on authentic raw body bytes
     const expectedSig = crypto
       .createHmac('sha256', webhookSecret)
       .update(rawBodyBuf)
@@ -1711,12 +1755,33 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
       });
     }
 
-    // 2. Validate payload schema
-    const payload = PaymentWebhookSchema.parse(req.body);
+    // 4. Parse JSON strictly AFTER HMAC verification succeeds
+    let parsedBody: any;
+    try {
+      parsedBody = JSON.parse(rawBodyBuf.toString('utf8'));
+    } catch {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_JSON',
+          message: 'Dữ liệu webhook không phải là JSON hợp lệ.'
+        }
+      });
+    }
 
-    // 3. Anti-replay: Timestamp must be within 5 minutes (300,000 ms)
+    // 5. Validate schema against parsed JSON
+    const payload = PaymentWebhookSchema.parse(parsedBody);
+
+    // 6. Anti-replay & Timestamp window check
     const now = Date.now();
-    if (Math.abs(now - payload.timestamp) > 5 * 60 * 1000) {
+    if (payload.timestamp > now + 60000) {
+      return res.status(400).json({
+        error: {
+          code: 'FUTURE_TIMESTAMP',
+          message: 'Thời gian webhook nằm trong tương lai không hợp lệ.'
+        }
+      });
+    }
+    if (now - payload.timestamp > 5 * 60 * 1000) {
       return res.status(400).json({
         error: {
           code: 'REPLAY_WINDOW_EXPIRED',
@@ -1874,6 +1939,18 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
+// 404 Handler for undefined API routes (prevent falling through to HTML index.html)
+// Mounted on app instance directly so it applies in both standalone and serverless environments
+app.all('/api/*', (req: Request, res: Response) => {
+  res.status(404).json({
+    error: {
+      code: 'API_ENDPOINT_NOT_FOUND',
+      message: `Đường dẫn API '${req.method} ${req.path}' không tồn tại trên hệ thống.`,
+      requestId: req.requestId
+    }
+  });
+});
+
 // ----------------------------------------------------
 // 13. VITE MIDDLEWARE & STATIC ASSETS
 // ----------------------------------------------------
@@ -1921,17 +1998,6 @@ async function startServer() {
       }
     }, 15 * 60 * 1000);
   }
-
-  // 404 Handler for undefined API routes (prevent falling through to HTML index.html)
-  app.all('/api/*', (req: Request, res: Response) => {
-    res.status(404).json({
-      error: {
-        code: 'API_ENDPOINT_NOT_FOUND',
-        message: `Đường dẫn API '${req.method} ${req.path}' không tồn tại trên hệ thống.`,
-        requestId: req.requestId
-      }
-    });
-  });
 
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
@@ -1992,6 +2058,18 @@ async function startServer() {
 
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
+  return server;
 }
 
-startServer();
+export { app, startServer };
+export default app;
+
+const isServerless = process.env.VERCEL === '1' || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isTest = process.env.NODE_ENV === 'test' || process.env.DISABLE_SERVER_LISTEN === 'true';
+
+if (!isServerless && !isTest) {
+  startServer().catch(err => {
+    console.error('🚨 [Server Startup Error]', err);
+    process.exit(1);
+  });
+}
