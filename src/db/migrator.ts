@@ -7,6 +7,11 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const currentDir = typeof __dirname !== 'undefined'
+  ? __dirname
+  : path.dirname(fileURLToPath(import.meta.url));
 
 export interface MigrationFile {
   version: number;
@@ -34,13 +39,15 @@ export class DatabaseMigrator {
   }
 
   public getMigrationFiles(): MigrationFile[] {
-    // Canonical migrations directory is at repository root /migrations
-    let migrationsDir = path.join(process.cwd(), 'migrations');
-    if (!fs.existsSync(migrationsDir)) {
-      // Fallback relative to current file for compiled/bundled environments
-      migrationsDir = path.resolve(__dirname, '..', '..', 'migrations');
-    }
-    if (!fs.existsSync(migrationsDir)) {
+    // Check multiple candidate directories across root, dist, and dev environments
+    const candidates = [
+      path.join(process.cwd(), 'migrations'),
+      path.resolve(currentDir, 'migrations'),
+      path.resolve(currentDir, '..', 'migrations'),
+      path.resolve(currentDir, '..', '..', 'migrations')
+    ];
+    const migrationsDir = candidates.find(dir => fs.existsSync(dir));
+    if (!migrationsDir) {
       return [];
     }
 

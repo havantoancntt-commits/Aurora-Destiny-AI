@@ -16,7 +16,7 @@
     "clean": "node -e \"import('fs').then(f => f.rmSync('dist', { recursive: true, force: true }))\"",
     "lint": "tsc --noEmit",
     "seed:dev": "tsx scripts/seedDev.ts",
-    "test": "tsx tests/runAllTests.ts && tsx src/engine/engine.test.ts && tsx src/engine/bazi_interactions_and_accuracy.test.ts && tsx src/engine/temporalPrecision.test.ts && tsx src/engine/ziwei_accuracy.test.ts && tsx src/engine/realtimeEngine.test.ts && tsx src/engine/provenance.test.ts && tsx src/services/aiSynthesizer.test.ts && tsx src/server/auth.test.ts && tsx src/server/db.test.ts && tsx src/server/rbac_idor.test.ts && tsx src/server/production_audit.test.ts && tsx src/server/postgres_integration.test.ts && tsx src/server/load_concurrency.test.ts && tsx src/server/security_deep_audit.test.ts && tsx src/server/storage_and_patrons.test.ts && tsx src/server/webhook_concurrency.test.ts"
+    "test": "tsx tests/runAllTests.ts && tsx src/engine/engine.test.ts && tsx src/engine/bazi_interactions_and_accuracy.test.ts && tsx src/engine/temporalPrecision.test.ts && tsx src/engine/ziwei_accuracy.test.ts && tsx src/engine/realtimeEngine.test.ts && tsx src/engine/provenance.test.ts && tsx src/services/aiSynthesizer.test.ts && tsx src/server/auth.test.ts && tsx src/server/db.test.ts && tsx src/server/rbac_idor.test.ts && tsx src/server/production_audit.test.ts && tsx src/server/postgres_integration.test.ts && tsx src/server/load_concurrency.test.ts && tsx src/server/security_deep_audit.test.ts && tsx src/server/storage_and_patrons.test.ts && tsx src/server/webhook_concurrency.test.ts && tsx tests/external_reference_validation.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

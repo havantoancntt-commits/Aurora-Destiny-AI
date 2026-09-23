@@ -7,7 +7,12 @@ import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
+
+const currentDir = typeof __dirname !== 'undefined'
+  ? __dirname
+  : path.dirname(fileURLToPath(import.meta.url));
 
 import { repository } from './src/db/repository';
 import {
@@ -103,8 +108,13 @@ const trustProxySetting = process.env.TRUST_PROXY
   : (process.env.NODE_ENV === 'production' ? 1 : 'loopback');
 app.set('trust proxy', trustProxySetting);
 
-// Security: parse JSON with strict size limit
-app.use(express.json({ limit: '2mb' }));
+// Security: parse JSON with strict size limit and retain rawBody buffer for cryptographic webhook verification
+app.use(express.json({
+  limit: '2mb',
+  verify: (req: any, _res: any, buf: Buffer) => {
+    req.rawBody = buf;
+  }
+}));
 
 // Robust native cookie parser with defensive validation & malformed URI handling
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -1683,10 +1693,11 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
       webhookSecret = webhookSecret || 'aurora_patron_webhook_dev_secret_only';
     }
 
-    // Constant-time HMAC signature verification
+    // Constant-time HMAC signature verification on authentic raw body
+    const rawBodyBuf = (req as any).rawBody || Buffer.from(JSON.stringify(req.body), 'utf8');
     const expectedSig = crypto
       .createHmac('sha256', webhookSecret)
-      .update(JSON.stringify(req.body))
+      .update(rawBodyBuf)
       .digest('hex');
 
     const sigBuf = Buffer.from(signature, 'utf8');
@@ -1752,7 +1763,7 @@ app.post('/api/patrons/webhook', express.json({ limit: '64kb' }), async (req: Re
     let txResult: { alreadyProcessed: boolean; payloadConflict?: boolean; verifiedPatron: any };
     try {
       txResult = await repository.runTransaction(async (txRepo) => {
-        const payloadHash = crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
+        const payloadHash = crypto.createHash('sha256').update(rawBodyBuf).digest('hex');
         const existingEvent = await txRepo.getWebhookEvent(payload.idempotencyKey);
         
         if (existingEvent) {
@@ -1911,6 +1922,17 @@ async function startServer() {
     }, 15 * 60 * 1000);
   }
 
+  // 404 Handler for undefined API routes (prevent falling through to HTML index.html)
+  app.all('/api/*', (req: Request, res: Response) => {
+    res.status(404).json({
+      error: {
+        code: 'API_ENDPOINT_NOT_FOUND',
+        message: `Đường dẫn API '${req.method} ${req.path}' không tồn tại trên hệ thống.`,
+        requestId: req.requestId
+      }
+    });
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -1919,7 +1941,12 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const candidates = [
+      path.join(process.cwd(), 'dist'),
+      path.resolve(currentDir, 'dist'),
+      path.resolve(currentDir, '.')
+    ];
+    const distPath = candidates.find(dir => fs.existsSync(path.join(dir, 'index.html'))) || candidates[0];
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));

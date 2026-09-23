@@ -345,6 +345,10 @@ export default function App() {
     }
 
     try {
+      if (localProfileIds.has(activeProfileId)) {
+        throw new Error('LOCAL_PROFILE');
+      }
+
       const data = await api.addHistoricalEvent({
         ...eventData,
         profileId: activeProfileId
@@ -358,7 +362,26 @@ export default function App() {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
     } catch (e) {
-      console.error('API Error details (handleAddEvent):', e);
+      console.warn('[Backtesting] Recording event in local offline state:', e);
+      const newEvent: HistoricalEvent = {
+        id: 'evt_' + Date.now(),
+        profileId: activeProfileId,
+        year: eventData.year || new Date().getFullYear(),
+        category: eventData.category || 'Career',
+        title: eventData.title || 'Sự kiện cục bộ',
+        description: eventData.description || '',
+        impact: eventData.impact || 'Positive',
+        intensity: eventData.intensity || 3,
+        userConfidence: eventData.userConfidence || 5,
+        createdAt: new Date().toISOString()
+      };
+      const updatedEvents = [newEvent, ...events];
+      setEvents(updatedEvents);
+      const updatedBt = runBacktestAnalysis(updatedEvents, calculation);
+      setBacktestResult(updatedBt);
+      if (activeProfile && calculation) {
+        setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, updatedBt.destinyConsistencyScore));
+      }
     }
   };
 
@@ -370,6 +393,10 @@ export default function App() {
     }
 
     try {
+      if (localProfileIds.has(activeProfileId)) {
+        throw new Error('LOCAL_PROFILE');
+      }
+
       const data = await api.deleteHistoricalEvent(activeProfileId, eventId);
       setEvents((prev) => prev.filter((e) => e.id !== eventId));
       setBacktestResult(data.backtestResult);
@@ -378,7 +405,14 @@ export default function App() {
         setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, data.backtestResult.destinyConsistencyScore));
       }
     } catch (e) {
-      console.error('API Error details (handleDeleteEvent):', e);
+      console.warn('[Backtesting] Deleting event in local offline state:', e);
+      const updatedEvents = events.filter((e) => e.id !== eventId);
+      setEvents(updatedEvents);
+      const updatedBt = runBacktestAnalysis(updatedEvents, calculation);
+      setBacktestResult(updatedBt);
+      if (activeProfile && calculation) {
+        setEnsemble(generateMultiAgentEnsemble(activeProfile, calculation, updatedBt.destinyConsistencyScore));
+      }
     }
   };
 
