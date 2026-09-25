@@ -301,6 +301,10 @@ export async function getSessionUserAsync(token: string): Promise<UserAccount | 
   if (!token) return null;
   const session = await repository.getSession(token);
   if (!session || session.revokedAt) return null;
+  if (Date.now() > session.expiresAt) {
+    await repository.deleteSession(token);
+    return null;
+  }
   return await repository.getUser(session.userId);
 }
 
@@ -309,6 +313,10 @@ export function getSessionUser(token: string): UserAccount | null {
   const syncRepo = getSyncRepo();
   const session = syncRepo.getSessionSync ? syncRepo.getSessionSync(token) : null;
   if (!session || session.revokedAt) return null;
+  if (Date.now() > session.expiresAt) {
+    if (syncRepo.deleteSessionSync) syncRepo.deleteSessionSync(token);
+    return null;
+  }
   return syncRepo.getUserSync ? syncRepo.getUserSync(session.userId) : null;
 }
 

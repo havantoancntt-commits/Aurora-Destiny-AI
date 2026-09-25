@@ -73,7 +73,7 @@ export function setDistributedFirewallRedis(client: Redis | null): void {
 const SQL_INJECTION_PATTERNS = [
   /(\b(UNION(\s+ALL)?|SELECT|INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b.*\b(FROM|INTO|TABLE|DATABASE)\b)/i,
   /(\b(OR|AND)\b\s+['"\d\w]+\s*=\s*['"\d\w]+)/i,
-  /(--\s*$|\/\*.*\*\/|#\s*$)/,
+  /(;\s*--|--\s+[^\s]|--\s*$|\/\*.*\*\/|['"\s]#\s*$)/,
   /(\b(WAITFOR\s+DELAY|SLEEP\s*\(\s*\d+\s*\)|BENCHMARK\s*\(\s*\d+\s*,\s*.*\)))/i,
   /(\bINFORMATION_SCHEMA\b|\bSYS\.TABLES\b|\bPG_CATALOG\b)/i
 ];
@@ -130,7 +130,7 @@ function hashIp(ip: string): string {
 }
 
 // Clean up expired quarantine entries periodically
-setInterval(() => {
+const firewallCleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of ipQuarantineStore.entries()) {
     if (now > record.bannedUntil) {
@@ -143,6 +143,9 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000);
+if (firewallCleanupInterval.unref) {
+  firewallCleanupInterval.unref();
+}
 
 // Recursively inspect values in request payload
 function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: SecurityThreatRecord['threatType']; fragment?: string } {
@@ -236,6 +239,19 @@ function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: Secu
       }
       const inspectedKey = inspectValue(key, depth + 1);
       if (inspectedKey.detected) return inspectedKey;
+
+      // Sensitive credential fields (passwords, tokens, HMAC secrets) are opaque and can contain
+      // arbitrary symbols (such as #, $, !, @, quotes) and are securely hashed server-side.
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey.includes('password') ||
+        lowerKey === 'token' ||
+        lowerKey === 'refreshtoken' ||
+        lowerKey === 'accesstoken' ||
+        lowerKey === 'secret'
+      ) {
+        continue;
+      }
 
       const inspectedProp = inspectValue((val as Record<string, unknown>)[key], depth + 1);
       if (inspectedProp.detected) return inspectedProp;
@@ -429,4 +445,10 @@ export function getSecurityAnalytics() {
     threatDistribution,
     recentThreats: recentThreats.slice(0, 20)
   };
+}
+
+export function resetFirewallQuarantineForTesting(): void {
+  ipThreatStore.clear();
+  ipQuarantineStore.clear();
+  recentThreats.length = 0;
 }

@@ -9,8 +9,10 @@
 import assert from 'assert';
 import http from 'http';
 import { app } from '../server';
+import { resetFirewallQuarantineForTesting } from '../src/server/securityFirewall';
 
 async function runProfileIdempotencyTests() {
+  resetFirewallQuarantineForTesting();
   console.log('🧪 Starting Profile Idempotency & Offline Sync Regression Suite...');
 
   const server = http.createServer(app);
@@ -90,6 +92,57 @@ async function runProfileIdempotencyTests() {
 
     console.log('  ✔ Idempotent profile creation: First attempt created, retry returned existing record.');
     console.log('  ✔ Zero duplicate records created in database.');
+
+    // 5. High-concurrency Race Condition Test: simultaneous requests with identical idempotencyKey
+    console.log('\n  ▶ High-Concurrency Race: Firing 15 simultaneous requests with identical idempotencyKey...');
+    const regRes = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: `concurrent_${Date.now()}@aurora.test`,
+        password: 'StrongPassword123!@#',
+        fullName: 'Concurrent Test User'
+      })
+    });
+    assert.strictEqual(regRes.status, 201);
+    const regData = await regRes.json();
+    const concurrentUserToken = regData.token || regData.accessToken;
+    assert(concurrentUserToken, 'Must receive user token');
+
+    const concurrentKey = `concurrent_sync_${Date.now()}`;
+    const concurrentPromises = Array.from({ length: 15 }).map(() =>
+      fetch(`${baseUrl}/api/profiles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${concurrentUserToken}`,
+          'idempotency-key': concurrentKey
+        },
+        body: JSON.stringify({
+          name: 'Hồ Sơ Đồng Thì 15 Requests',
+          birthData: testBirthData
+        })
+      })
+    );
+
+    const responses = await Promise.all(concurrentPromises);
+    assert.strictEqual(responses.length, 15);
+    const bodies = await Promise.all(responses.map(r => r.json()));
+
+    const statusCodes = responses.map(r => r.status);
+    assert(statusCodes.every(s => s === 200 || s === 201), `All concurrent requests must return 200 or 201, got: ${statusCodes.join(',')}`);
+
+    const createdIds = new Set(bodies.map(b => b.profile.id));
+    assert.strictEqual(createdIds.size, 1, 'All 15 concurrent requests must resolve to the EXACT SAME profile ID');
+
+    // Verify database has exactly 1 profile for this user
+    const finalListRes = await fetch(`${baseUrl}/api/profiles`, {
+      headers: { 'Authorization': `Bearer ${concurrentUserToken}` }
+    });
+    const finalProfiles = await finalListRes.json();
+    assert.strictEqual(finalProfiles.length, 1, 'Database must have exactly 1 profile, zero race-condition duplicates created');
+
+    console.log('  ✔ 15 concurrent requests resolved to identical profile ID with zero race duplicates.');
     console.log('\n🎉 Profile Idempotency & Offline Sync tests PASSED!\n');
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));

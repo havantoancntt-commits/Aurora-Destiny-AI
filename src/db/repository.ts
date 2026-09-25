@@ -983,6 +983,20 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
       throw new Error(`Foreign key constraint failed: User '${profile.userId}' does not exist.`);
     }
 
+    // Idempotency check: prevent duplicate profile creation for same userId + idempotencyKey/clientProfileId
+    if (profile.idempotencyKey || profile.clientProfileId) {
+      for (const existing of Object.values(this.state.profiles)) {
+        if (existing.userId === profile.userId && existing.id !== profile.id) {
+          if (
+            (profile.idempotencyKey && existing.idempotencyKey === profile.idempotencyKey) ||
+            (profile.clientProfileId && existing.clientProfileId === profile.clientProfileId)
+          ) {
+            return existing;
+          }
+        }
+      }
+    }
+
     this.state.profiles[profile.id] = { ...profile, updatedAt: new Date().toISOString() };
     
     // Update user profile count

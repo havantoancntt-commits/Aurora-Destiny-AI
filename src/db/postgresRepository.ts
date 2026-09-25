@@ -415,7 +415,9 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
     const res = await this.query(
       `SELECT id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
               birth_data as "birthData", behavioral_context as "behavioralContext", 
-              latest_calculation_id as "latestCalculationId", created_at as "createdAt", updated_at as "updatedAt"
+              latest_calculation_id as "latestCalculationId",
+              idempotency_key as "idempotencyKey", client_profile_id as "clientProfileId",
+              created_at as "createdAt", updated_at as "updatedAt"
        FROM profiles WHERE user_id = $1 ORDER BY created_at DESC`,
       [userId]
     );
@@ -426,7 +428,9 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
     const res = await this.query(
       `SELECT id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
               birth_data as "birthData", behavioral_context as "behavioralContext", 
-              latest_calculation_id as "latestCalculationId", created_at as "createdAt", updated_at as "updatedAt"
+              latest_calculation_id as "latestCalculationId",
+              idempotency_key as "idempotencyKey", client_profile_id as "clientProfileId",
+              created_at as "createdAt", updated_at as "updatedAt"
        FROM profiles WHERE id = $1`,
       [profileId]
     );
@@ -434,34 +438,63 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   }
 
   async saveProfile(profile: UserProfile): Promise<UserProfile> {
-    const res = await this.query(
-      `INSERT INTO profiles (id, user_id, name, is_primary, avatar_seed, birth_data, behavioral_context, latest_calculation_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
-         is_primary = EXCLUDED.is_primary,
-         avatar_seed = EXCLUDED.avatar_seed,
-         birth_data = EXCLUDED.birth_data,
-         behavioral_context = EXCLUDED.behavioral_context,
-         latest_calculation_id = EXCLUDED.latest_calculation_id,
-         updated_at = EXCLUDED.updated_at
-       RETURNING id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
-                 birth_data as "birthData", behavioral_context as "behavioralContext", 
-                 latest_calculation_id as "latestCalculationId", created_at as "createdAt", updated_at as "updatedAt"`,
-      [
-        profile.id,
-        profile.userId,
-        profile.name,
-        !!profile.isPrimary,
-        profile.avatarSeed || null,
-        JSON.stringify(profile.birthData),
-        JSON.stringify(profile.behavioralContext || {}),
-        profile.latestCalculationId || null,
-        profile.createdAt || new Date().toISOString(),
-        profile.updatedAt || new Date().toISOString()
-      ]
-    );
-    return res.rows[0];
+    try {
+      const res = await this.query(
+        `INSERT INTO profiles (id, user_id, name, is_primary, avatar_seed, birth_data, behavioral_context, latest_calculation_id, idempotency_key, client_profile_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (id) DO UPDATE SET
+           name = EXCLUDED.name,
+           is_primary = EXCLUDED.is_primary,
+           avatar_seed = EXCLUDED.avatar_seed,
+           birth_data = EXCLUDED.birth_data,
+           behavioral_context = EXCLUDED.behavioral_context,
+           latest_calculation_id = EXCLUDED.latest_calculation_id,
+           idempotency_key = COALESCE(EXCLUDED.idempotency_key, profiles.idempotency_key),
+           client_profile_id = COALESCE(EXCLUDED.client_profile_id, profiles.client_profile_id),
+           updated_at = EXCLUDED.updated_at
+         RETURNING id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
+                   birth_data as "birthData", behavioral_context as "behavioralContext", 
+                   latest_calculation_id as "latestCalculationId",
+                   idempotency_key as "idempotencyKey", client_profile_id as "clientProfileId",
+                   created_at as "createdAt", updated_at as "updatedAt"`,
+        [
+          profile.id,
+          profile.userId,
+          profile.name,
+          !!profile.isPrimary,
+          profile.avatarSeed || null,
+          JSON.stringify(profile.birthData),
+          JSON.stringify(profile.behavioralContext || {}),
+          profile.latestCalculationId || null,
+          profile.idempotencyKey || null,
+          profile.clientProfileId || null,
+          profile.createdAt || new Date().toISOString(),
+          profile.updatedAt || new Date().toISOString()
+        ]
+      );
+      return res.rows[0];
+    } catch (err: any) {
+      // 23505 is PostgreSQL unique_violation code for idempotency key
+      if (err.code === '23505' && (profile.idempotencyKey || profile.clientProfileId)) {
+        const existing = await this.query(
+          `SELECT id, user_id as "userId", name, is_primary as "isPrimary", avatar_seed as "avatarSeed",
+                  birth_data as "birthData", behavioral_context as "behavioralContext", 
+                  latest_calculation_id as "latestCalculationId",
+                  idempotency_key as "idempotencyKey", client_profile_id as "clientProfileId",
+                  created_at as "createdAt", updated_at as "updatedAt"
+           FROM profiles 
+           WHERE user_id = $1 AND (
+             ($2::varchar IS NOT NULL AND idempotency_key = $2) OR
+             ($3::varchar IS NOT NULL AND client_profile_id = $3)
+           ) LIMIT 1`,
+          [profile.userId, profile.idempotencyKey || null, profile.clientProfileId || null]
+        );
+        if (existing.rows[0]) {
+          return existing.rows[0];
+        }
+      }
+      throw err;
+    }
   }
 
   async deleteProfile(profileId: string, userId: string): Promise<boolean> {

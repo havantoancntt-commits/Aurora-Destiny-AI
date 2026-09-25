@@ -543,7 +543,33 @@ function determineClientType(req: Request): 'browser' | 'api' | 'mobile' {
   return 'api';
 }
 
+export type AuthMode = 'BROWSER_PRODUCTION_AUTH' | 'SANDBOX_COMPATIBILITY_AUTH' | 'API_TOKEN_AUTH';
+
+function determineAuthMode(req: Request, clientType: 'browser' | 'api' | 'mobile'): AuthMode {
+  if (clientType === 'api' || clientType === 'mobile') {
+    return 'API_TOKEN_AUTH';
+  }
+
+  // Explicit client request for sandbox compatibility (sandboxed iframe / cross-origin preview)
+  const isSandboxHeader = req.headers['x-client-mode'] === 'sandbox' || req.headers['x-aurora-compat'] === 'sandbox';
+  const isIframeOrCloudRun = Boolean(
+    process.env.K_SERVICE ||
+    process.env.CLOUD_RUN_JOB ||
+    req.headers['sec-fetch-dest'] === 'empty' ||
+    req.headers.referer?.includes('aistudio.google.com') ||
+    req.headers.origin?.includes('aistudio.google.com')
+  );
+  const isSandboxEnv = process.env.AUTH_COMPATIBILITY_MODE === 'sandbox' || (process.env.NODE_ENV !== 'production' && isIframeOrCloudRun);
+
+  if (isSandboxHeader || isSandboxEnv) {
+    return 'SANDBOX_COMPATIBILITY_AUTH';
+  }
+
+  return 'BROWSER_PRODUCTION_AUTH';
+}
+
 function sendAuthResponse(
+  req: Request,
   res: Response,
   result: AuthResult,
   message: string,
@@ -553,16 +579,28 @@ function sendAuthResponse(
   // Always set HttpOnly cookie as primary defense-in-depth
   setSessionCookie(res, result.token);
 
-  if (clientType === 'browser') {
-    // BROWSER MODE: Set HttpOnly cookie and ALSO return session token in response body.
-    // In cross-origin sandboxed iframes (e.g. AI Studio preview), browsers restrict third-party cookies.
-    // Providing the token in the response body allows the client ApiClient to authenticate
-    // via Authorization: Bearer <token> or x-session-token headers seamlessly.
+  const authMode = determineAuthMode(req, clientType);
+
+  if (authMode === 'BROWSER_PRODUCTION_AUTH') {
+    // PURE BROWSER PRODUCTION: HttpOnly Secure Cookie ONLY
+    // NEVER expose long-lived or session credentials directly to JavaScript in response body
+    return res.status(statusCode).json({
+      user: result.user,
+      sessionMode: 'cookie',
+      authMode: 'BROWSER_PRODUCTION_AUTH',
+      message
+    });
+  }
+
+  if (authMode === 'SANDBOX_COMPATIBILITY_AUTH') {
+    // SANDBOX COMPATIBILITY: Required for AI Studio iframe preview & cross-origin sandboxes
+    // where third-party cookies are blocked by browser privacy policies
     return res.status(statusCode).json({
       user: result.user,
       token: result.token,
       accessToken: result.accessToken || result.token,
-      sessionMode: 'cookie',
+      sessionMode: 'sandbox',
+      authMode: 'SANDBOX_COMPATIBILITY_AUTH',
       message
     });
   }
@@ -576,6 +614,7 @@ function sendAuthResponse(
     expiresIn: result.expiresIn || 900,
     tokenType: 'Bearer',
     sessionMode: 'token',
+    authMode: 'API_TOKEN_AUTH',
     message
   });
 }
@@ -594,7 +633,7 @@ app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
       requestId: req.requestId
     });
 
-    sendAuthResponse(res, result, 'Đăng ký tài khoản thành công', clientType, 201);
+    sendAuthResponse(req, res, result, 'Đăng ký tài khoản thành công', clientType, 201);
   } catch (err) {
     next(err);
   }
@@ -615,7 +654,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
       requestId: req.requestId
     });
 
-    sendAuthResponse(res, result, 'Đăng nhập thành công', clientType, 200);
+    sendAuthResponse(req, res, result, 'Đăng nhập thành công', clientType, 200);
   } catch (err) {
     next(err);
   }
@@ -677,13 +716,20 @@ app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
     const clientType = determineClientType(req);
     // If user already has an active registered session, preserve it and do not overwrite
     if (req.user && req.user.role !== 'GUEST') {
-      if (clientType === 'browser') {
-        return res.json({ user: req.user, token: req.sessionToken, sessionMode: 'cookie', message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
+      const mode = determineAuthMode(req, clientType);
+      if (mode === 'BROWSER_PRODUCTION_AUTH') {
+        return res.json({ user: req.user, sessionMode: 'cookie', authMode: mode, message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
       }
-      return res.json({ user: req.user, token: req.sessionToken, sessionMode: 'token', message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
+      return res.json({
+        user: req.user,
+        token: req.sessionToken,
+        sessionMode: mode === 'SANDBOX_COMPATIBILITY_AUTH' ? 'sandbox' : 'token',
+        authMode: mode,
+        message: 'Phiên đăng nhập hiện tại vẫn hợp lệ'
+      });
     }
     const result = await createGuestSessionAsync(clientType);
-    sendAuthResponse(res, result, 'Khởi tạo phiên khách thành công', clientType, 200);
+    sendAuthResponse(req, res, result, 'Khởi tạo phiên khách thành công', clientType, 200);
   } catch (err) {
     next(err);
   }
@@ -811,6 +857,8 @@ app.delete('/api/user/me', requireAuth, async (req, res) => {
 // ----------------------------------------------------
 // 4. PROFILES (STRICT USER ISOLATION & TRANSACTION SAFETY)
 // ----------------------------------------------------
+const profileCreationMutexes = new Map<string, Promise<{ profile: UserProfile; calculation: any; idempotencyReplay?: boolean }>>();
+
 app.get('/api/profiles', requireAuth, async (req, res) => {
   const profiles = await repository.getProfiles(req.user!.id);
   res.json(profiles);
@@ -827,6 +875,14 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
       validated.clientProfileId
     ) as string | undefined;
 
+    const dedupeKey = idempotencyKey ? `${userId}:${idempotencyKey}` : null;
+
+    // Check if an in-flight creation request with identical idempotencyKey is already executing
+    if (dedupeKey && profileCreationMutexes.has(dedupeKey)) {
+      const existingInFlight = await profileCreationMutexes.get(dedupeKey)!;
+      return res.status(200).json({ ...existingInFlight, idempotencyReplay: true });
+    }
+
     // Check if duplicate request has already been processed (Idempotency Replay)
     if (idempotencyKey) {
       const existingProfiles = await repository.getProfiles(userId);
@@ -839,53 +895,82 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
       }
     }
 
-    // Atomic transaction for guest quota check, profile, calculation & initial backtest creation
-    const { newProfile, calc } = await repository.runTransaction(async (repo) => {
-      // Enforce guest quota atomically: role === 'GUEST' is single source of truth
-      if (req.user!.role === 'GUEST') {
-        const existingProfiles = await repo.getProfiles(userId);
-        if (existingProfiles.length >= 2) {
-          throw new AppError(
-            'Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.',
-            'GUEST_QUOTA_EXCEEDED',
-            403
-          );
+    const creationPromise = (async () => {
+      // Atomic transaction for guest quota check, profile, calculation & initial backtest creation
+      return await repository.runTransaction(async (repo) => {
+        // Enforce guest quota atomically: role === 'GUEST' is single source of truth
+        if (req.user!.role === 'GUEST') {
+          const existingProfiles = await repo.getProfiles(userId);
+          if (existingProfiles.length >= 2) {
+            throw new AppError(
+              'Phiên khách tạm thời giới hạn tối đa 2 hồ sơ lá số. Vui lòng đăng ký tài khoản chính thức miễn phí để tạo không giới hạn hồ sơ.',
+              'GUEST_QUOTA_EXCEEDED',
+              403
+            );
+          }
         }
+
+        // Intra-transaction re-check to prevent race condition under concurrency
+        if (idempotencyKey) {
+          const currentProfiles = await repo.getProfiles(userId);
+          const alreadyCreated = currentProfiles.find(
+            p => p.idempotencyKey === idempotencyKey || p.clientProfileId === idempotencyKey
+          );
+          if (alreadyCreated) {
+            const existingCalc = await repo.getCalculation(alreadyCreated.latestCalculationId || '');
+            return { newProfile: alreadyCreated, calc: existingCalc, idempotencyReplay: true };
+          }
+        }
+
+        const createdProfile: UserProfile = {
+          id: `prof_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+          userId,
+          name: validated.name,
+          isPrimary: validated.isPrimary || false,
+          avatarSeed: validated.name.toLowerCase().replace(/\s+/g, '_'),
+          birthData: validated.birthData,
+          behavioralContext: validated.behavioralContext || {
+            careerField: '',
+            employmentStatus: '',
+            financialGoal: '',
+            relationshipStatus: '',
+            topPriority: '',
+            personalNotes: ''
+          },
+          idempotencyKey,
+          clientProfileId: validated.clientProfileId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const computedCalc = runFullDestinyCalculation(createdProfile.birthData, createdProfile.id, 0);
+        computedCalc.cryptographicSignature = generateAlgorithmSignature(computedCalc);
+        createdProfile.latestCalculationId = computedCalc.id;
+
+        const savedProfile = await repo.saveProfile(createdProfile);
+        await repo.saveCalculation(computedCalc);
+
+        const initialBt = runBacktestAnalysis([], computedCalc);
+        await repo.saveBacktestResult(initialBt);
+
+        return { newProfile: savedProfile, calc: computedCalc, idempotencyReplay: false };
+      });
+    })();
+
+    if (dedupeKey) {
+      profileCreationMutexes.set(dedupeKey, creationPromise.then(r => ({ profile: r.newProfile, calculation: r.calc, idempotencyReplay: r.idempotencyReplay })));
+    }
+
+    let result;
+    try {
+      result = await creationPromise;
+    } finally {
+      if (dedupeKey) {
+        profileCreationMutexes.delete(dedupeKey);
       }
+    }
 
-      const createdProfile: UserProfile = {
-        id: `prof_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
-        userId,
-        name: validated.name,
-        isPrimary: validated.isPrimary || false,
-        avatarSeed: validated.name.toLowerCase().replace(/\s+/g, '_'),
-        birthData: validated.birthData,
-        behavioralContext: validated.behavioralContext || {
-          careerField: '',
-          employmentStatus: '',
-          financialGoal: '',
-          relationshipStatus: '',
-          topPriority: '',
-          personalNotes: ''
-        },
-        idempotencyKey,
-        clientProfileId: validated.clientProfileId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      const computedCalc = runFullDestinyCalculation(createdProfile.birthData, createdProfile.id, 0);
-      computedCalc.cryptographicSignature = generateAlgorithmSignature(computedCalc);
-      createdProfile.latestCalculationId = computedCalc.id;
-
-      await repo.saveProfile(createdProfile);
-      await repo.saveCalculation(computedCalc);
-
-      const initialBt = runBacktestAnalysis([], computedCalc);
-      await repo.saveBacktestResult(initialBt);
-
-      return { newProfile: createdProfile, calc: computedCalc };
-    });
+    const { newProfile, calc, idempotencyReplay } = result;
 
     await repository.logAudit({
       userId,
@@ -1044,7 +1129,7 @@ app.get('/api/events/:profileId', requireAuth, async (req, res) => {
   res.json(events);
 });
 
-app.post(['/api/events', '/api/backtests/event'], requireAuth, async (req, res, next) => {
+app.post(['/api/events', '/api/backtests/event'], requireAuth, calculationRateLimiter, async (req, res, next) => {
   try {
     const validated = HistoricalEventSchema.parse(req.body);
     const profile = await verifyProfileOwnershipAsync(req, res, validated.profileId);
@@ -1109,7 +1194,7 @@ app.delete(['/api/events/:profileId/:eventId', '/api/backtests/event/:profileId/
   }
 });
 
-app.get(['/api/backtest/:profileId', '/api/backtests/:profileId'], requireAuth, async (req, res) => {
+app.get(['/api/backtest/:profileId', '/api/backtests/:profileId'], requireAuth, calculationRateLimiter, async (req, res) => {
   const { profileId } = req.params;
   const profile = await verifyProfileOwnershipAsync(req, res, profileId);
   if (!profile) return;
@@ -1395,6 +1480,26 @@ app.get('/api/admin/export-sql', requireAdmin, adminRateLimiter, async (req, res
 app.post('/api/admin/cleanup-sessions', requireAdmin, adminRateLimiter, async (req, res) => {
   const cleaned = await repository.cleanupExpiredSessions();
   res.json({ success: true, cleanedSessionsCount: cleaned });
+});
+
+// Dedicated scheduler / cron cleanup endpoint for serverless architectures (Vercel Cron / Cloud Scheduler)
+app.post(['/api/system/cleanup', '/api/cron/cleanup'], async (req, res) => {
+  const cronSecret = process.env.CRON_SECRET;
+  const headerSecret = req.headers['x-cron-secret'] || req.headers.authorization?.replace('Bearer ', '');
+  const isAuthorized = (cronSecret && headerSecret === cronSecret) || (req.user && (req.user.role === 'ADMIN' || req.user.role === 'SUPER_ADMIN'));
+
+  if (!isAuthorized && process.env.NODE_ENV === 'production') {
+    return res.status(401).json({
+      error: {
+        code: 'UNAUTHORIZED_CRON',
+        message: 'Yêu cầu mã bí mật hoặc quyền quản trị viên để kích hoạt dọn dẹp hệ thống.',
+        requestId: req.requestId
+      }
+    });
+  }
+
+  const cleaned = await repository.cleanupExpiredSessions();
+  res.json({ success: true, cleanedSessionsCount: cleaned, timestamp: new Date().toISOString() });
 });
 
 // Privacy Export for Profile
@@ -2057,6 +2162,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof ZodError) {
     return res.status(400).json({
       error: {
+        category: 'VALIDATION_ERROR',
         code: 'VALIDATION_ERROR',
         message: 'Dữ liệu đầu vào không hợp lệ',
         details: err.issues.map(i => ({
@@ -2071,12 +2177,25 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   const statusCode = typeof err.statusCode === 'number' ? err.statusCode : 500;
   console.error(`[Error ${req.requestId}] ${req.method} ${req.originalUrl}:`, err?.message || err);
 
+  let category = 'INTERNAL_ERROR';
+  if (statusCode === 400) category = 'VALIDATION_ERROR';
+  else if (statusCode === 401) category = 'AUTH_ERROR';
+  else if (statusCode === 403) category = 'AUTHORIZATION_ERROR';
+  else if (statusCode === 404) category = 'NOT_FOUND_ERROR';
+  else if (statusCode === 409) category = 'CONFLICT_ERROR';
+  else if (statusCode === 429) category = 'RATE_LIMIT_ERROR';
+  else if (statusCode >= 502 && statusCode <= 504) category = 'UPSTREAM_SERVICE_ERROR';
+  else if (err.code?.includes('DB_') || err.code?.includes('POSTGRES')) category = 'DATABASE_ERROR';
+  else if (err.code?.includes('AI_')) category = 'AI_PROVIDER_ERROR';
+  else if (err.code?.includes('CALC_')) category = 'CALCULATION_ERROR';
+
   const safeMessage = (statusCode === 500 && process.env.NODE_ENV === 'production')
     ? 'Đã xảy ra lỗi nội bộ hệ thống trong quá trình xử lý yêu cầu.'
     : (err.message || 'Đã xảy ra lỗi trong quá trình xử lý');
 
   res.status(statusCode).json({
     error: {
+      category,
       code: err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST'),
       message: safeMessage,
       requestId: req.requestId
@@ -2089,6 +2208,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.all('/api/*', (req: Request, res: Response) => {
   res.status(404).json({
     error: {
+      category: 'NOT_FOUND_ERROR',
       code: 'API_ENDPOINT_NOT_FOUND',
       message: `Đường dẫn API '${req.method} ${req.path}' không tồn tại trên hệ thống.`,
       requestId: req.requestId
@@ -2132,9 +2252,10 @@ async function startServer() {
     console.error('[Session Cleanup Startup Error]', err);
   }
 
-  // Periodic expired session & abandoned guest purge (every 15 minutes)
+  // Periodic expired session purge (every 15 minutes in persistent server environments)
   let cleanupInterval: NodeJS.Timeout | null = null;
-  if (process.env.DISABLE_BACKGROUND_CLEANUP !== 'true') {
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (!isServerless && process.env.DISABLE_BACKGROUND_CLEANUP !== 'true') {
     cleanupInterval = setInterval(async () => {
       try {
         await repository.cleanupExpiredSessions();
@@ -2142,6 +2263,9 @@ async function startServer() {
         console.error('[Session Cleanup Error]', err);
       }
     }, 15 * 60 * 1000);
+    if (cleanupInterval.unref) {
+      cleanupInterval.unref();
+    }
   }
 
   if (process.env.NODE_ENV !== 'production') {

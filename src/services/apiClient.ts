@@ -37,6 +37,21 @@ class ApiClient {
     }
   }
 
+  private isSandboxEnvironment(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      return (
+        window.self !== window.top ||
+        window.location.hostname.includes('.run.app') ||
+        window.location.hostname.includes('localhost') ||
+        window.location.hostname.includes('127.0.0.1') ||
+        window.location.hostname.includes('webcontainer')
+      );
+    } catch {
+      return true; // Cross-origin iframe security exception indicates sandboxed iframe
+    }
+  }
+
   public resetSessionState() {
     this.sessionInitialized = false;
     this.setToken(null);
@@ -46,7 +61,7 @@ class ApiClient {
   // 1. Verifies if an existing authenticated session (registered or guest) is already active via /api/auth/me
   // 2. Only auto-provisions a guest session if no active session exists, preventing session overwrites
   public async ensureSession(force = false): Promise<boolean> {
-    if (this.sessionInitialized && !force && this.token) return true;
+    if (this.sessionInitialized && !force && (this.token || !this.isSandboxEnvironment())) return true;
 
     if (this.sessionPromise) {
       return this.sessionPromise;
@@ -54,9 +69,13 @@ class ApiClient {
 
     this.sessionPromise = (async () => {
       try {
+        const isSandbox = this.isSandboxEnvironment();
         const headers: Record<string, string> = {
           'Content-Type': 'application/json'
         };
+        if (isSandbox) {
+          headers['x-client-mode'] = 'sandbox';
+        }
         if (this.token) {
           headers['Authorization'] = `Bearer ${this.token}`;
           headers['x-session-token'] = this.token;
@@ -79,6 +98,9 @@ class ApiClient {
         const guestHeaders: Record<string, string> = {
           'Content-Type': 'application/json'
         };
+        if (isSandbox) {
+          guestHeaders['x-client-mode'] = 'sandbox';
+        }
         const res = await fetch('/api/auth/guest', {
           method: 'POST',
           headers: guestHeaders,
@@ -87,8 +109,11 @@ class ApiClient {
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
           const receivedToken = data?.token || data?.accessToken;
-          if (receivedToken) {
+          if (receivedToken && isSandbox) {
             this.setToken(receivedToken);
+          } else if (data?.sessionMode === 'cookie') {
+            // Pure BROWSER_PRODUCTION_AUTH: relies strictly on HttpOnly Secure cookies
+            this.setToken(null);
           }
           this.sessionInitialized = true;
           return true;
@@ -138,9 +163,13 @@ class ApiClient {
 
   // Auth operations
   public async register(email: string, password: string, fullName: string) {
+    const isSandbox = this.isSandboxEnvironment();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (isSandbox) headers['x-client-mode'] = 'sandbox';
+
     const res = await fetch('/api/auth/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'include',
       body: JSON.stringify({ email, password, fullName })
     });
@@ -149,15 +178,20 @@ class ApiClient {
       throw new Error(err?.error?.message || `Đăng ký thất bại (${res.status})`);
     }
     const data = await res.json();
-    if (data?.token) {
-      this.setToken(data.token);
+    const receivedToken = data?.token || data?.accessToken;
+    if (receivedToken && isSandbox) {
+      this.setToken(receivedToken);
+    } else if (data?.sessionMode === 'cookie') {
+      this.setToken(null);
     }
     this.sessionInitialized = true;
     return data;
   }
 
   public async login(email: string, password: string) {
+    const isSandbox = this.isSandboxEnvironment();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (isSandbox) headers['x-client-mode'] = 'sandbox';
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
       headers['x-session-token'] = this.token;
@@ -173,8 +207,11 @@ class ApiClient {
       throw new Error(err?.error?.message || `Đăng nhập thất bại (${res.status})`);
     }
     const data = await res.json();
-    if (data?.token) {
-      this.setToken(data.token);
+    const receivedToken = data?.token || data?.accessToken;
+    if (receivedToken && isSandbox) {
+      this.setToken(receivedToken);
+    } else if (data?.sessionMode === 'cookie') {
+      this.setToken(null);
     }
     this.sessionInitialized = true;
     return data;
