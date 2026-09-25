@@ -277,13 +277,18 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
 
   async saveSession(session: StoredSession): Promise<void> {
     const tokenHash = this.hashToken(session.token);
+    const refreshHash = session.refreshToken ? this.hashToken(session.refreshToken) : null;
     await this.query(
-      `INSERT INTO sessions (token, token_hash, user_id, expires_at, created_at, last_accessed_at, is_guest)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO sessions (token, token_hash, user_id, expires_at, created_at, last_accessed_at, is_guest, client_type, refresh_token_hash, token_family, revoked_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (token) DO UPDATE SET
          token_hash = EXCLUDED.token_hash,
          last_accessed_at = EXCLUDED.last_accessed_at,
-         expires_at = EXCLUDED.expires_at`,
+         expires_at = EXCLUDED.expires_at,
+         client_type = EXCLUDED.client_type,
+         refresh_token_hash = EXCLUDED.refresh_token_hash,
+         token_family = EXCLUDED.token_family,
+         revoked_at = EXCLUDED.revoked_at`,
       [
         tokenHash,
         tokenHash,
@@ -291,7 +296,11 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
         new Date(session.expiresAt).toISOString(),
         new Date(session.createdAt).toISOString(),
         new Date(session.lastAccessedAt).toISOString(),
-        !!session.isGuest
+        !!session.isGuest,
+        session.clientType || 'browser',
+        refreshHash,
+        session.tokenFamily || null,
+        session.revokedAt ? new Date(session.revokedAt).toISOString() : null
       ]
     );
   }
@@ -299,7 +308,8 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   async getSession(token: string): Promise<StoredSession | null> {
     const tokenHash = this.hashToken(token);
     const res = await this.query(
-      `SELECT token, token_hash, user_id as "userId", expires_at, created_at, last_accessed_at, is_guest as "isGuest"
+      `SELECT token, token_hash, user_id as "userId", expires_at, created_at, last_accessed_at, is_guest as "isGuest",
+              client_type as "clientType", refresh_token_hash as "refreshTokenHash", token_family as "tokenFamily", revoked_at as "revokedAt"
        FROM sessions WHERE token_hash = $1 OR token = $1`,
       [tokenHash]
     );
@@ -307,12 +317,26 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
     const r = res.rows[0];
     return {
       token, // Maintain original session token for caller context
+      tokenHash: r.token_hash,
       userId: r.userId,
       expiresAt: new Date(r.expires_at).getTime(),
       createdAt: new Date(r.created_at).getTime(),
       lastAccessedAt: new Date(r.last_accessed_at).getTime(),
-      isGuest: r.isGuest
+      isGuest: r.isGuest,
+      clientType: r.clientType,
+      refreshTokenHash: r.refreshTokenHash,
+      tokenFamily: r.tokenFamily,
+      revokedAt: r.revokedAt ? new Date(r.revokedAt).getTime() : null
     };
+  }
+
+  async revokeTokenFamily(tokenFamily: string): Promise<number> {
+    if (!tokenFamily) return 0;
+    const res = await this.query(
+      'UPDATE sessions SET revoked_at = NOW() WHERE token_family = $1 AND revoked_at IS NULL',
+      [tokenFamily]
+    );
+    return res.rowCount || 0;
   }
 
   async deleteSession(token: string): Promise<boolean> {

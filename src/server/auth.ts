@@ -167,11 +167,16 @@ export async function createSessionAsync(userId: string, isGuest: boolean = fals
   };
 }
 
+// Mutex map for atomic in-flight rotation deduplication
+const refreshMutexes = new Map<string, Promise<ApiTokenPair>>();
+
 // Create short-lived access token & refresh token pair for Mobile/API mode
 export async function createApiSessionAsync(
   userId: string,
-  isGuest: boolean = false
+  isGuest: boolean = false,
+  existingFamily?: string
 ): Promise<ApiTokenPair> {
+  const tokenFamily = existingFamily || `fam_${crypto.randomBytes(16).toString('hex')}`;
   const accessToken = generateToken('aurora_at_');
   const refreshToken = generateToken('aurora_rt_');
   const now = Date.now();
@@ -187,7 +192,8 @@ export async function createApiSessionAsync(
     lastAccessedAt: now,
     isGuest,
     clientType: 'api',
-    refreshToken
+    refreshToken,
+    tokenFamily
   });
 
   // Save refresh token session (stored securely in session repository)
@@ -199,7 +205,8 @@ export async function createApiSessionAsync(
     lastAccessedAt: now,
     isGuest,
     clientType: 'api',
-    refreshToken: accessToken
+    refreshToken: accessToken,
+    tokenFamily
   });
 
   return {
@@ -218,24 +225,49 @@ export async function rotateRefreshTokenAsync(
     throw new Error('Mã làm mới không hợp lệ hoặc không đúng định dạng');
   }
 
-  const session = await repository.getSession(refreshToken);
-  if (!session) {
-    throw new Error('Mã làm mới không hợp lệ hoặc đã bị thu hồi');
+  // Deduplicate near-simultaneous concurrent refresh calls with the exact same token
+  if (refreshMutexes.has(refreshToken)) {
+    return await refreshMutexes.get(refreshToken)!;
   }
 
-  if (Date.now() > session.expiresAt) {
-    await repository.deleteSession(refreshToken);
-    throw new Error('Mã làm mới đã hết hạn, vui lòng đăng nhập lại');
-  }
+  const rotationPromise = (async () => {
+    const session = await repository.getSession(refreshToken);
+    if (!session) {
+      throw new Error('Mã làm mới không hợp lệ hoặc đã bị thu hồi');
+    }
 
-  // Revoke old refresh token and old access token
-  await repository.deleteSession(refreshToken);
-  if (session.refreshToken) {
-    await repository.deleteSession(session.refreshToken);
-  }
+    // REPLAY ATTACK DETECTION: Token has already been used/revoked!
+    if (session.revokedAt) {
+      if (session.tokenFamily && (repository as any).revokeTokenFamily) {
+        await (repository as any).revokeTokenFamily(session.tokenFamily);
+      }
+      throw new Error('Cảnh báo bảo mật: Phát hiện mã làm mới đã từng sử dụng (Replay Attack). Toàn bộ phiên đã bị thu hồi.');
+    }
 
-  // Issue new pair (refresh token rotation)
-  return await createApiSessionAsync(session.userId, !!session.isGuest);
+    if (Date.now() > session.expiresAt) {
+      await repository.deleteSession(refreshToken);
+      throw new Error('Mã làm mới đã hết hạn, vui lòng đăng nhập lại');
+    }
+
+    // Invalidate old access token if linked
+    if (session.refreshToken) {
+      await repository.deleteSession(session.refreshToken);
+    }
+
+    // Mark old refresh token as revoked immediately so subsequent reuse is caught as replay
+    session.revokedAt = Date.now();
+    await repository.saveSession(session);
+
+    // Issue new pair (refresh token rotation under same token family)
+    return await createApiSessionAsync(session.userId, !!session.isGuest, session.tokenFamily);
+  })();
+
+  refreshMutexes.set(refreshToken, rotationPromise);
+  try {
+    return await rotationPromise;
+  } finally {
+    refreshMutexes.delete(refreshToken);
+  }
 }
 
 // Create persistent session (Sync / Fire-and-forget fallback)
@@ -268,7 +300,7 @@ export function createSession(userId: string, isGuest: boolean = false, duration
 export async function getSessionUserAsync(token: string): Promise<UserAccount | null> {
   if (!token) return null;
   const session = await repository.getSession(token);
-  if (!session) return null;
+  if (!session || session.revokedAt) return null;
   return await repository.getUser(session.userId);
 }
 
@@ -276,12 +308,21 @@ export function getSessionUser(token: string): UserAccount | null {
   if (!token) return null;
   const syncRepo = getSyncRepo();
   const session = syncRepo.getSessionSync ? syncRepo.getSessionSync(token) : null;
-  if (!session) return null;
+  if (!session || session.revokedAt) return null;
   return syncRepo.getUserSync ? syncRepo.getUserSync(session.userId) : null;
 }
 
 export async function revokeSessionAsync(token: string): Promise<boolean> {
   if (!token) return false;
+  const session = await repository.getSession(token);
+  if (session) {
+    if (session.refreshToken) {
+      await repository.deleteSession(session.refreshToken);
+    }
+    if (session.tokenFamily && (repository as any).revokeTokenFamily) {
+      await (repository as any).revokeTokenFamily(session.tokenFamily);
+    }
+  }
   return await repository.deleteSession(token);
 }
 

@@ -91,18 +91,29 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'local_only' | 'syncing' | 'sync_error'>('synced');
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [localProfileIds, setLocalProfileIds] = useState<Set<string>>(new Set());
 
   // Initial Load from API
   const loadInitialData = async () => {
     try {
       setIsLoading(true);
+      setLoadError(null);
       await api.ensureSession();
 
-      // Fetch profiles
-      const loadedProfiles = await api.getProfiles().catch(() => []);
-      setProfiles(loadedProfiles);
-      setSyncStatus('synced');
+      // Fetch profiles with explicit error propagation
+      let loadedProfiles: UserProfile[] = [];
+      try {
+        loadedProfiles = await api.getProfiles();
+        setProfiles(loadedProfiles);
+        setSyncStatus('synced');
+      } catch (profErr: any) {
+        console.error('Failed to load profiles from server:', profErr);
+        setSyncStatus('sync_error');
+        setLoadError(profErr?.message || 'Không thể tải danh sách hồ sơ từ máy chủ. Vui lòng kiểm tra kết nối mạng.');
+        setIsLoading(false);
+        return;
+      }
 
       if (loadedProfiles.length === 0) {
         // Hoàn toàn không có lá số demo, mở ngay ô nhập thông tin khi người dùng vừa truy cập
@@ -533,6 +544,21 @@ export default function App() {
             language={language}
             consistencyScore={ensemble?.overallConsistencyScore}
           />
+        )}
+
+        {loadError && (
+          <div className="mb-4 p-4 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono font-bold text-xs">LỖI KẾT NỐI</span>
+              <span className="text-xs sm:text-sm text-slate-200">{loadError}</span>
+            </div>
+            <button
+              onClick={() => loadInitialData()}
+              className="px-3.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/60 rounded-lg text-xs font-mono font-bold tracking-wider transition-colors text-white whitespace-nowrap cursor-pointer"
+            >
+              Thử Lại
+            </button>
+          </div>
         )}
 
         {isLoading ? (

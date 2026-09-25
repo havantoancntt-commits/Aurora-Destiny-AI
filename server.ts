@@ -248,22 +248,36 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Helper functions for secure HttpOnly cookie management
 function setSessionCookie(res: Response, token: string): void {
-  const isProd = process.env.NODE_ENV === 'production';
+  const req = (res as any).req as Request | undefined;
+  const isHttps = Boolean(
+    process.env.NODE_ENV === 'production' ||
+    req?.secure ||
+    req?.headers?.['x-forwarded-proto'] === 'https' ||
+    req?.headers?.['x-forwarded-ssl'] === 'on' ||
+    Boolean(process.env.K_SERVICE || process.env.CLOUD_RUN_JOB)
+  );
   res.cookie('aurora_session', token, {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax', // 'none' + secure enables iframe embedding in production
+    secure: isHttps,
+    sameSite: isHttps ? 'none' : 'lax', // 'none' + secure enables iframe embedding in HTTPS/Cloud Run environments
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
 }
 
 function clearSessionCookie(res: Response): void {
-  const isProd = process.env.NODE_ENV === 'production';
+  const req = (res as any).req as Request | undefined;
+  const isHttps = Boolean(
+    process.env.NODE_ENV === 'production' ||
+    req?.secure ||
+    req?.headers?.['x-forwarded-proto'] === 'https' ||
+    req?.headers?.['x-forwarded-ssl'] === 'on' ||
+    Boolean(process.env.K_SERVICE || process.env.CLOUD_RUN_JOB)
+  );
   res.clearCookie('aurora_session', {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
+    secure: isHttps,
+    sameSite: isHttps ? 'none' : 'lax',
     path: '/'
   });
 }
@@ -536,12 +550,18 @@ function sendAuthResponse(
   clientType: 'browser' | 'api' | 'mobile',
   statusCode: number = 200
 ) {
+  // Always set HttpOnly cookie as primary defense-in-depth
+  setSessionCookie(res, result.token);
+
   if (clientType === 'browser') {
-    // BROWSER MODE: HttpOnly, Secure, SameSite cookie
-    // NEVER expose long-lived or session credentials directly to JavaScript in response body
-    setSessionCookie(res, result.token);
+    // BROWSER MODE: Set HttpOnly cookie and ALSO return session token in response body.
+    // In cross-origin sandboxed iframes (e.g. AI Studio preview), browsers restrict third-party cookies.
+    // Providing the token in the response body allows the client ApiClient to authenticate
+    // via Authorization: Bearer <token> or x-session-token headers seamlessly.
     return res.status(statusCode).json({
       user: result.user,
+      token: result.token,
+      accessToken: result.accessToken || result.token,
       sessionMode: 'cookie',
       message
     });
@@ -658,7 +678,7 @@ app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
     // If user already has an active registered session, preserve it and do not overwrite
     if (req.user && req.user.role !== 'GUEST') {
       if (clientType === 'browser') {
-        return res.json({ user: req.user, sessionMode: 'cookie', message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
+        return res.json({ user: req.user, token: req.sessionToken, sessionMode: 'cookie', message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
       }
       return res.json({ user: req.user, token: req.sessionToken, sessionMode: 'token', message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
     }
@@ -800,6 +820,24 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
   try {
     const validated = ProfileCreateSchema.parse(req.body);
     const userId = req.user!.id;
+    const idempotencyKey = (
+      req.headers['idempotency-key'] ||
+      req.headers['x-idempotency-key'] ||
+      validated.idempotencyKey ||
+      validated.clientProfileId
+    ) as string | undefined;
+
+    // Check if duplicate request has already been processed (Idempotency Replay)
+    if (idempotencyKey) {
+      const existingProfiles = await repository.getProfiles(userId);
+      const duplicate = existingProfiles.find(
+        p => p.idempotencyKey === idempotencyKey || p.clientProfileId === idempotencyKey
+      );
+      if (duplicate) {
+        const existingCalc = await repository.getCalculation(duplicate.latestCalculationId || '');
+        return res.status(200).json({ profile: duplicate, calculation: existingCalc, idempotencyReplay: true });
+      }
+    }
 
     // Atomic transaction for guest quota check, profile, calculation & initial backtest creation
     const { newProfile, calc } = await repository.runTransaction(async (repo) => {
@@ -830,6 +868,8 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
           topPriority: '',
           personalNotes: ''
         },
+        idempotencyKey,
+        clientProfileId: validated.clientProfileId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

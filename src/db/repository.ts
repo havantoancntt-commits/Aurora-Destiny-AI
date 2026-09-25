@@ -77,6 +77,7 @@ export interface IDatabaseRepository {
   deleteSession(token: string): Promise<boolean>;
   cleanupExpiredSessions(): Promise<number>;
   revokeUserSessions(userId: string): Promise<number>;
+  revokeTokenFamily?(tokenFamily: string): Promise<number>;
 
   // Password Reset Tokens
   createPasswordReset(userId: string): Promise<{ token: string; expiresAt: number }>;
@@ -878,6 +879,25 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     for (const [token, session] of Object.entries(this.state.sessions)) {
       if (session.userId === userId) {
         delete this.state.sessions[token];
+        revoked++;
+      }
+    }
+    if (revoked > 0) {
+      this.schedulePersist();
+    }
+    return revoked;
+  }
+
+  async revokeTokenFamily(tokenFamily: string): Promise<number> {
+    return this.revokeTokenFamilySync(tokenFamily);
+  }
+  revokeTokenFamilySync(tokenFamily: string): number {
+    if (!tokenFamily) return 0;
+    let revoked = 0;
+    const now = Date.now();
+    for (const [token, session] of Object.entries(this.state.sessions)) {
+      if (session.tokenFamily === tokenFamily && !session.revokedAt) {
+        session.revokedAt = now;
         revoked++;
       }
     }

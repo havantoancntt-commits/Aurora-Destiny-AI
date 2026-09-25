@@ -76,15 +76,19 @@ class ApiClient {
         }
 
         // Step 2: Auto-provision a new guest session if no valid session is active
+        const guestHeaders: Record<string, string> = {
+          'Content-Type': 'application/json'
+        };
         const res = await fetch('/api/auth/guest', {
           method: 'POST',
-          headers,
+          headers: guestHeaders,
           credentials: 'include'
         });
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
-          if (data?.token) {
-            this.setToken(data.token);
+          const receivedToken = data?.token || data?.accessToken;
+          if (receivedToken) {
+            this.setToken(receivedToken);
           }
           this.sessionInitialized = true;
           return true;

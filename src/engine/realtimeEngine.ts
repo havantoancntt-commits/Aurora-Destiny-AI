@@ -44,11 +44,16 @@ export interface HourlySlotInsight {
   isZodiacAuspicious: boolean; // Hoàng Đạo vs Hắc Đạo
   zodiacStarName: string; // Tên Thần Sát (Thanh Long, Minh Đường, v.v.)
   element: FiveElement;
+  scoreType: 'HEURISTIC';
+  isProbability: false;
   resonanceScore: number; // 0 - 100
+  alignmentScore: number; // 0 - 100
+  favorableConditionScore: number; // 0 - 100
+  cautionScore: number; // 0 - 100
   alertLevel: AlertLevel;
   luckCategory: LuckCategory;
-  luckPercentage: number; // 0 - 100% (Tỷ lệ Hên thực tế)
-  riskPercentage: number; // 100 - luckPercentage (Tỷ lệ Xui/Rủi ro)
+  luckPercentage: number; // 0 - 100 (Heuristic favorable condition index, not statistical probability)
+  riskPercentage: number; // 100 - luckPercentage (Heuristic caution index, not statistical probability)
   tenGodName: string;
   isGuiRen: boolean; // Thiên Ất Quý Nhân
   isSanHe: boolean; // Tam Hợp
@@ -91,10 +96,15 @@ export interface RealtimeDestinySnapshot {
 
   // Current Moment Analysis
   currentSlot: HourlySlotInsight;
+  scoreType: 'HEURISTIC';
+  isProbability: false;
   resonanceScore: number;
+  alignmentScore: number;
+  favorableConditionScore: number;
+  cautionScore: number;
   luckCategory: LuckCategory;
-  luckPercentage: number; // % Hên
-  riskPercentage: number; // % Xui
+  luckPercentage: number; // Heuristic favorable condition score (0-100), not statistical probability
+  riskPercentage: number; // Heuristic caution score (0-100), not statistical probability
   alertLevel: AlertLevel;
   headlineMessage: string;
   actionGuidance: string;
@@ -438,7 +448,12 @@ export function calculateRealtimeSnapshot(
       isZodiacAuspicious: zodiacSpirit.isAuspicious,
       zodiacStarName: zodiacSpirit.name,
       element: slotStemInfo.element,
+      scoreType: 'HEURISTIC',
+      isProbability: false,
       resonanceScore: score,
+      alignmentScore: score,
+      favorableConditionScore: luckPercentage,
+      cautionScore: riskPercentage,
       alertLevel,
       luckCategory,
       luckPercentage,
@@ -592,7 +607,12 @@ export function calculateRealtimeSnapshot(
       naYin: hourNaYin
     },
     currentSlot,
+    scoreType: 'HEURISTIC',
+    isProbability: false,
     resonanceScore,
+    alignmentScore: resonanceScore,
+    favorableConditionScore: luckPercentage,
+    cautionScore: riskPercentage,
     luckCategory,
     luckPercentage,
     riskPercentage,

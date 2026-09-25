@@ -382,11 +382,11 @@ export const RealTimeAlertCenter: React.FC<Props> = ({
                   {/* Inner Content */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                     <span className="text-2xl font-mono font-bold text-white tracking-tight">
-                      {snapshot.luckPercentage}
-                      <span className="text-xs text-slate-400 font-normal">%</span>
+                      {snapshot.favorableConditionScore || snapshot.luckPercentage}
+                      <span className="text-xs text-slate-400 font-normal">/100</span>
                     </span>
                     <span className="text-[9px] uppercase tracking-wider text-emerald-400 font-mono font-bold">
-                      Tỷ Lệ Hên
+                      Chỉ Số Cát
                     </span>
                   </div>
                 </div>
@@ -726,7 +726,7 @@ export const RealTimeAlertCenter: React.FC<Props> = ({
         {/* 3. Modal Bottom Action Bar */}
         <div className="px-5 sm:px-8 py-4 border-t border-white/10 bg-black/60 flex items-center justify-between gap-4">
           <p className="text-[11px] text-slate-400 font-mono hidden sm:block">
-            * Dữ liệu thời gian thực được tính toán động dựa trên quy luật Nhật Khởi Thời Quyết & 12 Thần Sát Hoàng Đạo.
+            * Nguồn dữ liệu: Tính toán tất định theo giờ hệ thống/UTC kết hợp thuật toán can chi thiên văn chính thống. Điểm số mang tính suy luận quy tắc (heuristic), không phải xác suất thống kê.
           </p>
 
           <button

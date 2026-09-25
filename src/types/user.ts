@@ -17,6 +17,8 @@ export interface UserProfile {
   birthData: BirthData;
   behavioralContext: BehavioralContext;
   latestCalculationId?: string;
+  idempotencyKey?: string;
+  clientProfileId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,4 +64,8 @@ export interface StoredSession {
   isGuest?: boolean;
   clientType?: 'browser' | 'api' | 'mobile';
   refreshToken?: string;
+  tokenHash?: string;
+  refreshTokenHash?: string;
+  tokenFamily?: string;
+  revokedAt?: number | null;
 }

@@ -82,7 +82,9 @@ export const ProfileCreateSchema = z.object({
   name: z.string().trim().min(1, 'Tên hồ sơ không được để trống').max(100, 'Tên hồ sơ tối đa 100 ký tự'),
   isPrimary: z.boolean().optional().default(false),
   birthData: BirthDataSchema,
-  behavioralContext: BehavioralContextSchema.optional()
+  behavioralContext: BehavioralContextSchema.optional(),
+  idempotencyKey: z.string().max(128).optional(),
+  clientProfileId: z.string().max(128).optional()
 });
 
 // 4. User Profile Update Schema
