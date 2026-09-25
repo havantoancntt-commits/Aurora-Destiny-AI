@@ -117,15 +117,35 @@ export async function verifyPasswordAsync(password: string, storedHash: string, 
   }
 }
 
-// Generate secure cryptographically random session token
-export function generateToken(): string {
-  return `aurora_${crypto.randomBytes(32).toString('hex')}`;
+// Short-lived access token and refresh token constants for Mobile/API mode
+export const SHORT_LIVED_ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export interface ApiTokenPair {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number; // seconds
+  tokenType: 'Bearer';
 }
 
-// Create persistent session (Async)
+export interface AuthResult {
+  user: UserAccount;
+  token: string; // Provided for setting cookies or API access
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  sessionMode: 'cookie' | 'token';
+}
+
+// Generate secure cryptographically random session token
+export function generateToken(prefix: string = 'aurora_'): string {
+  return `${prefix}${crypto.randomBytes(32).toString('hex')}`;
+}
+
+// Create persistent session (Async) for browser HttpOnly cookies
 export async function createSessionAsync(userId: string, isGuest: boolean = false, durationMs?: number): Promise<{ token: string; expiresAt: string }> {
   const effectiveDuration = durationMs || (isGuest ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000);
-  const token = generateToken();
+  const token = generateToken('aurora_sess_');
   const now = Date.now();
   const expiresAt = now + effectiveDuration;
 
@@ -135,7 +155,8 @@ export async function createSessionAsync(userId: string, isGuest: boolean = fals
     expiresAt,
     createdAt: now,
     lastAccessedAt: now,
-    isGuest
+    isGuest,
+    clientType: 'browser'
   };
 
   await repository.saveSession(storedSession);
@@ -144,6 +165,77 @@ export async function createSessionAsync(userId: string, isGuest: boolean = fals
     token,
     expiresAt: new Date(expiresAt).toISOString()
   };
+}
+
+// Create short-lived access token & refresh token pair for Mobile/API mode
+export async function createApiSessionAsync(
+  userId: string,
+  isGuest: boolean = false
+): Promise<ApiTokenPair> {
+  const accessToken = generateToken('aurora_at_');
+  const refreshToken = generateToken('aurora_rt_');
+  const now = Date.now();
+  const accessDuration = isGuest ? 2 * 60 * 60 * 1000 : SHORT_LIVED_ACCESS_TOKEN_TTL_MS; // 15 min
+  const refreshDuration = isGuest ? 24 * 60 * 60 * 1000 : REFRESH_TOKEN_TTL_MS; // 30 days
+
+  // Save access token session
+  await repository.saveSession({
+    token: accessToken,
+    userId,
+    expiresAt: now + accessDuration,
+    createdAt: now,
+    lastAccessedAt: now,
+    isGuest,
+    clientType: 'api',
+    refreshToken
+  });
+
+  // Save refresh token session (stored securely in session repository)
+  await repository.saveSession({
+    token: refreshToken,
+    userId,
+    expiresAt: now + refreshDuration,
+    createdAt: now,
+    lastAccessedAt: now,
+    isGuest,
+    clientType: 'api',
+    refreshToken: accessToken
+  });
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: Math.floor(accessDuration / 1000),
+    tokenType: 'Bearer'
+  };
+}
+
+// Rotate refresh token with anti-replay detection and concurrent session safety
+export async function rotateRefreshTokenAsync(
+  refreshToken: string
+): Promise<ApiTokenPair> {
+  if (!refreshToken || typeof refreshToken !== 'string' || !refreshToken.startsWith('aurora_rt_')) {
+    throw new Error('Mã làm mới không hợp lệ hoặc không đúng định dạng');
+  }
+
+  const session = await repository.getSession(refreshToken);
+  if (!session) {
+    throw new Error('Mã làm mới không hợp lệ hoặc đã bị thu hồi');
+  }
+
+  if (Date.now() > session.expiresAt) {
+    await repository.deleteSession(refreshToken);
+    throw new Error('Mã làm mới đã hết hạn, vui lòng đăng nhập lại');
+  }
+
+  // Revoke old refresh token and old access token
+  await repository.deleteSession(refreshToken);
+  if (session.refreshToken) {
+    await repository.deleteSession(session.refreshToken);
+  }
+
+  // Issue new pair (refresh token rotation)
+  return await createApiSessionAsync(session.userId, !!session.isGuest);
 }
 
 // Create persistent session (Sync / Fire-and-forget fallback)
@@ -201,7 +293,13 @@ export function revokeSession(token: string): boolean {
   return true;
 }
 
-export async function registerUserAsync(email: string, password: string, fullName: string, role: UserRole = 'USER'): Promise<{ user: UserAccount; token: string }> {
+export async function registerUserAsync(
+  email: string,
+  password: string,
+  fullName: string,
+  role: UserRole = 'USER',
+  clientType: 'browser' | 'api' | 'mobile' = 'browser'
+): Promise<AuthResult> {
   const normalizedEmail = email.toLowerCase().trim();
   const existing = await repository.getUserByEmail(normalizedEmail);
   if (existing) {
@@ -226,8 +324,21 @@ export async function registerUserAsync(email: string, password: string, fullNam
   };
 
   const saved = await repository.saveUser(newUser, passwordRecord);
+
+  if (clientType === 'api' || clientType === 'mobile') {
+    const tokens = await createApiSessionAsync(saved.id, false);
+    return {
+      user: saved,
+      token: tokens.accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      sessionMode: 'token'
+    };
+  }
+
   const { token } = await createSessionAsync(saved.id, false);
-  return { user: saved, token };
+  return { user: saved, token, sessionMode: 'cookie' };
 }
 
 export function registerUser(email: string, password: string, fullName: string, role: UserRole = 'USER'): { user: UserAccount; token: string } {
@@ -260,7 +371,12 @@ export function registerUser(email: string, password: string, fullName: string, 
   return { user: saved, token };
 }
 
-export async function loginUserAsync(email: string, password: string, currentSessionToken?: string): Promise<{ user: UserAccount; token: string }> {
+export async function loginUserAsync(
+  email: string,
+  password: string,
+  currentSessionToken?: string,
+  clientType: 'browser' | 'api' | 'mobile' = 'browser'
+): Promise<AuthResult> {
   const normalizedEmail = email.toLowerCase().trim();
   const existing = await repository.getUserByEmail(normalizedEmail);
 
@@ -290,9 +406,22 @@ export async function loginUserAsync(email: string, password: string, currentSes
   existing.lastLoginAt = new Date().toISOString();
   await repository.saveUser(existing, upgradedRecord);
 
-  const { token } = await createSessionAsync(existing.id, false);
   const { passwordHash: _, ...cleanUser } = existing;
-  return { user: cleanUser, token };
+
+  if (clientType === 'api' || clientType === 'mobile') {
+    const tokens = await createApiSessionAsync(existing.id, false);
+    return {
+      user: cleanUser,
+      token: tokens.accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      sessionMode: 'token'
+    };
+  }
+
+  const { token } = await createSessionAsync(existing.id, false);
+  return { user: cleanUser, token, sessionMode: 'cookie' };
 }
 
 export function loginUser(email: string, password: string, currentSessionToken?: string): { user: UserAccount; token: string } {
@@ -411,7 +540,9 @@ export function resetPasswordWithToken(token: string, newPassword: string): bool
 }
 
 // Create an isolated guest session with strict limits (Async)
-export async function createGuestSessionAsync(): Promise<{ user: UserAccount; token: string }> {
+export async function createGuestSessionAsync(
+  clientType: 'browser' | 'api' | 'mobile' = 'browser'
+): Promise<AuthResult> {
   const guestId = `usr_guest_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
   const guestUser: UserAccount = {
     id: guestId,
@@ -427,8 +558,21 @@ export async function createGuestSessionAsync(): Promise<{ user: UserAccount; to
   };
 
   const saved = await repository.saveUser(guestUser);
+
+  if (clientType === 'api' || clientType === 'mobile') {
+    const tokens = await createApiSessionAsync(saved.id, true);
+    return {
+      user: saved,
+      token: tokens.accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      sessionMode: 'token'
+    };
+  }
+
   const { token } = await createSessionAsync(saved.id, true);
-  return { user: saved, token };
+  return { user: saved, token, sessionMode: 'cookie' };
 }
 
 // Create an isolated guest session (Sync fallback)

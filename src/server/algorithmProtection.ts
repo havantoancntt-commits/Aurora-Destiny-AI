@@ -24,7 +24,7 @@ function getAlgorithmMasterSecret(): string {
   return secret;
 }
 
-const ALGORITHM_ENGINE_ID = 'AURORA_CELESTIAL_CORE_V4.2_PROPRIETARY';
+const ALGORITHM_ENGINE_ID = 'aurora-engine-v4.2';
 const ISSUER_NAME = 'Prof.TOAN & Huyen Phong Phat Dao Proprietary Astrology Matrix';
 
 // Client sweep tracking with multi-signal behavioral metrics
@@ -87,8 +87,10 @@ export function extractCanonicalCalculationPayload(calc: CalculationResult): any
     id: calc.id,
     profileId: calc.profileId,
     analysisYear: calc.analysisYear,
+    analysisModelVersion: calc.analysisModelVersion || '4.2',
     astrologyRulesVersion: calc.astrologyRulesVersion,
     calculationVersion: calc.calculationVersion,
+    canonicalInput: calc.canonicalInput || null,
     inputSnapshot: {
       solarYear: calc.inputSnapshot.solarYear,
       solarMonth: calc.inputSnapshot.solarMonth,
@@ -170,6 +172,9 @@ export function extractCanonicalCalculationPayload(calc: CalculationResult): any
         branch: p.branch,
         stem: p.stem,
         nameVi: p.nameVi,
+        isBodyPalace: p.isBodyPalace || false,
+        tuanTriet: p.tuanTriet || [],
+        transformations: p.transformations || [],
         majorStars: (p.majorStars || []).map(s => ({
           nameVi: s.nameVi,
           element: s.element,
@@ -181,7 +186,16 @@ export function extractCanonicalCalculationPayload(calc: CalculationResult): any
           type: s.type
         }))
       }))
-    }
+    },
+    decades: (calc.decades || []).map(d => ({
+      startAge: d.startAge,
+      endAge: d.endAge,
+      startYear: d.startYear,
+      endYear: d.endYear,
+      stem: d.stem,
+      branch: d.branch,
+      tenGod: d.tenGod
+    }))
   };
 }
 
@@ -195,39 +209,93 @@ export function computeCanonicalAlgorithmHash(calc: CalculationResult): string {
 }
 
 /**
+ * Computes canonical calculation hash from either CalculationResult or extracted canonical payload.
+ */
+export function computeCanonicalCalculationHash(payloadOrCalc: any): string {
+  let payload = payloadOrCalc;
+  if (payloadOrCalc && !payloadOrCalc.engineId && payloadOrCalc.bazi && payloadOrCalc.ziwei) {
+    payload = extractCanonicalCalculationPayload(payloadOrCalc);
+  }
+  const serialized = canonicalStringify(payload);
+  return crypto.createHash('sha256').update(serialized).digest('hex');
+}
+
+/**
  * Generate a tamper-evident cryptographic HMAC-SHA256 signature for a calculation.
  * Ensures calculations cannot be forged, duplicated by third parties, or tampered with.
  */
-export function generateAlgorithmSignature(calc: CalculationResult): {
+export function generateAlgorithmSignature(calc: CalculationResult, customSecret?: string): {
   signature: string;
   sealTimestamp: string;
   algorithmHash: string;
+  canonicalHash: string;
+  engineId: string;
   issuer: string;
   verified: boolean;
 } {
   const now = new Date().toISOString();
   const algorithmHash = computeCanonicalAlgorithmHash(calc);
-  const signature = crypto.createHmac('sha256', getAlgorithmMasterSecret())
+  const secretToUse = customSecret || getAlgorithmMasterSecret();
+  const signature = crypto.createHmac('sha256', secretToUse)
     .update(`${algorithmHash}::${now}::${ISSUER_NAME}`)
     .digest('hex');
 
-  return {
+  const sigObj = {
     signature,
     sealTimestamp: now,
     algorithmHash,
+    canonicalHash: algorithmHash,
+    engineId: ALGORITHM_ENGINE_ID,
     issuer: ISSUER_NAME,
     verified: true
   };
+
+  calc.cryptographicSignature = sigObj;
+
+  return sigObj;
 }
 
 /**
  * Verifies if a given calculation's cryptographic seal is authentic and untampered
  */
-export function verifyAlgorithmSignature(calc: CalculationResult, maxAgeMs?: number): boolean {
-  if (!calc.cryptographicSignature) return false;
+export function verifyAlgorithmSignature(
+  calc: CalculationResult,
+  customSigOrMaxAge?: string | number,
+  customSecretOrMaxAge?: string | number,
+  explicitMaxAgeMs?: number
+): boolean {
+  let signature: string | undefined;
+  let secretToUse = getAlgorithmMasterSecret();
+  let maxAgeMs: number | undefined;
 
-  const { signature, sealTimestamp, algorithmHash } = calc.cryptographicSignature;
-  if (!signature || !sealTimestamp || !algorithmHash) return false;
+  if (typeof customSigOrMaxAge === 'string') {
+    signature = customSigOrMaxAge;
+    if (typeof customSecretOrMaxAge === 'string') {
+      secretToUse = customSecretOrMaxAge;
+      maxAgeMs = explicitMaxAgeMs;
+    } else if (typeof customSecretOrMaxAge === 'number') {
+      maxAgeMs = customSecretOrMaxAge;
+    }
+  } else if (typeof customSigOrMaxAge === 'number') {
+    maxAgeMs = customSigOrMaxAge;
+  }
+
+  if (!signature) {
+    if (!calc.cryptographicSignature) return false;
+    signature = calc.cryptographicSignature.signature;
+  }
+
+  if (!signature) return false;
+
+  const sealTimestamp = calc.cryptographicSignature?.sealTimestamp;
+  if (!sealTimestamp) return false;
+
+  // Check algorithmHash if cryptographicSignature object is present
+  if (calc.cryptographicSignature) {
+    if (!calc.cryptographicSignature.algorithmHash || calc.cryptographicSignature.algorithmHash.length !== 64) {
+      return false;
+    }
+  }
 
   // Optional replay / age boundary check
   if (maxAgeMs && maxAgeMs > 0) {
@@ -239,23 +307,27 @@ export function verifyAlgorithmSignature(calc: CalculationResult, maxAgeMs?: num
 
   // 1. Re-verify canonical hash over entire astrological dataset
   const expectedHash = computeCanonicalAlgorithmHash(calc);
-  if (expectedHash !== algorithmHash) {
+  if (calc.cryptographicSignature?.algorithmHash && calc.cryptographicSignature.algorithmHash !== expectedHash) {
     return false;
   }
 
   // 2. Re-verify HMAC signature with constant-time equality check
-  const expectedSig = crypto.createHmac('sha256', getAlgorithmMasterSecret())
+  const expectedSig = crypto.createHmac('sha256', secretToUse)
     .update(`${expectedHash}::${sealTimestamp}::${ISSUER_NAME}`)
     .digest('hex');
 
-  const sigBuffer = Buffer.from(signature, 'hex');
-  const expectedBuffer = Buffer.from(expectedSig, 'hex');
+  try {
+    const sigBuffer = Buffer.from(signature, 'hex');
+    const expectedBuffer = Buffer.from(expectedSig, 'hex');
 
-  if (sigBuffer.length !== expectedBuffer.length) {
+    if (sigBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+  } catch {
     return false;
   }
-
-  return crypto.timingSafeEqual(sigBuffer, expectedBuffer);
 }
 
 /**

@@ -63,7 +63,7 @@ class ApiClient {
         }
 
         // Step 1: Check if an active session cookie or token already exists and is valid
-        if (!force && this.token) {
+        if (!force) {
           const meRes = await fetch('/api/auth/me', {
             method: 'GET',
             headers,

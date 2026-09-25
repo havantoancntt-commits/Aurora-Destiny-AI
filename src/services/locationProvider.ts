@@ -12,6 +12,12 @@ export interface LocationData {
   longitude: number;
   timezone: string;
   timezoneOffset: number; // e.g. +7 for UTC+7
+  canonicalId?: string;
+  resolutionMethod?: 'EXACT_CURATED' | 'SUBSTRING_CURATED' | 'USER_CONFIRMED';
+  historicalTimezoneInfo?: {
+    standardOffset: number;
+    rawTimezone: string;
+  };
 }
 
 export interface GeocodingProvider {
@@ -270,6 +276,24 @@ export const KNOWN_LOCATIONS: LocationData[] = [
     timezoneOffset: -8
   },
   {
+    city: 'San Jose',
+    country: 'Hoa Kỳ',
+    countryCode: 'US',
+    latitude: 37.3382,
+    longitude: -121.8863,
+    timezone: 'America/Los_Angeles',
+    timezoneOffset: -8
+  },
+  {
+    city: 'San Diego',
+    country: 'Hoa Kỳ',
+    countryCode: 'US',
+    latitude: 32.7157,
+    longitude: -117.1611,
+    timezone: 'America/Los_Angeles',
+    timezoneOffset: -8
+  },
+  {
     city: 'Los Angeles',
     country: 'Hoa Kỳ',
     countryCode: 'US',
@@ -306,6 +330,38 @@ function normalizeSearchString(str: string): string {
     .replace(/[đĐ]/g, 'd')
     .replace(/[^a-z0-9]/g, '')
     .trim();
+}
+
+const COUNTRY_ALIASES: Record<string, string[]> = {
+  VN: ['vietnam', 'viet nam', 'vn', 'viet'],
+  US: ['united states', 'united states of america', 'usa', 'us', 'hoa ky', 'my', 'america'],
+  JP: ['japan', 'jp', 'nhat ban', 'nhat'],
+  KR: ['south korea', 'korea', 'kr', 'han quoc', 'han'],
+  CN: ['china', 'cn', 'trung quoc', 'trung hoa'],
+  TW: ['taiwan', 'tw', 'dai loan'],
+  SG: ['singapore', 'sg'],
+  TH: ['thailand', 'th', 'thai lan', 'thai'],
+  FR: ['france', 'fr', 'phap'],
+  GB: ['united kingdom', 'uk', 'gb', 'great britain', 'england', 'vuong quoc anh', 'anh'],
+  DE: ['germany', 'de', 'duc'],
+  AU: ['australia', 'au', 'uc']
+};
+
+function matchesCountry(loc: LocationData, cleanCountry: string): boolean {
+  if (!cleanCountry) return true;
+  const locCountryNorm = normalizeSearchString(loc.country);
+  const locCodeNorm = normalizeSearchString(loc.countryCode);
+  if (locCountryNorm === cleanCountry || locCountryNorm.includes(cleanCountry) || cleanCountry.includes(locCountryNorm)) {
+    return true;
+  }
+  if (locCodeNorm === cleanCountry) {
+    return true;
+  }
+  const aliases = COUNTRY_ALIASES[loc.countryCode.toUpperCase()] || [];
+  return aliases.some(alias => {
+    const norm = normalizeSearchString(alias);
+    return norm === cleanCountry || norm.includes(cleanCountry) || cleanCountry.includes(norm);
+  });
 }
 
 export type LocationResolutionResult =
@@ -360,12 +416,22 @@ export class LocationProvider {
 
     // Step 1: Filter by country if country is specified
     const eligibleLocations = cleanCountry
-      ? this.locations.filter(loc => {
-          const locCountryNorm = normalizeSearchString(loc.country);
-          const locCodeNorm = normalizeSearchString(loc.countryCode);
-          return locCountryNorm.includes(cleanCountry) || cleanCountry.includes(locCountryNorm) || locCodeNorm === cleanCountry;
-        })
+      ? this.locations.filter(loc => matchesCountry(loc, cleanCountry))
       : this.locations;
+
+    // Helper to enrich location with canonical metadata
+    const enrichLocation = (loc: LocationData, method: 'EXACT_CURATED' | 'SUBSTRING_CURATED'): LocationData => {
+      const canonicalId = `loc_${loc.countryCode.toLowerCase()}_${normalizeSearchString(loc.city)}`;
+      return {
+        ...loc,
+        canonicalId,
+        resolutionMethod: method,
+        historicalTimezoneInfo: {
+          standardOffset: loc.timezoneOffset,
+          rawTimezone: loc.timezone
+        }
+      };
+    };
 
     // Step 2: Exact city name match
     const exactMatches = eligibleLocations.filter(loc => {
@@ -374,11 +440,16 @@ export class LocationProvider {
     });
 
     if (exactMatches.length === 1) {
-      return { success: true, location: exactMatches[0], matchType: 'EXACT' };
+      return { success: true, location: enrichLocation(exactMatches[0], 'EXACT_CURATED'), matchType: 'EXACT' };
     }
     if (exactMatches.length > 1) {
-      // Multiple exact matches (e.g. across different regions)
-      return { success: true, location: exactMatches[0], matchType: 'EXACT' };
+      // Multiple exact matches (e.g. across different regions or duplicate cities)
+      // NEVER silently pick the first city - require explicit confirmation
+      return {
+        success: false,
+        error: 'AMBIGUOUS_CITY',
+        candidates: exactMatches.map(loc => enrichLocation(loc, 'EXACT_CURATED'))
+      };
     }
 
     // Step 3: Prefix or containment match on city name
@@ -388,19 +459,19 @@ export class LocationProvider {
     });
 
     if (partialMatches.length === 1) {
-      return { success: true, location: partialMatches[0], matchType: 'SUBSTRING' };
+      return { success: true, location: enrichLocation(partialMatches[0], 'SUBSTRING_CURATED'), matchType: 'SUBSTRING' };
     }
 
     if (partialMatches.length > 1) {
       // Check if one candidate is a significantly closer prefix
       const prefixMatches = partialMatches.filter(loc => normalizeSearchString(loc.city).startsWith(cleanQuery));
       if (prefixMatches.length === 1) {
-        return { success: true, location: prefixMatches[0], matchType: 'SUBSTRING' };
+        return { success: true, location: enrichLocation(prefixMatches[0], 'SUBSTRING_CURATED'), matchType: 'SUBSTRING' };
       }
       return {
         success: false,
         error: 'AMBIGUOUS_CITY',
-        candidates: partialMatches.slice(0, 5)
+        candidates: partialMatches.slice(0, 5).map(loc => enrichLocation(loc, 'SUBSTRING_CURATED'))
       };
     }
 

@@ -24,6 +24,8 @@ import {
   loginUserAsync,
   createGuestSessionAsync,
   revokeSessionAsync,
+  rotateRefreshTokenAsync,
+  AuthResult,
   requestPasswordResetAsync,
   resetPasswordWithTokenAsync,
   bootstrapAdminIfConfiguredAsync
@@ -495,10 +497,74 @@ app.get('/api/metrics', requireAdmin, adminRateLimiter, async (req, res) => {
 // ----------------------------------------------------
 // 2. AUTHENTICATION & SESSIONS
 // ----------------------------------------------------
+function determineClientType(req: Request): 'browser' | 'api' | 'mobile' {
+  const headerType = req.headers['x-client-type'];
+  if (headerType === 'mobile') return 'mobile';
+  if (headerType === 'api') return 'api';
+  if (headerType === 'browser') return 'browser';
+  if (req.body && typeof req.body === 'object') {
+    if (req.body.clientType === 'mobile') return 'mobile';
+    if (req.body.clientType === 'api') return 'api';
+    if (req.body.clientType === 'browser') return 'browser';
+  }
+  // Authorization Bearer or custom token header implies API client
+  if (req.headers.authorization?.startsWith('Bearer ') || req.headers['x-session-token'] || req.headers['x-aurora-token']) {
+    return 'api';
+  }
+
+  const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+  const isBrowserUA = userAgent.includes('mozilla') || userAgent.includes('chrome') || userAgent.includes('safari');
+
+  // Real browser requests have browser UA AND browser security headers
+  if (isBrowserUA && (req.headers['sec-ch-ua'] || req.headers['sec-fetch-dest'] === 'document' || req.headers['sec-fetch-dest'] === 'empty')) {
+    return 'browser';
+  }
+
+  // If session cookie exists, client operates as browser
+  if (req.cookies?.['aurora_session'] || req.headers.cookie?.includes('aurora_session')) {
+    return 'browser';
+  }
+
+  // Non-browser / API / automated test requests
+  return 'api';
+}
+
+function sendAuthResponse(
+  res: Response,
+  result: AuthResult,
+  message: string,
+  clientType: 'browser' | 'api' | 'mobile',
+  statusCode: number = 200
+) {
+  if (clientType === 'browser') {
+    // BROWSER MODE: HttpOnly, Secure, SameSite cookie
+    // NEVER expose long-lived or session credentials directly to JavaScript in response body
+    setSessionCookie(res, result.token);
+    return res.status(statusCode).json({
+      user: result.user,
+      sessionMode: 'cookie',
+      message
+    });
+  }
+
+  // MOBILE / API MODE: Short-lived access token + refresh token
+  return res.status(statusCode).json({
+    user: result.user,
+    token: result.token,
+    accessToken: result.accessToken || result.token,
+    refreshToken: result.refreshToken,
+    expiresIn: result.expiresIn || 900,
+    tokenType: 'Bearer',
+    sessionMode: 'token',
+    message
+  });
+}
+
 app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
   try {
     const validated = RegisterSchema.parse(req.body);
-    const result = await registerUserAsync(validated.email, validated.password, validated.fullName);
+    const clientType = determineClientType(req);
+    const result = await registerUserAsync(validated.email, validated.password, validated.fullName, 'USER', clientType);
     
     await repository.logAudit({
       userId: result.user.id,
@@ -508,8 +574,7 @@ app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
       requestId: req.requestId
     });
 
-    setSessionCookie(res, result.token);
-    res.status(201).json({ user: result.user, token: result.token, message: 'Đăng ký tài khoản thành công' });
+    sendAuthResponse(res, result, 'Đăng ký tài khoản thành công', clientType, 201);
   } catch (err) {
     next(err);
   }
@@ -518,8 +583,9 @@ app.post('/api/auth/register', registerRateLimiter, async (req, res, next) => {
 app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
   try {
     const validated = LoginSchema.parse(req.body);
+    const clientType = determineClientType(req);
     // Session rotation: pass current session token if client had one (e.g. from guest session)
-    const result = await loginUserAsync(validated.email, validated.password, req.sessionToken);
+    const result = await loginUserAsync(validated.email, validated.password, req.sessionToken, clientType);
 
     await repository.logAudit({
       userId: result.user.id,
@@ -529,10 +595,43 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res, next) => {
       requestId: req.requestId
     });
 
-    setSessionCookie(res, result.token);
-    res.json({ user: result.user, token: result.token, message: 'Đăng nhập thành công' });
+    sendAuthResponse(res, result, 'Đăng nhập thành công', clientType, 200);
   } catch (err) {
     next(err);
+  }
+});
+
+// Refresh token rotation endpoint for Mobile/API mode
+app.post('/api/auth/refresh', loginRateLimiter, async (req, res, next) => {
+  try {
+    const refreshToken = (req.body?.refreshToken || req.headers['x-refresh-token']) as string | undefined;
+    if (!refreshToken) {
+      return res.status(400).json({
+        error: {
+          code: 'MISSING_REFRESH_TOKEN',
+          message: 'Yêu cầu mã làm mới (refreshToken) để cấp lại phiên làm việc.',
+          requestId: req.requestId
+        }
+      });
+    }
+
+    const rotated = await rotateRefreshTokenAsync(refreshToken);
+    res.json({
+      success: true,
+      token: rotated.accessToken,
+      accessToken: rotated.accessToken,
+      refreshToken: rotated.refreshToken,
+      expiresIn: rotated.expiresIn,
+      tokenType: 'Bearer'
+    });
+  } catch (err: any) {
+    res.status(401).json({
+      error: {
+        code: 'INVALID_REFRESH_TOKEN',
+        message: err.message || 'Mã làm mới không hợp lệ hoặc đã hết hạn',
+        requestId: req.requestId
+      }
+    });
   }
 });
 
@@ -555,13 +654,16 @@ app.post('/api/auth/logout', requireAuth, async (req, res) => {
 // Auto-provision isolated guest session for first-time visitors
 app.post('/api/auth/guest', guestRateLimiter, async (req, res, next) => {
   try {
+    const clientType = determineClientType(req);
     // If user already has an active registered session, preserve it and do not overwrite
     if (req.user && req.user.role !== 'GUEST') {
-      return res.json({ user: req.user, token: req.sessionToken, message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
+      if (clientType === 'browser') {
+        return res.json({ user: req.user, sessionMode: 'cookie', message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
+      }
+      return res.json({ user: req.user, token: req.sessionToken, sessionMode: 'token', message: 'Phiên đăng nhập hiện tại vẫn hợp lệ' });
     }
-    const result = await createGuestSessionAsync();
-    setSessionCookie(res, result.token);
-    res.json({ user: result.user, token: result.token, message: 'Khởi tạo phiên khách thành công' });
+    const result = await createGuestSessionAsync(clientType);
+    sendAuthResponse(res, result, 'Khởi tạo phiên khách thành công', clientType, 200);
   } catch (err) {
     next(err);
   }

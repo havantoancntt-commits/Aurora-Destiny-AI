@@ -60,4 +60,6 @@ export interface StoredSession {
   createdAt: number;
   lastAccessedAt: number;
   isGuest?: boolean;
+  clientType?: 'browser' | 'api' | 'mobile';
+  refreshToken?: string;
 }
