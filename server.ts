@@ -2333,7 +2333,7 @@ async function startServer() {
 export { app, startServer };
 export default app;
 
-const isServerless = process.env.VERCEL === '1' || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const isTest = process.env.NODE_ENV === 'test' || process.env.DISABLE_SERVER_LISTEN === 'true';
 
 if (!isServerless && !isTest) {

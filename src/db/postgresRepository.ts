@@ -46,12 +46,18 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       if (!connStr && process.env.NODE_ENV === 'production') {
         throw new Error('FATAL: DATABASE_URL is strictly required in production mode for PostgreSQL repository.');
       }
+      const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
       this.pool = new Pool({
         connectionString: connStr,
-        max: normalizedConfig?.max || parseInt(process.env.DB_POOL_MAX || '20', 10),
+        max: normalizedConfig?.max || parseInt(process.env.DB_POOL_MAX || (isServerless ? '5' : '20'), 10),
         idleTimeoutMillis: normalizedConfig?.idleTimeoutMillis || 30000,
         connectionTimeoutMillis: normalizedConfig?.connectionTimeoutMillis || 5000,
         statement_timeout: normalizedConfig?.statement_timeout || 10000
+      });
+
+      // Prevent uncaught exception crash on idle client disconnection
+      this.pool.on('error', (err) => {
+        console.warn('⚠️ [PostgreSQL Pool] Unexpected error on idle database client:', err.message);
       });
     }
 

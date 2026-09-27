@@ -14,10 +14,16 @@ async function ensureAppReady(): Promise<void> {
   if (isInitialized) return;
   if (!initPromise) {
     initPromise = (async () => {
-      if (repository.ensureInitialized) {
-        await repository.ensureInitialized();
+      try {
+        if (repository.ensureInitialized) {
+          await repository.ensureInitialized();
+        }
+        isInitialized = true;
+      } catch (err: any) {
+        initPromise = null;
+        console.error('❌ [Vercel Serverless] Failed to initialize database repository:', err.message);
+        throw err;
       }
-      isInitialized = true;
     })();
   }
   await initPromise;

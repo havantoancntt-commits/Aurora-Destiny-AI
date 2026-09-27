@@ -38,7 +38,7 @@ export interface IObjectStorageProvider {
 // ----------------------------------------------------
 export class LocalDiskStorageProvider implements IObjectStorageProvider {
   private baseDir: string;
-  private cleanupInterval: NodeJS.Timeout;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(baseDir?: string) {
     this.baseDir = baseDir || path.join(process.cwd(), '.aurora_storage', 'staged_pdf');
@@ -52,12 +52,22 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
       fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
     }
 
-    // Run background eviction every 3 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupExpired().catch(() => {});
-    }, 3 * 60 * 1000);
-    if (this.cleanupInterval.unref) {
-      this.cleanupInterval.unref();
+    // Run background eviction every 3 minutes in persistent server environments
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    if (!isServerless) {
+      this.cleanupInterval = setInterval(() => {
+        this.cleanupExpired().catch(() => {});
+      }, 3 * 60 * 1000);
+      if (this.cleanupInterval.unref) {
+        this.cleanupInterval.unref();
+      }
+    }
+  }
+
+  public close(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
   }
 
