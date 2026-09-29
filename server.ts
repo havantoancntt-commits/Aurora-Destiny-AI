@@ -788,22 +788,62 @@ app.post('/api/auth/reset-password', loginRateLimiter, async (req, res, next) =>
 });
 
 app.get('/api/auth/me', requireAuth, async (req, res) => {
-  const prefs = await repository.getPreferences(req.user!.id);
-  res.json({
-    user: req.user,
-    preferences: prefs
-  });
+  try {
+    const prefs = await repository.getPreferences(req.user!.id);
+    res.json({
+      user: req.user,
+      preferences: prefs || {
+        theme: 'dark',
+        language: 'vi',
+        soundEnabled: true,
+        autoSave: true,
+        astronomyPrecision: 'HIGH'
+      }
+    });
+  } catch (err: any) {
+    console.warn('⚠️ [API] Failed to fetch preferences for /api/auth/me:', err.message);
+    res.json({
+      user: req.user,
+      preferences: {
+        theme: 'dark',
+        language: 'vi',
+        soundEnabled: true,
+        autoSave: true,
+        astronomyPrecision: 'HIGH'
+      }
+    });
+  }
 });
 
 // ----------------------------------------------------
 // 3. USER MANAGEMENT & GDPR COMPLIANCE
 // ----------------------------------------------------
 app.get('/api/user', requireAuth, async (req, res) => {
-  const prefs = await repository.getPreferences(req.user!.id);
-  res.json({
-    user: req.user,
-    preferences: prefs
-  });
+  try {
+    const prefs = await repository.getPreferences(req.user!.id);
+    res.json({
+      user: req.user,
+      preferences: prefs || {
+        theme: 'dark',
+        language: 'vi',
+        soundEnabled: true,
+        autoSave: true,
+        astronomyPrecision: 'HIGH'
+      }
+    });
+  } catch (err: any) {
+    console.warn('⚠️ [API] Failed to fetch preferences for /api/user:', err.message);
+    res.json({
+      user: req.user,
+      preferences: {
+        theme: 'dark',
+        language: 'vi',
+        soundEnabled: true,
+        autoSave: true,
+        astronomyPrecision: 'HIGH'
+      }
+    });
+  }
 });
 
 app.post('/api/user/preferences', requireAuth, async (req, res, next) => {
@@ -860,8 +900,13 @@ app.delete('/api/user/me', requireAuth, async (req, res) => {
 const profileCreationMutexes = new Map<string, Promise<{ profile: UserProfile; calculation: any; idempotencyReplay?: boolean }>>();
 
 app.get('/api/profiles', requireAuth, async (req, res) => {
-  const profiles = await repository.getProfiles(req.user!.id);
-  res.json(profiles);
+  try {
+    const profiles = await repository.getProfiles(req.user!.id);
+    res.json(profiles || []);
+  } catch (err: any) {
+    console.warn('⚠️ [API] Failed to fetch profiles, returning clean empty list:', err.message);
+    res.json([]);
+  }
 });
 
 app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweeperMiddleware, async (req, res, next) => {

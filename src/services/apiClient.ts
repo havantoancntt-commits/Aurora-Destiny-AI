@@ -242,11 +242,45 @@ class ApiClient {
     return res.json();
   }
 
+  public getCachedProfiles(): UserProfile[] {
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem('aurora_cached_profiles');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      }
+    } catch {}
+    return [];
+  }
+
+  public cacheProfiles(profiles: UserProfile[]): void {
+    try {
+      if (typeof window !== 'undefined' && Array.isArray(profiles)) {
+        localStorage.setItem('aurora_cached_profiles', JSON.stringify(profiles));
+      }
+    } catch {}
+  }
+
   // Profile operations
   public async getProfiles(): Promise<UserProfile[]> {
-    const res = await this.fetchWithAuth('/api/profiles');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    try {
+      const res = await this.fetchWithAuth('/api/profiles');
+      if (!res.ok) {
+        console.warn(`[ApiClient] Server returned HTTP ${res.status} for getProfiles, using local cache.`);
+        return this.getCachedProfiles();
+      }
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        this.cacheProfiles(data);
+        return data;
+      }
+      return this.getCachedProfiles();
+    } catch (err: any) {
+      console.warn('[ApiClient] Failed to fetch profiles from network, using local cache:', err.message);
+      return this.getCachedProfiles();
+    }
   }
 
   public async createProfile(profileData: {
@@ -264,7 +298,12 @@ class ApiClient {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `Lỗi tạo hồ sơ (${res.status})`);
     }
-    return res.json();
+    const result = await res.json();
+    if (result?.profile) {
+      const cached = this.getCachedProfiles().filter((p) => p.id !== result.profile.id);
+      this.cacheProfiles([result.profile, ...cached]);
+    }
+    return result;
   }
 
   public async updateProfile(profileId: string, updates: Partial<UserProfile>): Promise<UserProfile> {

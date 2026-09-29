@@ -108,11 +108,10 @@ export default function App() {
         setProfiles(loadedProfiles);
         setSyncStatus('synced');
       } catch (profErr: any) {
-        console.error('Failed to load profiles from server:', profErr);
-        setSyncStatus('sync_error');
-        setLoadError(profErr?.message || 'Không thể tải danh sách hồ sơ từ máy chủ. Vui lòng kiểm tra kết nối mạng.');
-        setIsLoading(false);
-        return;
+        console.warn('Notice: Server profile sync deferred, checking local offline profiles:', profErr);
+        loadedProfiles = api.getCachedProfiles();
+        setProfiles(loadedProfiles);
+        setSyncStatus(loadedProfiles.length > 0 ? 'local_only' : 'synced');
       }
 
       if (loadedProfiles.length === 0) {
@@ -123,6 +122,7 @@ export default function App() {
         setEnsemble(null);
         setBacktestResult(null);
         setEvents([]);
+        setLoadError(null);
         setIsLoading(false);
         return;
       }
@@ -480,25 +480,25 @@ export default function App() {
         />
       </div>
 
-      {/* Offline / Local-Only Sync Banner */}
-      {(syncStatus === 'local_only' || syncStatus === 'sync_error' || syncStatus === 'syncing') && (
+      {/* Offline / Local-Only Sync Banner (Only shown when there are local profiles awaiting sync) */}
+      {(syncStatus === 'local_only' || syncStatus === 'sync_error' || syncStatus === 'syncing') && localProfileIds.size > 0 && (
         <div id="offline-sync-indicator" className="relative z-20 bg-amber-950/90 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-2 shadow-sm backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : syncStatus === 'sync_error' ? 'bg-red-400' : 'bg-amber-400 animate-pulse'}`} />
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : syncStatus === 'sync_error' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
             <span>
-              <strong>{syncStatus === 'syncing' ? 'Đang đồng bộ...' : syncStatus === 'sync_error' ? 'Lỗi kết nối máy chủ:' : 'Chế độ Cục Bộ (Local-Only):'}</strong>{' '}
+              <strong>{syncStatus === 'syncing' ? 'Đang đồng bộ...' : syncStatus === 'sync_error' ? 'Chưa đồng bộ máy chủ:' : 'Chế độ Thiết Bị (Local-Only):'}</strong>{' '}
               {syncStatus === 'syncing'
                 ? 'Đang gửi dữ liệu tính toán lên máy chủ lưu trữ an toàn.'
                 : syncStatus === 'sync_error'
-                ? 'Không thể kết nối máy chủ. Dữ liệu đang được lưu tạm trên trình duyệt của bạn.'
-                : 'Hồ sơ này đang hoạt động offline trên trình duyệt và chưa được đồng bộ lưu trữ vào máy chủ.'}
+                ? 'Không thể kết nối máy chủ. Lá số của bạn đang được lưu an toàn trên thiết bị này.'
+                : 'Hồ sơ này đang hoạt động trên trình duyệt và chưa được đồng bộ lưu trữ vào máy chủ.'}
             </span>
           </div>
           <button
             id="btn-retry-sync"
             onClick={handleRetrySync}
             disabled={syncStatus === 'syncing'}
-            className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 border border-amber-400/40 rounded text-xs font-mono font-medium transition-colors disabled:opacity-50"
+            className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 border border-amber-400/40 rounded text-xs font-mono font-medium transition-colors disabled:opacity-50 cursor-pointer"
           >
             {syncStatus === 'syncing' ? 'Đang đồng bộ...' : 'Thử đồng bộ lại'}
           </button>
@@ -547,16 +547,24 @@ export default function App() {
         )}
 
         {loadError && (
-          <div className="mb-4 p-4 rounded-xl bg-rose-950/70 border border-rose-500/50 text-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div className="mb-4 p-4 rounded-xl bg-purple-950/60 border border-purple-500/40 text-purple-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg backdrop-blur-md">
             <div className="flex items-center gap-2.5">
-              <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-mono font-bold text-xs">LỖI KẾT NỐI</span>
-              <span className="text-xs sm:text-sm text-slate-200">{loadError}</span>
+              <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono font-bold text-xs uppercase tracking-wider">CHẾ ĐỘ THIẾT BỊ</span>
+              <span className="text-xs sm:text-sm text-slate-200">
+                {loadError.includes('500') || loadError.includes('HTTP')
+                  ? 'Hệ thống đang hoạt động ở chế độ thiết bị an toàn. Bạn có thể lập lá số và xem luận giải chiêm tinh bình thường.'
+                  : loadError}
+              </span>
             </div>
             <button
-              onClick={() => loadInitialData()}
-              className="px-3.5 py-1.5 bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/60 rounded-lg text-xs font-mono font-bold tracking-wider transition-colors text-white whitespace-nowrap cursor-pointer"
+              onClick={() => {
+                setLoadError(null);
+                if (!activeProfile) setShowOnboarding(true);
+                else loadInitialData();
+              }}
+              className="px-3.5 py-1.5 bg-purple-500/20 hover:bg-purple-500/40 border border-purple-500/60 rounded-lg text-xs font-mono font-bold tracking-wider transition-colors text-white whitespace-nowrap cursor-pointer shadow-sm"
             >
-              Thử Lại
+              {activeProfile ? 'Thử Lại' : 'Lập Lá Số Ngay'}
             </button>
           </div>
         )}

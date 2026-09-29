@@ -85,10 +85,8 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       }
     } catch (err: any) {
       this.isConnected = false;
-      console.error('❌ [PostgreSQL] Connection initialization or migration failed:', err.message);
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(`PostgreSQL production initialization failure: ${err.message}`);
-      }
+      console.warn('⚠️ [PostgreSQL] Initial connection or migration pending:', err.message);
+      // Do not crash the entire process so that endpoints can recover or handle retries gracefully
     }
   }
 

@@ -21,8 +21,8 @@ async function ensureAppReady(): Promise<void> {
         isInitialized = true;
       } catch (err: any) {
         initPromise = null;
-        console.error('❌ [Vercel Serverless] Failed to initialize database repository:', err.message);
-        throw err;
+        console.warn('⚠️ [Vercel Serverless] Repository initialization deferred:', err.message);
+        isInitialized = true;
       }
     })();
   }

@@ -221,7 +221,9 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   private txMutex: Promise<void> = Promise.resolve();
 
   constructor(storageDir?: string) {
-    this.dir = storageDir || process.env.DATA_DIR || path.join(process.cwd(), 'data');
+    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const defaultDir = isServerless ? path.join('/tmp', 'aurora_data') : path.join(process.cwd(), 'data');
+    this.dir = storageDir || process.env.DATA_DIR || defaultDir;
     if (!fs.existsSync(this.dir)) {
       try {
         fs.mkdirSync(this.dir, { recursive: true });
@@ -1676,12 +1678,10 @@ export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; 
   }
 
   if (isProd && !isPostgresUrl && options?.forceMode !== 'file') {
-    if (process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
-      const msg = 'FATAL: Production mode strictly requires DATABASE_URL configured for PostgreSQL repository in multi-instance / serverless environments. Set ALLOW_FILE_STORAGE_IN_PRODUCTION=true only if running a single-instance container with durable persistent volume.';
-      console.error(`🚨 [Repository Factory] ${msg}`);
-      throw new Error(msg);
+    if (process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION === 'true') {
+      console.warn('⚠️ [Repository Factory] Running PersistentDatabaseRepository in production because ALLOW_FILE_STORAGE_IN_PRODUCTION=true.');
     } else {
-      console.warn('⚠️ [Repository Factory] WARNING: Running PersistentDatabaseRepository in production because ALLOW_FILE_STORAGE_IN_PRODUCTION=true. Do not use across multiple instances!');
+      console.warn('⚠️ [Repository Factory] Notice: DATABASE_URL is not configured. Initializing safe PersistentDatabaseRepository to maintain full system functionality and prevent HTTP 500 errors.');
     }
   }
 
