@@ -17,6 +17,10 @@ import { DatabaseMigrator } from './migrator';
 
 const { Pool } = pg;
 
+declare global {
+  var __aurora_pg_pool: pg.Pool | undefined;
+}
+
 export interface PostgresConfig {
   connectionString?: string;
   host?: string;
@@ -47,18 +51,41 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
         throw new Error('FATAL: DATABASE_URL is strictly required in production mode for PostgreSQL repository.');
       }
       const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-      this.pool = new Pool({
-        connectionString: connStr,
-        max: normalizedConfig?.max || parseInt(process.env.DB_POOL_MAX || (isServerless ? '5' : '20'), 10),
-        idleTimeoutMillis: normalizedConfig?.idleTimeoutMillis || 30000,
-        connectionTimeoutMillis: normalizedConfig?.connectionTimeoutMillis || 5000,
-        statement_timeout: normalizedConfig?.statement_timeout || 10000
-      });
 
-      // Prevent uncaught exception crash on idle client disconnection
-      this.pool.on('error', (err) => {
-        console.warn('⚠️ [PostgreSQL Pool] Unexpected error on idle database client:', err.message);
-      });
+      // Reuse existing pool in warm serverless containers to avoid connection exhaustion
+      if (globalThis.__aurora_pg_pool && !((globalThis.__aurora_pg_pool as any)._ending || (globalThis.__aurora_pg_pool as any).ended)) {
+        this.pool = globalThis.__aurora_pg_pool;
+      } else {
+        const useSsl = Boolean(
+          process.env.PGSSLMODE === 'require' ||
+          (connStr && (
+            connStr.includes('sslmode=require') ||
+            connStr.includes('neon.tech') ||
+            connStr.includes('supabase.co') ||
+            connStr.includes('pooler.supabase.com') ||
+            connStr.includes('aws.neon') ||
+            connStr.includes('cockroachlabs.cloud')
+          ))
+        );
+
+        this.pool = new Pool({
+          connectionString: connStr,
+          max: normalizedConfig?.max || parseInt(process.env.DB_POOL_MAX || (isServerless ? '3' : '20'), 10),
+          idleTimeoutMillis: normalizedConfig?.idleTimeoutMillis || (isServerless ? 10000 : 30000),
+          connectionTimeoutMillis: normalizedConfig?.connectionTimeoutMillis || 5000,
+          statement_timeout: normalizedConfig?.statement_timeout || 15000,
+          ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {})
+        });
+
+        // Prevent uncaught exception crash on idle client disconnection
+        this.pool.on('error', (err) => {
+          console.warn('⚠️ [PostgreSQL Pool] Unexpected error on idle database client:', err.message);
+        });
+
+        if (isServerless) {
+          globalThis.__aurora_pg_pool = this.pool;
+        }
+      }
     }
 
     this.migrator = new DatabaseMigrator(this);
@@ -85,14 +112,19 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       }
     } catch (err: any) {
       this.isConnected = false;
-      console.warn('⚠️ [PostgreSQL] Initial connection or migration pending:', err.message);
-      // Do not crash the entire process so that endpoints can recover or handle retries gracefully
+      console.error('❌ [PostgreSQL] Connection initialization or migration failed:', err.message);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`PostgreSQL production initialization failure: ${err.message}`);
+      }
     }
   }
 
   public async ensureInitialized(): Promise<void> {
     if (this.migrationPromise) {
       await this.migrationPromise;
+    }
+    if (!this.isConnected && process.env.NODE_ENV === 'production') {
+      throw new Error('PostgreSQL production initialization failure: Unable to establish database connection.');
     }
   }
 

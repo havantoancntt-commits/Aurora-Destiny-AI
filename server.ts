@@ -246,6 +246,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Enforce strict no-cache on all /api endpoints to prevent caching sensitive user data
+app.use('/api', (_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
 // Helper functions for secure HttpOnly cookie management
 function setSessionCookie(res: Response, token: string): void {
   const req = (res as any).req as Request | undefined;
@@ -899,13 +908,23 @@ app.delete('/api/user/me', requireAuth, async (req, res) => {
 // ----------------------------------------------------
 const profileCreationMutexes = new Map<string, Promise<{ profile: UserProfile; calculation: any; idempotencyReplay?: boolean }>>();
 
-app.get('/api/profiles', requireAuth, async (req, res) => {
+app.get('/api/profiles', requireAuth, async (req, res, next) => {
   try {
     const profiles = await repository.getProfiles(req.user!.id);
     res.json(profiles || []);
   } catch (err: any) {
-    console.warn('⚠️ [API] Failed to fetch profiles, returning clean empty list:', err.message);
-    res.json([]);
+    next(err);
+  }
+});
+
+app.get('/api/profiles/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const profile = await verifyProfileOwnershipAsync(req, res, id);
+    if (!profile) return;
+    res.json(profile);
+  } catch (err: any) {
+    next(err);
   }
 });
 
