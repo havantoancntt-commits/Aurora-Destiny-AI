@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="cosmicBg" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#141a2e" />
+      <stop offset="60%" stop-color="#090b14" />
+      <stop offset="100%" stop-color="#040508" />
+    </radialGradient>
+    <linearGradient id="auroraAura" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="50%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <linearGradient id="goldRing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="50%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Deep Background -->
+  <rect width="512" height="512" rx="112" fill="url(#cosmicBg)" />
+
+  <!-- Outer Astrological Geometry Ring -->
+  <circle cx="256" cy="256" r="210" stroke="url(#goldRing)" stroke-width="2" stroke-opacity="0.3" fill="none" />
+  <circle cx="256" cy="256" r="190" stroke="#2dd4bf" stroke-width="1.5" stroke-dasharray="8,6" stroke-opacity="0.4" fill="none" />
+  
+  <!-- 8 Cardinal Rays / BaGua Compass Axes -->
+  <g stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.5">
+    <line x1="256" y1="46" x2="256" y2="466" />
+    <line x1="46" y1="256" x2="466" y2="256" />
+    <line x1="108" y1="108" x2="404" y2="404" />
+    <line x1="108" y1="404" x2="404" y2="108" />
+  </g>
+
+  <!-- Central Ambient Glow Core -->
+  <circle cx="256" cy="256" r="85" fill="#2dd4bf" fill-opacity="0.15" filter="url(#softGlow)" />
+  <circle cx="256" cy="256" r="50" fill="#fbbf24" fill-opacity="0.2" filter="url(#softGlow)" />
+
+  <!-- Sacred Octagram / Quantum Matrix -->
+  <polygon points="256,120 286,216 382,216 304,272 334,368 256,312 178,368 208,272 130,216 226,216"
+           fill="url(#auroraAura)" fill-opacity="0.25" stroke="url(#goldRing)" stroke-width="3" />
+
+  <!-- Inner Diamond -->
+  <polygon points="256,160 326,256 256,352 186,256"
+           fill="none" stroke="#2dd4bf" stroke-width="2" stroke-opacity="0.8" />
+
+  <!-- Core Eye of Wisdom / Aurora Pivot -->
+  <circle cx="256" cy="256" r="24" fill="#ffffff" filter="url(#softGlow)" />
+  <circle cx="256" cy="256" r="14" fill="#050508" />
+  <circle cx="256" cy="256" r="6" fill="#2dd4bf" />
+</svg>

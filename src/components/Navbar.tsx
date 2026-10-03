@@ -25,13 +25,16 @@ import {
   Menu,
   MoreHorizontal,
   Crown,
-  Users
+  Users,
+  Download
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { RealTimePulsePill } from './RealTimePulsePill';
 import { sacredSound } from '../services/soundService';
+import { PWAInstallButton } from './PWAInstallButton';
+import { PWAInstallModal } from './PWAInstallModal';
 
 interface Props {
   language: LanguageCode;
@@ -75,6 +78,7 @@ export const Navbar: React.FC<Props> = ({
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showPWAModal, setShowPWAModal] = useState(false);
   const [isMuted, setIsMuted] = useState(sacredSound.getIsMuted());
 
   const handleToggleAudio = () => {
@@ -88,6 +92,7 @@ export const Navbar: React.FC<Props> = ({
         setShowProfileMenu(false);
         setShowLangMenu(false);
         setShowMoreMenu(false);
+        setShowPWAModal(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -263,6 +268,9 @@ export const Navbar: React.FC<Props> = ({
                 <span>Thẻ Kim Giáp</span>
               </button>
             )}
+
+            {/* PWA In-App Install Quick Button */}
+            <PWAInstallButton variant="compact" />
 
             {/* Desktop Direct Action: Đồng Hành & Mời Cà Phê Kênh */}
             {onOpenSponsorshipModal && (
@@ -498,6 +506,19 @@ export const Navbar: React.FC<Props> = ({
                       </button>
                     )}
 
+                    {/* PWA Install Entry in Menu */}
+                    <button
+                      id="btn-menu-pwa-install"
+                      onClick={() => {
+                        setShowMoreMenu(false);
+                        setShowPWAModal(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 transition-colors text-left cursor-pointer font-medium"
+                    >
+                      <Download className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Cài Đặt Ứng Dụng (PWA)</span>
+                    </button>
+
                     {/* Privacy */}
                     <button
                       onClick={() => {
@@ -530,6 +551,12 @@ export const Navbar: React.FC<Props> = ({
           </div>
         </div>
       </header>
+
+      {/* PWA Install Guided Modal */}
+      <PWAInstallModal
+        isOpen={showPWAModal}
+        onClose={() => setShowPWAModal(false)}
+      />
     </>
   );
 };

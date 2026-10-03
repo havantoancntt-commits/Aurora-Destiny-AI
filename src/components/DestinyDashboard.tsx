@@ -38,6 +38,7 @@ import { t } from '../i18n/translations';
 import { LanguageCode } from '../types/destiny';
 import { BaGuaCompassWidget } from './BaGuaCompassWidget';
 import { RealTimeLuckRadarBar } from './RealTimeLuckRadarBar';
+import { AgentInfluenceChart } from './AgentInfluenceChart';
 
 interface Props {
   profile: UserProfile;
@@ -293,6 +294,13 @@ export const DestinyDashboard: React.FC<Props> = ({
             </p>
           </div>
         </div>
+
+        {/* 7 AI Agents Influence Attribution Interactive Chart */}
+        <AgentInfluenceChart
+          ensemble={ensemble}
+          calculation={calculation}
+          profile={profile}
+        />
 
         {/* Executive Dossier Callout Banner */}
         <div className="mt-4 p-3.5 rounded-xl bg-white/[0.02] border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

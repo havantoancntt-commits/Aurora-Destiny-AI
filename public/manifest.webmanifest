@@ -1,53 +1,103 @@
 {
-  "short_name": "Aurora Destiny",
+  "id": "/",
+  "short_name": "Aurora AI",
   "name": "Aurora Destiny AI — Huyền Phong Phật Đạo",
-  "description": "Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý trực thuộc kênh Huyền Phong Phật Đạo, kết hợp tinh hoa Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn và hệ thống phân tích xác suất đa tác tử chuyên sâu.",
+  "description": "Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý trực thuộc kênh Huyền Phong Phật Đạo. Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn và Hội đồng 7 Tác tử AI.",
   "icons": [
     {
-      "src": "/og-image.svg",
+      "src": "/pwa-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
       "type": "image/svg+xml",
-      "sizes": "512x512 192x192 128x128 64x64",
-      "purpose": "any maskable"
+      "sizes": "512x512",
+      "purpose": "any"
     }
   ],
   "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#050508",
   "background_color": "#050508",
   "orientation": "portrait-primary",
   "categories": [
     "lifestyle",
-    "education",
-    "utilities"
+    "utilities",
+    "productivity",
+    "education"
   ],
   "lang": "vi-VN",
   "dir": "ltr",
-  "screenshots": [
-    {
-      "src": "/og-image.svg",
-      "type": "image/svg+xml",
-      "sizes": "1200x630",
-      "form_factor": "wide"
-    }
-  ],
+  "prefer_related_applications": false,
   "shortcuts": [
     {
       "name": "Lập Lá Số Tử Vi 108 Sao",
       "short_name": "Tử Vi 108 Sao",
       "description": "Lập lá số Tử Vi Đẩu Số 108 Tinh Bàn chuẩn xác",
-      "url": "/?tab=dashboard"
+      "url": "/?tab=dashboard&source=shortcut",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Bát Tự Tứ Trụ & Dụng Thần",
       "short_name": "Bát Tự Tứ Trụ",
       "description": "Phân tích Thập Thần, Dụng Thần, Hỷ Thần Bát Tự",
-      "url": "/?tab=timeline"
+      "url": "/?tab=timeline&source=shortcut",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "Hợp Xướng Đa Tác Tử AI",
-      "short_name": "Multi-Agent AI",
-      "description": "7 Chuyên gia AI đồng thuận luận giải đa chiều",
-      "url": "/?tab=dashboard"
+      "name": "Radar Vận Mệnh Hàng Ngày",
+      "short_name": "Vận Hàng Ngày",
+      "description": "Cập nhật nhịp điệu vận khí Can Chi theo thời gian thực",
+      "url": "/?tab=daily&source=shortcut",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Hội Đồng 7 Tác Tử AI",
+      "short_name": "7 Tác Tử AI",
+      "description": "Hợp xướng 7 chuyên gia AI phân tích chuyên sâu",
+      "url": "/?tab=radar&source=shortcut",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

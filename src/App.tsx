@@ -32,6 +32,7 @@ import { SeoKnowledgeModal } from './components/SeoKnowledgeModal';
 import { CelestialTalismanModal } from './components/CelestialTalismanModal';
 import { SponsorshipModal } from './components/SponsorshipModal';
 import { CommunitySocialModal } from './components/CommunitySocialModal';
+import { PWAOfflineIndicator } from './components/PWAOfflineIndicator';
 import { sacredSound } from './services/soundService';
 
 import { UserProfile, UserPreferences } from './types/user';
@@ -851,6 +852,9 @@ export default function App() {
         onClose={() => setShowCommunityModal(false)}
         language={language}
       />
+
+      {/* PWA Enterprise Connectivity & Update Status Floating Toast */}
+      <PWAOfflineIndicator />
     </div>
   );
 }
