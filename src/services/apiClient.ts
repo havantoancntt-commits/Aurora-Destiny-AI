@@ -13,16 +13,59 @@ class ApiClient {
   private sessionInitialized = false;
   private sessionPromise: Promise<boolean> | null = null;
   private token: string | null = null;
+  private currentUserId: string | null = null;
 
   constructor() {
-    try {
-      this.token = typeof window !== 'undefined' ? localStorage.getItem('aurora_session_token') : null;
-    } catch {
+    if (this.isProductionAuthMode()) {
       this.token = null;
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('aurora_session_token');
+          sessionStorage.removeItem('aurora_session_token');
+        }
+      } catch {}
+    } else {
+      try {
+        this.token = typeof window !== 'undefined' ? localStorage.getItem('aurora_session_token') : null;
+      } catch {
+        this.token = null;
+      }
+    }
+  }
+
+  public isProductionAuthMode(): boolean {
+    if (typeof window === 'undefined') return true;
+    try {
+      // 1. Explicit environment or runtime override
+      if (
+        (window as any).__AURORA_PRODUCTION_AUTH_MODE === true ||
+        (import.meta as any)?.env?.VITE_PRODUCTION_AUTH_MODE === 'true' ||
+        (typeof process !== 'undefined' && process.env?.PRODUCTION_AUTH_MODE === 'true')
+      ) {
+        return true;
+      }
+      // 2. Standard top-level browser window (not sandboxed inside an iframe)
+      const isTopLevel = window.self === window.top;
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      return isTopLevel && !isLocalhost;
+    } catch {
+      return false; // Cross-origin iframe security restriction means embedded sandbox
     }
   }
 
   public setToken(token: string | null) {
+    if (this.isProductionAuthMode()) {
+      // In production browser mode, authentication strictly uses HttpOnly SameSite cookies
+      this.token = null;
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('aurora_session_token');
+          sessionStorage.removeItem('aurora_session_token');
+        }
+      } catch {}
+      return;
+    }
+
     this.token = token;
     try {
       if (typeof window !== 'undefined') {
@@ -39,6 +82,7 @@ class ApiClient {
 
   private isSandboxEnvironment(): boolean {
     if (typeof window === 'undefined') return false;
+    if (this.isProductionAuthMode()) return false;
     try {
       return (
         window.self !== window.top ||
@@ -55,6 +99,24 @@ class ApiClient {
   public resetSessionState() {
     this.sessionInitialized = false;
     this.setToken(null);
+  }
+
+  public setCurrentUser(user: UserAccount | null) {
+    const previousUserId = this.currentUserId;
+    this.currentUserId = user?.id || null;
+    if (previousUserId && user && previousUserId !== user.id) {
+      // Purge previous user cache on account switch
+      this.clearCachedProfilesForUser(previousUserId);
+    }
+  }
+
+  public getCurrentUserId(): string | null {
+    return this.currentUserId;
+  }
+
+  private getProfileCacheKey(userId?: string | null): string {
+    const targetId = userId !== undefined ? userId : this.currentUserId;
+    return targetId ? `aurora_cached_profiles_${targetId}` : 'aurora_cached_profiles_guest';
   }
 
   // Ensure an authenticated session exists:
@@ -89,6 +151,10 @@ class ApiClient {
             credentials: 'include'
           });
           if (meRes.ok) {
+            const meData = await meRes.json().catch(() => null);
+            if (meData?.user) {
+              this.setCurrentUser(meData.user);
+            }
             this.sessionInitialized = true;
             return true;
           }
@@ -108,6 +174,9 @@ class ApiClient {
         });
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
+          if (data?.user) {
+            this.setCurrentUser(data.user);
+          }
           const receivedToken = data?.token || data?.accessToken;
           if (receivedToken && isSandbox) {
             this.setToken(receivedToken);
@@ -178,6 +247,9 @@ class ApiClient {
       throw new Error(err?.error?.message || `Đăng ký thất bại (${res.status})`);
     }
     const data = await res.json();
+    if (data?.user) {
+      this.setCurrentUser(data.user);
+    }
     const receivedToken = data?.token || data?.accessToken;
     if (receivedToken && isSandbox) {
       this.setToken(receivedToken);
@@ -207,6 +279,9 @@ class ApiClient {
       throw new Error(err?.error?.message || `Đăng nhập thất bại (${res.status})`);
     }
     const data = await res.json();
+    if (data?.user) {
+      this.setCurrentUser(data.user);
+    }
     const receivedToken = data?.token || data?.accessToken;
     if (receivedToken && isSandbox) {
       this.setToken(receivedToken);
@@ -220,6 +295,16 @@ class ApiClient {
   public async logout() {
     const token = this.token;
     this.resetSessionState();
+    this.clearAllCachedProfiles();
+    this.currentUserId = null;
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('aurora_session_token');
+        sessionStorage.removeItem('aurora_session_token');
+      }
+    } catch {}
+
     const headers: Record<string, string> = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -239,16 +324,32 @@ class ApiClient {
   public async getMe(): Promise<{ user: UserAccount; preferences: UserPreferences }> {
     const res = await this.fetchWithAuth('/api/auth/me');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    const data = await res.json();
+    if (data?.user) {
+      this.setCurrentUser(data.user);
+    }
+    return data;
   }
 
   public getCachedProfiles(): UserProfile[] {
     try {
       if (typeof window !== 'undefined') {
-        const raw = localStorage.getItem('aurora_cached_profiles');
+        const key = this.getProfileCacheKey();
+        const raw = localStorage.getItem(key);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) return parsed;
+          // Schema & ownership validation
+          if (parsed && typeof parsed === 'object') {
+            if (Array.isArray(parsed.profiles)) {
+              if (this.currentUserId && parsed.userId && parsed.userId !== this.currentUserId) {
+                // Cross-user contamination prevented: do not return another user's profiles
+                return [];
+              }
+              return parsed.profiles;
+            } else if (Array.isArray(parsed)) {
+              return parsed;
+            }
+          }
         }
       }
     } catch {}
@@ -258,7 +359,40 @@ class ApiClient {
   public cacheProfiles(profiles: UserProfile[]): void {
     try {
       if (typeof window !== 'undefined' && Array.isArray(profiles)) {
-        localStorage.setItem('aurora_cached_profiles', JSON.stringify(profiles));
+        const key = this.getProfileCacheKey();
+        const payload = {
+          version: 1,
+          userId: this.currentUserId,
+          timestamp: Date.now(),
+          profiles
+        };
+        localStorage.setItem(key, JSON.stringify(payload));
+      }
+    } catch {}
+  }
+
+  public clearCachedProfilesForUser(userId: string): void {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`aurora_cached_profiles_${userId}`);
+      }
+    } catch {}
+  }
+
+  public clearAllCachedProfiles(): void {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('aurora_cached_profiles');
+        localStorage.removeItem('aurora_cached_profiles_guest');
+        if (this.currentUserId) {
+          localStorage.removeItem(`aurora_cached_profiles_${this.currentUserId}`);
+        }
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('aurora_cached_profiles')) {
+            localStorage.removeItem(k);
+          }
+        }
       }
     } catch {}
   }

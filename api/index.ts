@@ -4,38 +4,11 @@
 // ==========================================
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { app } from '../server';
-import { repository } from '../src/db/repository';
-
-let isInitialized = false;
-let initPromise: Promise<void> | null = null;
-let initError: Error | null = null;
-
-async function ensureAppReady(): Promise<void> {
-  if (isInitialized) return;
-  if (initError) throw initError;
-
-  if (!initPromise) {
-    initPromise = (async () => {
-      try {
-        if (repository.ensureInitialized) {
-          await repository.ensureInitialized();
-        }
-        isInitialized = true;
-      } catch (err: any) {
-        initPromise = null;
-        initError = err;
-        console.error('🚨 [Vercel Serverless] Critical failure during repository initialization:', err.message);
-        throw err;
-      }
-    })();
-  }
-  await initPromise;
-}
+import { app, ensureAppInitialized } from '../server';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   try {
-    await ensureAppReady();
+    await ensureAppInitialized();
     return (app as any)(req, res);
   } catch (err: any) {
     const isProd = process.env.NODE_ENV === 'production';

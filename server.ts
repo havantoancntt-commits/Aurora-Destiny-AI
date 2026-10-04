@@ -2281,40 +2281,90 @@ app.all('/api/*', (req: Request, res: Response) => {
 });
 
 // ----------------------------------------------------
-// 13. VITE MIDDLEWARE & STATIC ASSETS
+// 12B. UNIFIED APPLICATION BOOTSTRAP & INITIALIZATION
+// Synchronizes cold-start, environment validation, database migrations,
+// admin bootstrapping and session cleanup across both Node.js & Serverless runtimes.
 // ----------------------------------------------------
-async function startServer() {
-  // Validate critical environment variables in production
+export function validateProductionConfig(): void {
   if (process.env.NODE_ENV === 'production') {
     const missingVars: string[] = [];
-    if (!process.env.DATABASE_URL && process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
-      missingVars.push('DATABASE_URL (or explicitly set ALLOW_FILE_STORAGE_IN_PRODUCTION=true for single-instance container disk)');
+    const rawDbUrl = process.env.DATABASE_URL;
+    const isPostgresUrl = typeof rawDbUrl === 'string' &&
+      (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
+      !rawDbUrl.toLowerCase().includes('none');
+
+    if (!isPostgresUrl && process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
+      missingVars.push('MISSING_DATABASE_URL: DATABASE_URL is strictly required for PostgreSQL in production (or set ALLOW_FILE_STORAGE_IN_PRODUCTION=true)');
     }
+
+    if (process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true') {
+      const redisUrl = process.env.REDIS_URL;
+      const isRedisUrl = typeof redisUrl === 'string' && (redisUrl.startsWith('redis://') || redisUrl.startsWith('rediss://'));
+      if (!isRedisUrl) {
+        missingVars.push('MISSING_REDIS_URL: REDIS_URL is strictly required when REDIS_REQUIRED_IN_PRODUCTION=true');
+      }
+    }
+
     const secretKey = process.env.ALGORITHM_PROTECTION_SECRET || process.env.APP_SECRET || process.env.SESSION_SECRET;
     if (!secretKey || secretKey.length < 16) {
-      missingVars.push('ALGORITHM_PROTECTION_SECRET or APP_SECRET or SESSION_SECRET (minimum 16 characters for cryptographic signing)');
+      missingVars.push('INSECURE_APP_SECRET: ALGORITHM_PROTECTION_SECRET or APP_SECRET or SESSION_SECRET (minimum 16 characters required)');
     }
+
     if (missingVars.length > 0) {
       console.error('🚨 [FATAL STARTUP] Critical production environment variable(s) missing or insecure:');
       missingVars.forEach(v => console.error(`   - ${v}`));
-      throw new Error(`Critical environment variables missing in production: ${missingVars.join(', ')}`);
+      throw new Error(`Critical environment variables missing or invalid in production: ${missingVars.join(', ')}`);
     }
   }
+}
 
-  // Ensure database repository is initialized
-  if (repository.ensureInitialized) {
-    await repository.ensureInitialized();
+let isAppInitialized = false;
+let appInitPromise: Promise<void> | null = null;
+let appInitError: Error | null = null;
+
+export async function ensureAppInitialized(): Promise<void> {
+  if (isAppInitialized) return;
+  if (appInitError) throw appInitError;
+
+  if (!appInitPromise) {
+    appInitPromise = (async () => {
+      try {
+        // 1. Validate critical environment variables in production
+        validateProductionConfig();
+
+        // 2. Ensure database repository is initialized & migrations ran
+        if (repository.ensureInitialized) {
+          await repository.ensureInitialized();
+        }
+
+        // 3. Dynamic Bootstrap Admin account if configured
+        await bootstrapAdminIfConfiguredAsync();
+
+        // 4. Initial cleanup of expired sessions on startup
+        try {
+          await repository.cleanupExpiredSessions();
+        } catch (err) {
+          console.error('[Session Cleanup Startup Error]', err);
+        }
+
+        isAppInitialized = true;
+      } catch (err: any) {
+        appInitPromise = null;
+        appInitError = err;
+        console.error('🚨 [Server Bootstrap] Critical failure during unified application initialization:', err.message);
+        throw err;
+      }
+    })();
   }
 
-  // Dynamic Bootstrap Admin account if ADMIN_EMAIL & ADMIN_PASSWORD are provided
-  await bootstrapAdminIfConfiguredAsync();
+  await appInitPromise;
+}
 
-  // Initial cleanup of expired sessions on startup
-  try {
-    await repository.cleanupExpiredSessions();
-  } catch (err) {
-    console.error('[Session Cleanup Startup Error]', err);
-  }
+// ----------------------------------------------------
+// 13. VITE MIDDLEWARE & STATIC ASSETS
+// ----------------------------------------------------
+async function startServer() {
+  await ensureAppInitialized();
 
   // Periodic expired session purge (every 15 minutes in persistent server environments)
   let cleanupInterval: NodeJS.Timeout | null = null;

@@ -1677,7 +1677,13 @@ export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; 
     return new PostgresDatabaseRepository({ connectionString: rawDbUrl });
   }
 
-  if (isProd && !isPostgresUrl && options?.forceMode !== 'file') {
+  if (isProd && options?.forceMode === 'file' && process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
+    const msg = 'FATAL: forceMode="file" is not permitted in production mode without ALLOW_FILE_STORAGE_IN_PRODUCTION=true.';
+    console.error(`🚨 [Repository Factory] ${msg}`);
+    throw new Error(msg);
+  }
+
+  if (isProd && !isPostgresUrl) {
     if (process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION === 'true') {
       console.error('🚨 [CRITICAL PRODUCTION WARNING] Running PersistentDatabaseRepository in production mode because ALLOW_FILE_STORAGE_IN_PRODUCTION=true. WARNING: Data stored on the local or ephemeral filesystem will NOT persist across serverless invocations or multiple container instances! Configure PostgreSQL DATABASE_URL for durable persistent storage.');
     } else {

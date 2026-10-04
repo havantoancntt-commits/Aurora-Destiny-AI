@@ -48,6 +48,14 @@ export class MemoryRateLimitStore implements IRateLimitStore {
   }
 
   async increment(key: string, windowMs: number, isSensitive?: boolean): Promise<RateLimitResult> {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      (process.env.RATE_LIMIT_FAIL_CLOSED === 'true' || isSensitive) &&
+      process.env.ALLOW_MEMORY_RATE_LIMITER_IN_PRODUCTION !== 'true'
+    ) {
+      throw new Error('Rate limiter service temporarily unavailable (distributed fail-closed policy active).');
+    }
+
     const now = Date.now();
     const existing = this.store.get(key) || [];
     const valid = existing.filter(t => now - t < windowMs);
@@ -195,10 +203,19 @@ export function getRateLimitStore(): IRateLimitStore {
 export function createRateLimiter(config: RateLimitConfig) {
   return async function rateLimiterMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
-      const ip = req.ip || req.socket.remoteAddress || 'unknown';
+      let rawIp = req.ip || req.socket.remoteAddress || 'unknown';
+      if (rawIp.startsWith('::ffff:')) {
+        rawIp = rawIp.slice(7);
+      }
+      let normalizedIp = rawIp;
+      if (rawIp.includes(':')) {
+        const parts = rawIp.split(':');
+        normalizedIp = parts.slice(0, 4).join(':') + '::/64';
+      }
+
       const userId = req.user?.id;
-      // For user-based actions, key on user ID if authenticated, else IP
-      const identifier = userId ? `u_${userId}` : `ip_${ip}`;
+      // For user-based actions, key on user ID if authenticated, else normalized IP
+      const identifier = userId ? `u_${userId}` : `ip_${normalizedIp}`;
       const key = `${config.keyPrefix}:${identifier}`;
 
       const now = Date.now();

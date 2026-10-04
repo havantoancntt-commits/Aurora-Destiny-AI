@@ -161,9 +161,14 @@ export class RedisCacheStore implements IDistributedCache {
     await this.localFallback.clear();
     if (!this.isConnected) return;
     try {
-      const keys = await this.client.keys(this.prefix + '*');
-      if (keys.length > 0) {
-        await this.client.del(...keys);
+      const stream = this.client.scanStream({
+        match: this.prefix + '*',
+        count: 100
+      });
+      for await (const keys of stream) {
+        if (keys.length > 0) {
+          await this.client.del(...keys);
+        }
       }
     } catch {
       // ignore error
