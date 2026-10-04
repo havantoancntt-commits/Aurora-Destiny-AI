@@ -71,10 +71,10 @@ export const Top3DTabBar: React.FC<Props> = ({
     {
       key: 'compatibility',
       labelKey: 'compatibility',
-      enLabel: 'Tương Hợp & Đối Tác',
+      enLabel: 'Ma Trận Tương Hợp 360°',
       icon: HeartHandshake,
       accentColor: 'from-rose-500 to-pink-500',
-      badge: 'Doanh Chủ & Nhân Duyên'
+      badge: 'Dụng Thần & Tứ Hóa'
     },
     {
       key: 'remedies',
@@ -87,10 +87,10 @@ export const Top3DTabBar: React.FC<Props> = ({
     {
       key: 'daily',
       labelKey: 'dailyDestiny',
-      enLabel: 'Khí Tiết Hôm Nay',
+      enLabel: 'La Bàn Định Thời',
       icon: Sun,
       accentColor: 'from-yellow-400 to-amber-500',
-      badge: 'Chỉ Dẫn & Hoàng Đạo'
+      badge: 'Chân Giờ & Giờ Vàng'
     }
   ];
 

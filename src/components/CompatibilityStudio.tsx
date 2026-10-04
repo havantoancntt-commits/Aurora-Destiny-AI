@@ -32,6 +32,7 @@ import {
   CompatibilityAnalysis
 } from '../engine/compatibility';
 import { ExecutiveSynastryStudio } from './ExecutiveSynastryStudio';
+import { SynergyMatrix360View } from './SynergyMatrix360View';
 import { soundEngine } from '../services/soundEffects';
 
 interface Props {
@@ -47,7 +48,7 @@ export const CompatibilityStudio: React.FC<Props> = ({
   allProfiles,
   language
 }) => {
-  const [studioType, setStudioType] = useState<'personal' | 'executive'>('executive');
+  const [studioType, setStudioType] = useState<'matrix360' | 'executive' | 'personal'>('matrix360');
 
   // Other profiles excluding activeProfile
   const otherProfiles = useMemo(
@@ -167,9 +168,24 @@ export const CompatibilityStudio: React.FC<Props> = ({
 
   return (
     <div className="space-y-6 pb-24 text-slate-200">
-      {/* 0. Studio Type Selector (Executive vs Personal) */}
+      {/* 0. Studio Type Selector (Matrix 360 vs Executive vs Personal) */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-xl">
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              soundEngine.playRadarTick();
+              setStudioType('matrix360');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
+              studioType === 'matrix360'
+                ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-black font-bold shadow-[0_0_15px_rgba(45,212,191,0.4)] border border-teal-400/50'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Ma Trận Đồng Hóa 360° (Dụng Thần &amp; Tứ Hóa Phi Tinh)</span>
+          </button>
+
           <button
             onClick={() => {
               soundEngine.playRadarTick();
@@ -182,7 +198,7 @@ export const CompatibilityStudio: React.FC<Props> = ({
             }`}
           >
             <Briefcase className="w-3.5 h-3.5" />
-            <span>Thẩm Định Doanh Chủ & Đối Tác HĐQT (Executive Synastry)</span>
+            <span>Thẩm Định Doanh Chủ &amp; Đối Tác HĐQT</span>
           </button>
 
           <button
@@ -197,7 +213,7 @@ export const CompatibilityStudio: React.FC<Props> = ({
             }`}
           >
             <Heart className="w-3.5 h-3.5" />
-            <span>Tương Hợp Nhân Duyên & Gia Đạo (Personal Synastry)</span>
+            <span>Tương Hợp Bát Trạch &amp; Nạp Âm</span>
           </button>
         </div>
       </div>
@@ -370,7 +386,21 @@ export const CompatibilityStudio: React.FC<Props> = ({
         )}
       </div>
 
-      {studioType === 'executive' ? (
+      {studioType === 'matrix360' ? (
+        <motion.div
+          key="matrix360-view"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <SynergyMatrix360View
+            activeProfile={activeProfile}
+            calculation={calculation}
+            allProfiles={allProfiles}
+            language={language}
+          />
+        </motion.div>
+      ) : studioType === 'executive' ? (
         <motion.div
           key="executive-view"
           initial={{ opacity: 0, y: 10 }}

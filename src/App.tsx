@@ -17,6 +17,7 @@ import { ScenarioSimulator } from './components/ScenarioSimulator';
 import { CompatibilityStudio } from './components/CompatibilityStudio';
 import { DestinyRemediesView } from './components/DestinyRemediesView';
 import { DailyDestinyView } from './components/DailyDestinyView';
+import { StrategicChronoNavigatorView } from './components/StrategicChronoNavigatorView';
 import { CelestialBackground } from './components/CelestialBackground';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { ReportGeneratorModal } from './components/ReportGeneratorModal';
@@ -697,7 +698,7 @@ export default function App() {
               )}
 
               {activeTab === 'daily' && (
-                <DailyDestinyView
+                <StrategicChronoNavigatorView
                   calculation={calculation}
                   language={language}
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
