@@ -526,6 +526,7 @@ export default function App() {
           onOpenTalismanModal={() => setShowTalismanModal(true)}
           onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
           onOpenCommunityModal={() => setShowCommunityModal(true)}
+          onNavigateTab={setActiveTab}
         />
       </div>
 

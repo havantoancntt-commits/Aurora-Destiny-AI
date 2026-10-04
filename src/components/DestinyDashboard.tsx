@@ -27,7 +27,10 @@ import {
   LayoutGrid,
   Eye,
   Sliders,
-  Crown
+  Crown,
+  Sun,
+  HeartHandshake,
+  ArrowRight
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -358,6 +361,71 @@ export const DestinyDashboard: React.FC<Props> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* PROPRIETARY APPS HIGHLIGHT: LA BÀN ĐỊNH THỜI & MA TRẬN ĐỒNG HÓA 360° */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card 1: La Bàn Định Thời Chiến Lược */}
+        <motion.div
+          whileHover={{ scale: 1.01 }}
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#12162a]/90 via-[#0d1020]/90 to-[#070914]/95 border border-amber-500/25 p-5 shadow-[0_16px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl flex flex-col justify-between group"
+        >
+          <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10 group-hover:bg-amber-500/15 transition-all" />
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <Sun className="w-3 h-3 text-amber-400" />
+                Độc Quyền • Định Thời Vận
+              </span>
+              <span className="text-[10px] font-mono text-slate-400">True Solar Time</span>
+            </div>
+            <h3 className="text-base sm:text-lg font-serif font-medium text-white mb-1.5 group-hover:text-amber-200 transition-colors flex items-center gap-2">
+              <Compass className="w-4 h-4 text-amber-400" />
+              La Bàn Định Thời Chiến Lược
+            </h3>
+            <p className="text-xs text-slate-300 font-light leading-relaxed mb-4">
+              Chân giờ mặt trời theo tọa độ kinh độ thực tế và 4 khung giờ vàng hành động: Ký kết hợp đồng, kích hoạt vốn tài lộc, đàm phán ngoại giao, phòng thủ rủi ro.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigateTab?.('daily')}
+            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Khai Mở La Bàn Định Thời</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </motion.div>
+
+        {/* Card 2: Ma Trận Đồng Hóa & Tương Hợp 360° */}
+        <motion.div
+          whileHover={{ scale: 1.01 }}
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1c1228]/90 via-[#140c1e]/90 to-[#0a0712]/95 border border-rose-500/25 p-5 shadow-[0_16px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl flex flex-col justify-between group"
+        >
+          <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/10 rounded-full blur-2xl pointer-events-none -mr-10 -mt-10 group-hover:bg-rose-500/15 transition-all" />
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                <Sparkles className="w-3 h-3 text-rose-400" />
+                Độc Quyền • Tương Hợp 360°
+              </span>
+              <span className="text-[10px] font-mono text-slate-400">B2B &amp; Soulmate</span>
+            </div>
+            <h3 className="text-base sm:text-lg font-serif font-medium text-white mb-1.5 group-hover:text-rose-200 transition-colors flex items-center gap-2">
+              <HeartHandshake className="w-4 h-4 text-rose-400" />
+              Ma Trận Đồng Hóa &amp; Tương Hợp 360°
+            </h3>
+            <p className="text-xs text-slate-300 font-light leading-relaxed mb-4">
+              Bổ khuyết Dụng Thần Bát Tự 2 chiều và Tứ Hóa Phi Tinh chéo cung Tử Vi: Định vị vai trò HĐQT doanh chủ và hòa hợp gia đạo tâm linh sâu sắc.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigateTab?.('compatibility')}
+            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 hover:from-rose-400 hover:to-pink-400 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Khai Mở Ma Trận 360°</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </motion.div>
+      </div>
 
       {/* 2. SACRED BAGUA COMPASS & LUCKY DIRECTIONS PORTAL */}
       <BaGuaCompassWidget

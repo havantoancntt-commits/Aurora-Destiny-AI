@@ -26,7 +26,9 @@ import {
   MoreHorizontal,
   Crown,
   Users,
-  Download
+  Download,
+  Sun,
+  HeartHandshake
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -54,6 +56,7 @@ interface Props {
   onOpenOracleModal?: () => void;
   onOpenTalismanModal?: () => void;
   onOpenCommunityModal?: () => void;
+  onNavigateTab?: (tab: 'dashboard' | 'radar' | 'timeline' | 'compatibility' | 'remedies' | 'daily') => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -73,7 +76,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenInternationalModal,
   onOpenOracleModal,
   onOpenTalismanModal,
-  onOpenCommunityModal
+  onOpenCommunityModal,
+  onNavigateTab
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -412,6 +416,39 @@ export const Navbar: React.FC<Props> = ({
                   </div>
 
                   <div className="space-y-1 text-xs">
+                    {/* Exclusive Proprietary Apps Direct Nav */}
+                    {onNavigateTab && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowMoreMenu(false);
+                            onNavigateTab('daily');
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/25 transition-colors text-left cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+                            <span className="font-medium">La Bàn Định Thời Chiến Lược</span>
+                          </div>
+                          <span className="text-[9px] font-mono uppercase bg-amber-400/20 px-1.5 py-0.5 rounded text-amber-200">Độc Quyền</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setShowMoreMenu(false);
+                            onNavigateTab('compatibility');
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-400/25 transition-colors text-left cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <HeartHandshake className="w-4 h-4 text-rose-400 shrink-0" />
+                            <span className="font-medium">Ma Trận Tương Hợp 360°</span>
+                          </div>
+                          <span className="text-[9px] font-mono uppercase bg-rose-400/20 px-1.5 py-0.5 rounded text-rose-200">360°</span>
+                        </button>
+                      </>
+                    )}
+
                     {/* Mobile-only tools in this drawer */}
                     {onOpenTalismanModal && (
                       <button

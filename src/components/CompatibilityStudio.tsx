@@ -218,7 +218,9 @@ export const CompatibilityStudio: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* 1. Header Banner */}
+      {studioType !== 'matrix360' && (
+        <>
+          {/* 1. Header Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#120f24] via-[#0d1127] to-[#070a18] p-6 border border-rose-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
         <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
@@ -385,6 +387,8 @@ export const CompatibilityStudio: React.FC<Props> = ({
           </div>
         )}
       </div>
+      </>
+    )}
 
       {studioType === 'matrix360' ? (
         <motion.div

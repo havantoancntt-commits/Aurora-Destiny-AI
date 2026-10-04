@@ -44,10 +44,17 @@ export class DatabaseMigrator {
       path.join(process.cwd(), 'migrations'),
       path.resolve(currentDir, 'migrations'),
       path.resolve(currentDir, '..', 'migrations'),
-      path.resolve(currentDir, '..', '..', 'migrations')
+      path.resolve(currentDir, '..', '..', 'migrations'),
+      path.join(process.cwd(), 'dist', 'migrations')
     ];
     const migrationsDir = candidates.find(dir => fs.existsSync(dir));
     if (!migrationsDir) {
+      if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_EMPTY_MIGRATIONS_IN_TEST) {
+        throw new Error(
+          `FATAL [Migration]: Migrations directory not found in production! Checked candidates:\n` +
+          candidates.map(c => `  - ${c}`).join('\n')
+        );
+      }
       return [];
     }
 
@@ -55,10 +62,35 @@ export class DatabaseMigrator {
       .filter(f => f.endsWith('.sql'))
       .sort();
 
+    if (files.length === 0) {
+      if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_EMPTY_MIGRATIONS_IN_TEST) {
+        throw new Error(`FATAL [Migration]: Migrations directory "${migrationsDir}" contains zero .sql migration files!`);
+      }
+      return [];
+    }
+
+    const seenVersions = new Set<number>();
+    let prevVersion = 0;
+
     return files.map(file => {
       const match = file.match(/^(\d+)_(.+)\.sql$/);
-      const version = match ? parseInt(match[1], 10) : 0;
-      const name = match ? match[2] : file;
+      if (!match) {
+        throw new Error(`FATAL [Migration]: Invalid migration file name format: "${file}". Expected format: <version>_<name>.sql`);
+      }
+      const version = parseInt(match[1], 10);
+      if (isNaN(version) || version <= 0) {
+        throw new Error(`FATAL [Migration]: Invalid non-positive migration version: ${match[1]} in file "${file}".`);
+      }
+      if (seenVersions.has(version)) {
+        throw new Error(`FATAL [Migration]: Duplicate migration version detected: ${version} in file "${file}".`);
+      }
+      if (version < prevVersion) {
+        throw new Error(`FATAL [Migration]: Migration ordering violation: version ${version} appears after ${prevVersion}.`);
+      }
+      seenVersions.add(version);
+      prevVersion = version;
+
+      const name = match[2];
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
       const checksum = crypto.createHash('sha256').update(sql.trim()).digest('hex');
       return { version, name, sql, checksum };

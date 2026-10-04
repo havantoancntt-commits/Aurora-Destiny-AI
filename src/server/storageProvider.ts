@@ -1,13 +1,15 @@
 // ==========================================
-// AURORA DESTINY AI — OBJECT STORAGE PROVIDER
+// AURORA DESTINY AI — DURABLE OBJECT STORAGE PROVIDER
 // Production Storage Abstraction for Staged Documents & PDFs
-// Replaces volatile in-memory Map with resilient LocalDisk / Cloud Storage
-// Includes HMAC-signed tamper-proof tokens and automatic TTL eviction
+// Multi-instance / Serverless Safe with Atomic Download Limit Controls
+// Supports PostgreSQL Durable Table Storage, LocalDisk & Memory
+// Includes HMAC-SHA256 Signed Tokens with Constant-Time Verification
 // ==========================================
 
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import pg from 'pg';
 
 export interface StoredFileMetadata {
   fileName: string;
@@ -25,20 +27,30 @@ export interface StoredFileResult {
   metadata: StoredFileMetadata;
 }
 
+export interface ConsumeDownloadResult {
+  allowed: boolean;
+  downloadCount: number;
+  maxDownloads: number;
+  reason?: 'EXPIRED' | 'LIMIT_EXCEEDED' | 'NOT_FOUND';
+}
+
 export interface IObjectStorageProvider {
   save(key: string, data: Buffer, metadata: Omit<StoredFileMetadata, 'checksum' | 'size' | 'downloadCount'>): Promise<void>;
   get(key: string): Promise<StoredFileResult | null>;
   delete(key: string): Promise<void>;
-  incrementDownloadCount(key: string): Promise<number>;
+  consumeDownload(key: string): Promise<ConsumeDownloadResult>;
+  incrementDownloadCount(key: string): Promise<number>; // Backward-compatible
   cleanupExpired(): Promise<number>;
 }
 
 // ----------------------------------------------------
-// 1. LOCAL DISK STORAGE PROVIDER (PRODUCTION-READY DURABILITY)
+// 1. LOCAL DISK STORAGE PROVIDER (DEV & SINGLE CONTAINER)
 // ----------------------------------------------------
 export class LocalDiskStorageProvider implements IObjectStorageProvider {
   private baseDir: string;
   private cleanupInterval: NodeJS.Timeout | null = null;
+  // Per-key Mutex queue to serialize atomic operations in-process
+  private keyLocks = new Map<string, Promise<any>>();
 
   constructor(baseDir?: string) {
     this.baseDir = baseDir || path.join(process.cwd(), '.aurora_storage', 'staged_pdf');
@@ -52,7 +64,6 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
       fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
     }
 
-    // Run background eviction every 3 minutes in persistent server environments
     const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
     if (!isServerless) {
       this.cleanupInterval = setInterval(() => {
@@ -81,26 +92,45 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
     return path.join(this.baseDir, `${safeKey}.meta.json`);
   }
 
+  private async acquireKeyLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, '');
+    const currentLock = this.keyLocks.get(safeKey) || Promise.resolve();
+    let resolveLock: () => void = () => {};
+    const nextLock = new Promise<void>(res => { resolveLock = res; });
+    this.keyLocks.set(safeKey, nextLock);
+
+    try {
+      await currentLock;
+      return await fn();
+    } finally {
+      resolveLock();
+      if (this.keyLocks.get(safeKey) === nextLock) {
+        this.keyLocks.delete(safeKey);
+      }
+    }
+  }
+
   async save(key: string, data: Buffer, meta: Omit<StoredFileMetadata, 'checksum' | 'size' | 'downloadCount'>): Promise<void> {
-    const checksum = crypto.createHash('sha256').update(data).digest('hex');
-    const fullMeta: StoredFileMetadata = {
-      ...meta,
-      checksum,
-      size: data.length,
-      downloadCount: 0
-    };
+    return this.acquireKeyLock(key, async () => {
+      const checksum = crypto.createHash('sha256').update(data).digest('hex');
+      const fullMeta: StoredFileMetadata = {
+        ...meta,
+        checksum,
+        size: data.length,
+        downloadCount: 0
+      };
 
-    const filePath = this.getFilePath(key);
-    const metaPath = this.getMetaPath(key);
-    const tempFile = `${filePath}.tmp_${Date.now()}`;
-    const tempMeta = `${metaPath}.tmp_${Date.now()}`;
+      const filePath = this.getFilePath(key);
+      const metaPath = this.getMetaPath(key);
+      const tempFile = `${filePath}.tmp_${Date.now()}`;
+      const tempMeta = `${metaPath}.tmp_${Date.now()}`;
 
-    // Atomic write pattern: write to tmp then rename
-    await fs.promises.writeFile(tempFile, data, { mode: 0o600 });
-    await fs.promises.writeFile(tempMeta, JSON.stringify(fullMeta, null, 2), { mode: 0o600 });
+      await fs.promises.writeFile(tempFile, data, { mode: 0o600 });
+      await fs.promises.writeFile(tempMeta, JSON.stringify(fullMeta, null, 2), { mode: 0o600 });
 
-    await fs.promises.rename(tempFile, filePath);
-    await fs.promises.rename(tempMeta, metaPath);
+      await fs.promises.rename(tempFile, filePath);
+      await fs.promises.rename(tempMeta, metaPath);
+    });
   }
 
   async get(key: string): Promise<StoredFileResult | null> {
@@ -122,7 +152,6 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
 
       const data = await fs.promises.readFile(filePath);
 
-      // Verify checksum integrity
       const currentChecksum = crypto.createHash('sha256').update(data).digest('hex');
       if (currentChecksum !== metadata.checksum) {
         console.error(`❌ [Storage] Checksum mismatch for file ${key}! Stored=${metadata.checksum}, Actual=${currentChecksum}`);
@@ -137,26 +166,48 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
     }
   }
 
-  async incrementDownloadCount(key: string): Promise<number> {
-    const metaPath = this.getMetaPath(key);
-    if (!fs.existsSync(metaPath)) return 0;
-
-    try {
-      const metaContent = await fs.promises.readFile(metaPath, 'utf8');
-      const metadata: StoredFileMetadata = JSON.parse(metaContent);
-      metadata.downloadCount += 1;
-
-      await fs.promises.writeFile(metaPath, JSON.stringify(metadata, null, 2), { mode: 0o600 });
-
-      if (metadata.downloadCount >= metadata.maxDownloads) {
-        // Evict after max downloads reached
-        await this.delete(key);
+  async consumeDownload(key: string): Promise<ConsumeDownloadResult> {
+    return this.acquireKeyLock(key, async () => {
+      const metaPath = this.getMetaPath(key);
+      if (!fs.existsSync(metaPath)) {
+        return { allowed: false, reason: 'NOT_FOUND', downloadCount: 0, maxDownloads: 0 };
       }
 
-      return metadata.downloadCount;
-    } catch {
-      return 0;
-    }
+      try {
+        const metaContent = await fs.promises.readFile(metaPath, 'utf8');
+        const metadata: StoredFileMetadata = JSON.parse(metaContent);
+
+        if (Date.now() > metadata.expiresAt) {
+          await this.delete(key);
+          return { allowed: false, reason: 'EXPIRED', downloadCount: metadata.downloadCount, maxDownloads: metadata.maxDownloads };
+        }
+
+        if (metadata.downloadCount >= metadata.maxDownloads) {
+          await this.delete(key);
+          return { allowed: false, reason: 'LIMIT_EXCEEDED', downloadCount: metadata.downloadCount, maxDownloads: metadata.maxDownloads };
+        }
+
+        // Atomically consume one download unit
+        metadata.downloadCount += 1;
+        const tempMeta = `${metaPath}.tmp_atomic_${Date.now()}`;
+        await fs.promises.writeFile(tempMeta, JSON.stringify(metadata, null, 2), { mode: 0o600 });
+        await fs.promises.rename(tempMeta, metaPath);
+
+        return {
+          allowed: true,
+          downloadCount: metadata.downloadCount,
+          maxDownloads: metadata.maxDownloads
+        };
+      } catch (err: any) {
+        console.warn(`⚠️ [Storage] consumeDownload error on ${key}:`, err.message);
+        return { allowed: false, reason: 'NOT_FOUND', downloadCount: 0, maxDownloads: 0 };
+      }
+    });
+  }
+
+  async incrementDownloadCount(key: string): Promise<number> {
+    const res = await this.consumeDownload(key);
+    return res.allowed ? res.downloadCount : res.downloadCount;
   }
 
   async delete(key: string): Promise<void> {
@@ -189,7 +240,6 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
               evicted++;
             }
           } catch {
-            // Malformed meta file
             await fs.promises.unlink(metaPath).catch(() => {});
           }
         }
@@ -240,14 +290,31 @@ export class MemoryStorageProvider implements IObjectStorageProvider {
     return item;
   }
 
-  async incrementDownloadCount(key: string): Promise<number> {
+  async consumeDownload(key: string): Promise<ConsumeDownloadResult> {
     const item = this.memoryStore.get(key);
-    if (!item) return 0;
-    item.metadata.downloadCount += 1;
+    if (!item) {
+      return { allowed: false, reason: 'NOT_FOUND', downloadCount: 0, maxDownloads: 0 };
+    }
+    if (Date.now() > item.metadata.expiresAt) {
+      this.memoryStore.delete(key);
+      return { allowed: false, reason: 'EXPIRED', downloadCount: item.metadata.downloadCount, maxDownloads: item.metadata.maxDownloads };
+    }
     if (item.metadata.downloadCount >= item.metadata.maxDownloads) {
       this.memoryStore.delete(key);
+      return { allowed: false, reason: 'LIMIT_EXCEEDED', downloadCount: item.metadata.downloadCount, maxDownloads: item.metadata.maxDownloads };
     }
-    return item.metadata.downloadCount;
+
+    item.metadata.downloadCount += 1;
+    return {
+      allowed: true,
+      downloadCount: item.metadata.downloadCount,
+      maxDownloads: item.metadata.maxDownloads
+    };
+  }
+
+  async incrementDownloadCount(key: string): Promise<number> {
+    const res = await this.consumeDownload(key);
+    return res.downloadCount;
   }
 
   async delete(key: string): Promise<void> {
@@ -268,8 +335,187 @@ export class MemoryStorageProvider implements IObjectStorageProvider {
 }
 
 // ----------------------------------------------------
-// 3. STORAGE FACTORY & SINGLETON INSTANCE
+// 3. POSTGRESQL DURABLE OBJECT STORAGE PROVIDER
+// (Production multi-instance / serverless durable tier)
 // ----------------------------------------------------
+export class PostgresObjectStorageProvider implements IObjectStorageProvider {
+  private pool: pg.Pool;
+
+  constructor(injectedPool?: pg.Pool) {
+    if (injectedPool) {
+      this.pool = injectedPool;
+    } else if (globalThis.__aurora_pg_pool && !((globalThis.__aurora_pg_pool as any)._ending || (globalThis.__aurora_pg_pool as any).ended)) {
+      this.pool = globalThis.__aurora_pg_pool;
+    } else {
+      const connStr = process.env.DATABASE_URL;
+      if (!connStr && process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: DATABASE_URL is strictly required for PostgresObjectStorageProvider.');
+      }
+      this.pool = new pg.Pool({
+        connectionString: connStr,
+        max: 5,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000
+      });
+      globalThis.__aurora_pg_pool = this.pool;
+    }
+  }
+
+  async save(key: string, data: Buffer, meta: Omit<StoredFileMetadata, 'checksum' | 'size' | 'downloadCount'>): Promise<void> {
+    const checksum = crypto.createHash('sha256').update(data).digest('hex');
+    const expiresAtDate = new Date(meta.expiresAt);
+
+    await this.pool.query(
+      `INSERT INTO staged_objects (
+        id, file_name, user_id, data, content_type, size, checksum, download_count, max_downloads, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8, $9)
+      ON CONFLICT (id) DO UPDATE SET
+        file_name = EXCLUDED.file_name,
+        data = EXCLUDED.data,
+        content_type = EXCLUDED.content_type,
+        size = EXCLUDED.size,
+        checksum = EXCLUDED.checksum,
+        download_count = 0,
+        max_downloads = EXCLUDED.max_downloads,
+        expires_at = EXCLUDED.expires_at;`,
+      [
+        key,
+        meta.fileName,
+        meta.userId || null,
+        data,
+        meta.contentType || 'application/pdf',
+        data.length,
+        checksum,
+        meta.maxDownloads || 5,
+        expiresAtDate
+      ]
+    );
+  }
+
+  async get(key: string): Promise<StoredFileResult | null> {
+    const res = await this.pool.query(
+      `SELECT id, file_name, user_id, data, content_type, size, checksum, download_count, max_downloads,
+              EXTRACT(EPOCH FROM expires_at) * 1000 AS expires_at_ms
+       FROM staged_objects
+       WHERE id = $1 AND expires_at > NOW();`,
+      [key]
+    );
+
+    if (!res.rows || res.rows.length === 0) {
+      return null;
+    }
+
+    const row = res.rows[0];
+    const dataBuf = Buffer.isBuffer(row.data) ? row.data : Buffer.from(row.data);
+
+    // Verify checksum
+    const calcChecksum = crypto.createHash('sha256').update(dataBuf).digest('hex');
+    if (calcChecksum !== row.checksum) {
+      console.error(`❌ [PostgresStorage] Checksum mismatch for object ${key}! Stored=${row.checksum}, Calc=${calcChecksum}`);
+      await this.delete(key);
+      return null;
+    }
+
+    return {
+      data: dataBuf,
+      metadata: {
+        fileName: row.file_name,
+        userId: row.user_id || undefined,
+        downloadCount: Number(row.download_count),
+        maxDownloads: Number(row.max_downloads),
+        expiresAt: Math.round(Number(row.expires_at_ms)),
+        contentType: row.content_type,
+        size: Number(row.size),
+        checksum: row.checksum
+      }
+    };
+  }
+
+  /**
+   * Atomic check-and-consume using PostgreSQL row-level lock UPDATE
+   * Guarantees zero race condition across multi-instance serverless functions
+   */
+  async consumeDownload(key: string): Promise<ConsumeDownloadResult> {
+    const updateRes = await this.pool.query(
+      `UPDATE staged_objects
+       SET download_count = download_count + 1
+       WHERE id = $1 AND expires_at > NOW() AND download_count < max_downloads
+       RETURNING download_count, max_downloads;`,
+      [key]
+    );
+
+    if (updateRes.rows && updateRes.rows.length > 0) {
+      const row = updateRes.rows[0];
+      return {
+        allowed: true,
+        downloadCount: Number(row.download_count),
+        maxDownloads: Number(row.max_downloads)
+      };
+    }
+
+    // Determine reason for failure
+    const checkRes = await this.pool.query(
+      `SELECT download_count, max_downloads, expires_at < NOW() AS is_expired
+       FROM staged_objects WHERE id = $1;`,
+      [key]
+    );
+
+    if (!checkRes.rows || checkRes.rows.length === 0) {
+      return { allowed: false, reason: 'NOT_FOUND', downloadCount: 0, maxDownloads: 0 };
+    }
+
+    const checkRow = checkRes.rows[0];
+    if (checkRow.is_expired) {
+      await this.delete(key);
+      return { allowed: false, reason: 'EXPIRED', downloadCount: Number(checkRow.download_count), maxDownloads: Number(checkRow.max_downloads) };
+    }
+
+    return {
+      allowed: false,
+      reason: 'LIMIT_EXCEEDED',
+      downloadCount: Number(checkRow.download_count),
+      maxDownloads: Number(checkRow.max_downloads)
+    };
+  }
+
+  async incrementDownloadCount(key: string): Promise<number> {
+    const res = await this.consumeDownload(key);
+    return res.downloadCount;
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.pool.query(`DELETE FROM staged_objects WHERE id = $1;`, [key]);
+  }
+
+  async cleanupExpired(): Promise<number> {
+    const res = await this.pool.query(
+      `DELETE FROM staged_objects WHERE expires_at < NOW() OR download_count >= max_downloads;`
+    );
+    return res.rowCount || 0;
+  }
+}
+
+// ----------------------------------------------------
+// 4. STORAGE PROVIDER FACTORY & SINGLETON
+// ----------------------------------------------------
+export function createStorageProvider(): IObjectStorageProvider {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasPg = Boolean(process.env.DATABASE_URL);
+  const allowLocalFileInProd = Boolean(process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION);
+
+  if (hasPg && (isProduction || process.env.STORAGE_PROVIDER === 'postgres')) {
+    return new PostgresObjectStorageProvider();
+  }
+
+  if (isProduction && !allowLocalFileInProd) {
+    throw new Error(
+      'FATAL [Storage]: Production mode strictly requires durable object storage (DATABASE_URL configured for PostgresObjectStorageProvider, or Cloud Object Storage)! LocalDiskStorageProvider is forbidden in production multi-instance/serverless.'
+    );
+  }
+
+  return new LocalDiskStorageProvider();
+}
+
 let activeStorageProvider: IObjectStorageProvider = new LocalDiskStorageProvider();
 
 export function setStorageProvider(provider: IObjectStorageProvider): void {
@@ -281,8 +527,7 @@ export function getStorageProvider(): IObjectStorageProvider {
 }
 
 // ----------------------------------------------------
-// 4. CRYPTOGRAPHIC SIGNED DOWNLOAD TOKEN (HMAC-SHA256)
-// Prevents token tampering, URL enumeration and replay attacks
+// 5. CRYPTOGRAPHIC SIGNED DOWNLOAD TOKEN (HMAC-SHA256)
 // ----------------------------------------------------
 function getSecret(): string {
   if (process.env.NODE_ENV === 'production') {

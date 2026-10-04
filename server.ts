@@ -57,7 +57,9 @@ import {
   PaymentWebhookSchema
 } from './src/schemas/validationSchemas';
 import {
+  createStorageProvider,
   getStorageProvider,
+  setStorageProvider,
   generateSignedDownloadToken,
   verifySignedDownloadToken
 } from './src/server/storageProvider';
@@ -1625,7 +1627,8 @@ app.get('/api/export/:profileId', requireAuth, async (req, res) => {
 // 11B. NATIVE MOBILE PDF DOWNLOAD & STREAMING STAGING
 // Durable, authenticated, tamper-proof staging using StorageProvider & HMAC-SHA256 tokens
 // ----------------------------------------------------
-const storageProvider = getStorageProvider();
+const storageProvider = createStorageProvider();
+setStorageProvider(storageProvider);
 
 function sanitizePdfFileName(rawName: string | undefined): string {
   if (!rawName || typeof rawName !== 'string') return 'Sach_Ban_Menh_A4.pdf';
@@ -1695,46 +1698,80 @@ app.get('/api/pdf/download/:id', pdfRateLimiter, async (req: Request, res: Respo
   const { id } = req.params;
   const token = req.query.token as string | undefined;
 
-  const staged = await storageProvider.get(id);
-
-  if (!staged || staged.metadata.expiresAt < Date.now()) {
-    return res
-      .status(404)
-      .send(
-        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu trữ hoặc đã vượt quá số lần tải.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
-      );
+  // 1. Path traversal & ID validation
+  if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    return res.status(400).json({
+      error: { code: 'INVALID_FILE_ID', message: 'Mã định danh tệp không hợp lệ.', requestId: req.requestId }
+    });
   }
 
-  // Security Authorization Verification:
-  // 1. Check if HMAC signed token is valid for this resource
+  // 2. Security Authorization Verification: Signed Token or Session
   let authorized = false;
+  let tokenUserId: string | undefined;
+
   if (token) {
     const verifiedToken = verifySignedDownloadToken(token);
     if (verifiedToken.valid && verifiedToken.payload && verifiedToken.payload.fileId === id) {
-      if (!verifiedToken.payload.userId || verifiedToken.payload.userId === staged.metadata.userId) {
-        authorized = true;
-      }
+      authorized = true;
+      tokenUserId = verifiedToken.payload.userId;
+    } else if (verifiedToken.reason === 'EXPIRED_TOKEN') {
+      return res.status(410).send(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Liên kết tải tệp PDF đã hết hạn.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
+      );
     }
   }
 
-  // 2. Check session if token not present or non-matching
   if (!authorized) {
-    if (staged.metadata.userId) {
-      if (!req.user || (req.user.id !== staged.metadata.userId && req.user.role !== 'SUPER_ADMIN')) {
-        return res.status(403).json({
-          error: {
-            code: 'FORBIDDEN_PDF_ACCESS',
-            message: 'Bạn không có quyền truy cập hoặc tải tệp tài liệu này.',
-            requestId: req.requestId
-          }
-        });
-      }
+    // If not verified by signed HMAC token, user must be authenticated via session
+    if (!req.user) {
+      return res.status(401).json({
+        error: { code: 'UNAUTHORIZED_PDF_ACCESS', message: 'Yêu cầu đăng nhập hoặc mã token hợp lệ để tải tệp.', requestId: req.requestId }
+      });
     }
   }
 
-  // Enforce download replay limit
-  await storageProvider.incrementDownloadCount(id);
+  // 3. Atomically consume download token BEFORE reading/streaming object
+  // Enforces multi-instance atomic download limits and prevents race condition
+  const consumeRes = await storageProvider.consumeDownload(id);
 
+  if (!consumeRes.allowed) {
+    if (consumeRes.reason === 'LIMIT_EXCEEDED') {
+      return res.status(403).json({
+        error: {
+          code: 'DOWNLOAD_LIMIT_EXCEEDED',
+          message: `Tệp đã đạt tối đa số lượt tải cho phép (tối đa ${consumeRes.maxDownloads} lần). Vui lòng kết xuất bản mới.`,
+          requestId: req.requestId
+        }
+      });
+    }
+    return res.status(404).send(
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hết hạn</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Tệp PDF đã hết hạn lưu trữ hoặc đã vượt quá số lần tải.</h2><p>Vui lòng quay lại ứng dụng và bấm "Tải File PDF Về Máy" để kết xuất bản mới.</p></body></html>'
+    );
+  }
+
+  // 4. Retrieve object data after successful atomic consumption
+  const staged = await storageProvider.get(id);
+  if (!staged) {
+    return res.status(404).send(
+      '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Không tìm thấy</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Không tìm thấy tệp tài liệu.</h2></body></html>'
+    );
+  }
+
+  // 5. Verify ownership if file is associated with a specific user
+  if (staged.metadata.userId) {
+    const isOwner = (tokenUserId && tokenUserId === staged.metadata.userId) || (req.user && (req.user.id === staged.metadata.userId || req.user.role === 'SUPER_ADMIN'));
+    if (!isOwner) {
+      return res.status(403).json({
+        error: {
+          code: 'FORBIDDEN_PDF_ACCESS',
+          message: 'Bạn không có quyền truy cập hoặc tải tệp tài liệu này.',
+          requestId: req.requestId
+        }
+      });
+    }
+  }
+
+  // 6. Stream data with standard security headers
   const safeFileName = sanitizePdfFileName(staged.metadata.fileName);
   const isView = req.query.view === '1';
   const asciiFileName = safeFileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
