@@ -111,6 +111,16 @@ const trustProxySetting = process.env.TRUST_PROXY
   : (process.env.NODE_ENV === 'production' ? 1 : 'loopback');
 app.set('trust proxy', trustProxySetting);
 
+// Request tracing: generate and bind unique request ID at the absolute start of request lifecycle
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const incomingId = req.headers['x-request-id'];
+  const validIncoming = typeof incomingId === 'string' && /^[a-zA-Z0-9_-]{8,64}$/.test(incomingId);
+  const reqId = validIncoming ? incomingId : `req_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+  req.requestId = reqId;
+  res.setHeader('X-Request-Id', reqId);
+  next();
+});
+
 // Dedicated raw body parser for payment webhooks BEFORE global json parser
 // Preserves authentic wire bytes for HMAC-SHA256 signature verification without double parsing
 app.use('/api/patrons/webhook', express.raw({ type: '*/*', limit: '64kb' }));
@@ -292,12 +302,9 @@ function clearSessionCookie(res: Response): void {
 }
 
 // ----------------------------------------------------
-// MIDDLEWARE: REQUEST TRACING & HARDENED SECURITY HEADERS
+// MIDDLEWARE: HARDENED SECURITY HEADERS
 // ----------------------------------------------------
 app.use((req: Request, res: Response, next: NextFunction) => {
-  const reqId = `req_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-  req.requestId = reqId;
-  res.setHeader('X-Request-Id', reqId);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('X-Download-Options', 'noopen');
@@ -1401,7 +1408,11 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
         `Bát Tự: Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterStrength}) - Cách Cục: ${calc.bazi.structureType}`,
         `Dụng Thần: ${calc.bazi.favorableElements.join(', ')} | Kỵ Thần: ${calc.bazi.unfavorableElements.join(', ')}`,
         `Tử Vi: Cung Mệnh tại ${calc.ziwei.palaces.life?.branch} - Cục: ${calc.ziwei.elementBureau}`,
-        `Lưu Niên ${targetYear}: Sóng cơ hội ${currentTransit?.opportunityWave || 70}% - Sóng thận trọng ${currentTransit?.cautionWave || 40}%`,
+        `Lưu Niên ${targetYear}: ` + (
+          currentTransit
+            ? `Sóng cơ hội ${currentTransit.opportunityWave ?? 0}% - Sóng thận trọng ${currentTransit.cautionWave ?? 0}%`
+            : 'Chưa đủ dữ liệu sóng Lưu Niên'
+        ),
         `Chỉ số Tương Hợp Lịch Sử: ${bt.destinyConsistencyScore}/100`
       ]
     };
