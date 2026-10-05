@@ -32,6 +32,7 @@ import { convertSolarToLunar } from '../engine/lunarSolar';
 import { UserProfile } from '../types/user';
 import { WORLD_LOCATIONS, WorldLocation } from '../services/internationalization';
 import { locationProvider } from '../services/locationProvider';
+import { SeniorDestinyGuideModal } from './SeniorDestinyGuideModal';
 
 interface Props {
   language: LanguageCode;
@@ -91,6 +92,7 @@ export const OnboardingWizard: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<'create' | 'profiles'>('create');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showSeniorGuide, setShowSeniorGuide] = useState<boolean>(false);
 
   // Clean, Empty Default Form State
   const [name, setName] = useState('');
@@ -249,12 +251,29 @@ export const OnboardingWizard: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Senior Guide Banner */}
-          <div className="p-3.5 rounded-2xl bg-teal-950/40 border border-teal-500/30 flex items-center gap-3">
-            <Info className="w-5 h-5 text-teal-400 shrink-0" />
-            <p className="text-xs sm:text-sm text-slate-200 leading-snug">
-              <strong>Hướng dẫn:</strong> Quý vị chỉ cần điền <strong>Họ Tên</strong>, chọn <strong>Giới Tính</strong> và <strong>Ngày Sinh</strong>. Hệ thống AI sẽ tự động quy đổi Âm - Dương lịch và lập lá số chính xác.
-            </p>
+          {/* Senior Guide Banner with Interactive Launch Button */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/60 via-[#18131d] to-teal-950/50 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_20px_rgba(245,158,11,0.15)]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                <Compass className="w-5 h-5 text-amber-300" />
+              </div>
+              <div>
+                <div className="text-sm font-bold text-amber-200 flex items-center gap-1.5">
+                  <span>Trợ Lý Hướng Dẫn Từng Bước A - Z Dành Cho Người Lớn Tuổi</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-snug mt-0.5">
+                  Chữ lớn, dễ hiểu, tra cứu 12 con giáp, giải mã giờ sinh qua ký ức dân gian xưa (gà gáy, rạng đông, chính trưa...).
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSeniorGuide(true)}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
+            >
+              <Sparkles className="w-4 h-4 text-black" />
+              <span>Bật Hướng Dẫn Từng Bước</span>
+            </button>
           </div>
 
           {/* Mode Switch Tabs (If existing profiles exist) */}
@@ -852,6 +871,13 @@ export const OnboardingWizard: React.FC<Props> = ({
           </div>
         )}
       </motion.div>
+
+      {/* MODAL TRỢ LÝ HƯỚNG DẪN TỪNG BƯỚC CHO NGƯỜI LỚN TUỔI */}
+      <SeniorDestinyGuideModal
+        isOpen={showSeniorGuide}
+        onClose={() => setShowSeniorGuide(false)}
+        onComplete={onComplete}
+      />
     </div>
   );
 };

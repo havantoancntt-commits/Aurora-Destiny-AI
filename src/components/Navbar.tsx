@@ -57,6 +57,7 @@ interface Props {
   onOpenTalismanModal?: () => void;
   onOpenCommunityModal?: () => void;
   onNavigateTab?: (tab: 'dashboard' | 'radar' | 'timeline' | 'compatibility' | 'remedies' | 'daily') => void;
+  onOpenSeniorGuide?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -77,7 +78,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenOracleModal,
   onOpenTalismanModal,
   onOpenCommunityModal,
-  onNavigateTab
+  onNavigateTab,
+  onOpenSeniorGuide
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -213,6 +215,19 @@ export const Navbar: React.FC<Props> = ({
                       <Plus className="w-4 h-4 shrink-0 stroke-[2.5]" />
                       <span className="tracking-wide">Nhập Thông Tin / Lập Lá Số Mới</span>
                     </button>
+
+                    {onOpenSeniorGuide && (
+                      <button
+                        onClick={() => {
+                          onOpenSeniorGuide();
+                          setShowProfileMenu(false);
+                        }}
+                        className="w-full mt-1.5 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 border border-amber-400/40 hover:bg-amber-500/30 text-amber-200 text-xs font-semibold transition-all cursor-pointer"
+                      >
+                        <Compass className="w-4 h-4 text-amber-300 shrink-0" />
+                        <span>Trợ Lý Cho Người Lớn Tuổi (A - Z)</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* List of Existing Profiles */}
@@ -446,6 +461,22 @@ export const Navbar: React.FC<Props> = ({
                           </div>
                           <span className="text-[9px] font-mono uppercase bg-rose-400/20 px-1.5 py-0.5 rounded text-rose-200">360°</span>
                         </button>
+
+                        {onOpenSeniorGuide && (
+                          <button
+                            onClick={() => {
+                              setShowMoreMenu(false);
+                              onOpenSeniorGuide();
+                            }}
+                            className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/35 transition-colors text-left cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Compass className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span className="font-semibold text-xs">Trợ Lý Lập Lá Số Người Lớn Tuổi</span>
+                            </div>
+                            <span className="text-[9px] font-mono uppercase bg-amber-400/20 px-1.5 py-0.5 rounded text-amber-200">A-Z</span>
+                          </button>
+                        )}
                       </>
                     )}
 

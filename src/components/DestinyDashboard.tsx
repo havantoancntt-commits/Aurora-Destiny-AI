@@ -56,6 +56,7 @@ interface Props {
   onOpenSponsorshipModal?: () => void;
   onOpenAlertCenter?: () => void;
   onOpenTalismanModal?: () => void;
+  onOpenSeniorGuide?: () => void;
 }
 
 // 4x4 Classical Celestial Grid Coordinate Definition (12 Earthly Branches clockwise perimeter)
@@ -100,7 +101,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   onOpenOracleModal = () => {},
   onOpenSponsorshipModal = () => {},
   onOpenAlertCenter = () => {},
-  onOpenTalismanModal
+  onOpenTalismanModal,
+  onOpenSeniorGuide
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [ziweiViewMode, setZiweiViewMode] = useState<'board4x4' | 'cardList'>('board4x4');
@@ -361,6 +363,41 @@ export const DestinyDashboard: React.FC<Props> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* DÀNH CHO BÁC/CÔ CHÚ: TRỢ LÝ HƯỚNG DẪN LẬP LÁ SỐ TỪNG BƯỚC (A - Z) */}
+      {onOpenSeniorGuide && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-[#191421]/90 to-[#0e1622]/90 border border-amber-500/40 p-4 sm:p-5 shadow-[0_10px_30px_rgba(245,158,11,0.15)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0">
+              <Compass className="w-6 h-6 text-amber-300" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-mono">
+                  Dành Riêng Cho Người Lớn Tuổi
+                </span>
+                <span className="text-xs text-slate-400 hidden sm:inline">• Kênh Huyền Phong Phật Đạo</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-white font-cinzel mt-1">
+                Trợ Lý Hướng Dẫn Điền Thông Tin Xem Lá Số Tử Vi Từ A - Z
+              </h3>
+              <p className="text-xs text-slate-300 leading-snug mt-0.5">
+                Chữ lớn, dễ hiểu, tra cứu 12 con giáp (1930 - 2025), giải mã giờ sinh qua ký ức dân gian xưa (gà gáy, rạng đông, chính trưa...) kèm giọng đọc hướng dẫn tiếng Việt.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenSeniorGuide}
+            className="w-full md:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition-all cursor-pointer shrink-0 flex items-center justify-center gap-2"
+          >
+            <Sparkles className="w-4 h-4 text-black" />
+            <span>Mở Trợ Lý Hướng Dẫn</span>
+            <ArrowRight className="w-4 h-4 text-black" />
+          </button>
+        </div>
+      )}
 
       {/* PROPRIETARY APPS HIGHLIGHT: LA BÀN ĐỊNH THỜI & MA TRẬN ĐỒNG HÓA 360° */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

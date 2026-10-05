@@ -20,6 +20,7 @@ import { DailyDestinyView } from './components/DailyDestinyView';
 import { StrategicChronoNavigatorView } from './components/StrategicChronoNavigatorView';
 import { CelestialBackground } from './components/CelestialBackground';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import { SeniorDestinyGuideModal } from './components/SeniorDestinyGuideModal';
 import { ReportGeneratorModal } from './components/ReportGeneratorModal';
 import { PrivacyCenterModal } from './components/PrivacyCenterModal';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -72,6 +73,7 @@ export default function App() {
   const [showTalismanModal, setShowTalismanModal] = useState<boolean>(false);
   const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
   const [showCommunityModal, setShowCommunityModal] = useState<boolean>(false);
+  const [showSeniorGuideModal, setShowSeniorGuideModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -527,6 +529,7 @@ export default function App() {
           onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
           onOpenCommunityModal={() => setShowCommunityModal(true)}
           onNavigateTab={setActiveTab}
+          onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
         />
       </div>
 
@@ -643,6 +646,7 @@ export default function App() {
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
                   onOpenTalismanModal={() => setShowTalismanModal(true)}
                   onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
+                  onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
                 />
               )}
 
@@ -752,6 +756,14 @@ export default function App() {
           existingProfiles={profiles}
           activeProfileId={activeProfileId}
           onSelectProfile={handleSelectProfile}
+        />
+      )}
+
+      {showSeniorGuideModal && (
+        <SeniorDestinyGuideModal
+          isOpen={showSeniorGuideModal}
+          onClose={() => setShowSeniorGuideModal(false)}
+          onComplete={handleCreateProfile}
         />
       )}
 

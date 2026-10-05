@@ -416,3 +416,51 @@ export function convertSolarToLunar(
     solarTerm
   };
 }
+
+// Convert Julian Day Number back to Gregorian Date
+export function julianDayToGregorian(jd: number): { year: number; month: number; day: number } {
+  const z = Math.floor(jd + 0.5);
+  const a = Math.floor((z - 1867216.25) / 36524.25);
+  const b = z + 1 + a - Math.floor(a / 4);
+  const c = b + 1524;
+  const d = Math.floor((c - 122.1) / 365.25);
+  const e = Math.floor(365.25 * d);
+  const g = Math.floor((c - e) / 30.6001);
+  const day = c - e - Math.floor(30.6001 * g);
+  const month = g < 14 ? g - 1 : g - 13;
+  const year = month > 2 ? d - 4716 : d - 4715;
+  return { year, month, day };
+}
+
+// Convert Lunar Date to Gregorian Solar Date using high-precision astronomical inverse lookup
+export function convertLunarToSolar(
+  lunarYear: number,
+  lunarMonth: number,
+  lunarDay: number,
+  isLeapMonth: boolean = false,
+  timezoneOffset: number = 7
+): { solarYear: number; solarMonth: number; solarDay: number } | null {
+  // Approximate Julian day range: search from late November of lunarYear-1 to April of lunarYear+1
+  const startJd = gregorianToJulianDay(lunarYear, 1, 1) - 45;
+  const endJd = gregorianToJulianDay(lunarYear + 1, 3, 31);
+
+  for (let jd = startJd; jd <= endJd; jd++) {
+    const { year, month, day } = julianDayToGregorian(jd);
+    const lunar = convertSolarToLunar(year, month, day, timezoneOffset);
+    if (
+      lunar.lunarYear === lunarYear &&
+      lunar.lunarMonth === lunarMonth &&
+      lunar.lunarDay === lunarDay &&
+      lunar.isLeapMonth === isLeapMonth
+    ) {
+      return { solarYear: year, solarMonth: month, solarDay: day };
+    }
+  }
+
+  // Fallback: If not found (e.g. leap month didn't match), search without leap flag
+  if (isLeapMonth) {
+    return convertLunarToSolar(lunarYear, lunarMonth, lunarDay, false, timezoneOffset);
+  }
+
+  return null;
+}
