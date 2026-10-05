@@ -211,6 +211,16 @@ export const OnboardingWizard: React.FC<Props> = ({
     }
   };
 
+  if (showSeniorGuide) {
+    return (
+      <SeniorDestinyGuideModal
+        isOpen={true}
+        onClose={() => setShowSeniorGuide(false)}
+        onComplete={onComplete}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-2xl overflow-y-auto">
       <motion.div
@@ -253,15 +263,15 @@ export const OnboardingWizard: React.FC<Props> = ({
 
           {/* Senior Guide Banner with Interactive Launch Button */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/60 via-[#18131d] to-teal-950/50 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_20px_rgba(245,158,11,0.15)]">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
                 <Compass className="w-5 h-5 text-amber-300" />
               </div>
-              <div>
-                <div className="text-sm font-bold text-amber-200 flex items-center gap-1.5">
-                  <span>Trợ Lý Hướng Dẫn Từng Bước A - Z Dành Cho Người Lớn Tuổi</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold text-amber-200 truncate">
+                  Trợ Lý Hướng Dẫn Từng Bước A - Z Dành Cho Người Lớn Tuổi
                 </div>
-                <p className="text-xs text-slate-300 leading-snug mt-0.5">
+                <p className="text-xs text-slate-300 leading-snug mt-0.5 line-clamp-2">
                   Chữ lớn, dễ hiểu, tra cứu 12 con giáp, giải mã giờ sinh qua ký ức dân gian xưa (gà gáy, rạng đông, chính trưa...).
                 </p>
               </div>
@@ -271,7 +281,7 @@ export const OnboardingWizard: React.FC<Props> = ({
               onClick={() => setShowSeniorGuide(true)}
               className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
             >
-              <Sparkles className="w-4 h-4 text-black" />
+              <Sparkles className="w-4 h-4 text-black shrink-0" />
               <span>Bật Hướng Dẫn Từng Bước</span>
             </button>
           </div>
@@ -871,13 +881,6 @@ export const OnboardingWizard: React.FC<Props> = ({
           </div>
         )}
       </motion.div>
-
-      {/* MODAL TRỢ LÝ HƯỚNG DẪN TỪNG BƯỚC CHO NGƯỜI LỚN TUỔI */}
-      <SeniorDestinyGuideModal
-        isOpen={showSeniorGuide}
-        onClose={() => setShowSeniorGuide(false)}
-        onComplete={onComplete}
-      />
     </div>
   );
 };

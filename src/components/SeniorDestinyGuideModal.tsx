@@ -1,10 +1,10 @@
 // ==========================================
 // SENIOR DESTINY GUIDE MODAL — HUYỀN PHONG PHẬT ĐẠO
 // Trợ Lý Hướng Dẫn Điền Thông Tin Lập Lá Số Tử Vi Siêu Thông Minh Dành Cho Người Lớn Tuổi
-// Thiết kế đẳng cấp, từng bước A-Z, chữ lớn, độ tương phản cao, hỗ trợ giọng đọc & giải mã giờ sinh dân gian
+// Kiến trúc 3 khối (Header cố định - Body cuộn mượt mà - Footer cố định), triệt tiêu 100% lỗi chồng lấn text
 // ==========================================
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   Sun,
   Moon,
-  Clock,
   Compass,
   MapPin,
   Heart,
@@ -25,12 +24,10 @@ import {
   User,
   Calendar,
   AlertCircle,
-  ArrowRight,
-  Flame,
-  Award
+  ArrowRight
 } from 'lucide-react';
 import { BirthData, BehavioralContext, Gender, EarthlyBranch } from '../types/destiny';
-import { STEMS, BRANCHES, ELEMENT_RELATIONS, getNaYin } from '../engine/canchi';
+import { STEMS, BRANCHES, getNaYin } from '../engine/canchi';
 import { calculateYearPillar, calculateMonthPillar, calculateDayPillar, calculateHourPillar } from '../engine/bazi';
 import { convertSolarToLunar, convertLunarToSolar } from '../engine/lunarSolar';
 import { locationProvider } from '../services/locationProvider';
@@ -192,23 +189,22 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
   // Senior Accessibility Settings
   const [fontSizeScale, setFontSizeScale] = useState<'normal' | 'large' | 'xlarge'>('large');
   const [voiceEnabled, setVoiceEnabled] = useState<boolean>(false);
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
 
   // Form States
   const [name, setName] = useState<string>('');
   const [gender, setGender] = useState<Gender>('Male');
 
-  // Year Selection Mode: 'zodiac' (chọn con giáp) | 'direct' (chọn năm)
+  // Year Selection Mode
   const [selectedZodiacIndex, setSelectedZodiacIndex] = useState<number>(4); // Default Thìn (Rồng)
   const [solarYear, setSolarYear] = useState<number>(1964); // Giáp Thìn
 
-  // Calendar Type: 'lunar' (mặc định người lớn tuổi hay nhớ âm lịch) | 'solar' (dương lịch)
+  // Calendar Type
   const [calendarType, setCalendarType] = useState<'lunar' | 'solar'>('lunar');
   const [selectedDay, setSelectedDay] = useState<number>(15); // Rằm
   const [selectedMonth, setSelectedMonth] = useState<number>(1); // Giêng
   const [isLeapMonth, setIsLeapMonth] = useState<boolean>(false);
 
-  // Birth Hour Mode: 'folk' (ký ức dân gian) | 'exact' (giờ phút) | 'unknown' (không nhớ)
+  // Birth Hour Mode
   const [hourMode, setHourMode] = useState<'folk' | 'exact' | 'unknown'>('folk');
   const [selectedFolkHourId, setSelectedFolkHourId] = useState<string>('wu_noon');
   const [exactHour, setExactHour] = useState<number>(12);
@@ -225,21 +221,17 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'vi-VN';
-      utterance.rate = 0.95; // Giọng hơi chậm, ấm áp, dễ nghe cho người lớn tuổi
+      utterance.rate = 0.92; // Tốc độ chuẩn mực, thư thái cho người lớn tuổi
       utterance.pitch = 1.0;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
       window.speechSynthesis.speak(utterance);
     } catch {
-      setIsSpeaking(false);
+      // Fallback silent
     }
   };
 
   const stopSpeaking = () => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      setIsSpeaking(false);
     }
   };
 
@@ -358,26 +350,23 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
     switch (fontSizeScale) {
       case 'xlarge':
         return {
-          base: 'text-lg',
-          title: 'text-2xl sm:text-3xl',
-          sub: 'text-base sm:text-lg',
-          btn: 'text-base sm:text-lg py-4 px-6',
+          base: 'text-base sm:text-lg',
+          title: 'text-xl sm:text-2xl',
+          sub: 'text-sm sm:text-base',
           label: 'text-base font-bold'
         };
       case 'large':
         return {
-          base: 'text-base',
-          title: 'text-xl sm:text-2xl',
-          sub: 'text-sm sm:text-base',
-          btn: 'text-sm sm:text-base py-3.5 px-5',
+          base: 'text-sm sm:text-base',
+          title: 'text-lg sm:text-xl',
+          sub: 'text-xs sm:text-sm',
           label: 'text-sm font-semibold'
         };
       default:
         return {
-          base: 'text-sm',
-          title: 'text-lg sm:text-xl',
-          sub: 'text-xs sm:text-sm',
-          btn: 'text-xs sm:text-sm py-3 px-4',
+          base: 'text-xs sm:text-sm',
+          title: 'text-base sm:text-lg',
+          sub: 'text-xs',
           label: 'text-xs font-semibold'
         };
     }
@@ -430,7 +419,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
       await onComplete(name.trim(), birthData, behavioral);
       onClose();
-    } catch (err: any) {
+    } catch {
       setErrorMessage('Có lỗi xảy ra trong quá trình thiết lập. Kính mong Quý Bác thử lại.');
     } finally {
       setIsSubmitting(false);
@@ -440,36 +429,37 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-2xl overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/92 backdrop-blur-2xl">
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 20 }}
+        initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 20 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="w-full max-w-3xl rounded-3xl bg-[#0e0f18] border-2 border-amber-500/50 p-4 sm:p-7 shadow-[0_0_90px_rgba(245,158,11,0.25)] text-slate-100 relative my-auto max-h-[96vh] flex flex-col justify-between overflow-y-auto"
+        exit={{ opacity: 0, scale: 0.96, y: 15 }}
+        transition={{ duration: 0.28, ease: 'easeOut' }}
+        className="w-full max-w-3xl max-h-[92vh] sm:max-h-[88vh] rounded-3xl bg-[#0e0f18] border-2 border-amber-500/50 shadow-[0_0_80px_rgba(245,158,11,0.25)] text-slate-100 flex flex-col overflow-hidden relative"
       >
         {/* Top Gold Horizon Accent */}
-        <div className="absolute top-0 left-10 right-10 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90 blur-xs" />
+        <div className="absolute top-0 left-8 right-8 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90 blur-xs pointer-events-none" />
 
-        {/* MODAL HEADER WITH ACCESSIBILITY CONTROLS */}
-        <div className="space-y-4 border-b border-white/10 pb-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/30 via-orange-500/20 to-yellow-600/30 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.3)] shrink-0">
-                <Compass className="w-7 h-7" />
+        {/* ================= KHỐI 1: HEADER CỐ ĐỊNH (SHRINK-0) ================= */}
+        <header className="shrink-0 p-4 sm:p-5 border-b border-white/10 bg-[#0e0f18]/95 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            {/* Title & Icon */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/30 to-yellow-600/30 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-md shrink-0">
+                <Compass className="w-6 h-6" />
               </div>
-              <div>
-                <h2 className={`${scale.title} font-bold text-amber-200 font-cinzel tracking-wide flex items-center gap-2`}>
-                  <span>Trợ Lý Hướng Dẫn Từng Bước A - Z</span>
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-bold text-amber-200 font-cinzel truncate tracking-wide">
+                  Trợ Lý Hướng Dẫn Từng Bước A - Z
                 </h2>
-                <p className={`${scale.sub} text-slate-300 mt-0.5`}>
-                  Dành riêng cho Quý Bác, Quý Cô Chú • Kênh <strong className="text-amber-400">Huyền Phong Phật Đạo</strong>
+                <p className="text-xs text-slate-300 truncate mt-0.5">
+                  Dành riêng cho Quý Bác, Quý Cô Chú • Huyền Phong Phật Đạo
                 </p>
               </div>
             </div>
 
-            {/* Accessibility Controls: Font Size & Voice */}
-            <div className="flex items-center gap-2">
+            {/* Accessibility Controls: Font Size, Voice, Close */}
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
               {/* Voice toggle */}
               <button
                 type="button"
@@ -481,25 +471,23 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                     setVoiceEnabled(true);
                   }
                 }}
-                className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`p-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                   voiceEnabled
                     ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-sm'
-                    : 'bg-white/5 border-white/15 text-slate-400 hover:text-white'
+                    : 'bg-white/5 border-white/15 text-slate-300 hover:text-white'
                 }`}
-                title={voiceEnabled ? 'Tắt giọng đọc hướng dẫn' : 'Bật giọng đọc hướng dẫn (tiếng Việt)'}
+                title={voiceEnabled ? 'Tắt giọng đọc' : 'Bật giọng đọc tiếng Việt'}
               >
-                {voiceEnabled ? <Volume2 className="w-5 h-5 text-amber-300 animate-pulse" /> : <VolumeX className="w-5 h-5" />}
-                <span className="hidden sm:inline text-xs font-semibold">
-                  {voiceEnabled ? 'Giọng Đọc Bật' : 'Giọng Đọc'}
-                </span>
+                {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-300 animate-pulse" /> : <VolumeX className="w-4 h-4" />}
+                <span className="hidden sm:inline">{voiceEnabled ? 'Đang Bật' : 'Giọng Đọc'}</span>
               </button>
 
               {/* Font Size Adjuster */}
-              <div className="flex items-center rounded-2xl bg-black/60 p-1 border border-white/15 text-xs">
+              <div className="flex items-center rounded-xl bg-black/60 p-0.5 border border-white/15 text-xs">
                 <button
                   type="button"
                   onClick={() => setFontSizeScale('normal')}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                  className={`px-2 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                     fontSizeScale === 'normal' ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:text-white'
                   }`}
                   title="Cỡ chữ vừa"
@@ -509,7 +497,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setFontSizeScale('large')}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                  className={`px-2 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                     fontSizeScale === 'large' ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:text-white'
                   }`}
                   title="Cỡ chữ lớn"
@@ -519,10 +507,10 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setFontSizeScale('xlarge')}
-                  className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                  className={`px-2 py-1 rounded-lg font-bold transition-all cursor-pointer ${
                     fontSizeScale === 'xlarge' ? 'bg-amber-500/30 text-amber-300' : 'text-slate-400 hover:text-white'
                   }`}
-                  title="Cỡ chữ rất lớn (dễ đọc)"
+                  title="Cỡ chữ rất lớn"
                 >
                   A++
                 </button>
@@ -535,18 +523,18 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   stopSpeaking();
                   onClose();
                 }}
-                className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0 ml-1"
+                className="w-9 h-9 rounded-xl bg-white/5 border border-white/15 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                 title="Đóng trợ lý"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* STEP PROGRESS BAR (7 Steps) */}
-          <div className="space-y-1.5">
+          {/* STEP PROGRESS BAR */}
+          <div className="space-y-1">
             <div className="flex items-center justify-between text-xs text-amber-300/90 font-medium">
-              <span>
+              <span className="truncate">
                 {currentStep === 0 && 'Lời Chào Khởi Đầu'}
                 {currentStep === 1 && 'Bước 1: Họ và Tên'}
                 {currentStep === 2 && 'Bước 2: Giới Tính Sinh Học'}
@@ -556,74 +544,74 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 {currentStep === 6 && 'Bước 6: Nơi Sinh & Nguyện Ước'}
                 {currentStep === 7 && 'Bước 7: Khai Mở Bản Mệnh'}
               </span>
-              <span>Tiến độ: {Math.round((currentStep / 7) * 100)}%</span>
+              <span className="font-mono ml-2 shrink-0">{Math.round((currentStep / 7) * 100)}%</span>
             </div>
-            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+            <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-400"
                 initial={{ width: 0 }}
                 animate={{ width: `${(currentStep / 7) * 100}%` }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.25 }}
               />
             </div>
           </div>
-        </div>
+        </header>
 
         {/* ERROR NOTIFICATION BANNER */}
         {errorMessage && (
-          <div className="my-3 p-3.5 rounded-2xl bg-rose-950/80 border border-rose-500/50 flex items-center gap-3 text-rose-200 text-sm">
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+          <div className="shrink-0 mx-4 sm:mx-6 mt-3 p-3 rounded-2xl bg-rose-950/80 border border-rose-500/50 flex items-center gap-2.5 text-rose-200 text-xs sm:text-sm">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
             <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* MAIN INTERACTIVE STEP CONTENT */}
-        <div className="py-4 space-y-5 min-h-[360px] flex flex-col justify-center">
+        {/* ================= KHỐI 2: CONTENT BODY (FLEX-1, OVERFLOW-Y-AUTO) ================= */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 min-h-0">
           <AnimatePresence mode="wait">
             {/* ================= STEP 0: LỜI CHÀO & TỔNG QUAN ================= */}
             {currentStep === 0 && (
               <motion.div
                 key="step0"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-5 text-center max-w-xl mx-auto py-2"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-4 max-w-xl mx-auto text-center py-2"
               >
-                <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-amber-500/20 via-orange-500/30 to-yellow-500/20 border-2 border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_40px_rgba(245,158,11,0.3)]">
-                  <Sparkles className="w-10 h-10 text-amber-300" />
+                <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-amber-500/20 via-orange-500/30 to-yellow-500/20 border-2 border-amber-400/60 flex items-center justify-center text-amber-300 shadow-md">
+                  <Sparkles className="w-8 h-8 text-amber-300" />
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <h3 className={`${scale.title} font-bold text-amber-200 font-cinzel`}>
                     Kính Chào Quý Bác, Quý Cô Chú!
                   </h3>
-                  <p className={`${scale.base} text-slate-200 leading-relaxed`}>
+                  <p className={`${scale.base} text-slate-200 leading-relaxed text-left sm:text-center`}>
                     Cháu xin phép được đồng hành cùng Quý Vị từng bước để lập lá số Tử Vi chuẩn xác nhất. 
                     Quý Vị không cần phải thao tác phức tạp, chỉ cần làm theo từng câu hỏi đơn giản, 
-                    hệ thống trí tuệ nhân tạo sẽ tự động quy đổi Âm - Dương lịch và lập bản đồ vận mệnh.
+                    hệ thống AI sẽ tự động quy đổi Âm - Dương lịch và lập bản đồ vận mệnh.
                   </p>
                 </div>
 
                 {/* 3 Cam kết trang trọng */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
-                  <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
-                    <div className="flex items-center gap-2 text-amber-300 font-bold text-xs sm:text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-left pt-2">
+                  <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs sm:text-sm">
                       <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
                       <span>Cực Kỳ Dễ Hiểu</span>
                     </div>
                     <p className="text-xs text-slate-300 leading-snug">Chữ lớn, biểu tượng rõ ràng, có sẵn gợi ý tuổi con giáp và giờ sinh.</p>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
-                    <div className="flex items-center gap-2 text-amber-300 font-bold text-xs sm:text-sm">
+                  <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs sm:text-sm">
                       <Shield className="w-4 h-4 text-amber-400 shrink-0" />
                       <span>Bảo Mật Tuyệt Đối</span>
                     </div>
                     <p className="text-xs text-slate-300 leading-snug">Thông tin ngày sinh được mã hóa bảo mật, an toàn 100%.</p>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
-                    <div className="flex items-center gap-2 text-amber-300 font-bold text-xs sm:text-sm">
+                  <div className="p-3 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs sm:text-sm">
                       <Compass className="w-4 h-4 text-amber-400 shrink-0" />
                       <span>Chuẩn Xác Thiên Văn</span>
                     </div>
@@ -631,14 +619,14 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-3">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(1)}
-                    className={`w-full sm:w-auto mx-auto min-h-[56px] flex items-center justify-center gap-3 ${scale.btn} rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 text-black font-bold shadow-[0_0_35px_rgba(245,158,11,0.4)] hover:shadow-[0_0_50px_rgba(245,158,11,0.6)] cursor-pointer`}
+                    className="w-full sm:w-auto mx-auto min-h-[50px] flex items-center justify-center gap-2.5 px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 text-black font-bold text-sm sm:text-base shadow-lg hover:shadow-xl cursor-pointer transition-all"
                   >
                     <span>Bắt Đầu Từng Bước (A - Z)</span>
-                    <ArrowRight className="w-5 h-5 text-black" />
+                    <ArrowRight className="w-4 h-4 text-black" />
                   </button>
                 </div>
               </motion.div>
@@ -648,26 +636,15 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
             {currentStep === 1 && (
               <motion.div
                 key="step1"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="space-y-4 max-w-xl mx-auto w-full"
               >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
-                      Bước 1 / 6 • Thông Tin Cá Nhân
-                    </span>
-                    {voiceEnabled && (
-                      <button
-                        type="button"
-                        onClick={() => speakText('Kính mời Quý Bác nhập đầy đủ Họ và Tên.')}
-                        className="text-xs text-amber-300 hover:text-white flex items-center gap-1 cursor-pointer"
-                      >
-                        <Volume2 className="w-4 h-4" /> Nghe lại
-                      </button>
-                    )}
-                  </div>
+                <div className="space-y-1.5">
+                  <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
+                    Bước 1 / 6 • Thông Tin Cá Nhân
+                  </span>
                   <h3 className={`${scale.title} font-bold text-white`}>
                     Kính Mời Quý Bác Nhập Họ Và Tên
                   </h3>
@@ -676,12 +653,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   </p>
                 </div>
 
-                <div className="space-y-2 pt-2">
+                <div className="space-y-2 pt-1">
                   <label className={`${scale.label} text-slate-200 block`}>
                     Họ và Tên Của Quý Bác <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
-                    <User className="w-6 h-6 text-amber-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                    <User className="w-5 h-5 text-amber-400 absolute left-4 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       autoFocus
@@ -692,7 +669,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                         setName(e.target.value);
                         if (errorMessage) setErrorMessage(null);
                       }}
-                      className={`w-full pl-13 pr-4 py-4 rounded-2xl bg-black/80 border-2 border-white/20 text-white ${scale.base} font-medium focus:border-amber-400 focus:outline-none transition-all placeholder:text-slate-500`}
+                      className={`w-full pl-12 pr-4 py-3.5 rounded-2xl bg-black/80 border-2 border-white/20 text-white ${scale.base} font-medium focus:border-amber-400 focus:outline-none transition-all placeholder:text-slate-500`}
                     />
                   </div>
                   <div className="text-xs text-slate-400 italic">
@@ -700,9 +677,8 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Gợi ý một số tên mẫu nếu muốn chọn nhanh */}
-                <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 flex items-start gap-3">
-                  <HelpCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 flex items-start gap-2.5">
+                  <HelpCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-slate-300 leading-snug">
                     Nếu Quý Bác đang xem giúp cho con cái hoặc người thân trong gia đình, hãy nhập Họ và Tên của chính người đó nhé.
                   </p>
@@ -714,12 +690,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
             {currentStep === 2 && (
               <motion.div
                 key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-5 max-w-xl mx-auto w-full"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-4 max-w-xl mx-auto w-full"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
                     Bước 2 / 6 • Giới Tính Bản Mệnh
                   </span>
@@ -732,20 +708,20 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                   {/* NAM */}
                   <button
                     type="button"
                     onClick={() => setGender('Male')}
-                    className={`p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-center min-h-[140px] ${
+                    className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-2.5 text-center min-h-[120px] ${
                       gender === 'Male'
-                        ? 'bg-gradient-to-b from-cyan-950 to-blue-950 border-cyan-400 text-white shadow-[0_0_30px_rgba(6,182,212,0.35)] ring-2 ring-cyan-500/50'
+                        ? 'bg-gradient-to-b from-cyan-950 to-blue-950 border-cyan-400 text-white shadow-lg ring-2 ring-cyan-500/50'
                         : 'bg-black/60 border-white/15 text-slate-400 hover:text-white hover:border-white/30'
                     }`}
                   >
-                    <span className="text-4xl">👨</span>
-                    <div className="space-y-1">
-                      <div className="text-xl font-bold text-cyan-300">NAM MẠNG</div>
+                    <span className="text-3xl">👨</span>
+                    <div className="space-y-0.5">
+                      <div className="text-lg font-bold text-cyan-300">NAM MẠNG</div>
                       <div className="text-xs text-slate-300">Dương Nam / Âm Nam</div>
                     </div>
                     {gender === 'Male' && (
@@ -759,15 +735,15 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setGender('Female')}
-                    className={`p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 text-center min-h-[140px] ${
+                    className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-2.5 text-center min-h-[120px] ${
                       gender === 'Female'
-                        ? 'bg-gradient-to-b from-rose-950 to-pink-950 border-rose-400 text-white shadow-[0_0_30px_rgba(244,63,94,0.35)] ring-2 ring-rose-500/50'
+                        ? 'bg-gradient-to-b from-rose-950 to-pink-950 border-rose-400 text-white shadow-lg ring-2 ring-rose-500/50'
                         : 'bg-black/60 border-white/15 text-slate-400 hover:text-white hover:border-white/30'
                     }`}
                   >
-                    <span className="text-4xl">👩</span>
-                    <div className="space-y-1">
-                      <div className="text-xl font-bold text-rose-300">NỮ MẠNG</div>
+                    <span className="text-3xl">👩</span>
+                    <div className="space-y-0.5">
+                      <div className="text-lg font-bold text-rose-300">NỮ MẠNG</div>
                       <div className="text-xs text-slate-300">Dương Nữ / Âm Nữ</div>
                     </div>
                     {gender === 'Female' && (
@@ -784,12 +760,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
             {currentStep === 3 && (
               <motion.div
                 key="step3"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="space-y-4 max-w-2xl mx-auto w-full"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
                     Bước 3 / 6 • Tuổi Con Giáp & Năm Sinh
                   </span>
@@ -811,32 +787,31 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                         type="button"
                         onClick={() => {
                           setSelectedZodiacIndex(idx);
-                          // Tự động gán năm mặc định gần với người cao tuổi nhất (ví dụ năm 1950 - 1970)
                           if (!za.baseYears.includes(solarYear)) {
                             setSolarYear(za.baseYears[2] || za.baseYears[0]);
                           }
                         }}
-                        className={`p-3 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center min-h-[76px] ${
+                        className={`p-2.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center min-h-[68px] ${
                           isSelected
                             ? 'bg-amber-950/80 border-amber-400 text-amber-200 ring-2 ring-amber-500/40 shadow-md'
                             : 'bg-black/50 border-white/10 text-slate-300 hover:bg-white/5 hover:border-white/20'
                         }`}
                       >
-                        <span className="text-2xl">{za.icon}</span>
-                        <span className="text-xs font-bold">{za.animalVi}</span>
+                        <span className="text-xl">{za.icon}</span>
+                        <span className="text-xs font-bold truncate max-w-full">{za.animalVi}</span>
                       </button>
                     );
                   })}
                 </div>
 
                 {/* CÁC NĂM CỤ THỂ THUỘC CON GIÁP ĐÃ CHỌN */}
-                <div className="p-4 rounded-3xl bg-amber-950/30 border border-amber-500/40 space-y-3">
-                  <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
-                    <span>Chọn Năm Sinh Cụ Thể Thuộc Tuổi {ZODIAC_ANIMALS[selectedZodiacIndex].animalVi}:</span>
-                    <span className="text-slate-300">Đang chọn: <strong>Năm {solarYear} ({calculatedData.yearPillarStr} - {calculatedData.ageMu} tuổi mụ)</strong></span>
+                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-bold text-amber-300">
+                    <span className="truncate">Năm Sinh Tuổi {ZODIAC_ANIMALS[selectedZodiacIndex].animalVi}:</span>
+                    <span className="text-slate-200 truncate">Đang chọn: <strong className="text-amber-300">Năm {solarYear} ({calculatedData.yearPillarStr} - {calculatedData.ageMu} tuổi mụ)</strong></span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {ZODIAC_ANIMALS[selectedZodiacIndex].baseYears.map((yr) => {
                       const currentYear = new Date().getFullYear();
                       const age = currentYear - yr + 1;
@@ -846,26 +821,26 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={yr}
                           type="button"
                           onClick={() => setSolarYear(yr)}
-                          className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
                             isCurrentYear
                               ? 'bg-amber-500 text-black font-bold border-amber-400 shadow-md'
                               : 'bg-black/60 border-white/15 text-slate-200 hover:bg-white/10'
                           }`}
                         >
-                          <div className="text-left">
-                            <div className="text-base font-bold font-mono">Năm {yr}</div>
+                          <div className="text-left min-w-0">
+                            <div className="text-sm font-bold font-mono">Năm {yr}</div>
                             <div className="text-xs opacity-80">{age} tuổi mụ</div>
                           </div>
-                          {isCurrentYear && <CheckCircle2 className="w-5 h-5 text-black shrink-0" />}
+                          {isCurrentYear && <CheckCircle2 className="w-4 h-4 text-black shrink-0 ml-1" />}
                         </button>
                       );
                     })}
                   </div>
 
                   {/* Nạp Âm Ngũ Hành Preview */}
-                  <div className="text-xs text-amber-200/90 pt-1 border-t border-amber-500/20 flex items-center justify-between">
-                    <span>Bản Mệnh Nạp Âm: <strong className="text-amber-300 font-bold">{calculatedData.naYin}</strong></span>
-                    <span>Trụ Năm: <strong className="text-amber-300 font-mono">{calculatedData.yearPillarStr}</strong></span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-amber-200/90 pt-1 border-t border-amber-500/20">
+                    <span className="truncate">Bản Mệnh Nạp Âm: <strong className="text-amber-300 font-bold">{calculatedData.naYin}</strong></span>
+                    <span className="truncate">Trụ Năm: <strong className="text-amber-300 font-mono">{calculatedData.yearPillarStr}</strong></span>
                   </div>
                 </div>
               </motion.div>
@@ -875,12 +850,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
             {currentStep === 4 && (
               <motion.div
                 key="step4"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="space-y-4 max-w-2xl mx-auto w-full"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
                     Bước 4 / 6 • Ngày & Tháng Sinh
                   </span>
@@ -893,40 +868,40 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 </div>
 
                 {/* Chọn Lịch Ta (Âm) / Lịch Tây (Dương) */}
-                <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                   <button
                     type="button"
                     onClick={() => setCalendarType('lunar')}
-                    className={`py-3.5 px-4 rounded-2xl border-2 font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    className={`py-3 px-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
                       calendarType === 'lunar'
                         ? 'bg-purple-950/80 border-purple-400 text-purple-200 ring-2 ring-purple-500/40 shadow-md'
                         : 'bg-black/60 border-white/10 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Moon className="w-5 h-5 text-purple-400" />
+                    <Moon className="w-4 h-4 text-purple-400 shrink-0" />
                     <span>Lịch Ta (Âm Lịch) - Khuyên Dùng</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setCalendarType('solar')}
-                    className={`py-3.5 px-4 rounded-2xl border-2 font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    className={`py-3 px-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
                       calendarType === 'solar'
                         ? 'bg-amber-950/80 border-amber-400 text-amber-200 ring-2 ring-amber-500/40 shadow-md'
                         : 'bg-black/60 border-white/10 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Sun className="w-5 h-5 text-amber-400" />
+                    <Sun className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>Lịch Tây (Dương Lịch - Trên CCCD)</span>
                   </button>
                 </div>
 
                 {/* THÁNG SINH LƯỚI TO */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <label className={`${scale.label} text-slate-200 block`}>
                     1. Chọn Tháng Sinh ({calendarType === 'lunar' ? 'Tháng Âm Lịch' : 'Tháng Dương Lịch'}):
                   </label>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
                       const isSelected = selectedMonth === m;
                       const monthNameVi = m === 1 ? 'Giêng' : (m === 12 ? 'Chạp' : `${m}`);
@@ -935,9 +910,9 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={m}
                           type="button"
                           onClick={() => setSelectedMonth(m)}
-                          className={`py-2.5 px-2 rounded-xl text-center border font-bold text-sm transition-all cursor-pointer ${
+                          className={`py-2 px-1 rounded-xl text-center border font-bold text-xs sm:text-sm transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-amber-500 text-black border-amber-400 shadow-md'
+                              ? 'bg-amber-500 text-black border-amber-400 shadow-md font-extrabold'
                               : 'bg-black/50 border-white/15 text-slate-200 hover:bg-white/10'
                           }`}
                         >
@@ -948,8 +923,8 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* NGÀY SINH LƯỚI TO */}
-                <div className="space-y-2">
+                {/* NGÀY SINH LƯỚI TO (31 ngày chuẩn) */}
+                <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className={`${scale.label} text-slate-200 block`}>
                       2. Bấm Vào Ngày Sinh ({selectedDay}):
@@ -960,7 +935,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                       </span>
                     )}
                   </div>
-                  <div className="grid grid-cols-7 sm:grid-cols-10 gap-1.5 max-h-48 overflow-y-auto p-1 bg-black/40 rounded-2xl border border-white/10">
+                  <div className="grid grid-cols-7 sm:grid-cols-10 gap-1.5 p-2 bg-black/40 rounded-2xl border border-white/10">
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => {
                       const isSelected = selectedDay === d;
                       const isSpecial = d === 1 || d === 15;
@@ -969,7 +944,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={d}
                           type="button"
                           onClick={() => setSelectedDay(d)}
-                          className={`py-2 rounded-xl text-center border font-mono font-bold text-sm transition-all cursor-pointer ${
+                          className={`py-2 rounded-xl text-center border font-mono font-bold text-xs sm:text-sm transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-amber-500 text-black border-amber-400 shadow-md font-extrabold'
                               : isSpecial
@@ -984,15 +959,15 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* HIỂN THỊ KẾT QUẢ ĐỐI CHIẾU SONG SONG ÂM - DƯƠNG */}
+                {/* ĐỐI CHIẾU SONG SONG ÂM - DƯƠNG */}
                 <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm gap-2">
-                  <div className="flex items-center gap-2 text-slate-300">
+                  <div className="flex items-center gap-2 text-slate-300 min-w-0">
                     <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>Lịch Dương: <strong className="text-white font-mono">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear}</strong></span>
+                    <span className="truncate">Lịch Dương: <strong className="text-white font-mono">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear}</strong></span>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-300">
+                  <div className="flex items-center gap-2 text-slate-300 min-w-0">
                     <Moon className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span>Lịch Âm: <strong className="text-purple-300 font-mono">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.yearPillarStr}</strong></span>
+                    <span className="truncate">Lịch Âm: <strong className="text-purple-300 font-mono">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.yearPillarStr}</strong></span>
                   </div>
                 </div>
               </motion.div>
@@ -1002,12 +977,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
             {currentStep === 5 && (
               <motion.div
                 key="step5"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="space-y-4 max-w-2xl mx-auto w-full"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
                     Bước 5 / 6 • Giờ Sinh Dân Gian Xưa
                   </span>
@@ -1020,22 +995,22 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 </div>
 
                 {/* 3 Tab chế độ chọn giờ */}
-                <div className="flex rounded-2xl bg-black/60 p-1 border border-white/15 text-xs sm:text-sm">
+                <div className="flex flex-col sm:flex-row rounded-2xl bg-black/60 p-1 border border-white/15 gap-1 text-xs">
                   <button
                     type="button"
                     onClick={() => setHourMode('folk')}
-                    className={`flex-1 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold transition-all cursor-pointer ${
                       hourMode === 'folk'
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    1. Theo Ký Ức Dân Gian (Dễ Nhất)
+                    1. Theo Ký Ức Dân Gian (Khuyên Dùng)
                   </button>
                   <button
                     type="button"
                     onClick={() => setHourMode('exact')}
-                    className={`flex-1 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold transition-all cursor-pointer ${
                       hourMode === 'exact'
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -1046,7 +1021,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setHourMode('unknown')}
-                    className={`flex-1 py-2.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold transition-all cursor-pointer ${
                       hourMode === 'unknown'
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -1058,7 +1033,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
                 {/* CHẾ ĐỘ 1: KÝ ỨC DÂN GIAN XƯA */}
                 {hourMode === 'folk' && (
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  <div className="space-y-2">
                     {FOLK_BIRTH_HOURS.map((fh) => {
                       const isSelected = selectedFolkHourId === fh.id;
                       return (
@@ -1066,16 +1041,16 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={fh.id}
                           type="button"
                           onClick={() => setSelectedFolkHourId(fh.id)}
-                          className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                          className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start justify-between gap-3 ${
                             isSelected
                               ? 'bg-gradient-to-r from-amber-950 to-orange-950 border-amber-400 text-amber-200 ring-2 ring-amber-500/40 shadow-lg'
                               : 'bg-black/50 border-white/10 text-slate-300 hover:bg-white/5 hover:border-white/20'
                           }`}
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-bold text-sm sm:text-base text-white">{fh.titleVi}</span>
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 font-mono text-amber-300">
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 font-mono text-amber-300 shrink-0">
                                 {fh.timeRange}
                               </span>
                             </div>
@@ -1083,7 +1058,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                               "{fh.folkMemory}"
                             </p>
                           </div>
-                          {isSelected && <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0 mt-1" />}
+                          {isSelected && <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />}
                         </button>
                       );
                     })}
@@ -1092,13 +1067,13 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
                 {/* CHẾ ĐỘ 2: GIỜ & PHÚT CỤ THỂ */}
                 {hourMode === 'exact' && (
-                  <div className="grid grid-cols-2 gap-4 p-4 rounded-3xl bg-black/60 border border-white/15">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-4 rounded-2xl bg-black/60 border border-white/15">
                     <div className="space-y-1.5">
                       <label className="block text-xs font-semibold text-slate-200">Giờ (0 - 23 Giờ)</label>
                       <select
                         value={exactHour}
                         onChange={(e) => setExactHour(Number(e.target.value))}
-                        className="w-full px-4 py-3 rounded-2xl bg-black border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
+                        className="w-full px-3.5 py-3 rounded-xl bg-black border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
                       >
                         {Array.from({ length: 24 }, (_, i) => i).map((h) => (
                           <option key={h} value={h}>
@@ -1113,7 +1088,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                       <select
                         value={exactMinute}
                         onChange={(e) => setExactMinute(Number(e.target.value))}
-                        className="w-full px-4 py-3 rounded-2xl bg-black border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
+                        className="w-full px-3.5 py-3 rounded-xl bg-black border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
                       >
                         {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
                           <option key={m} value={m}>
@@ -1127,9 +1102,9 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
                 {/* CHẾ ĐỘ 3: HOÀN TOÀN KHÔNG NHỚ */}
                 {hourMode === 'unknown' && (
-                  <div className="p-4 rounded-3xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-sm text-slate-200 leading-relaxed">
+                  <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/40 space-y-2 text-xs sm:text-sm text-slate-200 leading-relaxed">
                     <div className="font-bold text-amber-300 flex items-center gap-2">
-                      <Compass className="w-5 h-5 text-amber-400" />
+                      <Compass className="w-5 h-5 text-amber-400 shrink-0" />
                       <span>Phương Pháp An Giờ Chính Ngọ (12:00)</span>
                     </div>
                     <p>
@@ -1147,12 +1122,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
             {currentStep === 6 && (
               <motion.div
                 key="step6"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="space-y-4 max-w-xl mx-auto w-full"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
                     Bước 6 / 6 • Nơi Sinh & Nguyện Ước
                   </span>
@@ -1166,8 +1141,8 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
                 {/* Nơi Sinh */}
                 <div className="space-y-2">
-                  <label className={`${scale.label} text-slate-200 block flex items-center gap-2`}>
-                    <MapPin className="w-4 h-4 text-amber-400" />
+                  <label className={`${scale.label} text-slate-200 block flex items-center gap-1.5`}>
+                    <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>Tỉnh / Thành Phố Nơi Sinh Ra:</span>
                   </label>
                   <input
@@ -1175,7 +1150,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                     value={birthCity}
                     onChange={(e) => setBirthCity(e.target.value)}
                     placeholder="Nhập tỉnh thành nơi sinh (VD: Hà Nội, Nam Định...)"
-                    className="w-full px-4 py-3.5 rounded-2xl bg-black/80 border border-white/20 text-white font-medium focus:border-amber-400 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-medium focus:border-amber-400 focus:outline-none"
                   />
                   {/* Quick Cities chips */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1184,7 +1159,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                         key={city}
                         type="button"
                         onClick={() => setBirthCity(city)}
-                        className={`px-3 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
                           birthCity === city
                             ? 'bg-amber-500/30 border-amber-400 text-amber-200 font-bold'
                             : 'bg-black/40 border-white/10 text-slate-300 hover:text-white'
@@ -1197,9 +1172,9 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 </div>
 
                 {/* Nguyện Ước Trọng Tâm */}
-                <div className="space-y-2 pt-2">
-                  <label className={`${scale.label} text-slate-200 block flex items-center gap-2`}>
-                    <Heart className="w-4 h-4 text-rose-400" />
+                <div className="space-y-2 pt-1">
+                  <label className={`${scale.label} text-slate-200 block flex items-center gap-1.5`}>
+                    <Heart className="w-4 h-4 text-rose-400 shrink-0" />
                     <span>Mối Bận Tâm Lớn Nhất Của Quý Bác:</span>
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1221,8 +1196,8 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                               : 'bg-black/50 border-white/10 text-slate-300 hover:bg-white/10'
                           }`}
                         >
-                          <span className="text-xl">{item.icon}</span>
-                          <span className="text-xs sm:text-sm">{item.title}</span>
+                          <span className="text-xl shrink-0">{item.icon}</span>
+                          <span className="text-xs sm:text-sm min-w-0 flex-1">{item.title}</span>
                         </button>
                       );
                     })}
@@ -1235,9 +1210,9 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
             {currentStep === 7 && (
               <motion.div
                 key="step7"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
                 className="space-y-4 max-w-xl mx-auto w-full"
               >
                 <div className="text-center space-y-1">
@@ -1253,17 +1228,17 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 </div>
 
                 {/* THẺ TỔNG HỢP TRANG TRỌNG */}
-                <div className="p-5 rounded-3xl bg-gradient-to-b from-amber-950/40 via-black/80 to-purple-950/40 border-2 border-amber-500/50 shadow-2xl space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                    <div>
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-amber-950/40 via-black/80 to-purple-950/40 border-2 border-amber-500/50 shadow-xl space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3 gap-2">
+                    <div className="min-w-0">
                       <div className="text-xs text-slate-400">Họ và Tên</div>
-                      <div className="text-xl sm:text-2xl font-bold text-white font-cinzel mt-0.5">
+                      <div className="text-lg sm:text-xl font-bold text-white font-cinzel truncate mt-0.5">
                         {name || 'Chưa nhập họ tên'}
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="sm:text-right shrink-0">
                       <div className="text-xs text-slate-400">Giới Tính & Tuổi Mụ</div>
-                      <div className="text-base sm:text-lg font-bold text-amber-300 mt-0.5">
+                      <div className="text-sm sm:text-base font-bold text-amber-300 mt-0.5">
                         {gender === 'Male' ? 'Nam Mạng' : 'Nữ Mạng'} • {calculatedData.ageMu} Tuổi
                       </div>
                     </div>
@@ -1271,85 +1246,88 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
                   {/* 4 Trụ Can Chi */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                    <div className="p-2.5 rounded-2xl bg-black/70 border border-white/10">
+                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
                       <div className="text-[11px] text-slate-400">Trụ Năm</div>
-                      <div className="text-sm font-bold text-amber-300 font-mono mt-0.5">{calculatedData.yearPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-amber-300 font-mono mt-0.5">{calculatedData.yearPillarStr}</div>
                     </div>
-                    <div className="p-2.5 rounded-2xl bg-black/70 border border-white/10">
+                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
                       <div className="text-[11px] text-slate-400">Trụ Tháng</div>
-                      <div className="text-sm font-bold text-slate-200 font-mono mt-0.5">{calculatedData.monthPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-200 font-mono mt-0.5">{calculatedData.monthPillarStr}</div>
                     </div>
-                    <div className="p-2.5 rounded-2xl bg-black/70 border border-white/10">
+                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
                       <div className="text-[11px] text-slate-400">Trụ Ngày (Mệnh)</div>
-                      <div className="text-sm font-bold text-cyan-300 font-mono mt-0.5">{calculatedData.dayPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-cyan-300 font-mono mt-0.5">{calculatedData.dayPillarStr}</div>
                     </div>
-                    <div className="p-2.5 rounded-2xl bg-black/70 border border-white/10">
+                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
                       <div className="text-[11px] text-slate-400">Trụ Giờ</div>
-                      <div className="text-sm font-bold text-purple-300 font-mono mt-0.5">{calculatedData.hourPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-purple-300 font-mono mt-0.5">{calculatedData.hourPillarStr}</div>
                     </div>
                   </div>
 
                   {/* Chi tiết bản mệnh */}
-                  <div className="space-y-1.5 text-xs sm:text-sm text-slate-300 border-t border-white/10 pt-3">
-                    <div className="flex items-center justify-between">
-                      <span>Bản Mệnh Nạp Âm:</span>
-                      <strong className="text-amber-300 font-bold">{calculatedData.naYin}</strong>
+                  <div className="space-y-1.5 text-xs sm:text-sm text-slate-300 border-t border-white/10 pt-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="shrink-0">Bản Mệnh Nạp Âm:</span>
+                      <strong className="text-amber-300 font-bold truncate">{calculatedData.naYin}</strong>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Ngày Sinh Dương Lịch:</span>
-                      <strong className="text-white font-mono">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear}</strong>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="shrink-0">Ngày Dương Lịch:</span>
+                      <strong className="text-white font-mono truncate">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear}</strong>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Ngày Sinh Âm Lịch:</span>
-                      <strong className="text-purple-300 font-mono">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.lunarYear}</strong>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="shrink-0">Ngày Âm Lịch:</span>
+                      <strong className="text-purple-300 font-mono truncate">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.lunarYear}</strong>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Nơi Sinh:</span>
-                      <strong className="text-teal-300">{birthCity}</strong>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="shrink-0">Nơi Sinh:</span>
+                      <strong className="text-teal-300 truncate">{birthCity}</strong>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span>Mối Bận Tâm:</span>
-                      <strong className="text-rose-300">{topPriority}</strong>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="shrink-0">Mối Bận Tâm:</span>
+                      <strong className="text-rose-300 truncate">{topPriority}</strong>
                     </div>
                   </div>
                 </div>
 
-                {/* NÚT LẬP LÁ SỐ SIÊU TO */}
+                {/* NÚT LẬP LÁ SỐ */}
                 <div className="pt-2">
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     type="button"
                     disabled={isSubmitting}
                     onClick={handleFinalSubmit}
-                    className="w-full min-h-[58px] flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 text-black text-base sm:text-lg font-bold shadow-[0_0_40px_rgba(245,158,11,0.5)] hover:shadow-[0_0_60px_rgba(245,158,11,0.7)] transition-all cursor-pointer"
+                    className="w-full min-h-[54px] flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 text-black text-sm sm:text-base font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer"
                   >
-                    <Sparkles className="w-6 h-6 text-black" />
+                    <Sparkles className="w-5 h-5 text-black shrink-0" />
                     <span>{isSubmitting ? 'Đang Khai Mở & Lập Lá Số...' : 'Khai Mở & Xem Luận Giải Lá Số Ngay'}</span>
-                    <ArrowRight className="w-6 h-6 text-black" />
+                    <ArrowRight className="w-5 h-5 text-black shrink-0" />
                   </motion.button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </main>
 
-        {/* BOTTOM NAVIGATION CONTROLS (QUAY LẠI / TIẾP THEO) */}
-        <div className="border-t border-white/10 pt-4 flex items-center justify-between gap-3">
+        {/* ================= KHỐI 3: FOOTER CỐ ĐỊNH (SHRINK-0) ================= */}
+        <footer className="shrink-0 p-3.5 sm:p-5 border-t border-white/10 bg-[#0e0f18]/95 flex items-center justify-between gap-3">
           {currentStep > 0 ? (
             <button
               type="button"
-              onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
-              className="py-3 px-5 rounded-2xl bg-white/10 hover:bg-white/15 text-slate-200 font-bold text-xs sm:text-sm flex items-center gap-2 transition-all cursor-pointer"
+              onClick={() => {
+                setErrorMessage(null);
+                setCurrentStep(prev => Math.max(0, prev - 1));
+              }}
+              className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>Quay Lại Bước Trước</span>
+              <span>Quay Lại</span>
             </button>
           ) : (
             <div />
           )}
 
-          {currentStep > 0 && currentStep < 7 && (
+          {currentStep < 7 && (
             <button
               type="button"
               onClick={() => {
@@ -1360,13 +1338,13 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 setErrorMessage(null);
                 setCurrentStep(prev => Math.min(7, prev + 1));
               }}
-              className="py-3 px-6 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all cursor-pointer ml-auto"
+              className="py-2.5 px-5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-md transition-all cursor-pointer ml-auto"
             >
               <span>Tiếp Theo</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
-        </div>
+        </footer>
       </motion.div>
     </div>
   );

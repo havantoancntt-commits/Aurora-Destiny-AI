@@ -367,11 +367,11 @@ export const DestinyDashboard: React.FC<Props> = ({
       {/* DÀNH CHO BÁC/CÔ CHÚ: TRỢ LÝ HƯỚNG DẪN LẬP LÁ SỐ TỪNG BƯỚC (A - Z) */}
       {onOpenSeniorGuide && (
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-[#191421]/90 to-[#0e1622]/90 border border-amber-500/40 p-4 sm:p-5 shadow-[0_10px_30px_rgba(245,158,11,0.15)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0">
               <Compass className="w-6 h-6 text-amber-300" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-mono">
                   Dành Riêng Cho Người Lớn Tuổi
