@@ -367,21 +367,21 @@ export const DestinyDashboard: React.FC<Props> = ({
       {/* DÀNH CHO BÁC/CÔ CHÚ: TRỢ LÝ HƯỚNG DẪN LẬP LÁ SỐ TỪNG BƯỚC (A - Z) */}
       {onOpenSeniorGuide && (
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950/70 via-[#191421]/90 to-[#0e1622]/90 border border-amber-500/40 p-4 sm:p-5 shadow-[0_10px_30px_rgba(245,158,11,0.15)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0 flex-1">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0">
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.25)] shrink-0 mt-0.5 sm:mt-0">
               <Compass className="w-6 h-6 text-amber-300" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-mono">
                   Dành Riêng Cho Người Lớn Tuổi
                 </span>
                 <span className="text-xs text-slate-400 hidden sm:inline">• Kênh Huyền Phong Phật Đạo</span>
               </div>
-              <h3 className="text-base sm:text-lg font-bold text-white font-cinzel mt-1">
+              <h3 className="text-base sm:text-lg font-bold text-white font-cinzel mt-1 break-words leading-snug">
                 Trợ Lý Hướng Dẫn Điền Thông Tin Xem Lá Số Tử Vi Từ A - Z
               </h3>
-              <p className="text-xs text-slate-300 leading-snug mt-0.5">
+              <p className="text-xs text-slate-300 leading-relaxed mt-1 break-words">
                 Chữ lớn, dễ hiểu, tra cứu 12 con giáp (1930 - 2025), giải mã giờ sinh qua ký ức dân gian xưa (gà gáy, rạng đông, chính trưa...) kèm giọng đọc hướng dẫn tiếng Việt.
               </p>
             </div>
@@ -392,9 +392,9 @@ export const DestinyDashboard: React.FC<Props> = ({
             onClick={onOpenSeniorGuide}
             className="w-full md:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition-all cursor-pointer shrink-0 flex items-center justify-center gap-2"
           >
-            <Sparkles className="w-4 h-4 text-black" />
+            <Sparkles className="w-4 h-4 text-black shrink-0" />
             <span>Mở Trợ Lý Hướng Dẫn</span>
-            <ArrowRight className="w-4 h-4 text-black" />
+            <ArrowRight className="w-4 h-4 text-black shrink-0" />
           </button>
         </div>
       )}

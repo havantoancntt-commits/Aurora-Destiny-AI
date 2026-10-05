@@ -444,22 +444,22 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
         <header className="shrink-0 p-4 sm:p-5 border-b border-white/10 bg-[#0e0f18]/95 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             {/* Title & Icon */}
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/30 to-yellow-600/30 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-md shrink-0">
+            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/30 to-yellow-600/30 border border-amber-400/60 flex items-center justify-center text-amber-300 shadow-md shrink-0 mt-0.5 sm:mt-0">
                 <Compass className="w-6 h-6" />
               </div>
-              <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-bold text-amber-200 font-cinzel truncate tracking-wide">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base sm:text-lg font-bold text-amber-200 font-cinzel break-words leading-snug tracking-wide">
                   Trợ Lý Hướng Dẫn Từng Bước A - Z
                 </h2>
-                <p className="text-xs text-slate-300 truncate mt-0.5">
+                <p className="text-xs text-slate-300 break-words leading-normal mt-0.5">
                   Dành riêng cho Quý Bác, Quý Cô Chú • Huyền Phong Phật Đạo
                 </p>
               </div>
             </div>
 
             {/* Accessibility Controls: Font Size, Voice, Close */}
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto flex-wrap">
               {/* Voice toggle */}
               <button
                 type="button"
@@ -478,7 +478,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 }`}
                 title={voiceEnabled ? 'Tắt giọng đọc' : 'Bật giọng đọc tiếng Việt'}
               >
-                {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-300 animate-pulse" /> : <VolumeX className="w-4 h-4" />}
+                {voiceEnabled ? <Volume2 className="w-4 h-4 text-amber-300 animate-pulse shrink-0" /> : <VolumeX className="w-4 h-4 shrink-0" />}
                 <span className="hidden sm:inline">{voiceEnabled ? 'Đang Bật' : 'Giọng Đọc'}</span>
               </button>
 
@@ -532,9 +532,9 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
           </div>
 
           {/* STEP PROGRESS BAR */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between text-xs text-amber-300/90 font-medium">
-              <span className="truncate">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-amber-300/90 font-medium gap-2">
+              <span className="min-w-0 break-words leading-tight">
                 {currentStep === 0 && 'Lời Chào Khởi Đầu'}
                 {currentStep === 1 && 'Bước 1: Họ và Tên'}
                 {currentStep === 2 && 'Bước 2: Giới Tính Sinh Học'}
@@ -544,7 +544,9 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 {currentStep === 6 && 'Bước 6: Nơi Sinh & Nguyện Ước'}
                 {currentStep === 7 && 'Bước 7: Khai Mở Bản Mệnh'}
               </span>
-              <span className="font-mono ml-2 shrink-0">{Math.round((currentStep / 7) * 100)}%</span>
+              <span className="font-mono text-amber-300 font-bold bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30 shrink-0">
+                {Math.round((currentStep / 7) * 100)}%
+              </span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
               <motion.div
@@ -791,14 +793,14 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                             setSolarYear(za.baseYears[2] || za.baseYears[0]);
                           }
                         }}
-                        className={`p-2.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center min-h-[68px] ${
+                        className={`p-2.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center min-h-[72px] ${
                           isSelected
                             ? 'bg-amber-950/80 border-amber-400 text-amber-200 ring-2 ring-amber-500/40 shadow-md'
                             : 'bg-black/50 border-white/10 text-slate-300 hover:bg-white/5 hover:border-white/20'
                         }`}
                       >
                         <span className="text-xl">{za.icon}</span>
-                        <span className="text-xs font-bold truncate max-w-full">{za.animalVi}</span>
+                        <span className="text-xs font-bold break-words text-center leading-tight">{za.animalVi}</span>
                       </button>
                     );
                   })}
@@ -806,9 +808,9 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
                 {/* CÁC NĂM CỤ THỂ THUỘC CON GIÁP ĐÃ CHỌN */}
                 <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs font-bold text-amber-300">
-                    <span className="truncate">Năm Sinh Tuổi {ZODIAC_ANIMALS[selectedZodiacIndex].animalVi}:</span>
-                    <span className="text-slate-200 truncate">Đang chọn: <strong className="text-amber-300">Năm {solarYear} ({calculatedData.yearPillarStr} - {calculatedData.ageMu} tuổi mụ)</strong></span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs font-bold text-amber-300">
+                    <span className="break-words">Năm Sinh Tuổi {ZODIAC_ANIMALS[selectedZodiacIndex].animalVi}:</span>
+                    <span className="text-slate-200 break-words">Đang chọn: <strong className="text-amber-300">Năm {solarYear} ({calculatedData.yearPillarStr} - {calculatedData.ageMu} tuổi mụ)</strong></span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -821,7 +823,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={yr}
                           type="button"
                           onClick={() => setSolarYear(yr)}
-                          className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                          className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between min-h-[52px] ${
                             isCurrentYear
                               ? 'bg-amber-500 text-black font-bold border-amber-400 shadow-md'
                               : 'bg-black/60 border-white/15 text-slate-200 hover:bg-white/10'
@@ -837,10 +839,33 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                     })}
                   </div>
 
+                  {/* Hoặc tự chọn năm khác nếu muốn */}
+                  <div className="pt-2 border-t border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-300">Hoặc chọn năm sinh chính xác:</span>
+                    <select
+                      value={solarYear}
+                      onChange={(e) => {
+                        const yr = Number(e.target.value);
+                        setSolarYear(yr);
+                        // Cập nhật con giáp tương ứng (1924 = Tý)
+                        const branchIdx = (yr - 4) % 12;
+                        const matchZodiac = ZODIAC_ANIMALS.findIndex((_, i) => i === (branchIdx >= 0 ? branchIdx : branchIdx + 12));
+                        if (matchZodiac !== -1) setSelectedZodiacIndex(matchZodiac);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-black border border-white/20 text-amber-300 font-mono font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
+                    >
+                      {Array.from({ length: 90 }, (_, i) => 2024 - i).map((y) => (
+                        <option key={y} value={y}>
+                          Năm {y} ({new Date().getFullYear() - y + 1} tuổi mụ)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Nạp Âm Ngũ Hành Preview */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-amber-200/90 pt-1 border-t border-amber-500/20">
-                    <span className="truncate">Bản Mệnh Nạp Âm: <strong className="text-amber-300 font-bold">{calculatedData.naYin}</strong></span>
-                    <span className="truncate">Trụ Năm: <strong className="text-amber-300 font-mono">{calculatedData.yearPillarStr}</strong></span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs text-amber-200/90 pt-2 border-t border-amber-500/20">
+                    <div className="break-words">Bản Mệnh Nạp Âm: <strong className="text-amber-300 font-bold">{calculatedData.naYin}</strong></div>
+                    <div className="break-words">Trụ Năm: <strong className="text-amber-300 font-mono">{calculatedData.yearPillarStr}</strong></div>
                   </div>
                 </div>
               </motion.div>
@@ -872,27 +897,27 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setCalendarType('lunar')}
-                    className={`py-3 px-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    className={`py-3 px-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 text-center min-h-[48px] ${
                       calendarType === 'lunar'
                         ? 'bg-purple-950/80 border-purple-400 text-purple-200 ring-2 ring-purple-500/40 shadow-md'
                         : 'bg-black/60 border-white/10 text-slate-400 hover:text-white'
                     }`}
                   >
                     <Moon className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span>Lịch Ta (Âm Lịch) - Khuyên Dùng</span>
+                    <span className="break-words">Lịch Ta (Âm Lịch) - Khuyên Dùng</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setCalendarType('solar')}
-                    className={`py-3 px-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                    className={`py-3 px-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center gap-2 text-center min-h-[48px] ${
                       calendarType === 'solar'
                         ? 'bg-amber-950/80 border-amber-400 text-amber-200 ring-2 ring-amber-500/40 shadow-md'
                         : 'bg-black/60 border-white/10 text-slate-400 hover:text-white'
                     }`}
                   >
                     <Sun className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>Lịch Tây (Dương Lịch - Trên CCCD)</span>
+                    <span className="break-words">Lịch Tây (Dương Lịch - Trên CCCD)</span>
                   </button>
                 </div>
 
@@ -901,7 +926,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   <label className={`${scale.label} text-slate-200 block`}>
                     1. Chọn Tháng Sinh ({calendarType === 'lunar' ? 'Tháng Âm Lịch' : 'Tháng Dương Lịch'}):
                   </label>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
                       const isSelected = selectedMonth === m;
                       const monthNameVi = m === 1 ? 'Giêng' : (m === 12 ? 'Chạp' : `${m}`);
@@ -910,7 +935,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={m}
                           type="button"
                           onClick={() => setSelectedMonth(m)}
-                          className={`py-2 px-1 rounded-xl text-center border font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                          className={`py-2 px-1 rounded-xl text-center border font-bold text-xs sm:text-sm transition-all cursor-pointer min-h-[44px] flex items-center justify-center leading-tight break-words ${
                             isSelected
                               ? 'bg-amber-500 text-black border-amber-400 shadow-md font-extrabold'
                               : 'bg-black/50 border-white/15 text-slate-200 hover:bg-white/10'
@@ -944,7 +969,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={d}
                           type="button"
                           onClick={() => setSelectedDay(d)}
-                          className={`py-2 rounded-xl text-center border font-mono font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+                          className={`py-2 rounded-xl text-center border font-mono font-bold text-xs sm:text-sm transition-all cursor-pointer min-h-[38px] flex items-center justify-center ${
                             isSelected
                               ? 'bg-amber-500 text-black border-amber-400 shadow-md font-extrabold'
                               : isSpecial
@@ -960,14 +985,14 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 </div>
 
                 {/* ĐỐI CHIẾU SONG SONG ÂM - DƯƠNG */}
-                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm gap-2">
+                <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm gap-2.5">
                   <div className="flex items-center gap-2 text-slate-300 min-w-0">
                     <Calendar className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="truncate">Lịch Dương: <strong className="text-white font-mono">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear}</strong></span>
+                    <span className="break-words">Lịch Dương: <strong className="text-white font-mono">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear}</strong></span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-300 min-w-0">
                     <Moon className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span className="truncate">Lịch Âm: <strong className="text-purple-300 font-mono">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.yearPillarStr}</strong></span>
+                    <span className="break-words">Lịch Âm: <strong className="text-purple-300 font-mono">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.yearPillarStr}</strong></span>
                   </div>
                 </div>
               </motion.div>
@@ -994,12 +1019,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   </p>
                 </div>
 
-                {/* 3 Tab chế độ chọn giờ */}
-                <div className="flex flex-col sm:flex-row rounded-2xl bg-black/60 p-1 border border-white/15 gap-1 text-xs">
+                {/* 3 Tab chế độ chọn giờ (Lưới đều, chống chồng lấn text 100%) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 rounded-2xl bg-black/60 p-1.5 border border-white/15 text-xs">
                   <button
                     type="button"
                     onClick={() => setHourMode('folk')}
-                    className={`flex-1 py-2 px-3 rounded-xl font-bold transition-all cursor-pointer ${
+                    className={`py-2.5 px-2 rounded-xl font-bold transition-all cursor-pointer min-h-[46px] flex items-center justify-center text-center leading-tight break-words ${
                       hourMode === 'folk'
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -1010,7 +1035,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setHourMode('exact')}
-                    className={`flex-1 py-2 px-3 rounded-xl font-bold transition-all cursor-pointer ${
+                    className={`py-2.5 px-2 rounded-xl font-bold transition-all cursor-pointer min-h-[46px] flex items-center justify-center text-center leading-tight break-words ${
                       hourMode === 'exact'
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -1021,7 +1046,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => setHourMode('unknown')}
-                    className={`flex-1 py-2 px-3 rounded-xl font-bold transition-all cursor-pointer ${
+                    className={`py-2.5 px-2 rounded-xl font-bold transition-all cursor-pointer min-h-[46px] flex items-center justify-center text-center leading-tight break-words ${
                       hourMode === 'unknown'
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'text-slate-400 hover:text-white'
@@ -1033,7 +1058,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
 
                 {/* CHẾ ĐỘ 1: KÝ ỨC DÂN GIAN XƯA */}
                 {hourMode === 'folk' && (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {FOLK_BIRTH_HOURS.map((fh) => {
                       const isSelected = selectedFolkHourId === fh.id;
                       return (
@@ -1041,20 +1066,20 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={fh.id}
                           type="button"
                           onClick={() => setSelectedFolkHourId(fh.id)}
-                          className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start justify-between gap-3 ${
+                          className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-start justify-between gap-3 ${
                             isSelected
                               ? 'bg-gradient-to-r from-amber-950 to-orange-950 border-amber-400 text-amber-200 ring-2 ring-amber-500/40 shadow-lg'
                               : 'bg-black/50 border-white/10 text-slate-300 hover:bg-white/5 hover:border-white/20'
                           }`}
                         >
-                          <div className="space-y-1 min-w-0 flex-1">
+                          <div className="space-y-1.5 min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-bold text-sm sm:text-base text-white">{fh.titleVi}</span>
+                              <span className="font-bold text-sm sm:text-base text-white break-words">{fh.titleVi}</span>
                               <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 font-mono text-amber-300 shrink-0">
                                 {fh.timeRange}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-300 leading-relaxed italic">
+                            <p className="text-xs text-slate-300 leading-relaxed italic break-words">
                               "{fh.folkMemory}"
                             </p>
                           </div>
@@ -1107,10 +1132,10 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                       <Compass className="w-5 h-5 text-amber-400 shrink-0" />
                       <span>Phương Pháp An Giờ Chính Ngọ (12:00)</span>
                     </div>
-                    <p>
+                    <p className="break-words">
                       Kính thưa Quý Bác, nếu hoàn toàn không có ai nhớ giờ sinh, thuật số Tử Vi cổ truyền cho phép lấy <strong>Giờ Chính Ngọ (12:00 trưa)</strong> làm tâm định thiên văn.
                     </p>
-                    <p className="text-xs text-slate-300">
+                    <p className="text-xs text-slate-300 break-words">
                       Phương pháp này đảm bảo toàn vẹn: Trụ Năm, Trụ Tháng, Trụ Ngày, Bản Mệnh Nạp Âm và các chu kỳ Vận Hạn 10 năm của Quý Bác vẫn được tính toán chuẩn xác mà không bị sai lệch.
                     </p>
                   </div>
@@ -1159,7 +1184,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                         key={city}
                         type="button"
                         onClick={() => setBirthCity(city)}
-                        className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-xl text-xs border transition-all cursor-pointer min-h-[32px] break-words ${
                           birthCity === city
                             ? 'bg-amber-500/30 border-amber-400 text-amber-200 font-bold'
                             : 'bg-black/40 border-white/10 text-slate-300 hover:text-white'
@@ -1190,14 +1215,14 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                           key={item.title}
                           type="button"
                           onClick={() => setTopPriority(item.title)}
-                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                          className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-3 min-h-[58px] ${
                             isSelected
                               ? 'bg-amber-950/80 border-amber-400 text-amber-200 font-bold shadow-md'
                               : 'bg-black/50 border-white/10 text-slate-300 hover:bg-white/10'
                           }`}
                         >
                           <span className="text-xl shrink-0">{item.icon}</span>
-                          <span className="text-xs sm:text-sm min-w-0 flex-1">{item.title}</span>
+                          <span className="text-xs sm:text-sm min-w-0 flex-1 break-words leading-snug">{item.title}</span>
                         </button>
                       );
                     })}
@@ -1230,61 +1255,61 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 {/* THẺ TỔNG HỢP TRANG TRỌNG */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-amber-950/40 via-black/80 to-purple-950/40 border-2 border-amber-500/50 shadow-xl space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3 gap-2">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="text-xs text-slate-400">Họ và Tên</div>
-                      <div className="text-lg sm:text-xl font-bold text-white font-cinzel truncate mt-0.5">
+                      <div className="text-lg sm:text-xl font-bold text-white font-cinzel break-words mt-0.5 leading-snug">
                         {name || 'Chưa nhập họ tên'}
                       </div>
                     </div>
                     <div className="sm:text-right shrink-0">
                       <div className="text-xs text-slate-400">Giới Tính & Tuổi Mụ</div>
-                      <div className="text-sm sm:text-base font-bold text-amber-300 mt-0.5">
+                      <div className="text-sm sm:text-base font-bold text-amber-300 mt-0.5 break-words">
                         {gender === 'Male' ? 'Nam Mạng' : 'Nữ Mạng'} • {calculatedData.ageMu} Tuổi
                       </div>
                     </div>
                   </div>
 
-                  {/* 4 Trụ Can Chi */}
+                  {/* 4 Trụ Can Chi (Chống tràn chữ, hỗ trợ xuống dòng chuẩn) */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
+                    <div className="p-2.5 rounded-xl bg-black/70 border border-white/10 flex flex-col justify-center min-h-[64px]">
                       <div className="text-[11px] text-slate-400">Trụ Năm</div>
-                      <div className="text-xs sm:text-sm font-bold text-amber-300 font-mono mt-0.5">{calculatedData.yearPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-amber-300 font-mono mt-0.5 break-words leading-tight">{calculatedData.yearPillarStr}</div>
                     </div>
-                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
+                    <div className="p-2.5 rounded-xl bg-black/70 border border-white/10 flex flex-col justify-center min-h-[64px]">
                       <div className="text-[11px] text-slate-400">Trụ Tháng</div>
-                      <div className="text-xs sm:text-sm font-bold text-slate-200 font-mono mt-0.5">{calculatedData.monthPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-slate-200 font-mono mt-0.5 break-words leading-tight">{calculatedData.monthPillarStr}</div>
                     </div>
-                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
+                    <div className="p-2.5 rounded-xl bg-black/70 border border-white/10 flex flex-col justify-center min-h-[64px]">
                       <div className="text-[11px] text-slate-400">Trụ Ngày (Mệnh)</div>
-                      <div className="text-xs sm:text-sm font-bold text-cyan-300 font-mono mt-0.5">{calculatedData.dayPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-cyan-300 font-mono mt-0.5 break-words leading-tight">{calculatedData.dayPillarStr}</div>
                     </div>
-                    <div className="p-2 rounded-xl bg-black/70 border border-white/10">
+                    <div className="p-2.5 rounded-xl bg-black/70 border border-white/10 flex flex-col justify-center min-h-[64px]">
                       <div className="text-[11px] text-slate-400">Trụ Giờ</div>
-                      <div className="text-xs sm:text-sm font-bold text-purple-300 font-mono mt-0.5">{calculatedData.hourPillarStr}</div>
+                      <div className="text-xs sm:text-sm font-bold text-purple-300 font-mono mt-0.5 break-words leading-tight">{calculatedData.hourPillarStr}</div>
                     </div>
                   </div>
 
-                  {/* Chi tiết bản mệnh */}
-                  <div className="space-y-1.5 text-xs sm:text-sm text-slate-300 border-t border-white/10 pt-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="shrink-0">Bản Mệnh Nạp Âm:</span>
-                      <strong className="text-amber-300 font-bold truncate">{calculatedData.naYin}</strong>
+                  {/* Chi tiết bản mệnh (Định dạng hàng ngang/dọc linh hoạt, không bao giờ chồng lấn text) */}
+                  <div className="space-y-2 text-xs sm:text-sm text-slate-300 border-t border-white/10 pt-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1 border-b border-white/5">
+                      <span className="text-slate-400 shrink-0">Bản Mệnh Nạp Âm:</span>
+                      <strong className="text-amber-300 font-bold text-left sm:text-right break-words">{calculatedData.naYin}</strong>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="shrink-0">Ngày Dương Lịch:</span>
-                      <strong className="text-white font-mono truncate">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear}</strong>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1 border-b border-white/5">
+                      <span className="text-slate-400 shrink-0">Ngày Dương Lịch:</span>
+                      <strong className="text-white font-mono text-left sm:text-right break-words">{calculatedData.solarDay}/{calculatedData.solarMonth}/{calculatedData.solarYear} ({calculatedData.solarTerm})</strong>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="shrink-0">Ngày Âm Lịch:</span>
-                      <strong className="text-purple-300 font-mono truncate">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.lunarYear}</strong>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1 border-b border-white/5">
+                      <span className="text-slate-400 shrink-0">Ngày Âm Lịch:</span>
+                      <strong className="text-purple-300 font-mono text-left sm:text-right break-words">Ngày {calculatedData.lunarDay} Tháng {calculatedData.lunarMonth} Năm {calculatedData.yearPillarStr}</strong>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="shrink-0">Nơi Sinh:</span>
-                      <strong className="text-teal-300 truncate">{birthCity}</strong>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1 border-b border-white/5">
+                      <span className="text-slate-400 shrink-0">Nơi Sinh:</span>
+                      <strong className="text-teal-300 text-left sm:text-right break-words">{birthCity}</strong>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="shrink-0">Mối Bận Tâm:</span>
-                      <strong className="text-rose-300 truncate">{topPriority}</strong>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 py-1">
+                      <span className="text-slate-400 shrink-0">Mối Bận Tâm Lớn Nhất:</span>
+                      <strong className="text-rose-300 text-left sm:text-right break-words">{topPriority}</strong>
                     </div>
                   </div>
                 </div>
@@ -1297,7 +1322,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                     type="button"
                     disabled={isSubmitting}
                     onClick={handleFinalSubmit}
-                    className="w-full min-h-[54px] flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 text-black text-sm sm:text-base font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                    className="w-full min-h-[56px] flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-400 text-black text-sm sm:text-base font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer leading-normal break-words"
                   >
                     <Sparkles className="w-5 h-5 text-black shrink-0" />
                     <span>{isSubmitting ? 'Đang Khai Mở & Lập Lá Số...' : 'Khai Mở & Xem Luận Giải Lá Số Ngay'}</span>

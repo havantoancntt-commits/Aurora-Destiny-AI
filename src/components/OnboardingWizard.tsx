@@ -263,15 +263,15 @@ export const OnboardingWizard: React.FC<Props> = ({
 
           {/* Senior Guide Banner with Interactive Launch Button */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/60 via-[#18131d] to-teal-950/50 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_20px_rgba(245,158,11,0.15)]">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0 mt-0.5 sm:mt-0">
                 <Compass className="w-5 h-5 text-amber-300" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-bold text-amber-200 truncate">
+                <div className="text-sm sm:text-base font-bold text-amber-200 break-words leading-snug">
                   Trợ Lý Hướng Dẫn Từng Bước A - Z Dành Cho Người Lớn Tuổi
                 </div>
-                <p className="text-xs text-slate-300 leading-snug mt-0.5 line-clamp-2">
+                <p className="text-xs text-slate-300 leading-relaxed mt-1 break-words">
                   Chữ lớn, dễ hiểu, tra cứu 12 con giáp, giải mã giờ sinh qua ký ức dân gian xưa (gà gáy, rạng đông, chính trưa...).
                 </p>
               </div>
