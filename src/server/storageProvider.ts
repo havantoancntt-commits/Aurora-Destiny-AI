@@ -599,11 +599,13 @@ export interface SignedTokenPayload {
   fileId: string;
   userId?: string;
   expiresAt: number;
+  issuedAt: number;
 }
 
 export function generateSignedDownloadToken(fileId: string, userId?: string, ttlSeconds = 600): string {
-  const expiresAt = Date.now() + ttlSeconds * 1000;
-  const payload: SignedTokenPayload = { fileId, userId, expiresAt };
+  const now = Date.now();
+  const expiresAt = now + ttlSeconds * 1000;
+  const payload: SignedTokenPayload = { fileId, userId, expiresAt, issuedAt: now };
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto
     .createHmac('sha256', getSecret())
@@ -641,8 +643,18 @@ export function verifySignedDownloadToken(token: string): { valid: boolean; payl
     const jsonStr = Buffer.from(payloadB64, 'base64url').toString('utf8');
     const payload: SignedTokenPayload = JSON.parse(jsonStr);
 
+    if (!payload.fileId || typeof payload.fileId !== 'string') {
+      return { valid: false, reason: 'INVALID_PAYLOAD_SCHEMA' };
+    }
+    if (typeof payload.expiresAt !== 'number' || isNaN(payload.expiresAt)) {
+      return { valid: false, reason: 'INVALID_PAYLOAD_SCHEMA' };
+    }
     if (Date.now() > payload.expiresAt) {
       return { valid: false, reason: 'EXPIRED_TOKEN' };
+    }
+    // Prevent future-dated token anomaly (> 48 hours in future)
+    if (payload.expiresAt > Date.now() + 48 * 3600 * 1000) {
+      return { valid: false, reason: 'INVALID_TOKEN_EXPIRY' };
     }
 
     return { valid: true, payload };

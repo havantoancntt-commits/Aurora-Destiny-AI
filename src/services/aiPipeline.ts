@@ -46,9 +46,26 @@ export interface PipelineEvidenceFact {
   verifiedInChart: boolean;
 }
 
+export type ContradictionSeverity =
+  | 'CONSISTENT'
+  | 'MINOR_DIVERGENCE'
+  | 'SIGNIFICANT_CONTRADICTION'
+  | 'CRITICAL_CONTRADICTION';
+
+export interface ContradictionDetail {
+  sourceA: string;
+  sourceB: string;
+  difference: number | string;
+  reason: string;
+  severity: ContradictionSeverity;
+  resolution: string;
+}
+
 export interface PipelineContradictionCheck {
   hasContradiction: boolean;
+  severity: ContradictionSeverity;
   detectedDivergences: string[];
+  divergenceDetails: ContradictionDetail[];
   resolutionNotes: string;
 }
 
@@ -77,8 +94,8 @@ export interface PipelineResult {
     favorableElements: (string | FiveElement)[];
     unfavorableElements: (string | FiveElement)[];
     lifePalaceStarSummary: string;
-    currentYearOpportunityWave: number;
-    currentYearCautionWave: number;
+    currentYearOpportunityWave: number | null;
+    currentYearCautionWave: number | null;
     backtestConsistencyScore: number | null;
   };
   qualityScore: InternalQualityScore;
@@ -278,20 +295,62 @@ export class DestinyAiPipeline {
     logStage(8, 'EVIDENCE_EXTRACTION', antiHallucinationPassed ? 'passed' : 'warning', antiHallucinationDetail, s8Start);
 
     // -------------------------------------------------------------
-    // STAGE 9: CONTRADICTION CHECK
+    // STAGE 9: CONTRADICTION CHECK & MULTI-TIER CLASSIFICATION
     // -------------------------------------------------------------
     const s9Start = Date.now();
-    const contradictionCheck: PipelineContradictionCheck = {
-      hasContradiction: false,
-      detectedDivergences: [],
-      resolutionNotes: 'Bát Tự và Tử Vi đồng thuận về xu hướng chu kỳ và Dụng Thần điều hòa.'
-    };
-    if (scoreDiff > 35) {
-      contradictionCheck.hasContradiction = true;
-      contradictionCheck.detectedDivergences.push('Bát Tự thể hiện sự tiêu hao khí lực trong khi Cung Mệnh Tử Vi đắc thế tinh.');
-      contradictionCheck.resolutionNotes = 'Khuyến nghị ưu tiên củng cố sức khỏe nền tảng (Bát Tự) trước khi tăng tốc các dự án đối ngoại (Tử Vi).';
+    let severity: ContradictionSeverity = 'CONSISTENT';
+    const divergenceDetails: ContradictionDetail[] = [];
+    const detectedDivergences: string[] = [];
+    let resolutionNotes = 'Bát Tự và Tử Vi đồng thuận về xu hướng chu kỳ và Dụng Thần điều hòa.';
+
+    if (scoreDiff <= 25) {
+      severity = 'CONSISTENT';
+    } else if (scoreDiff <= 35) {
+      severity = 'MINOR_DIVERGENCE';
+      detectedDivergences.push(`Độ lệch nhẹ (${scoreDiff} điểm) giữa thế lực Bát Tự và cung Tử Vi.`);
+      divergenceDetails.push({
+        sourceA: 'Bát Tự Tứ Trụ (Nội Lực Ngũ Hành)',
+        sourceB: 'Tử Vi Đẩu Số (Cung Mệnh & 12 Cung Vị)',
+        difference: scoreDiff,
+        reason: 'Sự chênh lệch giữa thế lực ngũ hành bản mệnh và vị thế các chính tinh tọa thủ.',
+        severity: 'MINOR_DIVERGENCE',
+        resolution: 'Duy trì cân bằng ngũ hành, chú trọng phát huy thế mạnh của cung đắc địa.'
+      });
+      resolutionNotes = 'Độ lệch nhỏ giữa Bát Tự và Tử Vi được dung hòa qua việc bổ trợ Dụng Thần.';
+    } else if (scoreDiff <= 50) {
+      severity = 'SIGNIFICANT_CONTRADICTION';
+      detectedDivergences.push(`Bát Tự thể hiện sự tiêu hao khí lực trong khi Cung Mệnh Tử Vi đắc thế tinh (Độ lệch: ${scoreDiff} điểm).`);
+      divergenceDetails.push({
+        sourceA: 'Bát Tự Tứ Trụ (Cường Nhược Nhật Chủ)',
+        sourceB: 'Tử Vi Đẩu Số (Cung Mệnh Tinh Bàn)',
+        difference: scoreDiff,
+        reason: 'Nhật chủ suy nhược do tiết khí quá độ, trong khi Tử Vi xuất hiện cát tinh thúc đẩy hành động mạnh mẽ.',
+        severity: 'SIGNIFICANT_CONTRADICTION',
+        resolution: 'Khuyến nghị ưu tiên củng cố sức khỏe nền tảng (Bát Tự) trước khi tăng tốc các dự án đối ngoại (Tử Vi).'
+      });
+      resolutionNotes = 'Khuyến nghị ưu tiên củng cố sức khỏe nền tảng (Bát Tự) trước khi tăng tốc các dự án đối ngoại (Tử Vi).';
+    } else {
+      severity = 'CRITICAL_CONTRADICTION';
+      detectedDivergences.push(`Độ phân kỳ cực lớn giữa Bát Tự và Tử Vi (${scoreDiff} điểm). Cần đối soát lại giờ sinh và lưu ý xung khắc đại vận.`);
+      divergenceDetails.push({
+        sourceA: 'Bát Tự Tứ Trụ',
+        sourceB: 'Tử Vi Đẩu Số',
+        difference: scoreDiff,
+        reason: 'Xung đột mạnh giữa cách cục Bát Tự và bố cục cung mệnh Tử Vi, có thể do biên độ giờ sinh giao thời hoặc lưu niên xung khắc.',
+        severity: 'CRITICAL_CONTRADICTION',
+        resolution: 'Thực hiện hiệu chỉnh giờ sinh (Rectification / Backtesting) và giữ trạng thái phòng thủ rủi ro nghiêm ngặt.'
+      });
+      resolutionNotes = 'Phát hiện phân kỳ nghiêm trọng. Kích hoạt giao thức phòng thủ rủi ro và khuyến nghị người dùng kiểm tra độ chuẩn xác của giờ sinh.';
     }
-    logStage(9, 'CONTRADICTION_CHECK', contradictionCheck.hasContradiction ? 'warning' : 'passed', contradictionCheck.resolutionNotes, s9Start);
+
+    const contradictionCheck: PipelineContradictionCheck = {
+      hasContradiction: severity !== 'CONSISTENT',
+      severity,
+      detectedDivergences,
+      divergenceDetails,
+      resolutionNotes
+    };
+    logStage(9, 'CONTRADICTION_CHECK', contradictionCheck.hasContradiction ? 'warning' : 'passed', `[${severity}] ${contradictionCheck.resolutionNotes}`, s9Start);
 
     // -------------------------------------------------------------
     // STAGE 10: INTERNAL QUALITY SCORE ESTIMATION
