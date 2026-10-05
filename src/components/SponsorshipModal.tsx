@@ -840,6 +840,12 @@ export const SponsorshipModal: React.FC<Props> = ({
                 </p>
               </div>
 
+              {/* Demo / Sample Transparency Notice */}
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center gap-2 text-[11px] text-amber-200/90 font-mono">
+                <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Minh bạch thông tin: Các mục gắn nhãn <strong>MẪU MINH HỌA (DEMO SAMPLE)</strong> là dữ liệu mô phỏng cấu trúc tri ân, không phải giao dịch chuyển khoản thực tế.</span>
+              </div>
+
               {/* Patrons list */}
               <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
                 {patrons.length === 0 ? (
@@ -867,7 +873,7 @@ export const SponsorshipModal: React.FC<Props> = ({
                           {patron.status === 'VERIFIED' && (
                             <span className="px-1.5 py-0.2 rounded bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-[8px] font-mono font-bold flex items-center gap-1">
                               <ShieldCheck className="w-2.5 h-2.5" />
-                              {patron.verificationType === 'DEMO_SAMPLE' ? 'MẪU MINH HỌA' : 'ĐÃ ĐỐI SOÁT'}
+                              {patron.verificationType === 'DEMO_SAMPLE' ? 'MẪU MINH HỌA (DEMO SAMPLE)' : 'ĐÃ ĐỐI SOÁT'}
                             </span>
                           )}
                           {patron.status === 'PENDING' && (

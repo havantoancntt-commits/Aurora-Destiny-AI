@@ -376,10 +376,18 @@ export function computeSynergyMatrix360(
   }
 
   // 5. B2B Boardroom Role Allocation
-  const userCareerScore = userCalc.ziwei?.palaces?.career?.score || 70;
-  const partnerCareerScore = partnerCalc.ziwei?.palaces?.career?.score || 70;
-  const userWealthScore = userCalc.ziwei?.palaces?.wealth?.score || 70;
-  const partnerWealthScore = partnerCalc.ziwei?.palaces?.wealth?.score || 70;
+  const userCareerScore = typeof userCalc.ziwei?.palaces?.career?.score === 'number'
+    ? userCalc.ziwei.palaces.career.score
+    : (userCalc.ziwei?.palaces?.career ? 60 : 50);
+  const partnerCareerScore = typeof partnerCalc.ziwei?.palaces?.career?.score === 'number'
+    ? partnerCalc.ziwei.palaces.career.score
+    : (partnerCalc.ziwei?.palaces?.career ? 60 : 50);
+  const userWealthScore = typeof userCalc.ziwei?.palaces?.wealth?.score === 'number'
+    ? userCalc.ziwei.palaces.wealth.score
+    : (userCalc.ziwei?.palaces?.wealth ? 60 : 50);
+  const partnerWealthScore = typeof partnerCalc.ziwei?.palaces?.wealth?.score === 'number'
+    ? partnerCalc.ziwei.palaces.wealth.score
+    : (partnerCalc.ziwei?.palaces?.wealth ? 60 : 50);
 
   const userLeaderRank = userCareerScore * 0.6 + userWealthScore * 0.4;
   const partnerLeaderRank = partnerCareerScore * 0.6 + partnerWealthScore * 0.4;

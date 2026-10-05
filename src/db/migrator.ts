@@ -259,18 +259,46 @@ export class DatabaseMigrator {
   public async getMigrationStatus(): Promise<{ currentVersion: number; totalMigrations: number; appliedVersions: number[] }> {
     const { client, release } = await this.acquireDedicatedClient();
     try {
+      // 1. Check if database is reachable and if schema_migrations table exists
+      const tableCheck = await client.query(
+        "SELECT 1 FROM information_schema.tables WHERE table_name = 'schema_migrations'"
+      );
+      const tableExists = Boolean(tableCheck.rows && tableCheck.rows.length > 0);
+      const allFiles = this.getMigrationFiles();
+
+      if (!tableExists) {
+        // Table has not been created yet, but database is reachable and healthy
+        return {
+          currentVersion: 0,
+          totalMigrations: allFiles.length,
+          appliedVersions: []
+        };
+      }
+
       const res = await client.query(`
         SELECT version FROM schema_migrations ORDER BY version ASC;
       `);
       const versions = res.rows.map((r: any) => Number(r.version));
-      const allFiles = this.getMigrationFiles();
       return {
         currentVersion: versions.length > 0 ? Math.max(...versions) : 0,
         totalMigrations: allFiles.length,
         appliedVersions: versions
       };
-    } catch {
-      return { currentVersion: 0, totalMigrations: 0, appliedVersions: [] };
+    } catch (err: any) {
+      // Differentiate missing relation from actual DB connection / execution failure
+      if (err.code === '42P01' || (err.message && err.message.includes('does not exist'))) {
+        const allFiles = this.getMigrationFiles();
+        return {
+          currentVersion: 0,
+          totalMigrations: allFiles.length,
+          appliedVersions: []
+        };
+      }
+      // Actual Database error: throw explicit error without leaking credentials
+      const sanitizedMsg = err.message ? err.message.replace(/postgres:\/\/[^@]+@/g, 'postgres://***@') : 'Database connection error';
+      const dbErr = new Error(`DATABASE_UNAVAILABLE: Failed to get migration status from database: ${sanitizedMsg}`);
+      (dbErr as any).code = err.code || 'DB_CONNECTION_ERROR';
+      throw dbErr;
     } finally {
       try {
         release();

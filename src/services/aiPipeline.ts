@@ -297,7 +297,16 @@ export class DestinyAiPipeline {
     // STAGE 10: INTERNAL QUALITY SCORE ESTIMATION
     // -------------------------------------------------------------
     const s10Start = Date.now();
-    const qualityScore = this.calculateQualityScore(request, hasExactHour, hasCoordinates, scoreDiff);
+    const qualityScore = DestinyAiPipeline.calculateQualityScore(
+      request,
+      hasExactHour,
+      hasCoordinates,
+      scoreDiff,
+      extractedFacts.length,
+      validationResult,
+      aiOutput.isFallback,
+      contradictionCheck.hasContradiction
+    );
     logStage(10, 'QUALITY_SCORING', 'passed', `Composite Quality Score calculated: ${qualityScore.overallQualityScore}/100.`, s10Start);
 
     // -------------------------------------------------------------
@@ -363,41 +372,86 @@ export class DestinyAiPipeline {
   }
 
   /**
-   * Transparent Internal Quality Score calculation
+   * Transparent Internal Quality Indicator calculation based on real evidence coverage,
+   * calculation consistency, source completeness, contradiction penalties, and output depth.
    */
   public static calculateQualityScore(
     request: PipelineRequest,
     hasExactHour: boolean,
     hasCoordinates: boolean,
-    scoreDiff: number
+    scoreDiff: number,
+    evidenceFactCount: number = 0,
+    validationResult?: { isValid: boolean; violations: Array<{ message: string; severity?: string }> },
+    isFallback: boolean = false,
+    contradictionDetected: boolean = false
   ): InternalQualityScore {
-    // 1. Data Quality (completeness of input, verified hour, location)
-    let dataQuality = 75;
-    if (hasExactHour) dataQuality += 15;
-    if (hasCoordinates) dataQuality += 10;
-    if (request.profile.behavioralContext?.careerField) dataQuality = Math.min(100, dataQuality + 5);
-
-    // 2. Calculation Quality (deterministic algorithms, leap month check, true solar time)
-    let calculationQuality = 92;
-    if (request.calculation.effectiveBirthTime?.timeConvention === 'trueSolar') {
-      calculationQuality = 98;
+    // If birth data is fundamentally missing or invalid:
+    if (!request.profile?.birthData || !request.calculation) {
+      return {
+        dataQuality: 0,
+        calculationQuality: 0,
+        consistencyScore: 0,
+        groundingScore: 0,
+        personalizationScore: 0,
+        responseQuality: 0,
+        overallQualityScore: 0,
+        empiricalPredictiveAccuracy: null,
+        synthesisHeuristicConfidence: 0
+      };
     }
 
-    // 3. Consistency Score (Bazi vs Ziwei agreement)
-    const consistencyScore = Math.max(50, Math.min(99, 100 - scoreDiff));
+    // 1. Data Quality (completeness of input, verified hour, location)
+    let dataQuality = 60;
+    if (hasExactHour) dataQuality += 20;
+    if (hasCoordinates) dataQuality += 15;
+    if (request.profile.behavioralContext?.careerField) dataQuality += 5;
+    dataQuality = Math.min(100, Math.max(20, dataQuality));
 
-    // 4. Grounding Score (100% of facts grounded in chart calculations)
-    const groundingScore = 96;
+    // 2. Calculation Quality (deterministic algorithms, leap month check, true solar time)
+    let calculationQuality = 85;
+    if (request.calculation.effectiveBirthTime?.timeConvention === 'trueSolar') {
+      calculationQuality += 10;
+    }
+    if (request.calculation.effectiveBirthTime?.equationOfTimeMinutes !== undefined) {
+      calculationQuality += 5;
+    }
+    calculationQuality = Math.min(100, Math.max(50, calculationQuality));
+
+    // 3. Consistency Score (Bazi vs Ziwei agreement)
+    const consistencyScore = Math.max(40, Math.min(99, 100 - scoreDiff));
+
+    // 4. Dynamic Grounding Score:
+    // evidence coverage + calculation consistency + source completeness - contradiction penalty - violation penalty
+    const evidenceCoverage = Math.min(30, Math.max(5, evidenceFactCount * 3));
+    const sourceCompleteness = (hasExactHour ? 25 : 12) + (hasCoordinates ? 20 : 10);
+    const calcConsistencyComponent = Math.round(consistencyScore * 0.25);
+    const contradictionPenalty = contradictionDetected ? 12 : 0;
+    const violationCount = validationResult?.violations?.length || 0;
+    const violationPenalty = Math.min(30, violationCount * 10);
+
+    let rawGrounding = evidenceCoverage + sourceCompleteness + calcConsistencyComponent - contradictionPenalty - violationPenalty;
+    if (isFallback) {
+      // Deterministic fallback has complete mathematical grounding in chart, but lower generative synthesis
+      rawGrounding = Math.max(70, Math.min(95, rawGrounding));
+    }
+    const groundingScore = Math.max(30, Math.min(99, rawGrounding));
 
     // 5. Personalization Score (behavioral context alignment)
     const ctx = request.profile.behavioralContext;
-    let personalizationScore = 70;
-    if (ctx?.topPriority) personalizationScore += 10;
-    if (ctx?.careerField) personalizationScore += 10;
-    if (ctx?.financialGoal) personalizationScore += 5;
+    let personalizationScore = 50;
+    if (ctx?.topPriority) personalizationScore += 15;
+    if (ctx?.careerField) personalizationScore += 15;
+    if (ctx?.financialGoal) personalizationScore += 10;
+    if (ctx?.relationshipStatus) personalizationScore += 10;
+    personalizationScore = Math.min(100, personalizationScore);
 
-    // 6. Response Quality (structure, clarity, ethical safety)
-    const responseQuality = 94;
+    // 6. Response Quality (structure, clarity, ethical safety, output completeness)
+    let responseQuality = 75;
+    if (!validationResult || validationResult.isValid) responseQuality += 15;
+    else responseQuality -= Math.min(25, violationCount * 12);
+    if (!isFallback) responseQuality += 8; // Direct multi-agent model synthesis bonus
+    if (personalizationScore >= 80) responseQuality += 2;
+    responseQuality = Math.max(40, Math.min(98, responseQuality));
 
     // Composite Harmonic Quality Score
     const overallQualityScore = Math.round(

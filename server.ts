@@ -1749,8 +1749,10 @@ app.get('/api/pdf/download/:id', pdfRateLimiter, async (req: Request, res: Respo
     );
   }
 
-  // 4. Retrieve object data after successful atomic consumption
-  const staged = await storageProvider.get(id);
+  // 4. Retrieve object data from atomic consumption result or storage fallback
+  const staged = (consumeRes.data && consumeRes.metadata)
+    ? { data: consumeRes.data, metadata: consumeRes.metadata }
+    : await storageProvider.get(id);
   if (!staged) {
     return res.status(404).send(
       '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Không tìm thấy</title></head><body style="font-family:sans-serif;background:#050814;color:#e2e8f0;text-align:center;padding:50px;"><h2>Không tìm thấy tệp tài liệu.</h2></body></html>'

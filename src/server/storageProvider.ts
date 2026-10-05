@@ -31,6 +31,8 @@ export interface ConsumeDownloadResult {
   allowed: boolean;
   downloadCount: number;
   maxDownloads: number;
+  data?: Buffer;
+  metadata?: StoredFileMetadata;
   reason?: 'EXPIRED' | 'LIMIT_EXCEEDED' | 'NOT_FOUND';
 }
 
@@ -145,7 +147,7 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
       const metaContent = await fs.promises.readFile(metaPath, 'utf8');
       const metadata: StoredFileMetadata = JSON.parse(metaContent);
 
-      if (Date.now() > metadata.expiresAt) {
+      if (Date.now() > metadata.expiresAt || metadata.downloadCount >= metadata.maxDownloads) {
         await this.delete(key);
         return null;
       }
@@ -169,7 +171,8 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
   async consumeDownload(key: string): Promise<ConsumeDownloadResult> {
     return this.acquireKeyLock(key, async () => {
       const metaPath = this.getMetaPath(key);
-      if (!fs.existsSync(metaPath)) {
+      const filePath = this.getFilePath(key);
+      if (!fs.existsSync(metaPath) || !fs.existsSync(filePath)) {
         return { allowed: false, reason: 'NOT_FOUND', downloadCount: 0, maxDownloads: 0 };
       }
 
@@ -187,16 +190,28 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
           return { allowed: false, reason: 'LIMIT_EXCEEDED', downloadCount: metadata.downloadCount, maxDownloads: metadata.maxDownloads };
         }
 
+        // Read payload before state change / eviction
+        const data = await fs.promises.readFile(filePath);
+
         // Atomically consume one download unit
         metadata.downloadCount += 1;
-        const tempMeta = `${metaPath}.tmp_atomic_${Date.now()}`;
-        await fs.promises.writeFile(tempMeta, JSON.stringify(metadata, null, 2), { mode: 0o600 });
-        await fs.promises.rename(tempMeta, metaPath);
+        const isLastAllowed = metadata.downloadCount >= metadata.maxDownloads;
+
+        if (isLastAllowed) {
+          // Last allowed download: evict immediately
+          await this.delete(key);
+        } else {
+          const tempMeta = `${metaPath}.tmp_atomic_${Date.now()}`;
+          await fs.promises.writeFile(tempMeta, JSON.stringify(metadata, null, 2), { mode: 0o600 });
+          await fs.promises.rename(tempMeta, metaPath);
+        }
 
         return {
           allowed: true,
           downloadCount: metadata.downloadCount,
-          maxDownloads: metadata.maxDownloads
+          maxDownloads: metadata.maxDownloads,
+          data,
+          metadata
         };
       } catch (err: any) {
         console.warn(`⚠️ [Storage] consumeDownload error on ${key}:`, err.message);
@@ -283,7 +298,7 @@ export class MemoryStorageProvider implements IObjectStorageProvider {
   async get(key: string): Promise<StoredFileResult | null> {
     const item = this.memoryStore.get(key);
     if (!item) return null;
-    if (Date.now() > item.metadata.expiresAt) {
+    if (Date.now() > item.metadata.expiresAt || item.metadata.downloadCount >= item.metadata.maxDownloads) {
       this.memoryStore.delete(key);
       return null;
     }
@@ -305,10 +320,20 @@ export class MemoryStorageProvider implements IObjectStorageProvider {
     }
 
     item.metadata.downloadCount += 1;
+    const isLastAllowed = item.metadata.downloadCount >= item.metadata.maxDownloads;
+    const data = item.data;
+    const metadata = { ...item.metadata };
+
+    if (isLastAllowed) {
+      this.memoryStore.delete(key);
+    }
+
     return {
       allowed: true,
-      downloadCount: item.metadata.downloadCount,
-      maxDownloads: item.metadata.maxDownloads
+      downloadCount: metadata.downloadCount,
+      maxDownloads: metadata.maxDownloads,
+      data,
+      metadata
     };
   }
 
@@ -397,11 +422,16 @@ export class PostgresObjectStorageProvider implements IObjectStorageProvider {
       `SELECT id, file_name, user_id, data, content_type, size, checksum, download_count, max_downloads,
               EXTRACT(EPOCH FROM expires_at) * 1000 AS expires_at_ms
        FROM staged_objects
-       WHERE id = $1 AND expires_at > NOW();`,
+       WHERE id = $1 AND expires_at > NOW() AND download_count < max_downloads;`,
       [key]
     );
 
     if (!res.rows || res.rows.length === 0) {
+      // Clean up any stale or limit-reached row
+      await this.pool.query(
+        `DELETE FROM staged_objects WHERE id = $1 AND (expires_at <= NOW() OR download_count >= max_downloads);`,
+        [key]
+      ).catch(() => {});
       return null;
     }
 
@@ -440,16 +470,38 @@ export class PostgresObjectStorageProvider implements IObjectStorageProvider {
       `UPDATE staged_objects
        SET download_count = download_count + 1
        WHERE id = $1 AND expires_at > NOW() AND download_count < max_downloads
-       RETURNING download_count, max_downloads;`,
+       RETURNING id, file_name, user_id, data, content_type, size, checksum, download_count, max_downloads,
+                 EXTRACT(EPOCH FROM expires_at) * 1000 AS expires_at_ms;`,
       [key]
     );
 
     if (updateRes.rows && updateRes.rows.length > 0) {
       const row = updateRes.rows[0];
+      const downloadCount = Number(row.download_count);
+      const maxDownloads = Number(row.max_downloads);
+      const dataBuf = Buffer.isBuffer(row.data) ? row.data : Buffer.from(row.data);
+      const metadata: StoredFileMetadata = {
+        fileName: row.file_name,
+        userId: row.user_id || undefined,
+        downloadCount,
+        maxDownloads,
+        expiresAt: Math.round(Number(row.expires_at_ms)),
+        contentType: row.content_type,
+        size: Number(row.size),
+        checksum: row.checksum
+      };
+
+      if (downloadCount >= maxDownloads) {
+        // Last allowed download consumed: evict from DB immediately
+        await this.delete(key).catch(() => {});
+      }
+
       return {
         allowed: true,
-        downloadCount: Number(row.download_count),
-        maxDownloads: Number(row.max_downloads)
+        downloadCount,
+        maxDownloads,
+        data: dataBuf,
+        metadata
       };
     }
 
@@ -465,8 +517,8 @@ export class PostgresObjectStorageProvider implements IObjectStorageProvider {
     }
 
     const checkRow = checkRes.rows[0];
+    await this.delete(key).catch(() => {});
     if (checkRow.is_expired) {
-      await this.delete(key);
       return { allowed: false, reason: 'EXPIRED', downloadCount: Number(checkRow.download_count), maxDownloads: Number(checkRow.max_downloads) };
     }
 
@@ -516,13 +568,16 @@ export function createStorageProvider(): IObjectStorageProvider {
   return new LocalDiskStorageProvider();
 }
 
-let activeStorageProvider: IObjectStorageProvider = new LocalDiskStorageProvider();
+let activeStorageProvider: IObjectStorageProvider | null = null;
 
 export function setStorageProvider(provider: IObjectStorageProvider): void {
   activeStorageProvider = provider;
 }
 
 export function getStorageProvider(): IObjectStorageProvider {
+  if (!activeStorageProvider) {
+    activeStorageProvider = createStorageProvider();
+  }
   return activeStorageProvider;
 }
 
