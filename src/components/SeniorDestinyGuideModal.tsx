@@ -31,6 +31,10 @@ import { STEMS, BRANCHES, getNaYin } from '../engine/canchi';
 import { calculateYearPillar, calculateMonthPillar, calculateDayPillar, calculateHourPillar } from '../engine/bazi';
 import { convertSolarToLunar, convertLunarToSolar } from '../engine/lunarSolar';
 import { locationProvider } from '../services/locationProvider';
+import { sacredSound } from '../services/soundService';
+import { SacredParticles } from './SacredParticles';
+import { SacredMandalaAura } from './SacredMandalaAura';
+import { SacredSealBadge } from './SacredSealBadge';
 
 interface Props {
   isOpen: boolean;
@@ -214,15 +218,27 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
   const [birthCity, setBirthCity] = useState<string>('Hà Nội');
   const [topPriority, setTopPriority] = useState<string>('Sức Khỏe, Trường Thọ & Bình An');
 
-  // Text-to-Speech Voice Assistant
+  // Text-to-Speech Voice Assistant with Sacred Chime
   const speakText = (text: string) => {
     if (!('speechSynthesis' in window) || !voiceEnabled) return;
     try {
       window.speechSynthesis.cancel();
+      // Chime prelude for sacred peaceful resonance
+      sacredSound.playTibetanBowl(432);
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'vi-VN';
-      utterance.rate = 0.92; // Tốc độ chuẩn mực, thư thái cho người lớn tuổi
-      utterance.pitch = 1.0;
+      utterance.rate = 0.90; // Tốc độ chuẩn mực, thư thái cho người lớn tuổi
+      utterance.pitch = 0.96; // Giọng trầm ấm, từ bi, trang trọng
+      utterance.volume = 0.95;
+
+      const voices = window.speechSynthesis.getVoices();
+      const viVoice = voices.find(v => (v.lang === 'vi-VN' || v.lang.startsWith('vi')) && (v.name.includes('Natural') || v.name.includes('Google')))
+        || voices.find(v => v.lang === 'vi-VN' || v.lang.startsWith('vi'));
+      if (viVoice) {
+        utterance.voice = viVoice;
+      }
+
       window.speechSynthesis.speak(utterance);
     } catch {
       // Fallback silent
@@ -437,11 +453,15 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
         transition={{ duration: 0.28, ease: 'easeOut' }}
         className="w-full max-w-3xl max-h-[92vh] sm:max-h-[88vh] rounded-3xl bg-[#0e0f18] border-2 border-amber-500/50 shadow-[0_0_80px_rgba(245,158,11,0.25)] text-slate-100 flex flex-col overflow-hidden relative"
       >
+        {/* SACRED PARTICLES & MANDALA AURA */}
+        <SacredParticles density="subtle" className="opacity-30" />
+        <SacredMandalaAura size={400} className="-top-12 -right-16" opacity={0.14} />
+
         {/* Top Gold Horizon Accent */}
         <div className="absolute top-0 left-8 right-8 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90 blur-xs pointer-events-none" />
 
         {/* ================= KHỐI 1: HEADER CỐ ĐỊNH (SHRINK-0) ================= */}
-        <header className="shrink-0 p-4 sm:p-5 border-b border-white/10 bg-[#0e0f18]/95 space-y-3">
+        <header className="shrink-0 p-4 sm:p-5 border-b border-white/10 bg-[#0e0f18]/95 space-y-3 relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             {/* Title & Icon */}
             <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
@@ -449,9 +469,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 <Compass className="w-6 h-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="text-base sm:text-lg font-bold text-amber-200 font-cinzel break-words leading-snug tracking-wide">
-                  Trợ Lý Hướng Dẫn Từng Bước A - Z
-                </h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-base sm:text-lg font-bold text-amber-200 font-cinzel break-words leading-snug tracking-wide">
+                    Trợ Lý Hướng Dẫn Từng Bước A - Z
+                  </h2>
+                  <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden sm:inline-flex" />
+                </div>
                 <p className="text-xs text-slate-300 break-words leading-normal mt-0.5">
                   Dành riêng cho Quý Bác, Quý Cô Chú • Huyền Phong Phật Đạo
                 </p>

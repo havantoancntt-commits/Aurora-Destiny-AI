@@ -113,6 +113,84 @@ class SacredSoundEngine {
     }
   }
 
+  // Sacred Gentle Tap / Lotus Droplet (Tiếng Chạm Thanh Tịnh Khi Bấm Mục Điền Thông Tin)
+  public playSacredTap(frequency: number = 528) {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.045, now + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+      gain.connect(ctx.destination);
+
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(frequency, now);
+      osc.frequency.exponentialRampToValueAtTime(frequency * 1.05, now + 0.1);
+
+      osc.connect(gain);
+      osc.start(now);
+      osc.stop(now + 0.32);
+    } catch {
+      // Safe fallback
+    }
+  }
+
+  // Sacred Ascending Triad / Milestone Chime (Chuông Tam Hợp Hoàn Mãn)
+  public playSacredSuccess() {
+    if (this.isMuted) return;
+    const notes = [528, 660, 792]; // Solfeggio 528Hz major triad
+    notes.forEach((freq, idx) => {
+      setTimeout(() => {
+        this.playSacredTap(freq);
+      }, idx * 120);
+    });
+  }
+
+  // Sacred Temple Gong / Đại Hồng Chung (Tiếng Chuông Chùa Trầm Hùng Khai Quang)
+  public playTempleGong(baseFreq: number = 108) {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const master = ctx.createGain();
+      master.gain.setValueAtTime(0.001, now);
+      master.gain.exponentialRampToValueAtTime(0.35, now + 0.05);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 7.0); // 7s long sacred reverberation
+      master.connect(ctx.destination);
+
+      // Deep temple bell harmonic overtones
+      const partials = [
+        { f: baseFreq, g: 0.5 },
+        { f: baseFreq * 2.12, g: 0.28 },
+        { f: baseFreq * 3.41, g: 0.16 },
+        { f: baseFreq * 4.76, g: 0.08 }
+      ];
+
+      partials.forEach((p) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(p.f, now);
+
+        gain.gain.setValueAtTime(p.g, now);
+        osc.connect(gain);
+        gain.connect(master);
+
+        osc.start(now);
+        osc.stop(now + 7.0);
+      });
+    } catch {
+      // Ignore audio error
+    }
+  }
+
   // Ancient Bronze Coin Toss (Tiếng 3 Đồng Tiền Xu Cổ Gieo Quẻ)
   public playCoinToss() {
     if (this.isMuted) return;

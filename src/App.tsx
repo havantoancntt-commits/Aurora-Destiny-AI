@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, UserPlus } from 'lucide-react';
+import { Sparkles, UserPlus, Volume2 } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { Top3DTabBar } from './components/Top3DTabBar';
 import { BottomNav, TabKey } from './components/BottomNav';
@@ -36,6 +36,9 @@ import { SponsorshipModal } from './components/SponsorshipModal';
 import { CommunitySocialModal } from './components/CommunitySocialModal';
 import { PWAOfflineIndicator } from './components/PWAOfflineIndicator';
 import { sacredSound } from './services/soundService';
+import { sacredVoice } from './services/sacredVoiceService';
+import { SacredSealBadge } from './components/SacredSealBadge';
+import { SacredMandalaAura } from './components/SacredMandalaAura';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -583,31 +586,55 @@ export default function App() {
             </p>
           </div>
         ) : !activeProfile || !calculation || !ensemble ? (
-          <div className="flex flex-col items-center justify-center my-auto w-full max-w-xl mx-auto text-center px-3 sm:px-4 py-2">
-            <SacredCosmicCipher3D onActivate={() => setShowOnboarding(true)} />
+          <div className="flex flex-col items-center justify-center my-auto w-full max-w-xl mx-auto text-center px-3 sm:px-4 py-2 relative">
+            {/* Sacred Rotating Mandala Aura in Background */}
+            <SacredMandalaAura size={480} className="-top-12" opacity={0.18} />
+
+            <SacredCosmicCipher3D onActivate={() => {
+              sacredSound.playSacredTap(528);
+              setShowOnboarding(true);
+            }} />
             
-            <div className="mt-3.5 mb-2.5 flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/60 border border-purple-500/30 text-purple-200 text-xs font-mono tracking-wider shadow-md">
-              <Sparkles className="w-3.5 h-3.5 text-teal-300 animate-pulse" />
-              <span className="uppercase tracking-widest text-[10px] sm:text-xs">Trí Tuệ Nhân Tạo Giao Thoa Huyền Học Phương Đông</span>
+            <div className="mt-3.5 mb-2.5 flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-950/60 via-purple-950/60 to-teal-950/60 border border-amber-500/40 text-amber-200 text-xs font-mono tracking-wider shadow-md">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span className="uppercase tracking-widest text-[10px] sm:text-xs">Trí Tuệ Nhân Tạo Giao Thoa Huyền Phong Phật Đạo</span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium mb-2.5 tracking-wide">
-              Khai Mở Bản Đồ <span className="bg-gradient-to-r from-teal-300 via-emerald-200 to-purple-300 bg-clip-text text-transparent font-semibold">Thiên Cơ Bản Mệnh</span>
-            </h2>
+            <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium tracking-wide">
+                Khai Mở Bản Đồ <span className="bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-200 bg-clip-text text-transparent font-semibold">Thiên Cơ Bản Mệnh</span>
+              </h2>
+              <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden sm:inline-flex" />
+            </div>
 
-            <p className="text-xs sm:text-sm md:text-base text-slate-300/90 leading-relaxed mb-5 max-w-lg font-light">
-              Trận đồ lượng tử đã sẵn sàng hòa nhịp cùng trường năng lượng của bạn. Hãy khởi tạo thời khắc sinh thần để khai mở ma trận <span className="text-teal-300 font-medium">Bát Tự Hà Lạc</span>, <span className="text-teal-300 font-medium">Tử Vi Đẩu Số</span> và đồng hành cùng <span className="text-amber-300 font-medium">Hội Đồng 7 Chuyên Gia AI</span> khai phóng tiềm năng vận mệnh.
+            <p className="text-xs sm:text-sm md:text-base text-slate-300/90 leading-relaxed mb-4 max-w-lg font-light">
+              Trận đồ thiên văn đã sẵn sàng hòa nhịp cùng trường năng lượng của Quý Vị. Khởi tạo ngày giờ sinh để giải mã trọn vẹn <span className="text-amber-300 font-medium">Bát Tự Hà Lạc</span>, <span className="text-teal-300 font-medium">Tử Vi Đẩu Số 12 Cung</span> và thấu hiểu vận mệnh cùng <span className="text-amber-300 font-medium">Hội Đồng 7 Chuyên Gia AI</span>.
             </p>
+
+            {/* Sacred Voice Invitation Chip */}
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  sacredVoice.speak('welcome_invitation');
+                }}
+                className="px-3.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 text-xs font-medium transition-all flex items-center gap-2 cursor-pointer shadow-sm mx-auto"
+                title="Lắng nghe lời thỉnh mệnh truyền cảm từ Huyền Phong Phật Đạo"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Nghe Lời Thỉnh Mệnh Khai Tâm (Giọng Truyền Cảm)</span>
+              </button>
+            </div>
 
             {/* Micro Feature Proof Pillars */}
             <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full max-w-md mb-6 text-[11px] sm:text-xs text-slate-300 font-mono">
               <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
-                <span className="text-teal-300 font-bold text-xs sm:text-sm">Bát Tự • Tử Vi</span>
+                <span className="text-amber-300 font-bold text-xs sm:text-sm">Bát Tự • Tử Vi</span>
                 <span className="text-[9px] text-slate-400 mt-0.5">Thuật Toán Cổ Học</span>
               </div>
               <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
-                <span className="text-purple-300 font-bold text-xs sm:text-sm">7 AI Chuyên Gia</span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Phân Tích Đồng Thuận</span>
+                <span className="text-teal-300 font-bold text-xs sm:text-sm">7 AI Chuyên Gia</span>
+                <span className="text-[9px] text-slate-400 mt-0.5">Đồng Thuận Luận Giải</span>
               </div>
               <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
                 <span className="text-emerald-300 font-bold text-xs sm:text-sm">Bảo Mật 100%</span>
@@ -617,11 +644,14 @@ export default function App() {
 
             <button
               id="btn-open-onboarding-empty-state"
-              onClick={() => setShowOnboarding(true)}
-              className="px-7 sm:px-8 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 text-white font-semibold text-sm sm:text-base shadow-[0_0_35px_rgba(45,212,191,0.4)] hover:shadow-[0_0_45px_rgba(168,85,247,0.5)] hover:brightness-110 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-teal-400/50 group"
+              onClick={() => {
+                sacredSound.playSacredTap(528);
+                setShowOnboarding(true);
+              }}
+              className="px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 text-slate-950 font-bold text-sm sm:text-base shadow-[0_0_40px_rgba(245,158,11,0.5)] hover:shadow-[0_0_60px_rgba(245,158,11,0.7)] hover:brightness-105 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-amber-300/80 group"
             >
-              <UserPlus className="w-5 h-5 text-teal-200 group-hover:scale-110 transition-transform" />
-              <span className="tracking-wide">Khởi Tạo Lá Số Bản Mệnh Ngay</span>
+              <UserPlus className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform" />
+              <span className="tracking-wide">Khởi Tạo Lá Số Bản Mệnh Ngay (Miễn Phí)</span>
             </button>
           </div>
         ) : (

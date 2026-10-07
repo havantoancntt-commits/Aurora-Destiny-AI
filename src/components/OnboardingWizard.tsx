@@ -22,7 +22,8 @@ import {
   AlertCircle,
   Sun,
   Moon,
-  Info
+  Info,
+  Volume2
 } from 'lucide-react';
 import { BirthData, BehavioralContext, Gender, EarthlyBranch } from '../types/destiny';
 import { LanguageCode } from '../types/destiny';
@@ -33,6 +34,12 @@ import { UserProfile } from '../types/user';
 import { WORLD_LOCATIONS, WorldLocation } from '../services/internationalization';
 import { locationProvider } from '../services/locationProvider';
 import { SeniorDestinyGuideModal } from './SeniorDestinyGuideModal';
+import { SacredVoiceGuideWidget } from './SacredVoiceGuideWidget';
+import { sacredVoice } from '../services/sacredVoiceService';
+import { sacredSound } from '../services/soundService';
+import { SacredParticles } from './SacredParticles';
+import { SacredMandalaAura } from './SacredMandalaAura';
+import { SacredSealBadge } from './SacredSealBadge';
 
 interface Props {
   language: LanguageCode;
@@ -44,6 +51,24 @@ interface Props {
   activeProfileId?: string;
   onSelectProfile?: (id: string) => void;
 }
+
+// Auspicious Age Decades for 1-Click Jump
+const DECADE_BRACKETS = [
+  { label: 'Bác / Cô Chú (1945 - 1965)', sampleYear: 1955 },
+  { label: 'Trung Niên (1966 - 1980)', sampleYear: 1975 },
+  { label: 'Thanh Niên (1981 - 1995)', sampleYear: 1988 },
+  { label: 'Thế Hệ Trẻ (1996 - 2010)', sampleYear: 2002 },
+  { label: 'Hậu Bối (2011 - 2026)', sampleYear: 2018 }
+];
+
+// Sacred Priorities with Icons & Descriptions
+const SACRED_PRIORITIES = [
+  { id: 'Sức Khỏe, Gia Đạo & Bình An', label: 'Sức Khỏe & Bình An', icon: '🌿', desc: 'Thân tâm an lạc, tiêu trừ tật ách, sống vui trường thọ' },
+  { id: 'Tài Chính, Đầu Tư & Tích Lũy Tài Sản', label: 'Tài Lộc & Tích Lũy', icon: '💰', desc: 'Tụ tài tích sản, vượng cung Điền Trạch, phát đạt' },
+  { id: 'Hôn Nhân, Con Cái & Tình Duyên', label: 'Gia Đạo & Con Cháu', icon: '🏡', desc: 'Hòa khí phu thê, phúc ấm tổ tiên, con cháu thành đạt' },
+  { id: 'Sự Nghiệp, Danh Vọng & Thăng Tiến', label: 'Sự Nghiệp & Quan Lộc', icon: '👑', desc: 'Công danh hiển đạt, quý nhân tương trợ, vững ấn phong' },
+  { id: 'Khởi Nghiệp & Quản Trị Doanh Nghiệp', label: 'Tu Tâm & Tiêu Nghiệp', icon: '📿', desc: 'Khai quang tâm trí, hóa giải sao hạn, an nhiên phúc báu' }
+];
 
 // 12 Can Chi Hours with Vietnamese colloquial descriptions for seniors
 const ZODIAC_HOURS = [
@@ -205,6 +230,8 @@ export const OnboardingWizard: React.FC<Props> = ({
         personalNotes: 'Hồ sơ người dùng lập trực tiếp.'
       };
 
+      sacredSound.playTempleGong(108);
+      sacredSound.playSacredSuccess();
       await onComplete(name.trim(), birthData, behavioral);
     } finally {
       setIsSubmitting(false);
@@ -228,22 +255,30 @@ export const OnboardingWizard: React.FC<Props> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="w-full max-w-2xl rounded-3xl bg-[#0d0e17] border border-teal-500/40 p-5 sm:p-7 space-y-6 shadow-[0_0_80px_rgba(45,212,191,0.2)] text-slate-100 relative my-auto max-h-[94vh] flex flex-col justify-between overflow-y-auto"
+        className="w-full max-w-2xl rounded-3xl bg-[#0d0e17] border border-amber-500/40 p-5 sm:p-7 space-y-6 shadow-[0_0_80px_rgba(245,158,11,0.25)] text-slate-100 relative my-auto max-h-[94vh] flex flex-col justify-between overflow-y-auto"
       >
+        {/* SACRED PARTICLES & ROTATING MANDALA AURA BACKGROUND */}
+        <SacredParticles density="subtle" className="opacity-35" />
+        <SacredMandalaAura size={420} className="-top-16 -right-20" opacity={0.16} />
+        <SacredMandalaAura size={340} className="-bottom-20 -left-16" opacity={0.12} />
+
         {/* Top Glow Accent */}
-        <div className="absolute top-0 left-1/4 right-1/4 h-1 bg-gradient-to-r from-transparent via-teal-400 to-transparent opacity-90 blur-xs" />
+        <div className="absolute top-0 left-1/4 right-1/4 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90 blur-xs pointer-events-none" />
 
         {/* Modal Header */}
-        <div className="space-y-3">
+        <div className="space-y-3 relative z-10">
           <div className="flex items-start justify-between border-b border-white/10 pb-4">
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500/20 via-purple-500/20 to-indigo-500/20 border border-teal-400/50 flex items-center justify-center text-teal-300 shadow-[0_0_20px_rgba(45,212,191,0.3)] shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/25 via-orange-500/20 to-teal-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.3)] shrink-0">
                 <Compass className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-lg sm:text-xl font-bold text-white font-cinzel tracking-wide">
-                  Thiết Lập Thông Tin Sinh & Bản Mệnh
-                </h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg sm:text-xl font-bold text-white font-cinzel tracking-wide">
+                    Thiết Lập Thông Tin Sinh & Bản Mệnh
+                  </h2>
+                  <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden sm:inline-flex" />
+                </div>
                 <p className="text-xs sm:text-sm text-teal-200/90 mt-1 font-medium">
                   Ứng dụng chính thức của kênh <strong className="text-amber-300 font-semibold">Huyền Phong Phật Đạo</strong> • Vui lòng nhập thông tin để AI tính toán Tứ Trụ, 12 Cung Tử Vi và Bản Đồ Vận Mệnh
                 </p>
@@ -259,6 +294,43 @@ export const OnboardingWizard: React.FC<Props> = ({
                 <X className="w-5 h-5" />
               </button>
             )}
+          </div>
+
+          {/* SACRED AUSPICIOUS CONVERSION & TRUST BANNER */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/70 via-[#18131d]/90 to-teal-950/60 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_25px_rgba(245,158,11,0.2)]">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-slate-950 font-bold shadow-md shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-mono">
+                    98,680+ Gia Chủ Đã Khai Mở Bản Mệnh
+                  </span>
+                  <span className="text-[11px] text-teal-300 font-semibold">• 100% Miễn Phí</span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5 leading-snug break-words">
+                  Chỉ 30 giây: Điền ngày giờ sinh để AI khai mở Tứ Trụ, 12 Cung và Vận Hạn 2026 chuẩn thiên văn cổ bản.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (sacredSound.getIsAmbientPlaying()) {
+                  sacredSound.stopAmbient();
+                } else {
+                  sacredSound.startAmbient('432hz');
+                  sacredSound.playTibetanBowl(432);
+                }
+              }}
+              className="px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              title="Bật/Tắt nhạc thiền Solfeggio 432Hz tịnh tâm khi nhập dữ liệu"
+            >
+              <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+              <span>Âm Sóng 432Hz</span>
+            </button>
           </div>
 
           {/* Senior Guide Banner with Interactive Launch Button */}
@@ -332,19 +404,38 @@ export const OnboardingWizard: React.FC<Props> = ({
               </motion.div>
             )}
 
+            {/* TRỢ LÝ GIỌNG ĐỌC LINH THIÊNG — HUYỀN PHONG PHẬT ĐẠO (TĂNG TỶ LỆ CHUYỂN ĐỔI) */}
+            <SacredVoiceGuideWidget autoPlayIntroOnce={true} className="mb-2" />
+
             {/* MỤC 1: HỌ TÊN & GIỚI TÍNH (Rõ Ràng, Nút Lớn) */}
             <div className="space-y-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
-              <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">1</span>
-                <span>Thông Tin Cá Nhân & Giới Tính</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">1</span>
+                  <span>Thông Tin Cá Nhân & Giới Tính</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => sacredVoice.speak('field_name')}
+                  className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-300 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  title="Nghe lời giải nghĩa tên và năng lượng danh xưng"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>Nghe Ý Nghĩa</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Họ và tên input */}
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-100">
-                    Họ và Tên <span className="text-rose-400">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-slate-100">
+                      Họ và Tên <span className="text-amber-400">*</span>
+                    </label>
+                    <span className="text-[11px] text-amber-300/80 font-medium hidden sm:inline">
+                      Khắc dấu bản mệnh
+                    </span>
+                  </div>
                   <div className="relative">
                     <User className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
@@ -352,44 +443,72 @@ export const OnboardingWizard: React.FC<Props> = ({
                       required
                       placeholder="Nhập họ và tên (VD: Nguyễn Văn An)..."
                       value={name}
+                      onFocus={() => sacredSound.playSacredTap(528)}
                       onChange={(e) => {
                         setName(e.target.value);
                         if (errorMessage) setErrorMessage(null);
                       }}
-                      className="w-full pl-11 pr-4 py-3 rounded-2xl bg-black/70 border border-white/20 text-white text-sm sm:text-base focus:outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-500/30 transition-all placeholder:text-slate-500"
+                      className="w-full pl-11 pr-4 py-3 rounded-2xl bg-black/70 border border-white/20 text-white text-sm sm:text-base focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-slate-500"
                     />
                   </div>
+                  {name.trim() && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -2 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-[11px] text-amber-300 flex items-center gap-1.5 pt-0.5"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span>Danh xưng kết tụ phúc khí dòng tộc • Sẵn sàng an sao Cung Mệnh</span>
+                    </motion.div>
+                  )}
                 </div>
 
                 {/* Giới tính buttons */}
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-100">
-                    Giới Tính <span className="text-rose-400">*</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-slate-100">
+                      Giới Tính <span className="text-amber-400">*</span>
+                    </label>
+                    <span className="text-[11px] text-teal-300/80 font-medium hidden sm:inline">
+                      Định chiều Đại Vận
+                    </span>
+                  </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => setGender('Male')}
-                      className={`py-3 px-3 rounded-2xl text-sm font-bold border flex items-center justify-center gap-2 transition-all cursor-pointer min-h-[48px] ${
+                      onClick={() => {
+                        setGender('Male');
+                        sacredSound.playSacredTap(528);
+                      }}
+                      className={`py-3 px-3 rounded-2xl text-xs sm:text-sm font-bold border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer min-h-[50px] ${
                         gender === 'Male'
-                          ? 'bg-teal-950/90 border-teal-400 text-teal-200 shadow-[0_0_20px_rgba(45,212,191,0.25)] ring-2 ring-teal-500/40'
+                          ? 'bg-gradient-to-r from-teal-950/90 to-cyan-950/90 border-teal-400 text-teal-200 shadow-[0_0_25px_rgba(45,212,191,0.3)] ring-2 ring-teal-500/40'
                           : 'bg-black/50 border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
                       }`}
                     >
-                      <span className="text-lg">♂️</span>
-                      <span>Nam</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">♂️</span>
+                        <span>Nam</span>
+                      </div>
+                      <span className="text-[10px] text-teal-300/70 font-normal">Dương Nam • Vận Thuận</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setGender('Female')}
-                      className={`py-3 px-3 rounded-2xl text-sm font-bold border flex items-center justify-center gap-2 transition-all cursor-pointer min-h-[48px] ${
+                      onClick={() => {
+                        setGender('Female');
+                        sacredSound.playSacredTap(660);
+                      }}
+                      className={`py-3 px-3 rounded-2xl text-xs sm:text-sm font-bold border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer min-h-[50px] ${
                         gender === 'Female'
-                          ? 'bg-purple-950/90 border-purple-400 text-purple-200 shadow-[0_0_20px_rgba(168,85,247,0.25)] ring-2 ring-purple-500/40'
+                          ? 'bg-gradient-to-r from-purple-950/90 to-pink-950/90 border-purple-400 text-purple-200 shadow-[0_0_25px_rgba(168,85,247,0.3)] ring-2 ring-purple-500/40'
                           : 'bg-black/50 border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
                       }`}
                     >
-                      <span className="text-lg">♀️</span>
-                      <span>Nữ</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">♀️</span>
+                        <span>Nữ</span>
+                      </div>
+                      <span className="text-[10px] text-purple-300/70 font-normal">Âm Nữ • Vận Nghịch</span>
                     </button>
                   </div>
                 </div>
@@ -399,19 +518,33 @@ export const OnboardingWizard: React.FC<Props> = ({
             {/* MỤC 2: NGÀY, THÁNG, NĂM SINH (Dễ Dàng Chọn Cả Âm & Dương Lịch) */}
             <div className="space-y-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">2</span>
-                  <span>Ngày Tháng Năm Sinh</span>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">2</span>
+                    <span>Ngày Tháng Năm Sinh</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => sacredVoice.speak('field_date')}
+                    className="px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-300 text-xs font-medium transition-all flex items-center gap-1 cursor-pointer"
+                    title="Nghe lời giải thích quy đổi Âm Dương Lịch"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>Nghe Hướng Dẫn</span>
+                  </button>
                 </div>
 
                 {/* Chuyển Đổi Dương / Âm Lịch Rõ Ràng */}
                 <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/60 border border-white/15 text-xs sm:text-sm">
                   <button
                     type="button"
-                    onClick={() => setCalendarType('solar')}
+                    onClick={() => {
+                      setCalendarType('solar');
+                      sacredSound.playSacredTap(528);
+                    }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all font-semibold cursor-pointer ${
                       calendarType === 'solar'
-                        ? 'bg-teal-500/30 text-teal-200 border border-teal-400 shadow-sm'
+                        ? 'bg-amber-500/30 text-amber-200 border border-amber-400 shadow-sm'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -420,7 +553,10 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCalendarType('lunar')}
+                    onClick={() => {
+                      setCalendarType('lunar');
+                      sacredSound.playSacredTap(528);
+                    }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all font-semibold cursor-pointer ${
                       calendarType === 'lunar'
                         ? 'bg-purple-500/30 text-purple-200 border border-purple-400 shadow-sm'
@@ -433,6 +569,38 @@ export const OnboardingWizard: React.FC<Props> = ({
                 </div>
               </div>
 
+              {/* Quick Decade Jump Chips for Seamless Selection */}
+              <div className="p-3 rounded-2xl bg-black/50 border border-white/10 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                    <Compass className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Chọn nhanh thế hệ sinh (Bấm 1 chạm nhảy ngay):</span>
+                  </span>
+                  <span className="text-amber-300/80 text-[11px] font-mono">
+                    {previewCalculation.year} • {previewCalculation.naYin}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {DECADE_BRACKETS.map((bracket) => (
+                    <button
+                      key={bracket.label}
+                      type="button"
+                      onClick={() => {
+                        setSolarYear(bracket.sampleYear);
+                        sacredSound.playSacredTap(480);
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
+                        Math.abs(solarYear - bracket.sampleYear) <= 7
+                          ? 'bg-amber-500/25 border-amber-400 text-amber-200 font-bold shadow-xs'
+                          : 'bg-black/40 hover:bg-white/5 border-white/10 text-slate-300'
+                      }`}
+                    >
+                      {bracket.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* 3 Dropdown / Selectors Ngày - Tháng - Năm (Chữ to, rõ ràng) */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Ngày */}
@@ -442,8 +610,11 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </label>
                   <select
                     value={solarDay}
-                    onChange={(e) => setSolarDay(Number(e.target.value))}
-                    className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-teal-400 focus:outline-none cursor-pointer"
+                    onChange={(e) => {
+                      setSolarDay(Number(e.target.value));
+                      sacredSound.playSacredTap(432);
+                    }}
+                    className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
                   >
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                       <option key={d} value={d}>
@@ -460,8 +631,11 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </label>
                   <select
                     value={solarMonth}
-                    onChange={(e) => setSolarMonth(Number(e.target.value))}
-                    className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-teal-400 focus:outline-none cursor-pointer"
+                    onChange={(e) => {
+                      setSolarMonth(Number(e.target.value));
+                      sacredSound.playSacredTap(432);
+                    }}
+                    className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                       <option key={m} value={m}>
@@ -478,8 +652,11 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </label>
                   <select
                     value={solarYear}
-                    onChange={(e) => setSolarYear(Number(e.target.value))}
-                    className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-teal-300 font-mono text-base font-bold focus:border-teal-400 focus:outline-none cursor-pointer"
+                    onChange={(e) => {
+                      setSolarYear(Number(e.target.value));
+                      sacredSound.playSacredTap(432);
+                    }}
+                    className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-amber-300 font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
                   >
                     {YEAR_OPTIONS.map((yo) => (
                       <option key={yo.year} value={yo.year}>
@@ -494,9 +671,20 @@ export const OnboardingWizard: React.FC<Props> = ({
             {/* MỤC 3: GIỜ SINH (3 Chế Độ Thân Thiện: 12 Giờ Can Chi / Giờ Phút Cụ Thể / Không Rõ Giờ) */}
             <div className="space-y-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">3</span>
-                  <span>Giờ Sinh Của Quý Vị</span>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">3</span>
+                    <span>Giờ Sinh Của Quý Vị</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => sacredVoice.speak('field_hour')}
+                    className="px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-300 text-xs font-medium transition-all flex items-center gap-1 cursor-pointer"
+                    title="Nghe lời hướng dẫn định tâm giờ sinh"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>Nghe Hướng Dẫn</span>
+                  </button>
                 </div>
 
                 {/* Chuyển chế độ giờ */}
@@ -675,10 +863,21 @@ export const OnboardingWizard: React.FC<Props> = ({
               {/* Nơi Sinh & Tọa Độ Thiên Văn */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <MapPin className="w-4 h-4 text-teal-400" />
-                    <span>Nơi Sinh & Tọa Độ Thiên Văn</span>
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-teal-400" />
+                      <span>Nơi Sinh & Tọa Độ Thiên Văn</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => sacredVoice.speak('field_location')}
+                      className="px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-300 text-[11px] font-medium transition-all flex items-center gap-1 cursor-pointer"
+                      title="Nghe giải nghĩa địa linh nơi sinh"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span>Nghe Ý Nghĩa</span>
+                    </button>
+                  </div>
                   <span className="text-[10px] font-mono text-teal-300 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/30">
                     UTC{timezoneOffset >= 0 ? `+${timezoneOffset}` : timezoneOffset} • {birthCountry}
                   </span>
@@ -715,10 +914,11 @@ export const OnboardingWizard: React.FC<Props> = ({
                             setBirthCity(item.city);
                             setBirthCountry(item.country);
                             setTimezoneOffset(item.tz);
+                            sacredSound.playSacredTap(528);
                           }}
                           className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-teal-500/30 border-teal-400 text-teal-200 font-bold'
+                              ? 'bg-amber-500/30 border-amber-400 text-amber-200 font-bold shadow-xs'
                               : 'bg-black/40 border-white/10 text-slate-300 hover:text-white'
                           }`}
                         >
@@ -730,35 +930,67 @@ export const OnboardingWizard: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Mục Tiêu Trọng Tâm */}
+              {/* Mục Tiêu Trọng Tâm — THẺ TÂM NGUYỆN LINH THIÊNG (TƯƠNG TÁC CAO) */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>Mối Quan Tâm Lớn Nhất</span>
-                </label>
-                <select
-                  value={topPriority}
-                  onChange={(e) => setTopPriority(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-black/70 border border-white/20 text-white text-sm focus:border-teal-400 focus:outline-none cursor-pointer"
-                >
-                  <option value="Sức Khỏe, Gia Đạo & Bình An">Sức Khỏe, Gia Đạo & Bình An</option>
-                  <option value="Sự Nghiệp, Danh Vọng & Thăng Tiến">Sự Nghiệp, Danh Vọng & Thăng Tiến</option>
-                  <option value="Tài Chính, Đầu Tư & Tích Lũy Tài Sản">Tài Chính, Đầu Tư & Tích Lũy Tài Sản</option>
-                  <option value="Hôn Nhân, Con Cái & Tình Duyên">Hôn Nhân, Con Cái & Tình Duyên</option>
-                  <option value="Khởi Nghiệp & Quản Trị Doanh Nghiệp">Khởi Nghiệp & Quản Trị Doanh Nghiệp</option>
-                </select>
-                <div className="text-[11px] text-slate-400">
-                  AI sẽ tập trung phân tích sâu vào lĩnh vực này cho Quý vị.
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Tâm Nguyện Trọng Tâm Của Quý Vị</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => sacredVoice.speak('field_priority')}
+                    className="px-2 py-0.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/30 text-amber-300 text-[11px] font-medium transition-all flex items-center gap-1 cursor-pointer"
+                    title="Nghe giải nghĩa tâm nguyện và phúc đức"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>Nghe Ý Nghĩa</span>
+                  </button>
+                </div>
+
+                {/* 5 Thẻ Tâm Nguyện Tương Tác 1 Chạm */}
+                <div className="space-y-1.5">
+                  {SACRED_PRIORITIES.map((sp) => {
+                    const isSelected = topPriority === sp.id;
+                    return (
+                      <button
+                        key={sp.id}
+                        type="button"
+                        onClick={() => {
+                          setTopPriority(sp.id);
+                          sacredSound.playSacredTap(640);
+                        }}
+                        className={`w-full p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-amber-950/80 via-[#221611]/90 to-amber-950/80 border-amber-400 text-amber-100 shadow-[0_0_20px_rgba(245,158,11,0.25)] ring-1 ring-amber-400'
+                            : 'bg-black/40 hover:bg-white/5 border-white/10 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <span className="text-xl shrink-0">{sp.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-xs sm:text-sm text-white">
+                              {sp.label}
+                            </div>
+                            <div className="text-[11px] text-slate-400 truncate">
+                              {sp.desc}
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
             {/* MỤC 5: XEM TRƯỚC TỨ TRỤ BẢN MỆNH TỨC THÌ (Trang Trọng, Đẳng Cấp) */}
-            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-950/40 via-black/80 to-teal-950/40 border border-teal-500/40 shadow-inner space-y-3">
+            <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-purple-950/40 via-black/80 to-amber-950/40 border border-amber-500/40 shadow-inner space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
-                <span className="font-bold text-teal-300 uppercase tracking-wider font-cinzel flex items-center gap-2">
-                  <Compass className="w-4 h-4 text-teal-400" />
-                  <span>Bản Mệnh Trụ Số Sơ Khởi</span>
+                <span className="font-bold text-amber-300 uppercase tracking-wider font-cinzel flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-amber-400" />
+                  <span>Bản Mệnh Trụ Số Sơ Khởi (Thời Khắc Thiên Địa)</span>
                 </span>
                 <span className="text-slate-300 font-mono">
                   {previewCalculation.lunarStr}
@@ -768,7 +1000,7 @@ export const OnboardingWizard: React.FC<Props> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
                 <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
                   <div className="text-xs text-slate-400">Trụ Năm Sinh</div>
-                  <div className="text-sm sm:text-base font-bold text-teal-300 font-mono mt-1">
+                  <div className="text-sm sm:text-base font-bold text-amber-300 font-mono mt-1">
                     {previewCalculation.year}
                   </div>
                 </div>
@@ -780,7 +1012,7 @@ export const OnboardingWizard: React.FC<Props> = ({
                 </div>
                 <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
                   <div className="text-xs text-slate-400">Trụ Ngày (Mệnh Chủ)</div>
-                  <div className="text-sm sm:text-base font-bold text-amber-300 font-mono mt-1">
+                  <div className="text-sm sm:text-base font-bold text-teal-300 font-mono mt-1">
                     {previewCalculation.day}
                   </div>
                 </div>
@@ -794,7 +1026,7 @@ export const OnboardingWizard: React.FC<Props> = ({
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-300 border-t border-white/10 pt-2.5 gap-1">
                 <span>
-                  Nạp Âm Ngũ Hành: <strong className="text-teal-300 font-semibold">{previewCalculation.naYin}</strong>
+                  Nạp Âm Ngũ Hành: <strong className="text-amber-300 font-semibold">{previewCalculation.naYin}</strong>
                 </span>
                 <span className="text-slate-400">Tiết Khí: {previewCalculation.solarTerm}</span>
               </div>
@@ -858,12 +1090,17 @@ export const OnboardingWizard: React.FC<Props> = ({
           </div>
         )}
 
-        {/* NÚT HOÀN TẤT & LẬP LÁ SỐ SIÊU TO, DỄ BẤM (CAO 56px) */}
+        {/* NÚT HOÀN TẤT & LẬP LÁ SỐ SIÊU LINH THIÊNG, ĐẲNG CẤP (TỐI ƯU CHUYỂN ĐỔI CAO NHẤT) */}
         {activeTab === 'create' && (
-          <div className="border-t border-white/10 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs text-slate-400 order-2 sm:order-1">
-              <Shield className="w-4 h-4 text-teal-400 shrink-0" />
-              <span>Dữ liệu được bảo mật chuẩn Zero-Knowledge an toàn 100%</span>
+          <div className="border-t border-white/10 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 relative z-10">
+            <div className="flex flex-col gap-1 text-xs text-slate-400 order-2 sm:order-1 text-center sm:text-left">
+              <div className="flex items-center gap-2 text-teal-300 font-semibold justify-center sm:justify-start">
+                <Shield className="w-4 h-4 text-teal-400 shrink-0" />
+                <span>Bảo Mật Zero-Knowledge 100% Cục Bộ</span>
+              </div>
+              <span className="text-[11px] text-slate-400">
+                🔥 98,680+ Gia Chủ Đã Khai Mở Bản Mệnh Bình An
+              </span>
             </div>
 
             <motion.button
@@ -872,11 +1109,16 @@ export const OnboardingWizard: React.FC<Props> = ({
               type="button"
               disabled={isSubmitting}
               onClick={handleFinish}
-              className="w-full sm:w-auto min-h-[54px] flex items-center justify-center gap-3 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-teal-400 via-emerald-400 to-cyan-400 text-black text-sm sm:text-base font-bold shadow-[0_0_30px_rgba(45,212,191,0.4)] hover:shadow-[0_0_45px_rgba(45,212,191,0.6)] transition-all cursor-pointer order-1 sm:order-2"
+              className="w-full sm:w-auto min-h-[58px] flex flex-col items-center justify-center px-8 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold shadow-[0_0_40px_rgba(245,158,11,0.4)] hover:shadow-[0_0_60px_rgba(245,158,11,0.6)] transition-all cursor-pointer order-1 sm:order-2 border border-amber-300/80 group"
             >
-              <Sparkles className="w-5 h-5 text-black" />
-              <span>{isSubmitting ? 'Đang Phân Tích & Luận Giải...' : 'Lập Lá Số & Xem Luận Giải Ngay'}</span>
-              <ArrowRight className="w-5 h-5 text-black" />
+              <div className="flex items-center gap-2 text-sm sm:text-base font-extrabold tracking-wide">
+                <Sparkles className="w-5 h-5 text-slate-950 group-hover:rotate-12 transition-transform" />
+                <span>{isSubmitting ? 'Đang Phân Tích & Luận Giải...' : 'Khai Mở Lá Số & Chiêm Bái Bản Mệnh Ngay'}</span>
+                <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
+              </div>
+              <span className="text-[11px] text-slate-950/80 font-medium font-sans">
+                Khai quang miễn phí • Nhận trọn bộ Luận Giải 12 Cung & Đại Vận 2026
+              </span>
             </motion.button>
           </div>
         )}

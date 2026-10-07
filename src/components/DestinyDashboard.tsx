@@ -4,7 +4,7 @@
 // Chuẩn xác Tử Vi Đẩu Số 12 Cung & Tứ Trụ Bát Tự
 // ==========================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   Sparkles,
@@ -30,7 +30,8 @@ import {
   Crown,
   Sun,
   HeartHandshake,
-  ArrowRight
+  ArrowRight,
+  Volume2
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -42,6 +43,9 @@ import { LanguageCode } from '../types/destiny';
 import { BaGuaCompassWidget } from './BaGuaCompassWidget';
 import { RealTimeLuckRadarBar } from './RealTimeLuckRadarBar';
 import { AgentInfluenceChart } from './AgentInfluenceChart';
+import { sacredVoice } from '../services/sacredVoiceService';
+import { sacredSound } from '../services/soundService';
+import { SacredSealBadge } from './SacredSealBadge';
 
 interface Props {
   profile: UserProfile;
@@ -108,6 +112,12 @@ export const DestinyDashboard: React.FC<Props> = ({
   const [ziweiViewMode, setZiweiViewMode] = useState<'board4x4' | 'cardList'>('board4x4');
   const [analysisTab, setAnalysisTab] = useState<'essence' | 'body' | 'sanfang' | 'transit'>('essence');
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [voiceState, setVoiceState] = useState(sacredVoice.getState());
+
+  useEffect(() => {
+    const unsub = sacredVoice.subscribe(setVoiceState);
+    return () => unsub();
+  }, []);
 
   const { bazi, ziwei, confidence } = calculation;
   const dm = STEMS[bazi.dayMaster];
@@ -377,6 +387,7 @@ export const DestinyDashboard: React.FC<Props> = ({
                   Dành Riêng Cho Người Lớn Tuổi
                 </span>
                 <span className="text-xs text-slate-400 hidden sm:inline">• Kênh Huyền Phong Phật Đạo</span>
+                <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden lg:inline-flex" />
               </div>
               <h3 className="text-base sm:text-lg font-bold text-white font-cinzel mt-1 break-words leading-snug">
                 Trợ Lý Hướng Dẫn Điền Thông Tin Xem Lá Số Tử Vi Từ A - Z
@@ -387,15 +398,42 @@ export const DestinyDashboard: React.FC<Props> = ({
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onOpenSeniorGuide}
-            className="w-full md:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition-all cursor-pointer shrink-0 flex items-center justify-center gap-2"
-          >
-            <Sparkles className="w-4 h-4 text-black shrink-0" />
-            <span>Mở Trợ Lý Hướng Dẫn</span>
-            <ArrowRight className="w-4 h-4 text-black shrink-0" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+            {/* Sacred Voice Listening Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (voiceState.isPlaying && voiceState.currentScriptId === 'welcome_invitation') {
+                  sacredVoice.stop();
+                } else {
+                  sacredVoice.speak('welcome_invitation');
+                }
+              }}
+              className={`px-4 py-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                voiceState.isPlaying && voiceState.currentScriptId === 'welcome_invitation'
+                  ? 'bg-amber-500/25 border-amber-400 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] ring-1 ring-amber-400'
+                  : 'bg-black/60 hover:bg-black/80 border-amber-500/30 text-amber-300'
+              }`}
+              title={voiceState.isPlaying ? 'Dừng đọc' : 'Nghe Lời Thỉnh Mệnh Khai Tâm (Giọng Truyền Cảm)'}
+            >
+              <Volume2 className={`w-4 h-4 ${voiceState.isPlaying ? 'text-amber-300 animate-pulse' : 'text-amber-400'}`} />
+              <span>{voiceState.isPlaying && voiceState.currentScriptId === 'welcome_invitation' ? 'Đang Khai Ngôn...' : 'Nghe Lời Thỉnh Mệnh'}</span>
+            </button>
+
+            {/* Launch Guided Assistant */}
+            <button
+              type="button"
+              onClick={() => {
+                sacredSound.playSacredTap(528);
+                onOpenSeniorGuide();
+              }}
+              className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-black shrink-0" />
+              <span>Mở Trợ Lý Hướng Dẫn</span>
+              <ArrowRight className="w-4 h-4 text-black shrink-0" />
+            </button>
+          </div>
         </div>
       )}
 
