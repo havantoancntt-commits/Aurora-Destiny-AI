@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, UserPlus, Volume2 } from 'lucide-react';
+import { Sparkles, UserPlus, Volume2, ArrowRight } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { Top3DTabBar } from './components/Top3DTabBar';
 import { BottomNav, TabKey } from './components/BottomNav';
@@ -642,17 +642,53 @@ export default function App() {
               </div>
             </div>
 
-            <button
-              id="btn-open-onboarding-empty-state"
-              onClick={() => {
-                sacredSound.playSacredTap(528);
-                setShowOnboarding(true);
-              }}
-              className="px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 text-slate-950 font-bold text-sm sm:text-base shadow-[0_0_40px_rgba(245,158,11,0.5)] hover:shadow-[0_0_60px_rgba(245,158,11,0.7)] hover:brightness-105 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer border border-amber-300/80 group"
-            >
-              <UserPlus className="w-5 h-5 text-slate-950 group-hover:scale-110 transition-transform" />
-              <span className="tracking-wide">Khởi Tạo Lá Số Bản Mệnh Ngay (Miễn Phí)</span>
-            </button>
+            {/* ================= ULTRA-LUMINESCENT SACRED CTA BUTTON CONTAINER ================= */}
+            <div className="relative group w-full max-w-md mx-auto my-1">
+              {/* Concentric Luminescent Radiating Radar Rings */}
+              <div className="absolute inset-0 rounded-3xl border-2 border-amber-400/90 pointer-events-none sacred-radar-ring" />
+              <div className="absolute inset-0 rounded-3xl border border-yellow-300/80 pointer-events-none sacred-radar-ring" style={{ animationDelay: '1.2s' }} />
+
+              {/* Pulsing Golden Aura Glow Halo */}
+              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-amber-500/60 via-yellow-400/70 to-orange-500/60 blur-xl pointer-events-none animate-pulse" />
+
+              {/* Main Luminescent Button */}
+              <motion.button
+                id="btn-open-onboarding-empty-state"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => {
+                  sacredSound.playSacredTap(528);
+                  setShowOnboarding(true);
+                }}
+                className="relative w-full overflow-hidden px-6 sm:px-8 py-3.5 sm:py-4.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-yellow-300 hover:via-amber-300 hover:to-orange-400 text-slate-950 font-bold shadow-[0_0_40px_rgba(245,158,11,0.6)] hover:shadow-[0_0_70px_rgba(245,158,11,0.9)] transition-all cursor-pointer border-2 border-amber-200/90 ring-2 ring-amber-400/50 btn-sacred-luminescence flex flex-col items-center justify-center gap-1 z-10"
+              >
+                {/* Internal Shimmering Light Sweep Beam (Chớp Sáng Kim Sa Lướt Qua) */}
+                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent sacred-light-sweep-beam" />
+                </div>
+
+                {/* Top Auspicious Micro-Badge with Flashing Beacon */}
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/15 text-[10px] font-bold uppercase tracking-wider text-slate-950/90">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-90" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
+                  </span>
+                  <span>1-Chạm Khai Quang • Miễn Phí Trọn Đời</span>
+                </div>
+
+                {/* Main Action Text + Icon */}
+                <div className="flex items-center justify-center gap-2.5 text-base sm:text-lg font-extrabold tracking-wide text-slate-950">
+                  <Sparkles className="w-5 h-5 text-slate-950 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
+                  <span className="drop-shadow-xs">Khởi Tạo Lá Số Bản Mệnh Ngay</span>
+                  <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1.5 transition-transform shrink-0" />
+                </div>
+
+                {/* Subtitle Guarantee */}
+                <span className="text-[11px] sm:text-xs text-slate-900/80 font-medium font-sans">
+                  Khai mở trọn vẹn 12 Cung Tử Vi, Tứ Trụ Bát Tự & Vận Hạn 2026
+                </span>
+              </motion.button>
+            </div>
           </div>
         ) : (
           <AnimatePresence mode="wait">

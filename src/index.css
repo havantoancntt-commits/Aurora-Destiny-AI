@@ -106,6 +106,56 @@
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
   }
+
+  /* Sacred Luminescent Golden Radiance & Beacon Pulse */
+  @keyframes golden-beacon-pulse {
+    0%, 100% {
+      box-shadow: 0 0 25px rgba(245, 158, 11, 0.5), 0 0 50px rgba(234, 179, 8, 0.3), inset 0 0 15px rgba(255, 255, 255, 0.35);
+      filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.4));
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 45px rgba(245, 158, 11, 0.9), 0 0 85px rgba(245, 158, 11, 0.65), 0 0 110px rgba(251, 191, 36, 0.45), inset 0 0 25px rgba(255, 255, 255, 0.7);
+      filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.75));
+      transform: scale(1.02);
+    }
+  }
+
+  @keyframes sacred-light-sweep {
+    0% {
+      transform: translateX(-150%) skewX(-25deg);
+    }
+    28%, 100% {
+      transform: translateX(260%) skewX(-25deg);
+    }
+  }
+
+  @keyframes golden-radar-ripple {
+    0% {
+      transform: scale(0.96);
+      opacity: 0.95;
+    }
+    70% {
+      transform: scale(1.28);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1.35);
+      opacity: 0;
+    }
+  }
+
+  .btn-sacred-luminescence {
+    animation: golden-beacon-pulse 2.2s infinite ease-in-out;
+  }
+
+  .sacred-light-sweep-beam {
+    animation: sacred-light-sweep 2.8s infinite ease-in-out;
+  }
+
+  .sacred-radar-ring {
+    animation: golden-radar-ripple 2.4s infinite cubic-bezier(0, 0.2, 0.8, 1);
+  }
 }
 
 /* Custom sleek scrollbar for immersive dark mode */
