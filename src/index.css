@@ -156,6 +156,82 @@
   .sacred-radar-ring {
     animation: golden-radar-ripple 2.4s infinite cubic-bezier(0, 0.2, 0.8, 1);
   }
+
+  /* Sacred Ancient Book & Divine Halo Keyframes */
+  @keyframes book-divine-aura {
+    0%, 100% {
+      filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.6)) drop-shadow(0 0 50px rgba(220, 38, 38, 0.35));
+      transform: scale(1);
+    }
+    50% {
+      filter: drop-shadow(0 0 48px rgba(245, 158, 11, 0.95)) drop-shadow(0 0 85px rgba(239, 68, 68, 0.6));
+      transform: scale(1.02);
+    }
+  }
+
+  @keyframes book-light-burst {
+    0%, 100% {
+      opacity: 0.55;
+      transform: scaleY(0.95) scaleX(0.98);
+    }
+    50% {
+      opacity: 0.95;
+      transform: scaleY(1.12) scaleX(1.05);
+    }
+  }
+
+  @keyframes book-rune-float-up {
+    0% {
+      transform: translateY(0) scale(0.8);
+      opacity: 0;
+    }
+    25% {
+      opacity: 0.95;
+    }
+    75% {
+      opacity: 0.85;
+    }
+    100% {
+      transform: translateY(-46px) scale(1.2);
+      opacity: 0;
+    }
+  }
+
+  @keyframes book-page-breath-anim {
+    0%, 100% {
+      transform: rotateY(0deg) translateY(0px);
+    }
+    50% {
+      transform: rotateY(-3deg) translateY(-2px);
+    }
+  }
+
+  @keyframes cinnabar-seal-glow {
+    0%, 100% {
+      filter: drop-shadow(0 0 5px rgba(220, 38, 38, 0.8));
+      opacity: 0.9;
+    }
+    50% {
+      filter: drop-shadow(0 0 14px rgba(239, 68, 68, 1)) drop-shadow(0 0 24px rgba(245, 158, 11, 0.8));
+      opacity: 1;
+    }
+  }
+
+  .animate-book-aura {
+    animation: book-divine-aura 3s infinite ease-in-out;
+  }
+
+  .animate-book-burst {
+    animation: book-light-burst 2.4s infinite ease-in-out;
+  }
+
+  .animate-cinnabar-seal {
+    animation: cinnabar-seal-glow 2s infinite ease-in-out;
+  }
+
+  .animate-page-breath {
+    animation: book-page-breath-anim 4.5s infinite ease-in-out;
+  }
 }
 
 /* Custom sleek scrollbar for immersive dark mode */
