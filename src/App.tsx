@@ -587,108 +587,95 @@ export default function App() {
             </p>
           </div>
         ) : !activeProfile || !calculation || !ensemble ? (
-          <div className="flex flex-col items-center justify-center my-auto w-full max-w-xl mx-auto text-center px-3 sm:px-4 py-2 relative">
+          <div className="flex flex-col items-center justify-center my-auto w-full max-w-xl mx-auto text-center px-4 py-2 relative">
             {/* Sacred Rotating Mandala Aura in Background */}
-            <SacredMandalaAura size={480} className="-top-12" opacity={0.18} />
+            <SacredMandalaAura size={480} className="-top-12" opacity={0.16} />
 
+            {/* Dignified Kicker & Title Header */}
+            <div className="space-y-1.5 mb-2 relative z-10">
+              <div className="flex items-center justify-center gap-2 text-[11px] sm:text-xs font-mono tracking-widest text-amber-400/90 uppercase">
+                <span>Huyền Phong Phật Đạo</span>
+                <span className="text-amber-500/60">·</span>
+                <span>Tử Vi Đẩu Số Toàn Thư</span>
+              </div>
+
+              <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium tracking-wide">
+                  Khai Mở Bản Đồ <span className="bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 bg-clip-text text-transparent font-semibold">Thiên Cơ Bản Mệnh</span>
+                </h2>
+                <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden sm:inline-flex" />
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed max-w-lg mx-auto font-light">
+                Chiêm bái cuốn cổ thư nghìn năm để giải mã trọn vẹn <span className="text-amber-300 font-medium">12 Cung Tử Vi</span>, <span className="text-teal-300 font-medium">Tứ Trụ Bát Tự</span> và <span className="text-amber-300 font-medium">Vận Hạn 2026</span> cùng Hội Đồng 7 Chuyên Gia AI.
+              </p>
+            </div>
+
+            {/* The Centerpiece: Cuốn Sách Tử Vi Cổ Nhiệm Màu trong Vòng Tròn Thiên Cơ */}
             <SacredCosmicCipher3D onActivate={() => {
               sacredSound.playSacredTap(528);
               setShowOnboarding(true);
             }} />
-            
-            <div className="mt-3.5 mb-2.5 flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-950/60 via-purple-950/60 to-teal-950/60 border border-amber-500/40 text-amber-200 text-xs font-mono tracking-wider shadow-md">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span className="uppercase tracking-widest text-[10px] sm:text-xs">Trí Tuệ Nhân Tạo Giao Thoa Huyền Phong Phật Đạo</span>
-            </div>
 
-            <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium tracking-wide">
-                Khai Mở Bản Đồ <span className="bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-200 bg-clip-text text-transparent font-semibold">Thiên Cơ Bản Mệnh</span>
-              </h2>
-              <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden sm:inline-flex" />
-            </div>
-
-            <p className="text-xs sm:text-sm md:text-base text-slate-300/90 leading-relaxed mb-4 max-w-lg font-light">
-              Trận đồ thiên văn đã sẵn sàng hòa nhịp cùng trường năng lượng của Quý Vị. Khởi tạo ngày giờ sinh để giải mã trọn vẹn <span className="text-amber-300 font-medium">Bát Tự Hà Lạc</span>, <span className="text-teal-300 font-medium">Tử Vi Đẩu Số 12 Cung</span> và thấu hiểu vận mệnh cùng <span className="text-amber-300 font-medium">Hội Đồng 7 Chuyên Gia AI</span>.
-            </p>
-
-            {/* Sacred Voice Invitation Chip */}
-            <div className="mb-4">
+            {/* Sacred Voice Guidance Option (Tế nhị, truyền cảm, không gây phiền) */}
+            <div className="my-2">
               <button
                 type="button"
                 onClick={() => {
                   sacredVoice.speak('welcome_invitation');
                 }}
-                className="px-3.5 py-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 text-xs font-medium transition-all flex items-center gap-2 cursor-pointer shadow-sm mx-auto"
+                className="px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-amber-500/15 border border-white/10 hover:border-amber-400/40 text-amber-200/90 hover:text-amber-100 text-xs font-medium transition-all flex items-center gap-2 cursor-pointer shadow-sm mx-auto"
                 title="Lắng nghe lời thỉnh mệnh truyền cảm từ Huyền Phong Phật Đạo"
               >
                 <Volume2 className="w-3.5 h-3.5 text-amber-400" />
-                <span>Nghe Lời Thỉnh Mệnh Khai Tâm (Giọng Truyền Cảm)</span>
+                <span>Lắng Nghe Lời Khai Tâm (Giọng Truyền Cảm)</span>
               </button>
             </div>
 
-            {/* Micro Feature Proof Pillars */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5 w-full max-w-md mb-6 text-[11px] sm:text-xs text-slate-300 font-mono">
-              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
-                <span className="text-amber-300 font-bold text-xs sm:text-sm">Bát Tự • Tử Vi</span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Thuật Toán Cổ Học</span>
-              </div>
-              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
-                <span className="text-teal-300 font-bold text-xs sm:text-sm">7 AI Chuyên Gia</span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Đồng Thuận Luận Giải</span>
-              </div>
-              <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/[0.04] border border-white/10 text-center shadow-sm">
-                <span className="text-emerald-300 font-bold text-xs sm:text-sm">Bảo Mật 100%</span>
-                <span className="text-[9px] text-slate-400 mt-0.5">Riêng Tư Cục Bộ</span>
-              </div>
-            </div>
-
-            {/* ================= ULTRA-LUMINESCENT SACRED CTA BUTTON CONTAINER ================= */}
-            <div className="relative group w-full max-w-md mx-auto my-1">
-              {/* Concentric Luminescent Radiating Radar Rings */}
-              <div className="absolute inset-0 rounded-3xl border-2 border-amber-400/90 pointer-events-none sacred-radar-ring" />
-              <div className="absolute inset-0 rounded-3xl border border-yellow-300/80 pointer-events-none sacred-radar-ring" style={{ animationDelay: '1.2s' }} />
-
-              {/* Pulsing Golden Aura Glow Halo */}
-              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-amber-500/60 via-yellow-400/70 to-orange-500/60 blur-xl pointer-events-none animate-pulse" />
-
-              {/* Main Luminescent Button */}
+            {/* ================= ULTRA-PRESTIGIOUS ROYAL CTA BUTTON ================= */}
+            <div className="w-full max-w-md mx-auto my-2">
               <motion.button
                 id="btn-open-onboarding-empty-state"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   sacredSound.playSacredTap(528);
                   setShowOnboarding(true);
                 }}
-                className="relative w-full overflow-hidden px-6 sm:px-8 py-3.5 sm:py-4.5 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-yellow-300 hover:via-amber-300 hover:to-orange-400 text-slate-950 font-bold shadow-[0_0_40px_rgba(245,158,11,0.6)] hover:shadow-[0_0_70px_rgba(245,158,11,0.9)] transition-all cursor-pointer border-2 border-amber-200/90 ring-2 ring-amber-400/50 btn-sacred-luminescence flex flex-col items-center justify-center gap-1 z-10"
+                className="group relative w-full overflow-hidden px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-yellow-300 hover:via-amber-300 hover:to-orange-400 text-slate-950 font-bold shadow-[0_0_35px_rgba(245,158,11,0.5)] hover:shadow-[0_0_60px_rgba(245,158,11,0.8)] transition-all cursor-pointer border-2 border-amber-200/90 ring-1 ring-amber-400/50 flex flex-col items-center justify-center gap-1 z-10"
               >
-                {/* Internal Shimmering Light Sweep Beam (Chớp Sáng Kim Sa Lướt Qua) */}
+                {/* Internal Shimmering Light Sweep Beam */}
                 <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
-                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/60 to-transparent sacred-light-sweep-beam" />
-                </div>
-
-                {/* Top Auspicious Micro-Badge with Flashing Beacon */}
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-black/15 text-[10px] font-bold uppercase tracking-wider text-slate-950/90">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-90" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
-                  </span>
-                  <span>1-Chạm Khai Quang • Miễn Phí Trọn Đời</span>
+                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/50 to-transparent sacred-light-sweep-beam" />
                 </div>
 
                 {/* Main Action Text + Rotating Sacred Taiji Icon */}
                 <div className="flex items-center justify-center gap-2.5 text-base sm:text-lg font-extrabold tracking-wide text-slate-950">
-                  <SacredTaijiSpinner size={28} speed={5} className="shrink-0" />
-                  <span className="drop-shadow-xs">Khởi Tạo Lá Số Bản Mệnh Ngay</span>
-                  <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1.5 transition-transform shrink-0" />
+                  <SacredTaijiSpinner size={26} speed={6} className="shrink-0" />
+                  <span className="drop-shadow-xs">LẬT MỞ THIÊN THƯ • LẬP LÁ SỐ BẢN MỆNH</span>
+                  <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform shrink-0" />
                 </div>
 
-                {/* Subtitle Guarantee */}
-                <span className="text-[11px] sm:text-xs text-slate-900/80 font-medium font-sans">
-                  Khai mở trọn vẹn 12 Cung Tử Vi, Tứ Trụ Bát Tự & Vận Hạn 2026
+                {/* Subtitle Guarantee (Clean, reassuring) */}
+                <span className="text-[11px] sm:text-xs text-slate-900/85 font-medium font-sans">
+                  Giải mã 12 Cung Số, Tứ Trụ Bát Tự & Vận Hạn 120 Năm Đời Người • Miễn Phí 100%
                 </span>
               </motion.button>
+            </div>
+
+            {/* Micro Feature Proof Pillars (Clean, unboxed text with subtle dividers) */}
+            <div className="flex items-center justify-center gap-4 sm:gap-6 mt-2 text-xs text-slate-400 font-sans">
+              <span className="flex items-center gap-1 text-slate-300">
+                <span className="text-amber-400 font-bold">✓</span> Cổ Học Chính Bản
+              </span>
+              <span className="text-slate-600">·</span>
+              <span className="flex items-center gap-1 text-slate-300">
+                <span className="text-teal-400 font-bold">✓</span> 7 Chuyên Gia AI
+              </span>
+              <span className="text-slate-600">·</span>
+              <span className="flex items-center gap-1 text-slate-300">
+                <span className="text-emerald-400 font-bold">✓</span> Bảo Mật Cục Bộ 100%
+              </span>
             </div>
           </div>
         ) : (

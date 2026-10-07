@@ -267,96 +267,80 @@ export const OnboardingWizard: React.FC<Props> = ({
         <div className="absolute top-0 left-1/4 right-1/4 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90 blur-xs pointer-events-none" />
 
         {/* Modal Header */}
-        <div className="space-y-3 relative z-10">
-          <div className="flex items-start justify-between border-b border-white/10 pb-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/25 via-orange-500/20 to-teal-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.3)] shrink-0">
-                <Compass className="w-6 h-6" />
+        {/* Modal Header — Streamlined Royal Control Header */}
+        <div className="space-y-2.5 relative z-10">
+          <div className="flex items-start justify-between border-b border-white/10 pb-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500/25 via-orange-500/20 to-teal-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)] shrink-0">
+                <Compass className="w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-lg sm:text-xl font-bold text-white font-cinzel tracking-wide">
+                  <h2 className="text-base sm:text-lg font-bold text-white font-cinzel tracking-wide">
                     Thiết Lập Thông Tin Sinh & Bản Mệnh
                   </h2>
                   <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden sm:inline-flex" />
                 </div>
-                <p className="text-xs sm:text-sm text-teal-200/90 mt-1 font-medium">
-                  Ứng dụng chính thức của kênh <strong className="text-amber-300 font-semibold">Huyền Phong Phật Đạo</strong> • Vui lòng nhập thông tin để AI tính toán Tứ Trụ, 12 Cung Tử Vi và Bản Đồ Vận Mệnh
+                <p className="text-xs text-slate-300 mt-0.5 font-light">
+                  Huyền Phong Phật Đạo · Khai mở Tứ Trụ, 12 Cung & Vận Hạn 2026 chuẩn thiên văn cổ bản
                 </p>
               </div>
             </div>
 
-            {onCancel && (
+            <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={onCancel}
-                className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-                title="Đóng cửa sổ"
+                type="button"
+                onClick={() => {
+                  if (sacredSound.getIsAmbientPlaying()) {
+                    sacredSound.stopAmbient();
+                  } else {
+                    sacredSound.startAmbient('432hz');
+                    sacredSound.playTibetanBowl(432);
+                  }
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-amber-500/30 text-amber-300 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Bật/Tắt âm sóng thiền 432Hz tịnh tâm"
               >
-                <X className="w-5 h-5" />
+                <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Âm Sóng 432Hz</span>
               </button>
-            )}
+
+              <button
+                type="button"
+                onClick={() => setShowSeniorGuide(true)}
+                className="px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 text-xs font-medium transition-all flex items-center gap-1 cursor-pointer"
+                title="Hướng dẫn từng bước chữ lớn cho người cao tuổi"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Chế Độ Chữ Lớn</span>
+              </button>
+
+              {onCancel && (
+                <button
+                  onClick={onCancel}
+                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Đóng cửa sổ"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* SACRED AUSPICIOUS CONVERSION & TRUST BANNER */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-950/70 via-[#18131d]/90 to-teal-950/60 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_25px_rgba(245,158,11,0.2)]">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-slate-950 font-bold shadow-md shrink-0">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-mono">
-                    98,680+ Gia Chủ Đã Khai Mở Bản Mệnh
-                  </span>
-                  <span className="text-[11px] text-teal-300 font-semibold">• 100% Miễn Phí</span>
-                </div>
-                <p className="text-xs text-slate-300 mt-0.5 leading-snug break-words">
-                  Chỉ 30 giây: Điền ngày giờ sinh để AI khai mở Tứ Trụ, 12 Cung và Vận Hạn 2026 chuẩn thiên văn cổ bản.
-                </p>
-              </div>
+          {/* Clean Unboxed Trust & Reassurance Bar */}
+          <div className="flex items-center justify-between text-xs text-slate-300 bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-amber-300 font-semibold flex items-center gap-1">
+                <span>✓</span> 98,680+ Gia Chủ Đã Khai Mở
+              </span>
+              <span className="text-slate-600 hidden sm:inline">·</span>
+              <span className="text-teal-300 font-medium hidden sm:inline">✓ Miễn Phí 100%</span>
+              <span className="text-slate-600 hidden sm:inline">·</span>
+              <span className="text-slate-400 hidden sm:inline">✓ Bảo Mật Cục Bộ 100%</span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (sacredSound.getIsAmbientPlaying()) {
-                  sacredSound.stopAmbient();
-                } else {
-                  sacredSound.startAmbient('432hz');
-                  sacredSound.playTibetanBowl(432);
-                }
-              }}
-              className="px-3 py-1.5 rounded-xl bg-black/60 hover:bg-black/80 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-              title="Bật/Tắt nhạc thiền Solfeggio 432Hz tịnh tâm khi nhập dữ liệu"
-            >
-              <Volume2 className="w-3.5 h-3.5 text-amber-400" />
-              <span>Âm Sóng 432Hz</span>
-            </button>
-          </div>
-
-          {/* Senior Guide Banner with Interactive Launch Button */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/60 via-[#18131d] to-teal-950/50 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_20px_rgba(245,158,11,0.15)]">
-            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0 mt-0.5 sm:mt-0">
-                <Compass className="w-5 h-5 text-amber-300" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm sm:text-base font-bold text-amber-200 break-words leading-snug">
-                  Trợ Lý Hướng Dẫn Từng Bước A - Z Dành Cho Người Lớn Tuổi
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed mt-1 break-words">
-                  Chữ lớn, dễ hiểu, tra cứu 12 con giáp, giải mã giờ sinh qua ký ức dân gian xưa (gà gáy, rạng đông, chính trưa...).
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSeniorGuide(true)}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
-            >
-              <Sparkles className="w-4 h-4 text-black shrink-0" />
-              <span>Bật Hướng Dẫn Từng Bước</span>
-            </button>
+            <span className="text-[11px] text-slate-400 font-sans">
+              Thời gian nhập: ~30 giây
+            </span>
           </div>
 
           {/* Mode Switch Tabs (If existing profiles exist) */}
