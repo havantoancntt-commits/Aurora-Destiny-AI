@@ -40,6 +40,7 @@ import { sacredSound } from '../services/soundService';
 import { SacredParticles } from './SacredParticles';
 import { SacredMandalaAura } from './SacredMandalaAura';
 import { SacredSealBadge } from './SacredSealBadge';
+import { SacredTaijiSpinner } from './SacredTaijiSpinner';
 
 interface Props {
   language: LanguageCode;
@@ -1112,7 +1113,7 @@ export const OnboardingWizard: React.FC<Props> = ({
               className="w-full sm:w-auto min-h-[58px] flex flex-col items-center justify-center px-8 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold shadow-[0_0_40px_rgba(245,158,11,0.4)] hover:shadow-[0_0_60px_rgba(245,158,11,0.6)] transition-all cursor-pointer order-1 sm:order-2 border border-amber-300/80 group"
             >
               <div className="flex items-center gap-2 text-sm sm:text-base font-extrabold tracking-wide">
-                <Sparkles className="w-5 h-5 text-slate-950 group-hover:rotate-12 transition-transform" />
+                <SacredTaijiSpinner size={24} speed={5} className="shrink-0" />
                 <span>{isSubmitting ? 'Đang Phân Tích & Luận Giải...' : 'Khai Mở Lá Số & Chiêm Bái Bản Mệnh Ngay'}</span>
                 <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
               </div>

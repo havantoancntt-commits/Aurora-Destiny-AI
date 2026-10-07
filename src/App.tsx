@@ -39,6 +39,7 @@ import { sacredSound } from './services/soundService';
 import { sacredVoice } from './services/sacredVoiceService';
 import { SacredSealBadge } from './components/SacredSealBadge';
 import { SacredMandalaAura } from './components/SacredMandalaAura';
+import { SacredTaijiSpinner } from './components/SacredTaijiSpinner';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -676,9 +677,9 @@ export default function App() {
                   <span>1-Chạm Khai Quang • Miễn Phí Trọn Đời</span>
                 </div>
 
-                {/* Main Action Text + Icon */}
+                {/* Main Action Text + Rotating Sacred Taiji Icon */}
                 <div className="flex items-center justify-center gap-2.5 text-base sm:text-lg font-extrabold tracking-wide text-slate-950">
-                  <Sparkles className="w-5 h-5 text-slate-950 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
+                  <SacredTaijiSpinner size={28} speed={5} className="shrink-0" />
                   <span className="drop-shadow-xs">Khởi Tạo Lá Số Bản Mệnh Ngay</span>
                   <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1.5 transition-transform shrink-0" />
                 </div>
