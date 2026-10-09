@@ -5,7 +5,7 @@
 // ==========================================
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import {
   Sparkles,
   Shield,
@@ -838,10 +838,30 @@ export const DestinyDashboard: React.FC<Props> = ({
                             }
                           : undefined
                       }
-                      className={`${cell.colStart} ${cell.rowStart} rounded-xl border p-2.5 flex flex-col justify-between min-h-[140px] cursor-pointer transition-all ${borderStyle}`}
+                      className={`relative ${cell.colStart} ${cell.rowStart} rounded-xl border p-2.5 flex flex-col justify-between min-h-[140px] cursor-pointer transition-all ${borderStyle}`}
                     >
+                      {/* Hiệu ứng viền sáng cảnh báo (Glowing Border) bằng framer-motion khi có sao xấu hội chiếu */}
+                      {badAspect && (
+                        <motion.div
+                          aria-hidden="true"
+                          className="absolute inset-0 rounded-xl pointer-events-none ring-2 ring-rose-500/80 z-0"
+                          animate={{
+                            opacity: [0.35, 0.95, 0.35],
+                            boxShadow: [
+                              '0 0 6px rgba(244, 63, 94, 0.35), inset 0 0 4px rgba(244, 63, 94, 0.2)',
+                              '0 0 24px rgba(244, 63, 94, 0.9), inset 0 0 12px rgba(244, 63, 94, 0.45)',
+                              '0 0 6px rgba(244, 63, 94, 0.35), inset 0 0 4px rgba(244, 63, 94, 0.2)'
+                            ]
+                          }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: 'easeInOut'
+                          }}
+                        />
+                      )}
                     {/* Top strip: Palace Name & Badges */}
-                    <div>
+                    <div className="relative z-[1]">
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5">
                           <span className={`text-xs font-bold ${isSelected ? 'text-amber-300' : badAspect ? 'text-rose-200' : 'text-white'}`}>
@@ -1073,7 +1093,27 @@ export const DestinyDashboard: React.FC<Props> = ({
                       : 'bg-black/40 border-white/10 hover:border-white/20 text-slate-300'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1">
+                  {/* Hiệu ứng viền sáng cảnh báo (Glowing Border) bằng framer-motion khi có sao xấu hội chiếu */}
+                  {badAspect && (
+                    <motion.div
+                      aria-hidden="true"
+                      className="absolute inset-0 rounded-xl pointer-events-none ring-2 ring-rose-500/80 z-0"
+                      animate={{
+                        opacity: [0.35, 0.95, 0.35],
+                        boxShadow: [
+                          '0 0 6px rgba(244, 63, 94, 0.35), inset 0 0 4px rgba(244, 63, 94, 0.2)',
+                          '0 0 20px rgba(244, 63, 94, 0.9), inset 0 0 10px rgba(244, 63, 94, 0.4)',
+                          '0 0 6px rgba(244, 63, 94, 0.35), inset 0 0 4px rgba(244, 63, 94, 0.2)'
+                        ]
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: 'easeInOut'
+                      }}
+                    />
+                  )}
+                  <div className="relative z-[1] flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1">
                       <span className={`text-xs font-bold ${isSelected ? 'text-teal-300' : badAspect ? 'text-rose-200' : 'text-slate-100'}`}>
                         {def.nameVi}

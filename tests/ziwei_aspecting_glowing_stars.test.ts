@@ -145,3 +145,53 @@ test('Zi Wei Aspecting — Full destiny calculation integration', () => {
     assert.ok(typeof hasAnyChallenging === 'boolean');
   });
 });
+
+test('Zi Wei Aspecting — Dynamic palace click activates glowing border flags for aspecting bad stars', () => {
+  const calc = runFullDestinyCalculation(sampleBirthData, 'profile_test_click_palaces');
+  const ziwei = calc.ziwei;
+  const palaceByBranch: Record<string, ZiWeiPalace> = {};
+  Object.values(ziwei.palaces).forEach((p) => {
+    palaceByBranch[p.branch] = p;
+  });
+
+  // Simulate user clicking on every palace in the dashboard
+  for (const palaceKey of Object.keys(ziwei.palaces)) {
+    const activePalace = ziwei.palaces[palaceKey as keyof typeof ziwei.palaces];
+    const influences = getAspectingInfluences(activePalace, palaceByBranch);
+
+    // Compute badStarAspectingBranchMap identically to DestinyDashboard
+    const badStarAspectingBranchMap: Record<string, typeof influences[0]> = {};
+    influences.forEach((inf) => {
+      if (inf.hasChallengingStars) {
+        badStarAspectingBranchMap[inf.palace.branch] = inf;
+      }
+    });
+
+    // 1. Check that the active palace itself is never in badStarAspectingBranchMap (it is "Tọa Thủ")
+    assert.strictEqual(
+      badStarAspectingBranchMap[activePalace.branch],
+      undefined,
+      `Active palace ${activePalace.nameVi} cannot aspect itself`
+    );
+
+    // 2. Any palace mapped in badStarAspectingBranchMap must have hasChallengingStars === true
+    Object.entries(badStarAspectingBranchMap).forEach(([branch, inf]) => {
+      assert.strictEqual(inf.palace.branch, branch);
+      assert.strictEqual(inf.hasChallengingStars, true);
+      assert.ok(inf.challengingStars.length > 0, `Aspecting palace ${inf.palace.nameVi} must have at least 1 challenging star`);
+      assert.ok(['Xung Chiếu', 'Tam Hợp'].includes(inf.relationLabel));
+    });
+
+    // 3. Palaces with NO challenging stars must NOT be flagged for glowing warning border
+    influences
+      .filter((inf) => !inf.hasChallengingStars)
+      .forEach((inf) => {
+        assert.strictEqual(
+          badStarAspectingBranchMap[inf.palace.branch],
+          undefined,
+          `Palace ${inf.palace.nameVi} has no bad stars and must not have glowing warning border`
+        );
+      });
+  }
+});
+
