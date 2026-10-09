@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 
 const currentDir = typeof __dirname !== 'undefined'
   ? __dirname
-  : path.dirname(fileURLToPath(import.meta.url));
+  : (typeof process !== 'undefined' ? process.cwd() : '.');
 
 export interface MigrationFile {
   version: number;

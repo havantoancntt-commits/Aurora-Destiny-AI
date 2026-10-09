@@ -172,10 +172,11 @@ export async function generateDestinyChatResponse(
     ? `Chỉ số Tương Hợp Lịch Sử (Retrospective Fit): ${backtest.destinyConsistencyScore}/100 trên ${backtest.totalEventsAnalyzed} sự kiện thực tế (${backtest.confidenceBand}).`
     : 'Chưa có sự kiện thực chứng lịch sử (historicalPatternFitScore: null, statisticalConfidence: null).';
 
-  const ai = getGemini();
+  const isExternalAllowed = (process.env.ENABLE_EXTERNAL_AI === 'true' || process.env.ALLOW_EXTERNAL_AI === 'true') && Boolean(process.env.GEMINI_API_KEY);
+  const ai = isExternalAllowed ? getGemini() : null;
 
   if (ai && !isCircuitBreakerOpen()) {
-    const aiStartTime = Date.now();
+    const aiStartTime = performance.now();
     try {
       // PROMPT INJECTION DEFENSE & TRUST BOUNDARY
       // System instructions are isolated in the privileged config.systemInstruction tier.
@@ -243,7 +244,8 @@ ${userMessage.trim()}`;
       const text = response.text?.trim();
       if (text) {
         recordSuccess();
-        telemetry.recordAiRequest(Date.now() - aiStartTime, true, false, false);
+        const latencyMs = Math.max(0.1, Math.round((performance.now() - aiStartTime) * 10) / 10);
+        telemetry.recordAiRequest(latencyMs, true, false, false);
         return {
           content: text,
           confidenceScore: calc.confidence.consistencyScore,
@@ -254,13 +256,44 @@ ${userMessage.trim()}`;
       const quotaHit = isQuotaError(err);
       const isTimeout = (err?.message || '').includes('timed out');
       recordFailure(quotaHit);
-      telemetry.recordAiRequest(Date.now() - aiStartTime, false, isTimeout, false);
+      const externalLatency = Math.max(0.1, Math.round((performance.now() - aiStartTime) * 10) / 10);
       console.warn('[Resilient Gemini Service] Gemini call failed, activating deterministic grounded fallback:', err?.message || err);
+
+      // Deterministic Grounded Interpretation Fallback with transition telemetry
+      const fallbackStart = performance.now();
+      const transitDesc = currentTransit
+        ? `Năm ${analysisYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị hành động: ${currentTransit.recommendedFocus}.`
+        : `Lưu Niên ${analysisYear} đang trong chu kỳ tích lũy năng lượng ổn định.`;
+
+      const authenticZiWei = calc.ziwei.authenticAnalysis;
+      const fallbackContent = `Dựa trên kết quả tính toán xác thực từ Bát Tự và Tử Vi Đẩu Số:\n\n` +
+        `1. **Căn Cứ Bản Mệnh & Bát Tự**: Bạn mang Nhật Chủ ${STEMS[calc.bazi.dayMaster].nameVi} (${calc.bazi.dayMasterElement} - ${calc.bazi.dayMasterStrength}), đắc Cách Cục **${calc.bazi.structureType}**. Dụng Thần tối ưu là hành **${calc.bazi.favorableElements.join(', ')}**, giúp điều hòa dòng năng lượng và gia tăng sức bật trong lĩnh vực "${profile.behavioralContext?.careerField || 'sự nghiệp'}".\n\n` +
+        `2. **Thế Tinh Bàn Tử Vi Đẩu Số Chính Tông**:\n` +
+        `   - **Âm Dương & Mệnh Cục**: Thể chất ${calc.ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${calc.ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). Bản Mệnh tương phối ${calc.ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} (${calc.ziwei.elementDestinyBureauHarmony?.explanation || ''}).\n` +
+        `   - **Cung Thân Hậu Vận**: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'} — ${calc.ziwei.bodyPalaceAnalysis?.lifeImpact || 'Hậu vận phát huy mạnh mẽ bản lĩnh tự chủ.'}\n` +
+        `   - **Tam Phương Tứ Chính**: Cung Mệnh tọa thủ ${lifeStars}, hội tụ cùng Quan Lộc (${careerStars}) và Tài Bạch (${wealthStars}). Cách Cục: ${calc.ziwei.majorConfigurations.join(', ')}.\n` +
+        `   - **Đại Vận Đang Đi Qua**: ${calc.ziwei.currentDecade?.evaluation || 'Đang trong chu kỳ củng cố nguồn lực.'}\n\n` +
+        `3. **Lưu Niên ${analysisYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}\n\n` +
+        `*Thông báo chuẩn mực*: Luận giải được tạo tự động bởi Bộ Quy Tắc Mệnh Lý Nội Bộ (Deterministic Grounded Engine) trên cơ sở dữ liệu tính toán xác thực, không phụ thuộc vào dịch vụ AI bên ngoài.`;
+
+      const fallbackLatency = Math.max(0.1, Math.round((performance.now() - fallbackStart) * 10) / 10);
+      telemetry.recordAiFallbackTransition({
+        externalDurationMs: externalLatency,
+        fallbackDurationMs: fallbackLatency,
+        isTimeout,
+        fallbackSuccess: true
+      });
+
+      return {
+        content: fallbackContent,
+        confidenceScore: calc.confidence.consistencyScore,
+        isFallback: true
+      };
     }
   }
 
-  // Deterministic Grounded Interpretation Fallback
-  telemetry.recordAiRequest(0, true, false, true);
+  // Pure Deterministic Grounded Interpretation (When external AI is unconfigured or disabled)
+  const fallbackStart = performance.now();
   const transitDesc = currentTransit
     ? `Năm ${analysisYear} (${STEMS[currentTransit.stem].nameVi} ${BRANCHES[currentTransit.branch].nameVi}) mang Sóng Cơ Hội đạt ${currentTransit.opportunityWave}%, Sóng Thận Trọng ở mức ${currentTransit.cautionWave}%. Khuyến nghị hành động: ${currentTransit.recommendedFocus}.`
     : `Lưu Niên ${analysisYear} đang trong chu kỳ tích lũy năng lượng ổn định.`;
@@ -273,7 +306,11 @@ ${userMessage.trim()}`;
     `   - **Cung Thân Hậu Vận**: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'} — ${calc.ziwei.bodyPalaceAnalysis?.lifeImpact || 'Hậu vận phát huy mạnh mẽ bản lĩnh tự chủ.'}\n` +
     `   - **Tam Phương Tứ Chính**: Cung Mệnh tọa thủ ${lifeStars}, hội tụ cùng Quan Lộc (${careerStars}) và Tài Bạch (${wealthStars}). Cách Cục: ${calc.ziwei.majorConfigurations.join(', ')}.\n` +
     `   - **Đại Vận Đang Đi Qua**: ${calc.ziwei.currentDecade?.evaluation || 'Đang trong chu kỳ củng cố nguồn lực.'}\n\n` +
-    `3. **Lưu Niên ${analysisYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}`;
+    `3. **Lưu Niên ${analysisYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}\n\n` +
+    `*Thông báo chuẩn mực*: Luận giải được xử lý bởi Bộ Quy Tắc Mệnh Lý Nội Bộ (Deterministic Grounded Engine) trên cơ sở dữ liệu tính toán xác thực, không phụ thuộc vào dịch vụ AI bên ngoài.`;
+
+  const fallbackLatency = Math.max(0.1, Math.round((performance.now() - fallbackStart) * 10) / 10);
+  telemetry.recordAiRequest(fallbackLatency, true, false, true);
 
   return {
     content: fallbackContent,

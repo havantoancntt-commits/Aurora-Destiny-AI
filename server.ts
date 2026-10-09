@@ -12,7 +12,7 @@ import { ZodError } from 'zod';
 
 const currentDir = typeof __dirname !== 'undefined'
   ? __dirname
-  : path.dirname(fileURLToPath(import.meta.url));
+  : (typeof process !== 'undefined' ? process.cwd() : '.');
 
 import { repository } from './src/db/repository';
 import {

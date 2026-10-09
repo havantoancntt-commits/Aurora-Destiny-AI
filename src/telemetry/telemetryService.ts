@@ -17,9 +17,13 @@ export interface TelemetrySnapshot {
   httpErrorsTotal: number;
   aiRequestsTotal: number;
   aiSuccessTotal: number;
+  aiExternalCallsTotal?: number;
+  aiExternalSuccessTotal?: number;
+  aiExternalSuccessRate?: number | null;
   aiFailureTotal: number;
   aiTimeoutTotal: number;
   aiFallbackTotal: number;
+  aiFallbackSuccessTotal?: number;
   aiLatencyAvgMs: number | null;
   aiPercentiles: Percentiles;
   aiSuccessRate: number | null;
@@ -78,10 +82,13 @@ class TelemetryService {
   private httpErrors = 0;
 
   private aiRequests = 0;
-  private aiSuccesses = 0;
-  private aiFailures = 0;
+  private aiExternalCalls = 0;
+  private aiExternalSuccesses = 0;
+  private aiExternalFailures = 0;
   private aiTimeouts = 0;
   private aiFallbacks = 0;
+  private aiFallbackSuccesses = 0;
+  private aiCompleteFailures = 0;
   private aiLatencies: number[] = [];
 
   private calcRequests = 0;
@@ -110,18 +117,67 @@ class TelemetryService {
     if (isError) this.httpErrors++;
   }
 
+  /**
+   * Records an AI or deterministic interpretation request.
+   * Enforces positive monotonic duration (never 0 ms).
+   * Distinguishes external AI successes from deterministic fallback successes.
+   */
   public recordAiRequest(durationMs: number, success: boolean, timeout: boolean = false, fallback: boolean = false): void {
+    const validDuration = Math.max(0.1, Math.round((Number(durationMs) || 0.1) * 100) / 100);
     this.aiRequests++;
-    if (success) {
-      this.aiSuccesses++;
-    } else {
-      this.aiFailures++;
-      if (timeout) this.aiTimeouts++;
-    }
+
     if (fallback) {
       this.aiFallbacks++;
+      if (success) {
+        this.aiFallbackSuccesses++;
+      } else {
+        this.aiCompleteFailures++;
+      }
+    } else {
+      this.aiExternalCalls++;
+      if (success) {
+        this.aiExternalSuccesses++;
+      } else {
+        this.aiExternalFailures++;
+        if (timeout) this.aiTimeouts++;
+      }
     }
-    this.aiLatencies.push(durationMs);
+
+    this.aiLatencies.push(validDuration);
+    if (this.aiLatencies.length > this.MAX_LATENCY_SAMPLES) {
+      this.aiLatencies.shift();
+    }
+  }
+
+  /**
+   * Records a seamless transition where external AI failed/timed out
+   * and the deterministic fallback engine successfully resolved the request.
+   * Prevents double-counting requests while maintaining accurate failure and fallback metrics.
+   */
+  public recordAiFallbackTransition(params: {
+    externalDurationMs: number;
+    fallbackDurationMs: number;
+    isTimeout?: boolean;
+    fallbackSuccess?: boolean;
+  }): void {
+    const totalDuration = Math.max(
+      0.1,
+      Math.round(((params.externalDurationMs || 0) + (params.fallbackDurationMs || 0)) * 100) / 100
+    );
+
+    this.aiRequests++;
+    this.aiExternalCalls++;
+    this.aiExternalFailures++;
+    if (params.isTimeout) this.aiTimeouts++;
+
+    this.aiFallbacks++;
+    if (params.fallbackSuccess !== false) {
+      this.aiFallbackSuccesses++;
+    } else {
+      this.aiCompleteFailures++;
+    }
+
+    this.aiLatencies.push(totalDuration);
     if (this.aiLatencies.length > this.MAX_LATENCY_SAMPLES) {
       this.aiLatencies.shift();
     }
@@ -177,14 +233,21 @@ class TelemetryService {
     // AI calculations
     let aiLatencyAvgMs: number | null = null;
     let aiSuccessRate: number | null = null;
+    let aiExternalSuccessRate: number | null = null;
     let aiMetricStatus: MetricQuality = 'UNAVAILABLE';
     const aiPercentiles = calculatePercentiles(this.aiLatencies);
 
     if (this.aiRequests > 0) {
-      aiSuccessRate = Math.round((this.aiSuccesses / this.aiRequests) * 1000) / 10;
+      const resolvedRequests = this.aiExternalSuccesses + this.aiFallbackSuccesses;
+      aiSuccessRate = Math.round((resolvedRequests / this.aiRequests) * 1000) / 10;
+
+      if (this.aiExternalCalls > 0) {
+        aiExternalSuccessRate = Math.round((this.aiExternalSuccesses / this.aiExternalCalls) * 1000) / 10;
+      }
+
       if (this.aiLatencies.length > 0) {
         const sum = this.aiLatencies.reduce((a, b) => a + b, 0);
-        aiLatencyAvgMs = Math.round(sum / this.aiLatencies.length);
+        aiLatencyAvgMs = Math.round((sum / this.aiLatencies.length) * 10) / 10;
       }
       aiMetricStatus = 'REAL';
     }
@@ -237,10 +300,14 @@ class TelemetryService {
       httpRequestsTotal: this.httpRequests,
       httpErrorsTotal: this.httpErrors,
       aiRequestsTotal: this.aiRequests,
-      aiSuccessTotal: this.aiSuccesses,
-      aiFailureTotal: this.aiFailures,
+      aiSuccessTotal: this.aiExternalSuccesses,
+      aiExternalCallsTotal: this.aiExternalCalls,
+      aiExternalSuccessTotal: this.aiExternalSuccesses,
+      aiExternalSuccessRate,
+      aiFailureTotal: this.aiExternalFailures + this.aiCompleteFailures,
       aiTimeoutTotal: this.aiTimeouts,
       aiFallbackTotal: this.aiFallbacks,
+      aiFallbackSuccessTotal: this.aiFallbackSuccesses,
       aiLatencyAvgMs,
       aiPercentiles,
       aiSuccessRate,
@@ -272,10 +339,13 @@ class TelemetryService {
     this.httpRequests = 0;
     this.httpErrors = 0;
     this.aiRequests = 0;
-    this.aiSuccesses = 0;
-    this.aiFailures = 0;
+    this.aiExternalCalls = 0;
+    this.aiExternalSuccesses = 0;
+    this.aiExternalFailures = 0;
     this.aiTimeouts = 0;
     this.aiFallbacks = 0;
+    this.aiFallbackSuccesses = 0;
+    this.aiCompleteFailures = 0;
     this.aiLatencies = [];
     this.calcRequests = 0;
     this.calcFailures = 0;

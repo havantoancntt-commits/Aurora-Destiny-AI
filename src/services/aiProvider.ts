@@ -45,8 +45,8 @@ export class DeterministicProvider implements AIProvider {
   }
 
   public async generateInterpretation(req: AIInterpretationRequest): Promise<AIInterpretationResponse> {
-    const start = Date.now();
-    const { profile, calc, analysisYear = new Date().getFullYear() } = req;
+    const start = performance.now();
+    const { profile, calc, userMessage, analysisYear = new Date().getFullYear() } = req;
 
     const currentTransit = (calc.annualTransits || []).find(t => t.year === analysisYear);
     const lifeStars = calc.ziwei.palaces.life?.majorStars?.map(s => `${s.nameVi} (${s.brightness})`).join(', ') || 'Mệnh Vô Chính Diệu';
@@ -65,10 +65,11 @@ export class DeterministicProvider implements AIProvider {
       `   - **Cung Thân Hậu Vận**: Cư ${calc.ziwei.palaces[calc.ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc'} — ${calc.ziwei.bodyPalaceAnalysis?.lifeImpact || 'Hậu vận phát huy mạnh mẽ bản lĩnh tự chủ.'}\n` +
       `   - **Tam Phương Tứ Chính**: Cung Mệnh tọa thủ ${lifeStars}, hội tụ cùng Quan Lộc (${careerStars}) và Tài Bạch (${wealthStars}). Cách Cục: ${calc.ziwei.majorConfigurations.join(', ')}.\n` +
       `   - **Đại Vận Đang Đi Qua**: ${calc.ziwei.currentDecade?.evaluation || 'Đang trong chu kỳ củng cố nguồn lực.'}\n\n` +
-      `3. **Lưu Niên ${analysisYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}`;
+      `3. **Lưu Niên ${analysisYear} & Định Hướng Hành Động**: ${transitDesc} ${authenticZiWei?.strategicAdvice || 'Hãy chủ động phân bổ nguồn lực, quản trị rủi ro và phát huy thế mạnh chuyên môn để tạo bước đột phá vững chắc.'}\n\n` +
+      `*Thông báo chuẩn mực*: Luận giải được xử lý bởi Bộ Quy Tắc Mệnh Lý Nội Bộ (Deterministic Grounded Engine) trên cơ sở dữ liệu tính toán xác thực, không phụ thuộc vào dịch vụ AI bên ngoài.`;
 
-    const latencyMs = Date.now() - start;
-    telemetry.recordAiRequest(0, true, false, true);
+    const latencyMs = Math.max(0.1, Math.round((performance.now() - start) * 10) / 10);
+    telemetry.recordAiRequest(latencyMs, true, false, true);
 
     return {
       content,
@@ -83,21 +84,23 @@ export class DeterministicProvider implements AIProvider {
 /**
  * GeminiProvider: Optional enrichment provider invoking Google Gemini API
  * with circuit breaker, timeout limits, and strict schema grounding.
+ * Requires explicit ENABLE_EXTERNAL_AI=true opt-in and GEMINI_API_KEY.
  */
 export class GeminiProvider implements AIProvider {
   public readonly name = 'GeminiProvider';
 
   public isAvailable(): boolean {
+    const isExplicitlyEnabled = process.env.ENABLE_EXTERNAL_AI === 'true' || process.env.ALLOW_EXTERNAL_AI === 'true';
     const hasKey = !!process.env.GEMINI_API_KEY;
-    return hasKey && !isCircuitBreakerOpen();
+    return isExplicitlyEnabled && hasKey && !isCircuitBreakerOpen();
   }
 
   public async generateInterpretation(req: AIInterpretationRequest): Promise<AIInterpretationResponse> {
-    const start = Date.now();
+    const start = performance.now();
     const gemini = getGemini();
 
     if (!gemini || !this.isAvailable()) {
-      throw new Error('Gemini provider is currently unavailable or unconfigured.');
+      throw new Error('Gemini provider is currently unavailable, disabled, or unconfigured.');
     }
 
     const { userMessage, profile, calc, backtest, analysisYear = new Date().getFullYear() } = req;
@@ -117,30 +120,37 @@ export class GeminiProvider implements AIProvider {
       `Câu hỏi người dùng: "${userMessage}"\n\n` +
       `Yêu cầu: Văn phong triết lý, nhân văn, khách quan, tôn trọng ý chí tự do (Free Will). Tuyệt đối không phán đoán mang tính mê tín đoan định hoặc y tế/đỏ đen.`;
 
-    const response = await gemini.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.3,
-        maxOutputTokens: 1024
+    try {
+      const response = await gemini.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.3,
+          maxOutputTokens: 1024
+        }
+      });
+
+      const text = response.text?.trim();
+      if (!text) {
+        throw new Error('Gemini returned an empty response.');
       }
-    });
 
-    const text = response.text?.trim();
-    if (!text) {
-      throw new Error('Gemini returned an empty response.');
+      const latencyMs = Math.max(0.1, Math.round((performance.now() - start) * 10) / 10);
+      telemetry.recordAiRequest(latencyMs, true, false, false);
+
+      return {
+        content: text,
+        confidenceScore: calc.confidence.consistencyScore,
+        isFallback: false,
+        provider: 'gemini',
+        latencyMs
+      };
+    } catch (err: any) {
+      const latencyMs = Math.max(0.1, Math.round((performance.now() - start) * 10) / 10);
+      const isTimeout = (err?.message || '').toLowerCase().includes('time');
+      telemetry.recordAiRequest(latencyMs, false, isTimeout, false);
+      throw err;
     }
-
-    const latencyMs = Date.now() - start;
-    telemetry.recordAiRequest(latencyMs, true, false, false);
-
-    return {
-      content: text,
-      confidenceScore: calc.confidence.consistencyScore,
-      isFallback: false,
-      provider: 'gemini',
-      latencyMs
-    };
   }
 }
 
@@ -167,11 +177,11 @@ export class CompositeAIProvider implements AIProvider {
       try {
         return await this.primaryProvider.generateInterpretation(req);
       } catch (err: any) {
-        console.warn(`[CompositeAIProvider] Primary Gemini provider failed (${err?.message || err}). Falling back to DeterministicProvider.`);
+        console.warn(`[CompositeAIProvider] Optional external provider failed (${err?.message || err}). Transitioning to DeterministicProvider.`);
       }
     }
 
-    // Direct fallback to pure deterministic reasoning
+    // Direct resolution via pure deterministic reasoning
     return this.fallbackProvider.generateInterpretation(req);
   }
 }
