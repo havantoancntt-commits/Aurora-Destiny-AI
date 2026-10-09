@@ -5,7 +5,7 @@
 // ==========================================
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import {
   Sparkles,
   Shield,
@@ -31,13 +31,14 @@ import {
   Sun,
   HeartHandshake,
   ArrowRight,
-  Volume2
+  Volume2,
+  AlertTriangle
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { MultiAgentEnsemble } from '../types/ai';
 import { STEMS, BRANCHES, BRANCH_KEYS, ELEMENT_RELATIONS } from '../engine/canchi';
-import { PALACE_DEFS } from '../engine/ziwei';
+import { PALACE_DEFS, getAspectingInfluences, AspectingInfluence } from '../engine/ziwei';
 import { t } from '../i18n/translations';
 import { LanguageCode } from '../types/destiny';
 import { BaGuaCompassWidget } from './BaGuaCompassWidget';
@@ -169,6 +170,26 @@ export const DestinyDashboard: React.FC<Props> = ({
       trine2Palace: palaceByBranch[trine2Branch]
     };
   }, [selectedPalace, palaceByBranch]);
+
+  // Xác định các cung hội chiếu (Xung Chiếu & Tam Hợp) có sao xấu / sát tinh vào cung đang chọn
+  const aspectingInfluences = useMemo(() => {
+    return getAspectingInfluences(selectedPalace, palaceByBranch);
+  }, [selectedPalace, palaceByBranch]);
+
+  // Tra cứu nhanh các chi có sao xấu hội chiếu
+  const badStarAspectingBranchMap = useMemo(() => {
+    const map: Record<string, AspectingInfluence> = {};
+    aspectingInfluences.forEach((inf) => {
+      if (inf.hasChallengingStars) {
+        map[inf.palace.branch] = inf;
+      }
+    });
+    return map;
+  }, [aspectingInfluences]);
+
+  const totalAspectingChallengingStars = useMemo(() => {
+    return aspectingInfluences.reduce((acc, curr) => acc + curr.challengingStars.length, 0);
+  }, [aspectingInfluences]);
 
   const currentYear = calculation.analysisYear || new Date().getFullYear();
   const currentTransit = calculation.annualTransits?.find((t) => t.year === currentYear) || calculation.annualTransits?.[0] || {
@@ -726,6 +747,7 @@ export const DestinyDashboard: React.FC<Props> = ({
                   const isSelected = selectedPalaceKey === pal.key;
                   const isOpposite = sanFangTuChinh.oppositeBranch === cell.branch;
                   const isTrine = sanFangTuChinh.trine1Branch === cell.branch || sanFangTuChinh.trine2Branch === cell.branch;
+                  const badAspect = badStarAspectingBranchMap[cell.branch];
 
                   let borderStyle = 'border-white/10 hover:border-white/25 bg-black/40 text-slate-300';
                   let relationshipBadge = null;
@@ -735,6 +757,15 @@ export const DestinyDashboard: React.FC<Props> = ({
                     relationshipBadge = (
                       <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-amber-500/25 text-amber-300 border border-amber-400/50">
                         TỌA THỦ
+                      </span>
+                    );
+                  } else if (badAspect) {
+                    // Cung có sao xấu hội chiếu vào cung đang chọn: Hiệu ứng viền sáng cảnh báo
+                    borderStyle = 'bg-rose-950/30 text-rose-100 border-rose-500/80 ring-1 ring-rose-500/40';
+                    relationshipBadge = (
+                      <span className="px-1.5 py-0.2 rounded text-[8px] font-bold bg-rose-500/30 text-rose-300 border border-rose-500/60 flex items-center gap-0.5 shadow-[0_0_8px_rgba(244,63,94,0.4)]">
+                        <AlertTriangle className="w-2.5 h-2.5 text-rose-400 shrink-0" />
+                        <span>{badAspect.relationLabel.toUpperCase()} SÁT ({badAspect.challengingStars.length})</span>
                       </span>
                     );
                   } else if (isOpposite) {
@@ -767,14 +798,53 @@ export const DestinyDashboard: React.FC<Props> = ({
                           setSelectedPalaceKey(pal.key);
                         }
                       }}
-                      whileHover={{ scale: 1.01 }}
+                      whileHover={{ scale: 1.015 }}
+                      animate={
+                        badAspect
+                          ? {
+                              boxShadow: [
+                                '0 0 4px rgba(244, 63, 94, 0.3), inset 0 0 4px rgba(244, 63, 94, 0.15)',
+                                '0 0 24px rgba(244, 63, 94, 0.85), inset 0 0 12px rgba(244, 63, 94, 0.4)',
+                                '0 0 4px rgba(244, 63, 94, 0.3), inset 0 0 4px rgba(244, 63, 94, 0.15)'
+                              ],
+                              borderColor: [
+                                'rgba(244, 63, 94, 0.6)',
+                                'rgba(254, 205, 211, 1)',
+                                'rgba(244, 63, 94, 0.6)'
+                              ]
+                            }
+                          : isSelected
+                          ? {
+                              boxShadow: [
+                                '0 0 10px rgba(251, 191, 36, 0.3)',
+                                '0 0 25px rgba(251, 191, 36, 0.65)',
+                                '0 0 10px rgba(251, 191, 36, 0.3)'
+                              ]
+                            }
+                          : {}
+                      }
+                      transition={
+                        badAspect
+                          ? {
+                              duration: 1.6,
+                              repeat: Infinity,
+                              ease: 'easeInOut'
+                            }
+                          : isSelected
+                          ? {
+                              duration: 2.2,
+                              repeat: Infinity,
+                              ease: 'easeInOut'
+                            }
+                          : undefined
+                      }
                       className={`${cell.colStart} ${cell.rowStart} rounded-xl border p-2.5 flex flex-col justify-between min-h-[140px] cursor-pointer transition-all ${borderStyle}`}
                     >
                     {/* Top strip: Palace Name & Badges */}
                     <div>
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5">
-                          <span className={`text-xs font-bold ${isSelected ? 'text-amber-300' : 'text-white'}`}>
+                          <span className={`text-xs font-bold ${isSelected ? 'text-amber-300' : badAspect ? 'text-rose-200' : 'text-white'}`}>
                             {pal.nameVi}
                           </span>
                           {pal.isBodyPalace && (
@@ -834,6 +904,17 @@ export const DestinyDashboard: React.FC<Props> = ({
                           </div>
                         )}
                       </div>
+
+                      {/* Challenging aspecting stars preview tag */}
+                      {badAspect && badAspect.challengingStars.length > 0 && (
+                        <div className="mt-1.5 pt-1 border-t border-rose-500/30 flex flex-wrap gap-1">
+                          {badAspect.challengingStars.slice(0, 3).map((st, i) => (
+                            <span key={i} className="px-1 py-0.2 rounded text-[8px] bg-rose-500/25 text-rose-200 border border-rose-500/40 font-mono font-semibold truncate" title={`Sát tinh hội chiếu: ${st.nameVi}`}>
+                              ⚡ {st.nameVi} {st.transformation === 'Ky' ? '(Kỵ)' : ''}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Bottom strip: Minor stars count & Auxiliary rings */}
@@ -938,21 +1019,63 @@ export const DestinyDashboard: React.FC<Props> = ({
             {PALACE_DEFS.map((def) => {
               const pal = ziwei.palaces[def.key];
               const isSelected = selectedPalaceKey === def.key;
+              const badAspect = pal ? badStarAspectingBranchMap[pal.branch] : null;
+
               return (
                 <motion.button
                   key={def.key}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedPalaceKey(def.key)}
+                  animate={
+                    badAspect
+                      ? {
+                          boxShadow: [
+                            '0 0 4px rgba(244, 63, 94, 0.3)',
+                            '0 0 20px rgba(244, 63, 94, 0.8), inset 0 0 8px rgba(244, 63, 94, 0.3)',
+                            '0 0 4px rgba(244, 63, 94, 0.3)'
+                          ],
+                          borderColor: [
+                            'rgba(244, 63, 94, 0.6)',
+                            'rgba(254, 205, 211, 1)',
+                            'rgba(244, 63, 94, 0.6)'
+                          ]
+                        }
+                      : isSelected
+                      ? {
+                          boxShadow: [
+                            '0 0 10px rgba(124, 58, 237, 0.3)',
+                            '0 0 22px rgba(124, 58, 237, 0.65)'
+                          ]
+                        }
+                      : {}
+                  }
+                  transition={
+                    badAspect
+                      ? {
+                          duration: 1.6,
+                          repeat: Infinity,
+                          ease: 'easeInOut'
+                        }
+                      : isSelected
+                      ? {
+                          duration: 2.2,
+                          repeat: Infinity,
+                          ease: 'easeInOut'
+                        }
+                      : undefined
+                  }
                   className={`relative flex flex-col p-3 rounded-xl border text-left transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-purple-500/20 border-purple-500/60 shadow-[0_0_20px_rgba(124,58,237,0.3)] ring-1 ring-purple-500/40'
+                      ? 'bg-purple-500/20 border-purple-500/60 ring-1 ring-purple-500/40'
+                      : badAspect
+                      ? 'bg-rose-950/25 border-rose-500/60 text-rose-100 ring-1 ring-rose-500/30'
                       : 'bg-black/40 border-white/10 hover:border-white/20 text-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1">
-                      <span className={`text-xs font-bold ${isSelected ? 'text-teal-300' : 'text-slate-100'}`}>
+                      <span className={`text-xs font-bold ${isSelected ? 'text-teal-300' : badAspect ? 'text-rose-200' : 'text-slate-100'}`}>
                         {def.nameVi}
                       </span>
                       {pal?.isBodyPalace && (
@@ -970,6 +1093,13 @@ export const DestinyDashboard: React.FC<Props> = ({
                     <span>{pal?.stem} {BRANCHES[pal?.branch]?.nameVi}</span>
                     <span className="font-mono text-purple-300 font-medium">{pal?.decadeRangeStr}t</span>
                   </div>
+
+                  {badAspect && (
+                    <div className="mt-1.5 flex items-center gap-1 text-[9px] text-rose-300 font-bold bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/40">
+                      <AlertTriangle className="w-2.5 h-2.5 text-rose-400 shrink-0" />
+                      <span>{badAspect.relationLabel}: {badAspect.challengingStars.length} sát tinh</span>
+                    </div>
+                  )}
 
                   <div className="mt-2 flex flex-wrap gap-1">
                     {pal?.majorStars.slice(0, 2).map((s, i) => (
@@ -1038,6 +1168,41 @@ export const DestinyDashboard: React.FC<Props> = ({
                 </div>
               </div>
             </div>
+
+            {/* Warning Banner for Aspecting Challenging Stars */}
+            {aspectingInfluences.some(a => a.hasChallengingStars) && (
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-rose-950/40 via-black/50 to-rose-950/20 border border-rose-500/40 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-rose-300 font-semibold">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 animate-pulse" />
+                    <span>Cảnh Báo Sát Tinh Hội Chiếu ({totalAspectingChallengingStars} sao xung sát)</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                    Viền đỏ sáng nhấp nháy trên Thiên Bàn
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  Khi chiếu vào Cung {selectedPalace.nameVi}, các sao xấu từ cung đối chiếu và tam hợp có thể tạo ra nghịch cảnh hoặc hao tổn nếu không biết cách hóa giải:
+                </p>
+                <div className="flex flex-wrap gap-2 pt-0.5">
+                  {aspectingInfluences.filter(a => a.hasChallengingStars).map((inf, idx) => (
+                    <div key={idx} className="p-2 rounded-lg bg-black/60 border border-rose-500/30 text-[11px] space-y-1">
+                      <div className="flex items-center gap-1.5 text-rose-300 font-bold">
+                        <span>Cung {inf.palace.nameVi}</span>
+                        <span className="text-[10px] font-mono text-slate-400">({inf.relationLabel})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {inf.challengingStars.map((s, sIdx) => (
+                          <span key={sIdx} className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-rose-500/20 text-rose-200 border border-rose-500/40 font-semibold">
+                            {s.nameVi} {s.transformation === 'Ky' ? '(Hóa Kỵ)' : s.brightness === 'H' ? '(Hãm)' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Aux Ring Badges for Selected Palace */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">

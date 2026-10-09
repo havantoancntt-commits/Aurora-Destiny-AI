@@ -699,3 +699,82 @@ export function calculateZiWeiChart(birthData: BirthData, options?: { analysisYe
       : undefined
   };
 }
+
+/**
+ * Trích xuất danh sách các sao xấu / sát tinh / bại tinh / hung tinh hoặc Hóa Kỵ / Hãm địa trong một cung
+ */
+export function getChallengingStarsInPalace(palace?: ZiWeiPalace | null): ZiWeiStar[] {
+  if (!palace) return [];
+  const challengingMinor = (palace.minorStars || []).filter(
+    (s) => s.type === 'Challenging' || s.transformation === 'Ky'
+  );
+  const challengingMajor = (palace.majorStars || []).filter(
+    (s) => s.transformation === 'Ky' || s.brightness === 'H'
+  );
+  return [...challengingMajor, ...challengingMinor];
+}
+
+export interface AspectingInfluence {
+  palace: ZiWeiPalace;
+  relation: 'opposite' | 'trine';
+  relationLabel: 'Xung Chiếu' | 'Tam Hợp';
+  challengingStars: ZiWeiStar[];
+  hasChallengingStars: boolean;
+}
+
+/**
+ * Xác định các cung hội chiếu (Tam Phương Tứ Chính: Cung Đối Chiếu & 2 Cung Tam Hợp)
+ * cùng danh sách sát tinh / hung tinh đang hội tụ vào cung được chọn
+ */
+export function getAspectingInfluences(
+  selectedPalace: ZiWeiPalace,
+  palacesByBranch: Record<string, ZiWeiPalace>
+): AspectingInfluence[] {
+  if (!selectedPalace || !selectedPalace.branch) return [];
+  const selIdx = BRANCH_KEYS.indexOf(selectedPalace.branch);
+  if (selIdx < 0) return [];
+
+  const oppBranch = BRANCH_KEYS[(selIdx + 6) % 12];
+  const trine1Branch = BRANCH_KEYS[(selIdx + 4) % 12];
+  const trine2Branch = BRANCH_KEYS[(selIdx + 8) % 12];
+
+  const influences: AspectingInfluence[] = [];
+
+  if (palacesByBranch[oppBranch]) {
+    const oppPal = palacesByBranch[oppBranch];
+    const challenging = getChallengingStarsInPalace(oppPal);
+    influences.push({
+      palace: oppPal,
+      relation: 'opposite',
+      relationLabel: 'Xung Chiếu',
+      challengingStars: challenging,
+      hasChallengingStars: challenging.length > 0
+    });
+  }
+
+  if (palacesByBranch[trine1Branch]) {
+    const trine1Pal = palacesByBranch[trine1Branch];
+    const challenging = getChallengingStarsInPalace(trine1Pal);
+    influences.push({
+      palace: trine1Pal,
+      relation: 'trine',
+      relationLabel: 'Tam Hợp',
+      challengingStars: challenging,
+      hasChallengingStars: challenging.length > 0
+    });
+  }
+
+  if (palacesByBranch[trine2Branch]) {
+    const trine2Pal = palacesByBranch[trine2Branch];
+    const challenging = getChallengingStarsInPalace(trine2Pal);
+    influences.push({
+      palace: trine2Pal,
+      relation: 'trine',
+      relationLabel: 'Tam Hợp',
+      challengingStars: challenging,
+      hasChallengingStars: challenging.length > 0
+    });
+  }
+
+  return influences;
+}
