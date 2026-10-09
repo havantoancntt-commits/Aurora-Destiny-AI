@@ -71,7 +71,8 @@ function calculatePercentiles(samples: number[]): Percentiles {
     const lower = Math.floor(rank);
     const upper = Math.ceil(rank);
     const weight = rank - lower;
-    return Math.round((sorted[lower] * (1 - weight) + sorted[upper] * weight) * 10) / 10;
+    const raw = sorted[lower] * (1 - weight) + sorted[upper] * weight;
+    return raw > 0 ? Math.max(0.01, Math.round(raw * 10) / 10) : 0;
   };
   return {
     p50: getPercentile(50),
@@ -158,7 +159,6 @@ class TelemetryService {
       } else {
         this.aiExternalFailures++;
         if (timeout) this.aiTimeouts++;
-        this.aiCompleteFailures++;
       }
       this.aiExternalLatencies.push(validDuration);
       if (this.aiExternalLatencies.length > this.MAX_LATENCY_SAMPLES) this.aiExternalLatencies.shift();
@@ -317,6 +317,9 @@ class TelemetryService {
     let aiMetricStatus: MetricQuality = 'UNAVAILABLE';
     const aiPercentiles = calculatePercentiles(this.aiLatencies);
 
+    let aiExternalLatencyAvgMs: number | null = null;
+    let aiFallbackLatencyAvgMs: number | null = null;
+
     if (this.aiRequests > 0) {
       const resolvedRequests = this.aiExternalSuccesses + this.aiFallbackSuccesses;
       aiSuccessRate = Math.round((resolvedRequests / this.aiRequests) * 1000) / 10;
@@ -325,9 +328,19 @@ class TelemetryService {
         aiExternalSuccessRate = Math.round((this.aiExternalSuccesses / this.aiExternalCalls) * 1000) / 10;
       }
 
+      if (this.aiExternalLatencies.length > 0) {
+        const sum = this.aiExternalLatencies.reduce((a, b) => a + b, 0);
+        aiExternalLatencyAvgMs = sum > 0 ? Math.max(0.01, Math.round((sum / this.aiExternalLatencies.length) * 10) / 10) : null;
+      }
+
+      if (this.aiFallbackLatencies.length > 0) {
+        const sum = this.aiFallbackLatencies.reduce((a, b) => a + b, 0);
+        aiFallbackLatencyAvgMs = sum > 0 ? Math.max(0.01, Math.round((sum / this.aiFallbackLatencies.length) * 10) / 10) : null;
+      }
+
       if (this.aiLatencies.length > 0) {
         const sum = this.aiLatencies.reduce((a, b) => a + b, 0);
-        aiLatencyAvgMs = Math.round((sum / this.aiLatencies.length) * 10) / 10;
+        aiLatencyAvgMs = sum > 0 ? Math.max(0.01, Math.round((sum / this.aiLatencies.length) * 10) / 10) : null;
       }
       aiMetricStatus = 'REAL';
     }
@@ -383,11 +396,16 @@ class TelemetryService {
       aiSuccessTotal: this.aiExternalSuccesses,
       aiExternalCallsTotal: this.aiExternalCalls,
       aiExternalSuccessTotal: this.aiExternalSuccesses,
+      aiExternalFailuresTotal: this.aiExternalFailures,
       aiExternalSuccessRate,
       aiFailureTotal: this.aiExternalFailures + this.aiCompleteFailures,
       aiTimeoutTotal: this.aiTimeouts,
       aiFallbackTotal: this.aiFallbacks,
       aiFallbackSuccessTotal: this.aiFallbackSuccesses,
+      aiInvalidOutputTotal: this.aiInvalidOutputs,
+      aiCompleteFailuresTotal: this.aiCompleteFailures,
+      aiExternalLatencyAvgMs,
+      aiFallbackLatencyAvgMs,
       aiLatencyAvgMs,
       aiPercentiles,
       aiSuccessRate,

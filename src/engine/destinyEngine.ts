@@ -137,6 +137,7 @@ export function runFullDestinyCalculation(
     bazi,
     ziwei,
     decades,
+    cycles: decades,
     annualTransits,
     confidence,
     effectiveBirthTime: {

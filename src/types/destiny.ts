@@ -381,6 +381,7 @@ export interface CalculationResult {
   bazi: BaZiChart;
   ziwei: ZiWeiChart;
   decades: DecadeCycle[];
+  cycles?: DecadeCycle[];
   annualTransits: AnnualTransit[];
   confidence: ConfidenceMetrics;
   effectiveBirthTime?: {

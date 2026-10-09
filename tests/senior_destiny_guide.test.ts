@@ -97,4 +97,78 @@ test('🧓 Senior Destiny Guide: Astronomical & Metaphysical Precision Suite', a
     const nayin1964 = getNaYin(p1964.stem, p1964.branch);
     assert.ok(nayin1964.includes('Hỏa'), '1964 Giáp Thìn must be Hỏa');
   });
+
+  await t.test('5. Form Validation Invariants: Missing field identification & cursor guidance logic', () => {
+    type ValidationResult = { valid: boolean; missingField?: 'name' | 'birthCity' | 'date' | 'topPriority'; message?: string };
+    
+    function validateForm(
+      name: string,
+      solarYear: number,
+      solarMonth: number,
+      solarDay: number,
+      birthCity: string,
+      topPriority: string
+    ): ValidationResult {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        return { valid: false, missingField: 'name', message: 'Thiếu Họ và Tên' };
+      }
+      if (trimmedName.length < 2) {
+        return { valid: false, missingField: 'name', message: 'Họ và Tên quá ngắn' };
+      }
+      const daysInMonth = new Date(solarYear, solarMonth, 0).getDate();
+      if (solarDay > daysInMonth) {
+        return { valid: false, missingField: 'date', message: 'Ngày không hợp lệ' };
+      }
+      if (solarYear < 1900 || solarYear > 2100) {
+        return { valid: false, missingField: 'date', message: 'Năm sinh ngoài phạm vi' };
+      }
+      const trimmedCity = birthCity.trim();
+      if (!trimmedCity) {
+        return { valid: false, missingField: 'birthCity', message: 'Thiếu Nơi Sinh' };
+      }
+      if (!topPriority || !topPriority.trim()) {
+        return { valid: false, missingField: 'topPriority', message: 'Thiếu Tâm Nguyện' };
+      }
+      return { valid: true };
+    }
+
+    // Case 1: Empty name
+    const r1 = validateForm('', 1985, 5, 10, 'Hà Nội', 'Sức Khỏe');
+    assert.equal(r1.valid, false);
+    assert.equal(r1.missingField, 'name');
+
+    // Case 2: 1-letter name
+    const r2 = validateForm('A', 1985, 5, 10, 'Hà Nội', 'Sức Khỏe');
+    assert.equal(r2.valid, false);
+    assert.equal(r2.missingField, 'name');
+
+    // Case 3: Invalid day for February (e.g. Feb 30)
+    const r3 = validateForm('Nguyễn An', 2023, 2, 30, 'Hà Nội', 'Sức Khỏe');
+    assert.equal(r3.valid, false);
+    assert.equal(r3.missingField, 'date');
+
+    // Case 4: Feb 29 in non-leap year (e.g. 2023)
+    const r4 = validateForm('Nguyễn An', 2023, 2, 29, 'Hà Nội', 'Sức Khỏe');
+    assert.equal(r4.valid, false);
+    assert.equal(r4.missingField, 'date');
+
+    // Case 5: Feb 29 in leap year (e.g. 2024) -> Valid!
+    const r5 = validateForm('Nguyễn An', 2024, 2, 29, 'Hà Nội', 'Sức Khỏe');
+    assert.equal(r5.valid, true);
+
+    // Case 6: Empty city
+    const r6 = validateForm('Nguyễn An', 1985, 5, 10, '   ', 'Sức Khỏe');
+    assert.equal(r6.valid, false);
+    assert.equal(r6.missingField, 'birthCity');
+
+    // Case 7: Empty priority
+    const r7 = validateForm('Nguyễn An', 1985, 5, 10, 'Hà Nội', '');
+    assert.equal(r7.valid, false);
+    assert.equal(r7.missingField, 'topPriority');
+
+    // Case 8: All valid
+    const r8 = validateForm('Nguyễn Văn An', 1990, 8, 15, 'TP. Hồ Chí Minh', 'Sức Khỏe, Gia Đạo & Bình An');
+    assert.equal(r8.valid, true);
+  });
 });

@@ -43,6 +43,7 @@ import { LanguageCode } from '../types/destiny';
 import { BaGuaCompassWidget } from './BaGuaCompassWidget';
 import { RealTimeLuckRadarBar } from './RealTimeLuckRadarBar';
 import { AgentInfluenceChart } from './AgentInfluenceChart';
+import { PersonalEnergy12MonthsChart } from './PersonalEnergy12MonthsChart';
 import { sacredVoice } from '../services/sacredVoiceService';
 import { sacredSound } from '../services/soundService';
 import { SacredSealBadge } from './SacredSealBadge';
@@ -1232,6 +1233,12 @@ export const DestinyDashboard: React.FC<Props> = ({
           </div>
         )}
       </motion.div>
+
+      {/* 4.5. PERSONAL ENERGY 12-MONTH FORECAST CHART (RECHARTS) */}
+      <PersonalEnergy12MonthsChart
+        calculation={calculation}
+        onOpenReportModal={onOpenReportModal}
+      />
 
       {/* 5. CURRENT TRANSIT & STRATEGIC RECOMMENDATIONS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

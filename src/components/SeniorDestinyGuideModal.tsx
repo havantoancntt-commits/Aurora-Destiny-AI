@@ -1404,11 +1404,15 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                 if (currentStep === 1 && !name.trim()) {
                   setErrorMessage('Kính mong Quý Bác nhập Họ và Tên trước khi tiếp tục.');
                   nameInputRef.current?.focus();
+                  nameInputRef.current?.select();
+                  nameInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   return;
                 }
                 if (currentStep === 6 && !birthCity.trim()) {
                   setErrorMessage('Kính mong Quý Bác nhập hoặc chọn Nơi Sinh trước khi tiếp tục.');
                   cityInputRef.current?.focus();
+                  cityInputRef.current?.select();
+                  cityInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   return;
                 }
                 setErrorMessage(null);
