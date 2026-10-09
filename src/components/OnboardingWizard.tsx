@@ -138,6 +138,7 @@ export const OnboardingWizard: React.FC<Props> = ({
   const cityInputRef = useRef<HTMLInputElement>(null);
 
   const prioritySectionRef = useRef<HTMLDivElement>(null);
+  const priorityFirstBtnRef = useRef<HTMLButtonElement>(null);
 
   // Clean, Empty Default Form State
   const [name, setName] = useState('');
@@ -175,9 +176,41 @@ export const OnboardingWizard: React.FC<Props> = ({
     }
   }, [activeTab]);
 
-  // Real-time Can Chi & Elemental Preview Computation
-  const previewCalculation = useMemo(() => {
+  // Real-time Can Chi & Elemental Preview Computation (Strict Astronomical Integrity: No Mock/Fake Data)
+  type PreviewResult =
+    | {
+        status: 'success';
+        year: string;
+        month: string;
+        day: string;
+        hour: string;
+        yearElement: any;
+        dayElement: any;
+        naYin: string;
+        lunarStr: string;
+        solarTerm: string;
+      }
+    | {
+        status: 'error';
+        errorMessage: string;
+      };
+
+  const previewCalculation: PreviewResult = useMemo(() => {
     try {
+      const daysInMonth = new Date(solarYear, solarMonth, 0).getDate();
+      if (solarDay > daysInMonth) {
+        return {
+          status: 'error',
+          errorMessage: `Ngày ${solarDay} không hợp lệ cho tháng ${solarMonth}/${solarYear} (tháng này chỉ có ${daysInMonth} ngày).`
+        };
+      }
+      if (solarYear < 1900 || solarYear > 2100) {
+        return {
+          status: 'error',
+          errorMessage: 'Năm sinh cần nằm trong giai đoạn 1900 - 2100 theo lịch vạn niên thiên văn.'
+        };
+      }
+
       const effectiveHour = hourMode === 'unknown' ? 12 : solarHour;
       const yearP = calculateYearPillar(solarYear, solarMonth, solarDay, timezoneOffset, effectiveHour, solarMinute);
       const monthP = calculateMonthPillar(yearP.stem, solarYear, solarMonth, solarDay, timezoneOffset, effectiveHour, solarMinute);
@@ -187,6 +220,7 @@ export const OnboardingWizard: React.FC<Props> = ({
       const lunar = convertSolarToLunar(solarYear, solarMonth, solarDay, timezoneOffset, isLateRat, effectiveHour);
 
       return {
+        status: 'success',
         year: `${STEMS[yearP.stem].nameVi} ${BRANCHES[yearP.branch].nameVi}`,
         month: `${STEMS[monthP.stem].nameVi} ${BRANCHES[monthP.branch].nameVi}`,
         day: `${STEMS[dayP.stem].nameVi} ${BRANCHES[dayP.branch].nameVi}`,
@@ -199,15 +233,8 @@ export const OnboardingWizard: React.FC<Props> = ({
       };
     } catch (e) {
       return {
-        year: 'Canh Thân',
-        month: 'Mậu Dần',
-        day: 'Kỷ Mão',
-        hour: 'Canh Ngọ',
-        yearElement: 'Metal' as const,
-        dayElement: 'Earth' as const,
-        naYin: 'Thạch Lựu Mộc (Gỗ cây lựu đá)',
-        lunarStr: 'Ngày 15 Tháng 1 Âm lịch',
-        solarTerm: 'Lập Xuân'
+        status: 'error',
+        errorMessage: 'Chưa thể xác định trụ số thiên văn cho thông số ngày giờ hiện tại. Kính mời Quý vị kiểm tra lại ngày sinh.'
       };
     }
   }, [solarYear, solarMonth, solarDay, solarHour, solarMinute, hourMode, timezoneOffset, isLateRat]);
@@ -243,6 +270,15 @@ export const OnboardingWizard: React.FC<Props> = ({
     // Cuộn mượt mà đưa khối thông tin thiếu vào chính giữa khung nhìn
     const scrollTarget = sectionEl || inputEl;
     if (scrollTarget) {
+      if (modalScrollRef.current) {
+        const modalRect = modalScrollRef.current.getBoundingClientRect();
+        const targetRect = scrollTarget.getBoundingClientRect();
+        const targetScrollTop = modalScrollRef.current.scrollTop + (targetRect.top - modalRect.top) - 60;
+        modalScrollRef.current.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: 'smooth'
+        });
+      }
       scrollTarget.scrollIntoView({
         behavior: 'smooth',
         block: 'center'
@@ -257,7 +293,7 @@ export const OnboardingWizard: React.FC<Props> = ({
           inputEl.select(); // Đặt trỏ chuột nhấp nháy hoặc bôi đen văn bản hiện có
         }
       }
-    }, 280);
+    }, 250);
   };
 
   /**
@@ -269,7 +305,7 @@ export const OnboardingWizard: React.FC<Props> = ({
     if (!trimmedName) {
       triggerMissingFieldFocus(
         'name',
-        'Quý vị vui lòng nhập Họ và Tên để hệ thống khắc ghi vào bản đồ vận mệnh.',
+        'Quý vị vui lòng nhập Họ và Tên để hệ thống khắc ghi vào lá số tử vi và bản đồ vận mệnh.',
         nameInputRef.current,
         nameSectionRef.current
       );
@@ -296,6 +332,15 @@ export const OnboardingWizard: React.FC<Props> = ({
       );
       return false;
     }
+    if (solarYear < 1900 || solarYear > 2100) {
+      triggerMissingFieldFocus(
+        'date',
+        'Năm sinh cần nằm trong giai đoạn 1900 - 2100 theo lịch vạn niên thiên văn.',
+        daySelectRef.current,
+        dateSectionRef.current
+      );
+      return false;
+    }
 
     // 3. Kiểm tra Nơi Sinh
     const trimmedCity = birthCity.trim();
@@ -314,7 +359,7 @@ export const OnboardingWizard: React.FC<Props> = ({
       triggerMissingFieldFocus(
         'topPriority',
         'Quý vị vui lòng chọn một Tâm nguyện trọng tâm để hệ thống hội tụ năng lượng phân tích.',
-        null,
+        priorityFirstBtnRef.current,
         prioritySectionRef.current
       );
       return false;
@@ -738,7 +783,9 @@ export const OnboardingWizard: React.FC<Props> = ({
                     <span>Chọn nhanh thế hệ sinh (Bấm 1 chạm nhảy ngay):</span>
                   </span>
                   <span className="text-amber-300/80 text-[11px] font-mono">
-                    {previewCalculation.year} • {previewCalculation.naYin}
+                    {previewCalculation.status === 'success'
+                      ? `${previewCalculation.year} • ${previewCalculation.naYin}`
+                      : 'Chưa xác định Can Chi'}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -1253,11 +1300,12 @@ export const OnboardingWizard: React.FC<Props> = ({
 
                 {/* 5 Thẻ Tâm Nguyện Tương Tác 1 Chạm */}
                 <div className="space-y-1.5">
-                  {SACRED_PRIORITIES.map((sp) => {
+                  {SACRED_PRIORITIES.map((sp, idx) => {
                     const isSelected = topPriority === sp.id;
                     return (
                       <button
                         key={sp.id}
+                        ref={idx === 0 ? priorityFirstBtnRef : undefined}
                         type="button"
                         onClick={() => {
                           setTopPriority(sp.id);
@@ -1299,44 +1347,55 @@ export const OnboardingWizard: React.FC<Props> = ({
                   <Compass className="w-4 h-4 text-amber-400" />
                   <span>Bản Mệnh Trụ Số Sơ Khởi (Thời Khắc Thiên Địa)</span>
                 </span>
-                <span className="text-slate-300 font-mono">
-                  {previewCalculation.lunarStr}
-                </span>
+                {previewCalculation.status === 'success' && (
+                  <span className="text-slate-300 font-mono">
+                    {previewCalculation.lunarStr}
+                  </span>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
-                <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
-                  <div className="text-xs text-slate-400">Trụ Năm Sinh</div>
-                  <div className="text-sm sm:text-base font-bold text-amber-300 font-mono mt-1">
-                    {previewCalculation.year}
+              {previewCalculation.status === 'success' ? (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                    <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
+                      <div className="text-xs text-slate-400">Trụ Năm Sinh</div>
+                      <div className="text-sm sm:text-base font-bold text-amber-300 font-mono mt-1">
+                        {previewCalculation.year}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
+                      <div className="text-xs text-slate-400">Trụ Tháng Sinh</div>
+                      <div className="text-sm sm:text-base font-bold text-slate-200 font-mono mt-1">
+                        {previewCalculation.month}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
+                      <div className="text-xs text-slate-400">Trụ Ngày (Mệnh Chủ)</div>
+                      <div className="text-sm sm:text-base font-bold text-teal-300 font-mono mt-1">
+                        {previewCalculation.day}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
+                      <div className="text-xs text-slate-400">Trụ Giờ Sinh</div>
+                      <div className="text-sm sm:text-base font-bold text-purple-300 font-mono mt-1">
+                        {previewCalculation.hour}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
-                  <div className="text-xs text-slate-400">Trụ Tháng Sinh</div>
-                  <div className="text-sm sm:text-base font-bold text-slate-200 font-mono mt-1">
-                    {previewCalculation.month}
-                  </div>
-                </div>
-                <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
-                  <div className="text-xs text-slate-400">Trụ Ngày (Mệnh Chủ)</div>
-                  <div className="text-sm sm:text-base font-bold text-teal-300 font-mono mt-1">
-                    {previewCalculation.day}
-                  </div>
-                </div>
-                <div className="p-3 rounded-2xl bg-black/70 border border-white/10">
-                  <div className="text-xs text-slate-400">Trụ Giờ Sinh</div>
-                  <div className="text-sm sm:text-base font-bold text-purple-300 font-mono mt-1">
-                    {previewCalculation.hour}
-                  </div>
-                </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-300 border-t border-white/10 pt-2.5 gap-1">
-                <span>
-                  Nạp Âm Ngũ Hành: <strong className="text-amber-300 font-semibold">{previewCalculation.naYin}</strong>
-                </span>
-                <span className="text-slate-400">Tiết Khí: {previewCalculation.solarTerm}</span>
-              </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-300 border-t border-white/10 pt-2.5 gap-1">
+                    <span>
+                      Nạp Âm Ngũ Hành: <strong className="text-amber-300 font-semibold">{previewCalculation.naYin}</strong>
+                    </span>
+                    <span className="text-slate-400">Tiết Khí: {previewCalculation.solarTerm}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/30 flex items-center gap-3 text-amber-200 text-xs sm:text-sm">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                  <span>{previewCalculation.errorMessage}</span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -1420,11 +1479,11 @@ export const OnboardingWizard: React.FC<Props> = ({
             >
               <div className="flex items-center gap-2 text-sm sm:text-base font-extrabold tracking-wide">
                 <SacredTaijiSpinner size={24} speed={5} className="shrink-0" />
-                <span>{isSubmitting ? 'Đang Phân Tích & Luận Giải...' : 'Khai Mở Lá Số & Chiêm Bái Bản Mệnh Ngay'}</span>
+                <span>{isSubmitting ? 'Đang Phân Tích & Luận Giải...' : 'Lấy Lá Số Tử Vi & Khai Mở Bản Mệnh Ngay'}</span>
                 <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
               </div>
               <span className="text-[11px] text-slate-950/80 font-medium font-sans">
-                Khai quang miễn phí • Nhận trọn bộ Luận Giải 12 Cung & Đại Vận 2026
+                Tự động kiểm tra & di chuyển trỏ chuột đến ô cần điền nếu thiếu thông tin • Miễn phí
               </span>
             </motion.button>
           </div>

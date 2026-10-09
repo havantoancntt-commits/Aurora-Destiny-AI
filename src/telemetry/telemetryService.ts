@@ -17,13 +17,18 @@ export interface TelemetrySnapshot {
   httpErrorsTotal: number;
   aiRequestsTotal: number;
   aiSuccessTotal: number;
-  aiExternalCallsTotal?: number;
-  aiExternalSuccessTotal?: number;
-  aiExternalSuccessRate?: number | null;
+  aiExternalCallsTotal: number;
+  aiExternalSuccessTotal: number;
+  aiExternalFailuresTotal: number;
+  aiExternalSuccessRate: number | null;
   aiFailureTotal: number;
   aiTimeoutTotal: number;
   aiFallbackTotal: number;
-  aiFallbackSuccessTotal?: number;
+  aiFallbackSuccessTotal: number;
+  aiInvalidOutputTotal: number;
+  aiCompleteFailuresTotal: number;
+  aiExternalLatencyAvgMs: number | null;
+  aiFallbackLatencyAvgMs: number | null;
   aiLatencyAvgMs: number | null;
   aiPercentiles: Percentiles;
   aiSuccessRate: number | null;
@@ -89,7 +94,10 @@ class TelemetryService {
   private aiFallbacks = 0;
   private aiFallbackSuccesses = 0;
   private aiCompleteFailures = 0;
+  private aiInvalidOutputs = 0;
   private aiLatencies: number[] = [];
+  private aiExternalLatencies: number[] = [];
+  private aiFallbackLatencies: number[] = [];
 
   private calcRequests = 0;
   private calcFailures = 0;
@@ -117,13 +125,20 @@ class TelemetryService {
     if (isError) this.httpErrors++;
   }
 
+  private sanitizeDuration(durationMs: number): number {
+    const num = Number(durationMs);
+    if (isNaN(num) || num < 0) return 0.01;
+    if (num === 0) return 0.01; // Minimal clock resolution floor to ensure strictly positive monotonic duration
+    return Math.round(num * 100) / 100;
+  }
+
   /**
    * Records an AI or deterministic interpretation request.
    * Enforces positive monotonic duration (never 0 ms).
    * Distinguishes external AI successes from deterministic fallback successes.
    */
   public recordAiRequest(durationMs: number, success: boolean, timeout: boolean = false, fallback: boolean = false): void {
-    const validDuration = Math.max(0.1, Math.round((Number(durationMs) || 0.1) * 100) / 100);
+    const validDuration = this.sanitizeDuration(durationMs);
     this.aiRequests++;
 
     if (fallback) {
@@ -132,7 +147,10 @@ class TelemetryService {
         this.aiFallbackSuccesses++;
       } else {
         this.aiCompleteFailures++;
+        this.aiInvalidOutputs++;
       }
+      this.aiFallbackLatencies.push(validDuration);
+      if (this.aiFallbackLatencies.length > this.MAX_LATENCY_SAMPLES) this.aiFallbackLatencies.shift();
     } else {
       this.aiExternalCalls++;
       if (success) {
@@ -140,7 +158,10 @@ class TelemetryService {
       } else {
         this.aiExternalFailures++;
         if (timeout) this.aiTimeouts++;
+        this.aiCompleteFailures++;
       }
+      this.aiExternalLatencies.push(validDuration);
+      if (this.aiExternalLatencies.length > this.MAX_LATENCY_SAMPLES) this.aiExternalLatencies.shift();
     }
 
     this.aiLatencies.push(validDuration);
@@ -151,33 +172,92 @@ class TelemetryService {
 
   /**
    * Records a seamless transition where external AI failed/timed out
-   * and the deterministic fallback engine successfully resolved the request.
+   * and the deterministic fallback engine resolved the user request.
    * Prevents double-counting requests while maintaining accurate failure and fallback metrics.
    */
   public recordAiFallbackTransition(params: {
     externalDurationMs: number;
     fallbackDurationMs: number;
+    totalDurationMs?: number;
     isTimeout?: boolean;
     fallbackSuccess?: boolean;
+    isInvalidOutput?: boolean;
   }): void {
-    const totalDuration = Math.max(
-      0.1,
-      Math.round(((params.externalDurationMs || 0) + (params.fallbackDurationMs || 0)) * 100) / 100
-    );
+    const extDuration = this.sanitizeDuration(params.externalDurationMs);
+    const fbDuration = this.sanitizeDuration(params.fallbackDurationMs);
+    const totalDuration = this.sanitizeDuration(params.totalDurationMs ?? (extDuration + fbDuration));
 
     this.aiRequests++;
     this.aiExternalCalls++;
     this.aiExternalFailures++;
     if (params.isTimeout) this.aiTimeouts++;
 
+    this.aiExternalLatencies.push(extDuration);
+    if (this.aiExternalLatencies.length > this.MAX_LATENCY_SAMPLES) this.aiExternalLatencies.shift();
+
     this.aiFallbacks++;
     if (params.fallbackSuccess !== false) {
       this.aiFallbackSuccesses++;
     } else {
       this.aiCompleteFailures++;
+      if (params.isInvalidOutput) this.aiInvalidOutputs++;
     }
 
+    this.aiFallbackLatencies.push(fbDuration);
+    if (this.aiFallbackLatencies.length > this.MAX_LATENCY_SAMPLES) this.aiFallbackLatencies.shift();
+
     this.aiLatencies.push(totalDuration);
+    if (this.aiLatencies.length > this.MAX_LATENCY_SAMPLES) {
+      this.aiLatencies.shift();
+    }
+  }
+
+  /**
+   * Records a user request that was resolved directly by external AI.
+   */
+  public recordExternalSuccess(params: {
+    externalDurationMs: number;
+    totalDurationMs?: number;
+  }): void {
+    const extDuration = this.sanitizeDuration(params.externalDurationMs);
+    const totalDuration = this.sanitizeDuration(params.totalDurationMs ?? extDuration);
+
+    this.aiRequests++;
+    this.aiExternalCalls++;
+    this.aiExternalSuccesses++;
+
+    this.aiExternalLatencies.push(extDuration);
+    if (this.aiExternalLatencies.length > this.MAX_LATENCY_SAMPLES) this.aiExternalLatencies.shift();
+
+    this.aiLatencies.push(totalDuration);
+    if (this.aiLatencies.length > this.MAX_LATENCY_SAMPLES) {
+      this.aiLatencies.shift();
+    }
+  }
+
+  /**
+   * Records a user request that was resolved purely by internal deterministic rules.
+   */
+  public recordPureFallbackRequest(params: {
+    durationMs: number;
+    success: boolean;
+    isInvalidOutput?: boolean;
+  }): void {
+    const duration = this.sanitizeDuration(params.durationMs);
+
+    this.aiRequests++;
+    this.aiFallbacks++;
+    if (params.success) {
+      this.aiFallbackSuccesses++;
+    } else {
+      this.aiCompleteFailures++;
+      if (params.isInvalidOutput) this.aiInvalidOutputs++;
+    }
+
+    this.aiFallbackLatencies.push(duration);
+    if (this.aiFallbackLatencies.length > this.MAX_LATENCY_SAMPLES) this.aiFallbackLatencies.shift();
+
+    this.aiLatencies.push(duration);
     if (this.aiLatencies.length > this.MAX_LATENCY_SAMPLES) {
       this.aiLatencies.shift();
     }

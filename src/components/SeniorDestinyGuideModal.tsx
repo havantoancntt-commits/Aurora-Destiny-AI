@@ -401,6 +401,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
       setCurrentStep(1);
       setTimeout(() => {
         nameInputRef.current?.focus();
+        nameInputRef.current?.select();
         nameInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 250);
       return;
@@ -411,6 +412,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
       setCurrentStep(6);
       setTimeout(() => {
         cityInputRef.current?.focus();
+        cityInputRef.current?.select();
         cityInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 250);
       return;
