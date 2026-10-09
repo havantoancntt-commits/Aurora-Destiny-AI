@@ -3,7 +3,7 @@
 // Senior-friendly, ultra-luxury, high-contrast, completely clean of demo data
 // ==========================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
@@ -120,6 +120,25 @@ export const OnboardingWizard: React.FC<Props> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSeniorGuide, setShowSeniorGuide] = useState<boolean>(false);
 
+  // Missing Field Tracking for Smart Navigation & Focus
+  type MissingFieldKey = 'name' | 'birthCity' | 'date' | 'hour' | 'topPriority';
+  const [missingField, setMissingField] = useState<MissingFieldKey | null>(null);
+
+  // Element Refs for Intelligent Scrolling & Cursor Focusing
+  const modalScrollRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameSectionRef = useRef<HTMLDivElement>(null);
+
+  const dateSectionRef = useRef<HTMLDivElement>(null);
+  const daySelectRef = useRef<HTMLSelectElement>(null);
+
+  const hourSectionRef = useRef<HTMLDivElement>(null);
+
+  const locationSectionRef = useRef<HTMLDivElement>(null);
+  const cityInputRef = useRef<HTMLInputElement>(null);
+
+  const prioritySectionRef = useRef<HTMLDivElement>(null);
+
   // Clean, Empty Default Form State
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender>('Male');
@@ -145,6 +164,16 @@ export const OnboardingWizard: React.FC<Props> = ({
 
   // Priority Focus
   const [topPriority, setTopPriority] = useState('Sức Khỏe, Gia Đạo & Bình An');
+
+  // Intelligent Initial Auto-focus: Place cursor in Name input on open
+  useEffect(() => {
+    if (activeTab === 'create') {
+      const timer = setTimeout(() => {
+        nameInputRef.current?.focus({ preventScroll: true });
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab]);
 
   // Real-time Can Chi & Elemental Preview Computation
   const previewCalculation = useMemo(() => {
@@ -189,15 +218,118 @@ export const OnboardingWizard: React.FC<Props> = ({
     setSolarHour(zh.defaultHour);
     setSolarMinute(zh.defaultMin);
     setHourMode('canchi');
+    if (missingField === 'hour') {
+      setMissingField(null);
+      setErrorMessage(null);
+    }
+  };
+
+  /**
+   * Helper: Trực tiếp điều hướng, cuộn mượt mà và di chuyển trỏ chuột
+   * vào chính xác ô cần nhập liệu khi thông tin bị khuyết thiếu.
+   */
+  const triggerMissingFieldFocus = (
+    fieldKey: MissingFieldKey,
+    message: string,
+    inputEl: HTMLElement | null,
+    sectionEl: HTMLElement | null
+  ) => {
+    setMissingField(fieldKey);
+    setErrorMessage(message);
+
+    // Chuông cảnh báo linh thiêng nhẹ nhàng (360Hz)
+    sacredSound.playSacredTap(360);
+
+    // Cuộn mượt mà đưa khối thông tin thiếu vào chính giữa khung nhìn
+    const scrollTarget = sectionEl || inputEl;
+    if (scrollTarget) {
+      scrollTarget.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+
+    // Di chuyển trỏ chuột và kích hoạt trường nhập liệu ngay tức thì
+    setTimeout(() => {
+      if (inputEl) {
+        inputEl.focus({ preventScroll: true });
+        if (inputEl instanceof HTMLInputElement && inputEl.type === 'text') {
+          inputEl.select(); // Đặt trỏ chuột nhấp nháy hoặc bôi đen văn bản hiện có
+        }
+      }
+    }, 280);
+  };
+
+  /**
+   * Bộ kiểm định toàn diện các trường thông tin trước khi lập lá số
+   */
+  const validateAndFocusMissingField = (): boolean => {
+    // 1. Kiểm tra Họ và Tên
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      triggerMissingFieldFocus(
+        'name',
+        'Quý vị vui lòng nhập Họ và Tên để hệ thống khắc ghi vào bản đồ vận mệnh.',
+        nameInputRef.current,
+        nameSectionRef.current
+      );
+      return false;
+    }
+    if (trimmedName.length < 2) {
+      triggerMissingFieldFocus(
+        'name',
+        'Họ và Tên cần có ít nhất 2 ký tự. Quý vị vui lòng bổ sung đầy đủ danh xưng.',
+        nameInputRef.current,
+        nameSectionRef.current
+      );
+      return false;
+    }
+
+    // 2. Kiểm tra tính hợp lệ của Ngày/Tháng/Năm
+    const daysInMonth = new Date(solarYear, solarMonth, 0).getDate();
+    if (solarDay > daysInMonth) {
+      triggerMissingFieldFocus(
+        'date',
+        `Tháng ${solarMonth} năm ${solarYear} chỉ có tối đa ${daysInMonth} ngày. Quý vị vui lòng chọn lại ngày sinh hợp lệ.`,
+        daySelectRef.current,
+        dateSectionRef.current
+      );
+      return false;
+    }
+
+    // 3. Kiểm tra Nơi Sinh
+    const trimmedCity = birthCity.trim();
+    if (!trimmedCity) {
+      triggerMissingFieldFocus(
+        'birthCity',
+        'Quý vị vui lòng nhập hoặc chọn Tỉnh / Thành phố nơi sinh để xác định kinh độ và múi giờ thiên văn chuẩn xác.',
+        cityInputRef.current,
+        locationSectionRef.current
+      );
+      return false;
+    }
+
+    // 4. Kiểm tra Tâm Nguyện Trọng Tâm
+    if (!topPriority || !topPriority.trim()) {
+      triggerMissingFieldFocus(
+        'topPriority',
+        'Quý vị vui lòng chọn một Tâm nguyện trọng tâm để hệ thống hội tụ năng lượng phân tích.',
+        null,
+        prioritySectionRef.current
+      );
+      return false;
+    }
+
+    return true;
   };
 
   // Submit and Generate Chart
   const handleFinish = async () => {
-    if (!name.trim()) {
-      setErrorMessage('Quý vị vui lòng nhập Họ và Tên để hệ thống lập lá số.');
+    if (!validateAndFocusMissingField()) {
       return;
     }
     setErrorMessage(null);
+    setMissingField(null);
     setIsSubmitting(true);
 
     try {
@@ -208,7 +340,7 @@ export const OnboardingWizard: React.FC<Props> = ({
         solarHour: hourMode === 'unknown' ? 12 : solarHour,
         solarMinute: hourMode === 'unknown' ? 0 : solarMinute,
         hasExactHour: hourMode !== 'unknown',
-        birthCity,
+        birthCity: birthCity.trim(),
         birthCountry: birthCountry || 'Việt Nam',
         timezoneOffset,
         timezoneName: `UTC${timezoneOffset >= 0 ? `+${timezoneOffset}` : timezoneOffset}`,
@@ -218,8 +350,8 @@ export const OnboardingWizard: React.FC<Props> = ({
         timeConvention,
         ziweiYearConvention: 'solarLapXuan',
         ziweiLeapMonthConvention: 'midMonthSplit',
-        longitude: locationProvider.resolveLocation(birthCity, birthCountry)?.longitude ?? (timezoneOffset * 15),
-        latitude: locationProvider.resolveLocation(birthCity, birthCountry)?.latitude
+        longitude: locationProvider.resolveLocation(birthCity.trim(), birthCountry)?.longitude ?? (timezoneOffset * 15),
+        latitude: locationProvider.resolveLocation(birthCity.trim(), birthCountry)?.latitude
       };
 
       const behavioral: BehavioralContext = {
@@ -252,6 +384,7 @@ export const OnboardingWizard: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-2xl overflow-y-auto">
       <motion.div
+        ref={modalScrollRef}
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -393,7 +526,14 @@ export const OnboardingWizard: React.FC<Props> = ({
             <SacredVoiceGuideWidget autoPlayIntroOnce={false} className="mb-2" />
 
             {/* MỤC 1: HỌ TÊN & GIỚI TÍNH (Rõ Ràng, Nút Lớn) */}
-            <div className="space-y-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
+            <div
+              ref={nameSectionRef}
+              className={`space-y-4 p-4 sm:p-5 rounded-3xl transition-all duration-300 ${
+                missingField === 'name'
+                  ? 'bg-amber-950/25 border-2 border-amber-400 ring-2 ring-amber-400/50 shadow-[0_0_40px_rgba(245,158,11,0.35)]'
+                  : 'bg-white/[0.02] border border-white/10'
+              }`}
+            >
               <div className="flex items-center justify-between gap-2">
                 <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-teal-500/20 text-teal-300 flex items-center justify-center text-xs">1</span>
@@ -424,19 +564,46 @@ export const OnboardingWizard: React.FC<Props> = ({
                   <div className="relative">
                     <User className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
+                      ref={nameInputRef}
                       type="text"
                       required
                       placeholder="Nhập họ và tên (VD: Nguyễn Văn An)..."
                       value={name}
-                      onFocus={() => sacredSound.playSacredTap(528)}
+                      onFocus={() => {
+                        sacredSound.playSacredTap(528);
+                        if (missingField === 'name') {
+                          setMissingField(null);
+                          setErrorMessage(null);
+                        }
+                      }}
                       onChange={(e) => {
                         setName(e.target.value);
+                        if (missingField === 'name') setMissingField(null);
                         if (errorMessage) setErrorMessage(null);
                       }}
-                      className="w-full pl-11 pr-4 py-3 rounded-2xl bg-black/70 border border-white/20 text-white text-sm sm:text-base focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/30 transition-all placeholder:text-slate-500"
+                      className={`w-full pl-11 pr-4 py-3 rounded-2xl bg-black/70 text-white text-sm sm:text-base focus:outline-none transition-all placeholder:text-slate-500 ${
+                        missingField === 'name'
+                          ? 'border-2 border-amber-400 ring-2 ring-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse'
+                          : 'border border-white/20 focus:border-amber-400 focus:ring-2 focus:ring-amber-500/30'
+                      }`}
                     />
                   </div>
-                  {name.trim() && (
+
+                  {/* Chỉ dẫn thông minh ngay tại vị trí trỏ chuột */}
+                  {missingField === 'name' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-amber-500/25 border border-amber-400 text-amber-200 text-xs flex items-center gap-2 shadow-lg"
+                    >
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                      <span className="font-semibold">
+                        👉 Trỏ chuột đã chuyển tới đây: Kính mời Quý vị nhập Họ và Tên để bắt đầu
+                      </span>
+                    </motion.div>
+                  )}
+
+                  {name.trim() && !missingField && (
                     <motion.div
                       initial={{ opacity: 0, y: -2 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -501,7 +668,14 @@ export const OnboardingWizard: React.FC<Props> = ({
             </div>
 
             {/* MỤC 2: NGÀY, THÁNG, NĂM SINH (Dễ Dàng Chọn Cả Âm & Dương Lịch) */}
-            <div className="space-y-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
+            <div
+              ref={dateSectionRef}
+              className={`space-y-4 p-4 sm:p-5 rounded-3xl transition-all duration-300 ${
+                missingField === 'date'
+                  ? 'bg-amber-950/25 border-2 border-amber-400 ring-2 ring-amber-400/50 shadow-[0_0_40px_rgba(245,158,11,0.35)]'
+                  : 'bg-white/[0.02] border border-white/10'
+              }`}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
@@ -526,6 +700,7 @@ export const OnboardingWizard: React.FC<Props> = ({
                     onClick={() => {
                       setCalendarType('solar');
                       sacredSound.playSacredTap(528);
+                      if (missingField === 'date') setMissingField(null);
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all font-semibold cursor-pointer ${
                       calendarType === 'solar'
@@ -541,6 +716,7 @@ export const OnboardingWizard: React.FC<Props> = ({
                     onClick={() => {
                       setCalendarType('lunar');
                       sacredSound.playSacredTap(528);
+                      if (missingField === 'date') setMissingField(null);
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all font-semibold cursor-pointer ${
                       calendarType === 'lunar'
@@ -573,6 +749,7 @@ export const OnboardingWizard: React.FC<Props> = ({
                       onClick={() => {
                         setSolarYear(bracket.sampleYear);
                         sacredSound.playSacredTap(480);
+                        if (missingField === 'date') setMissingField(null);
                       }}
                       className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
                         Math.abs(solarYear - bracket.sampleYear) <= 7
@@ -594,12 +771,27 @@ export const OnboardingWizard: React.FC<Props> = ({
                     Ngày Sinh (1 - 31)
                   </label>
                   <select
+                    ref={daySelectRef}
                     value={solarDay}
+                    onFocus={() => {
+                      if (missingField === 'date') {
+                        setMissingField(null);
+                        setErrorMessage(null);
+                      }
+                    }}
                     onChange={(e) => {
                       setSolarDay(Number(e.target.value));
+                      if (missingField === 'date') {
+                        setMissingField(null);
+                        setErrorMessage(null);
+                      }
                       sacredSound.playSacredTap(432);
                     }}
-                    className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
+                    className={`w-full px-3.5 py-3 rounded-2xl bg-black/80 font-mono text-base font-bold focus:outline-none cursor-pointer transition-all ${
+                      missingField === 'date'
+                        ? 'text-amber-300 border-2 border-amber-400 ring-2 ring-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse'
+                        : 'text-white border border-white/20 focus:border-amber-400'
+                    }`}
                   >
                     {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                       <option key={d} value={d}>
@@ -616,8 +808,18 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </label>
                   <select
                     value={solarMonth}
+                    onFocus={() => {
+                      if (missingField === 'date') {
+                        setMissingField(null);
+                        setErrorMessage(null);
+                      }
+                    }}
                     onChange={(e) => {
                       setSolarMonth(Number(e.target.value));
+                      if (missingField === 'date') {
+                        setMissingField(null);
+                        setErrorMessage(null);
+                      }
                       sacredSound.playSacredTap(432);
                     }}
                     className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
@@ -637,8 +839,18 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </label>
                   <select
                     value={solarYear}
+                    onFocus={() => {
+                      if (missingField === 'date') {
+                        setMissingField(null);
+                        setErrorMessage(null);
+                      }
+                    }}
                     onChange={(e) => {
                       setSolarYear(Number(e.target.value));
+                      if (missingField === 'date') {
+                        setMissingField(null);
+                        setErrorMessage(null);
+                      }
                       sacredSound.playSacredTap(432);
                     }}
                     className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-amber-300 font-mono text-base font-bold focus:border-amber-400 focus:outline-none cursor-pointer"
@@ -651,10 +863,31 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </select>
                 </div>
               </div>
+
+              {/* Chỉ dẫn thông minh nếu ngày không khớp với số ngày trong tháng */}
+              {missingField === 'date' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-rose-500/20 to-amber-500/25 border border-amber-400 text-amber-200 text-xs flex items-center gap-2 shadow-lg"
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                  <span className="font-semibold">
+                    👉 Trỏ chuột đã chuyển tới đây: Tháng {solarMonth} năm {solarYear} chỉ có {new Date(solarYear, solarMonth, 0).getDate()} ngày. Vui lòng chọn lại ngày sinh.
+                  </span>
+                </motion.div>
+              )}
             </div>
 
             {/* MỤC 3: GIỜ SINH (3 Chế Độ Thân Thiện: 12 Giờ Can Chi / Giờ Phút Cụ Thể / Không Rõ Giờ) */}
-            <div className="space-y-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
+            <div
+              ref={hourSectionRef}
+              className={`space-y-4 p-4 sm:p-5 rounded-3xl transition-all duration-300 ${
+                missingField === 'hour'
+                  ? 'bg-amber-950/25 border-2 border-amber-400 ring-2 ring-amber-400/50 shadow-[0_0_40px_rgba(245,158,11,0.35)]'
+                  : 'bg-white/[0.02] border border-white/10'
+              }`}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <div className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-2">
@@ -676,8 +909,11 @@ export const OnboardingWizard: React.FC<Props> = ({
                 <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-black/60 border border-white/15 text-xs">
                   <button
                     type="button"
-                    onClick={() => setHourMode('canchi')}
-                    className={`px-2.5 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                    onClick={() => {
+                      setHourMode('canchi');
+                      if (missingField === 'hour') setMissingField(null);
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-semibold transition-all cursor-pointer ${
                       hourMode === 'canchi'
                         ? 'bg-teal-500/30 text-teal-200 border border-teal-400'
                         : 'text-slate-400 hover:text-white'
@@ -687,8 +923,11 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setHourMode('exact')}
-                    className={`px-2.5 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                    onClick={() => {
+                      setHourMode('exact');
+                      if (missingField === 'hour') setMissingField(null);
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-semibold transition-all cursor-pointer ${
                       hourMode === 'exact'
                         ? 'bg-purple-500/30 text-purple-200 border border-purple-400'
                         : 'text-slate-400 hover:text-white'
@@ -698,8 +937,11 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setHourMode('unknown')}
-                    className={`px-2.5 py-1.5 rounded-xl font-semibold transition-all cursor-pointer ${
+                    onClick={() => {
+                      setHourMode('unknown');
+                      if (missingField === 'hour') setMissingField(null);
+                    }}
+                    className={`px-2.5 py-1 rounded-xl font-semibold transition-all cursor-pointer ${
                       hourMode === 'unknown'
                         ? 'bg-amber-500/30 text-amber-200 border border-amber-400'
                         : 'text-slate-400 hover:text-white'
@@ -709,6 +951,20 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </button>
                 </div>
               </div>
+
+              {/* Chỉ dẫn thông minh cho phần Giờ Sinh */}
+              {missingField === 'hour' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-purple-500/20 to-amber-500/25 border border-amber-400 text-amber-200 text-xs flex items-center gap-2 shadow-lg"
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                  <span className="font-semibold">
+                    👉 Trỏ chuột đã chuyển tới đây: Quý vị vui lòng chọn một khung giờ sinh phù hợp
+                  </span>
+                </motion.div>
+              )}
 
               {/* Giao diện Chế độ 1: 12 Khung Giờ Can Chi Dễ Chọn Nhất */}
               {hourMode === 'canchi' && (
@@ -751,7 +1007,10 @@ export const OnboardingWizard: React.FC<Props> = ({
                     <label className="block text-xs font-medium text-slate-300">Giờ (0 đến 23 giờ)</label>
                     <select
                       value={solarHour}
-                      onChange={(e) => setSolarHour(Number(e.target.value))}
+                      onChange={(e) => {
+                        setSolarHour(Number(e.target.value));
+                        if (missingField === 'hour') setMissingField(null);
+                      }}
                       className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-teal-400 focus:outline-none cursor-pointer"
                     >
                       {Array.from({ length: 24 }, (_, i) => i).map((h) => (
@@ -765,7 +1024,10 @@ export const OnboardingWizard: React.FC<Props> = ({
                     <label className="block text-xs font-medium text-slate-300">Phút (0 đến 59 phút)</label>
                     <select
                       value={solarMinute}
-                      onChange={(e) => setSolarMinute(Number(e.target.value))}
+                      onChange={(e) => {
+                        setSolarMinute(Number(e.target.value));
+                        if (missingField === 'hour') setMissingField(null);
+                      }}
                       className="w-full px-3.5 py-3 rounded-2xl bg-black/80 border border-white/20 text-white font-mono text-base font-bold focus:border-teal-400 focus:outline-none cursor-pointer"
                     >
                       {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
@@ -844,14 +1106,21 @@ export const OnboardingWizard: React.FC<Props> = ({
             </div>
 
             {/* MỤC 4: NƠI SINH & MỤC TIÊU QUAN TÂM */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">
+            <div
+              ref={locationSectionRef}
+              className={`grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 sm:p-5 rounded-3xl transition-all duration-300 ${
+                missingField === 'birthCity' || missingField === 'topPriority'
+                  ? 'bg-amber-950/25 border-2 border-amber-400 ring-2 ring-amber-400/50 shadow-[0_0_40px_rgba(245,158,11,0.35)]'
+                  : 'bg-white/[0.02] border border-white/10'
+              }`}
+            >
               {/* Nơi Sinh & Tọa Độ Thiên Văn */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <label className="block text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
                       <MapPin className="w-4 h-4 text-teal-400" />
-                      <span>Nơi Sinh & Tọa Độ Thiên Văn</span>
+                      <span>Nơi Sinh & Tọa Độ Thiên Văn <span className="text-amber-400">*</span></span>
                     </label>
                     <button
                       type="button"
@@ -868,12 +1137,43 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </span>
                 </div>
                 <input
+                  ref={cityInputRef}
                   type="text"
                   value={birthCity}
-                  onChange={(e) => setBirthCity(e.target.value)}
+                  onFocus={() => {
+                    sacredSound.playSacredTap(528);
+                    if (missingField === 'birthCity') {
+                      setMissingField(null);
+                      setErrorMessage(null);
+                    }
+                  }}
+                  onChange={(e) => {
+                    setBirthCity(e.target.value);
+                    if (missingField === 'birthCity') setMissingField(null);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
                   placeholder="Nhập tỉnh/thành phố nơi sinh..."
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-black/70 border border-white/20 text-white text-sm focus:border-teal-400 focus:outline-none"
+                  className={`w-full px-3.5 py-2.5 rounded-2xl bg-black/70 text-white text-sm focus:outline-none transition-all ${
+                    missingField === 'birthCity'
+                      ? 'border-2 border-amber-400 ring-2 ring-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse'
+                      : 'border border-white/20 focus:border-teal-400'
+                  }`}
                 />
+
+                {/* Chỉ dẫn thông minh ngay tại vị trí ô Nơi Sinh */}
+                {missingField === 'birthCity' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-teal-500/20 to-amber-500/25 border border-amber-400 text-amber-200 text-xs flex items-center gap-2 shadow-lg"
+                  >
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                    <span className="font-semibold">
+                      👉 Trỏ chuột đã chuyển tới đây: Vui lòng nhập hoặc chọn Tỉnh / Thành phố nơi sinh
+                    </span>
+                  </motion.div>
+                )}
+
                 {/* Location Quick Chips */}
                 <div className="space-y-1.5 pt-1">
                   <div className="flex flex-wrap gap-1.5">
@@ -900,6 +1200,10 @@ export const OnboardingWizard: React.FC<Props> = ({
                             setBirthCountry(item.country);
                             setTimezoneOffset(item.tz);
                             sacredSound.playSacredTap(528);
+                            if (missingField === 'birthCity') {
+                              setMissingField(null);
+                              setErrorMessage(null);
+                            }
                           }}
                           className={`px-2.5 py-1 rounded-xl text-xs border transition-all cursor-pointer ${
                             isSelected
@@ -916,11 +1220,11 @@ export const OnboardingWizard: React.FC<Props> = ({
               </div>
 
               {/* Mục Tiêu Trọng Tâm — THẺ TÂM NGUYỆN LINH THIÊNG (TƯƠNG TÁC CAO) */}
-              <div className="space-y-2">
+              <div ref={prioritySectionRef} className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-400" />
-                    <span>Tâm Nguyện Trọng Tâm Của Quý Vị</span>
+                    <span>Tâm Nguyện Trọng Tâm Của Quý Vị <span className="text-amber-400">*</span></span>
                   </label>
                   <button
                     type="button"
@@ -933,6 +1237,20 @@ export const OnboardingWizard: React.FC<Props> = ({
                   </button>
                 </div>
 
+                {/* Chỉ dẫn thông minh cho Tâm Nguyện */}
+                {missingField === 'topPriority' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500/25 via-yellow-500/20 to-amber-500/25 border border-amber-400 text-amber-200 text-xs flex items-center gap-2 shadow-lg"
+                  >
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+                    <span className="font-semibold">
+                      👉 Quý vị vui lòng bấm chọn 1 thẻ Tâm Nguyện phía dưới để tiếp tục
+                    </span>
+                  </motion.div>
+                )}
+
                 {/* 5 Thẻ Tâm Nguyện Tương Tác 1 Chạm */}
                 <div className="space-y-1.5">
                   {SACRED_PRIORITIES.map((sp) => {
@@ -944,6 +1262,10 @@ export const OnboardingWizard: React.FC<Props> = ({
                         onClick={() => {
                           setTopPriority(sp.id);
                           sacredSound.playSacredTap(640);
+                          if (missingField === 'topPriority') {
+                            setMissingField(null);
+                            setErrorMessage(null);
+                          }
                         }}
                         className={`w-full p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           isSelected

@@ -4,7 +4,7 @@
 // Kiến trúc 3 khối (Header cố định - Body cuộn mượt mà - Footer cố định), triệt tiêu 100% lỗi chồng lấn text
 // ==========================================
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
@@ -189,6 +189,10 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Element Refs for Intelligent Cursor Navigation
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const cityInputRef = useRef<HTMLInputElement>(null);
 
   // Senior Accessibility Settings
   const [fontSizeScale, setFontSizeScale] = useState<'normal' | 'large' | 'xlarge'>('large');
@@ -395,6 +399,20 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
     if (!name.trim()) {
       setErrorMessage('Kính mong Quý Bác nhập Họ và Tên trước khi hoàn tất.');
       setCurrentStep(1);
+      setTimeout(() => {
+        nameInputRef.current?.focus();
+        nameInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 250);
+      return;
+    }
+
+    if (!birthCity.trim()) {
+      setErrorMessage('Kính mong Quý Bác nhập hoặc chọn Nơi Sinh trước khi hoàn tất.');
+      setCurrentStep(6);
+      setTimeout(() => {
+        cityInputRef.current?.focus();
+        cityInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 250);
       return;
     }
 
@@ -685,6 +703,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                   <div className="relative">
                     <User className="w-5 h-5 text-amber-400 absolute left-4 top-1/2 -translate-y-1/2" />
                     <input
+                      ref={nameInputRef}
                       type="text"
                       autoFocus
                       required
@@ -1194,6 +1213,7 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
                     <span>Tỉnh / Thành Phố Nơi Sinh Ra:</span>
                   </label>
                   <input
+                    ref={cityInputRef}
                     type="text"
                     value={birthCity}
                     onChange={(e) => setBirthCity(e.target.value)}
@@ -1381,6 +1401,12 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
               onClick={() => {
                 if (currentStep === 1 && !name.trim()) {
                   setErrorMessage('Kính mong Quý Bác nhập Họ và Tên trước khi tiếp tục.');
+                  nameInputRef.current?.focus();
+                  return;
+                }
+                if (currentStep === 6 && !birthCity.trim()) {
+                  setErrorMessage('Kính mong Quý Bác nhập hoặc chọn Nơi Sinh trước khi tiếp tục.');
+                  cityInputRef.current?.focus();
                   return;
                 }
                 setErrorMessage(null);
