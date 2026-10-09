@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, UserPlus, Volume2, ArrowRight } from 'lucide-react';
+import { Sparkles, UserPlus, Volume2, ArrowRight, BookOpen, Compass, ShieldCheck, Layers, Flame } from 'lucide-react';
 import { Navbar } from './components/Navbar';
 import { Top3DTabBar } from './components/Top3DTabBar';
 import { BottomNav, TabKey } from './components/BottomNav';
@@ -607,7 +607,7 @@ export default function App() {
               </div>
 
               <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed max-w-lg mx-auto font-light">
-                Chiêm bái cuốn cổ thư nghìn năm để giải mã trọn vẹn <span className="text-amber-300 font-medium">12 Cung Tử Vi</span>, <span className="text-teal-300 font-medium">Tứ Trụ Bát Tự</span> và <span className="text-amber-300 font-medium">Vận Hạn 2026</span> cùng Hội Đồng 7 Chuyên Gia AI.
+                Chiêm bái cuốn cổ thư nghìn năm để giải mã trọn vẹn <span className="text-amber-300 font-medium">12 Cung Tử Vi</span>, <span className="text-teal-300 font-medium">Tứ Trụ Bát Tự</span> và <span className="text-amber-300 font-medium">Vận Hạn 2026</span> cùng Hội Đồng 7 Tác Tử Chuyên Môn AI (Multi-Agent Perspectives).
               </p>
             </div>
 
@@ -670,12 +670,103 @@ export default function App() {
               </span>
               <span className="text-slate-600">·</span>
               <span className="flex items-center gap-1 text-slate-300">
-                <span className="text-teal-400 font-bold">✓</span> 7 Chuyên Gia AI
+                <span className="text-teal-400 font-bold">✓</span> 7 Tác Tử AI Chuyên Môn
               </span>
               <span className="text-slate-600">·</span>
               <span className="flex items-center gap-1 text-slate-300">
                 <span className="text-emerald-400 font-bold">✓</span> Bảo Mật Cục Bộ 100%
               </span>
+            </div>
+
+            {/* 4 Sacred Pillars Unlocked Preview (Tăng ham muốn xem tử vi lên mức tối đa) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full max-w-2xl mt-4 text-left">
+              <button
+                type="button"
+                onClick={() => {
+                  sacredSound.playSacredTap(528);
+                  setShowOnboarding(true);
+                }}
+                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-amber-500/10 border border-white/10 hover:border-amber-400/40 transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                    <BookOpen className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="text-xs font-bold text-white group-hover:text-amber-200">12 Cung Tử Vi</div>
+                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                    Mệnh, Tài, Quan, Thân · Tinh tú Miếu Hãm
+                  </p>
+                </div>
+                <span className="text-[10px] text-amber-400/90 font-medium mt-2 flex items-center gap-0.5">
+                  Khai mở ngay <span>→</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sacredSound.playSacredTap(528);
+                  setShowOnboarding(true);
+                }}
+                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-teal-500/10 border border-white/10 hover:border-teal-400/40 transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                    <Compass className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="text-xs font-bold text-white group-hover:text-teal-200">Bát Tự & Dụng Thần</div>
+                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                    Ngũ Hành chân khí · Quý nhân trợ mệnh
+                  </p>
+                </div>
+                <span className="text-[10px] text-teal-400/90 font-medium mt-2 flex items-center gap-0.5">
+                  Khai mở ngay <span>→</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sacredSound.playSacredTap(528);
+                  setShowOnboarding(true);
+                }}
+                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-rose-500/10 border border-white/10 hover:border-rose-400/40 transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                    <Flame className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="text-xs font-bold text-white group-hover:text-rose-200">Vận Hạn 2026</div>
+                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                    Lưu Niên Bính Ngọ · Tháng đại cát & hóa giải
+                  </p>
+                </div>
+                <span className="text-[10px] text-rose-400/90 font-medium mt-2 flex items-center gap-0.5">
+                  Khai mở ngay <span>→</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sacredSound.playSacredTap(528);
+                  setShowOnboarding(true);
+                }}
+                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-purple-500/10 border border-white/10 hover:border-purple-400/40 transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                    <Layers className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="text-xs font-bold text-white group-hover:text-purple-200">7 AI Chuyên Môn</div>
+                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                    Hội đồng Đa góc nhìn · Không bịa đặt
+                  </p>
+                </div>
+                <span className="text-[10px] text-purple-400/90 font-medium mt-2 flex items-center gap-0.5">
+                  Khai mở ngay <span>→</span>
+                </span>
+              </button>
             </div>
           </div>
         ) : (

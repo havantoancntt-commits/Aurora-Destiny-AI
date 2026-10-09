@@ -185,7 +185,7 @@ export const LifeRadarView: React.FC<Props> = ({ ensemble, calculation, language
             </h2>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Tổng hợp dữ liệu từ 7 chuyên gia AI kết hợp mô hình xác suất toán học.
+            Tổng hợp dữ liệu từ Hội đồng 7 Tác tử Chuyên môn AI (Multi-Agent Perspectives) kết hợp mô hình xác suất toán học.
           </p>
         </div>
 

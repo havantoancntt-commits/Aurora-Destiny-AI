@@ -47,9 +47,8 @@ export const SacredVoiceGuideWidget: React.FC<Props> = ({
     if (autoPlayIntroOnce && !voiceState.isMuted) {
       const hasListened = sessionStorage.getItem('aurora_has_listened_intro');
       if (!hasListened) {
-        // We do not auto-play sound without user gesture to respect browser autoplay policies,
-        // but we gently pulse the widget to invite the user!
-        setIsExpanded(true);
+        // Keep collapsed to avoid cluttering screen, allow user to open when desired
+        setIsExpanded(false);
       }
     }
   }, [autoPlayIntroOnce, voiceState.isMuted]);
@@ -108,11 +107,10 @@ export const SacredVoiceGuideWidget: React.FC<Props> = ({
                 <Play className="w-5 h-5 fill-current ml-0.5 group-hover:scale-110 transition-transform" />
               )}
 
-              {/* Pulsing beacon if not played yet */}
+              {/* Subtle radiant beacon if not played yet */}
               {!voiceState.isPlaying && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-pulse"></span>
                 </span>
               )}
             </button>

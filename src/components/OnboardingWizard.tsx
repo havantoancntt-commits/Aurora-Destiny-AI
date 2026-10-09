@@ -390,7 +390,7 @@ export const OnboardingWizard: React.FC<Props> = ({
             )}
 
             {/* TRỢ LÝ GIỌNG ĐỌC LINH THIÊNG — HUYỀN PHONG PHẬT ĐẠO (TĂNG TỶ LỆ CHUYỂN ĐỔI) */}
-            <SacredVoiceGuideWidget autoPlayIntroOnce={true} className="mb-2" />
+            <SacredVoiceGuideWidget autoPlayIntroOnce={false} className="mb-2" />
 
             {/* MỤC 1: HỌ TÊN & GIỚI TÍNH (Rõ Ràng, Nút Lớn) */}
             <div className="space-y-4 p-4 sm:p-5 rounded-3xl bg-white/[0.02] border border-white/10">

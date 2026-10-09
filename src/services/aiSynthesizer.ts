@@ -376,7 +376,7 @@ export function generateMultiAgentEnsemble(
     ensembleVersion: 'aurora_ensemble_v3.2',
     generatedAt: new Date().toISOString(),
     overallConsistencyScore,
-    executiveSummary: `Tổng hợp từ 7 chuyên gia AI: Bản mệnh mang cấu trúc Bát Tự ${bazi.structureType} (Nhật Chủ ${dm.nameVi} ${bazi.dayMasterStrength}) kết hợp Cung Mệnh Tử Vi ${lifeStarStr} (Cục: ${ziwei.elementBureau}). Độ nhất quán mô hình đạt ${overallConsistencyScore}/100. Năm ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) mang sóng cơ hội đạt ${currentTransit.opportunityWave}%. Phát huy Dụng Thần (${favorableStr}) và giữ vững kỷ luật quản trị rủi ro sẽ giúp bạn định hình quỹ đạo tương lai vượt bậc.`,
+    executiveSummary: `Tổng hợp từ Hội đồng 7 Tác Tử Chuyên Môn AI (Multi-Agent Analytical Perspectives): Bản mệnh mang cấu trúc Bát Tự ${bazi.structureType} (Nhật Chủ ${dm.nameVi} ${bazi.dayMasterStrength}) kết hợp Cung Mệnh Tử Vi ${lifeStarStr} (Cục: ${ziwei.elementBureau}). Độ nhất quán mô hình đạt ${overallConsistencyScore}/100. Năm ${currentYear} (${currentTransit.stem} ${currentTransit.branch}) mang sóng cơ hội đạt ${currentTransit.opportunityWave}%. Phát huy Dụng Thần (${favorableStr}) và giữ vững kỷ luật quản trị rủi ro sẽ giúp bạn định hình quỹ đạo tương lai vượt bậc.`,
     traditionalAstrologyAgent,
     baziAnalystAgent,
     ziweiAnalystAgent,
