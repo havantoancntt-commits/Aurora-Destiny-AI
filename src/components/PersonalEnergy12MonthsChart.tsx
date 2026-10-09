@@ -2,10 +2,11 @@
 // PERSONAL ENERGY 12-MONTH FORECAST CHART
 // Trực quan hóa dự báo năng lượng cá nhân 12 tháng tới
 // dựa trên các giá trị Đại Vận calculation.cycles & Bát Tự
+// Tích hợp cảnh báo nhẹ nhàng khi có biến động tăng vọt hoặc sụt giảm đột ngột
 // Built with Recharts & Tailwind CSS
 // ==========================================
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ResponsiveContainer,
@@ -21,6 +22,7 @@ import {
 import {
   Sparkles,
   TrendingUp,
+  TrendingDown,
   AlertTriangle,
   Compass,
   Calendar,
@@ -31,191 +33,71 @@ import {
   ChevronRight,
   Filter,
   CheckCircle2,
-  ArrowUpRight
+  ArrowUpRight,
+  Bell
 } from 'lucide-react';
 import { CalculationResult, DecadeCycle, FiveElement, EarthlyBranch, HeavenlyStem } from '../types/destiny';
 import { STEMS, BRANCHES, ELEMENT_RELATIONS } from '../engine/canchi';
-import { calculateMonthPillar, calculateYearPillar } from '../engine/bazi';
+import {
+  compute12MonthsEnergyTrajectory,
+  detectEnergyShifts,
+  MonthlyEnergyPoint,
+  EnergyShiftAlert,
+  SOLAR_TERM_MONTH_NAMES
+} from '../engine/personalEnergyEngine';
+import { PersonalEnergyAlertBanner } from './PersonalEnergyAlertBanner';
+
+export type { MonthlyEnergyPoint, EnergyShiftAlert };
 
 interface PersonalEnergy12MonthsChartProps {
   calculation: CalculationResult;
   onOpenReportModal?: () => void;
+  selectedMonthTarget?: { year: number; month: number } | null;
+  onSelectMonthTarget?: (target: { year: number; month: number } | null) => void;
+  showInlineAlerts?: boolean;
 }
 
 export type ForecastMetricKey = 'all' | 'vitality' | 'opportunity' | 'harmony';
 
-export interface MonthlyEnergyPoint {
-  monthIndex: number; // 0..11
-  label: string; // "T10/26"
-  fullLabel: string; // "Tháng 10/2026"
-  year: number;
-  month: number;
-  stem: HeavenlyStem;
-  branch: EarthlyBranch;
-  canChiName: string; // e.g. "Bính Tý"
-  element: FiveElement;
-  solarTermName: string;
-  activeCycleName: string;
-  activeCycleElement: FiveElement;
-  activeCycleScore: number;
-  vitalityEnergy: number; // 0 - 100
-  opportunityScore: number; // 0 - 100
-  harmonyScore: number; // 0 - 100
-  compositeEnergy: number; // 0 - 100
-  statusTag: 'VƯỢNG KHÍ' | 'CÁT LỢI' | 'BÌNH HÒA' | 'THẬN TRỌNG';
-  strategicAdvice: string;
-  elementInteraction: string;
-}
-
-const SOLAR_TERM_MONTH_NAMES = [
-  'Lập Xuân (Dần)', 'Kinh Trập (Mão)', 'Thanh Minh (Thìn)',
-  'Lập Hạ (Tỵ)', 'Mang Chủng (Ngọ)', 'Tiểu Thử (Mùi)',
-  'Lập Thu (Thân)', 'Bạch Lộ (Dậu)', 'Hàn Lộ (Tuất)',
-  'Lập Đông (Hợi)', 'Đại Tuyết (Tý)', 'Tiểu Hàn (Sửu)'
-];
-
 export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartProps> = ({
   calculation,
-  onOpenReportModal
+  onOpenReportModal,
+  selectedMonthTarget,
+  onSelectMonthTarget,
+  showInlineAlerts = true
 }) => {
   const [activeMetric, setActiveMetric] = useState<ForecastMetricKey>('all');
   const [selectedMonth, setSelectedMonth] = useState<MonthlyEnergyPoint | null>(null);
+
+  // Compute 12-month trajectory starting from current month using calculation.cycles & Bazi
+  const monthlyData: MonthlyEnergyPoint[] = useMemo(() => {
+    return compute12MonthsEnergyTrajectory(calculation);
+  }, [calculation]);
 
   // Extract cycles reliably from calculation.cycles or calculation.decades
   const cycles: DecadeCycle[] = useMemo(() => {
     return (calculation as any)?.cycles || calculation?.decades || [];
   }, [calculation]);
 
-  const birthYear = calculation?.inputSnapshot?.solarYear || 1990;
-  const analysisYear = calculation?.analysisYear || new Date().getFullYear();
-  const dayMasterElement: FiveElement = calculation?.bazi?.dayMasterElement || 'Wood';
+  // Detect sudden surges or sudden drops
+  const alerts: EnergyShiftAlert[] = useMemo(() => {
+    return detectEnergyShifts(monthlyData, {
+      favorableElements: calculation?.bazi?.favorableElements,
+      unfavorableElements: calculation?.bazi?.unfavorableElements
+    });
+  }, [monthlyData, calculation?.bazi?.favorableElements, calculation?.bazi?.unfavorableElements]);
 
-  // Compute 12-month trajectory starting from current month
-  const monthlyData: MonthlyEnergyPoint[] = useMemo(() => {
-    const today = new Date();
-    const startYear = today.getFullYear();
-    const startMonth = today.getMonth() + 1; // 1 - 12
-
-    const points: MonthlyEnergyPoint[] = [];
-
-    for (let i = 0; i < 12; i++) {
-      let targetMonth = startMonth + i;
-      let targetYear = startYear;
-      if (targetMonth > 12) {
-        targetYear += Math.floor((targetMonth - 1) / 12);
-        targetMonth = ((targetMonth - 1) % 12) + 1;
-      }
-
-      // 1. Identify governing Decade Cycle from calculation.cycles
-      const ageInTargetYear = targetYear - birthYear;
-      let activeCycle = cycles.find(
-        (c) => targetYear >= c.startYear && targetYear <= c.endYear
+  // Sync external selectedMonthTarget if provided
+  useEffect(() => {
+    if (selectedMonthTarget) {
+      const match = monthlyData.find(
+        (m) => m.year === selectedMonthTarget.year && m.month === selectedMonthTarget.month
       );
-      if (!activeCycle && cycles.length > 0) {
-        // Fallback: match by age or closest cycle
-        activeCycle = cycles.find(
-          (c) => ageInTargetYear >= c.startAge && ageInTargetYear <= c.endAge
-        ) || cycles[0];
+      if (match) {
+        setSelectedMonth(match);
       }
-
-      const cycleBaseScore = activeCycle?.harmonyScore ?? activeCycle?.ruleBasedScore ?? 75;
-      const cycleElement = activeCycle?.element ?? 'Earth';
-      const cycleStemName = activeCycle ? STEMS[activeCycle.stem]?.nameVi : 'Giáp';
-      const cycleBranchName = activeCycle ? BRANCHES[activeCycle.branch]?.nameVi : 'Thân';
-      const cycleName = activeCycle
-        ? `Đại Vận ${cycleStemName} ${cycleBranchName} (${activeCycle.startAge}-${activeCycle.endAge}t)`
-        : 'Đại Vận Đương Thời';
-
-      // 2. Compute canonical month pillar (Stem & Branch)
-      const yearPillar = calculateYearPillar(targetYear, targetMonth, 15);
-      const monthPillar = calculateMonthPillar(yearPillar.stem, targetYear, targetMonth, 15);
-      const monthStemInfo = STEMS[monthPillar.stem];
-      const monthBranchInfo = BRANCHES[monthPillar.branch];
-      const monthElement = monthStemInfo.element;
-
-      // 3. Five-element interaction between Month Element and Active Cycle Element
-      let elementalDelta = 0;
-      let interactionDescription = '';
-      if (ELEMENT_RELATIONS[monthElement]?.generates === cycleElement) {
-        elementalDelta = 8; // Tháng sinh Đại Vận: Trợ lực dồi dào
-        interactionDescription = `Tháng ${ELEMENT_RELATIONS[monthElement].vi} sinh dưỡng Đại Vận ${ELEMENT_RELATIONS[cycleElement].vi} (Hanh thông)`;
-      } else if (monthElement === cycleElement) {
-        elementalDelta = 5; // Đồng hành
-        interactionDescription = `Tháng ${ELEMENT_RELATIONS[monthElement].vi} tỷ hòa đồng khí với Đại Vận (Ổn định)`;
-      } else if (ELEMENT_RELATIONS[cycleElement]?.generates === monthElement) {
-        elementalDelta = 2; // Tiết khí sáng tạo
-        interactionDescription = `Đại Vận xuất khí sinh tháng (Tập trung sáng tạo)`;
-      } else if (ELEMENT_RELATIONS[cycleElement]?.overcomes === monthElement) {
-        elementalDelta = -3; // Khắc chế quản trị
-        interactionDescription = `Đại Vận khắc chế khí tháng (Kiểm soát tiến độ)`;
-      } else if (ELEMENT_RELATIONS[monthElement]?.overcomes === cycleElement) {
-        elementalDelta = -7; // Bị tháng khắc
-        interactionDescription = `Khí tháng xung khắc Đại Vận (Cần tĩnh tâm, hạn chế mạo hiểm)`;
-      }
-
-      // 4. Interaction with Day Master (Nhật Chủ)
-      let dayMasterDelta = 0;
-      if (ELEMENT_RELATIONS[monthElement]?.generates === dayMasterElement) {
-        dayMasterDelta = 6; // Ấn tinh sinh thân
-      } else if (monthElement === dayMasterElement) {
-        dayMasterDelta = 4; // Tỷ kiếp trợ thân
-      } else if (ELEMENT_RELATIONS[dayMasterElement]?.generates === monthElement) {
-        dayMasterDelta = 2; // Thực thương phát tiết
-      } else if (ELEMENT_RELATIONS[monthElement]?.overcomes === dayMasterElement) {
-        dayMasterDelta = -4; // Quan sát khắc thân
-      }
-
-      // 5. Final clamped scores based on cycle and monthly resonance
-      const compositeEnergy = Math.max(42, Math.min(98, Math.round(cycleBaseScore * 0.7 + (75 + elementalDelta * 2 + dayMasterDelta) * 0.3)));
-      const vitalityEnergy = Math.max(45, Math.min(99, Math.round(compositeEnergy + elementalDelta * 0.8)));
-      const opportunityScore = Math.max(40, Math.min(96, Math.round(cycleBaseScore * 0.5 + (70 + dayMasterDelta * 3 + elementalDelta) * 0.5)));
-      const harmonyScore = Math.max(42, Math.min(97, Math.round(100 - Math.abs(vitalityEnergy - opportunityScore) * 0.5 + elementalDelta)));
-
-      // Status tag
-      let statusTag: 'VƯỢNG KHÍ' | 'CÁT LỢI' | 'BÌNH HÒA' | 'THẬN TRỌNG' = 'BÌNH HÒA';
-      if (compositeEnergy >= 84) statusTag = 'VƯỢNG KHÍ';
-      else if (compositeEnergy >= 74) statusTag = 'CÁT LỢI';
-      else if (compositeEnergy < 62) statusTag = 'THẬN TRỌNG';
-
-      // Strategic advice
-      let strategicAdvice = 'Giữ nhịp độ ổn định, bám sát kế hoạch trung hạn.';
-      if (statusTag === 'VƯỢNG KHÍ') {
-        strategicAdvice = 'Thời điểm vàng để kích hoạt dự án lớn, mở rộng tài chính và chốt thương vụ quan trọng.';
-      } else if (statusTag === 'CÁT LỢI') {
-        strategicAdvice = 'Năng lượng nâng đỡ tốt cho các bước tiến hành công việc và hợp tác chiến lược.';
-      } else if (statusTag === 'THẬN TRỌNG') {
-        strategicAdvice = 'Bảo toàn nguồn vốn, tránh quyết định bộc phát; tập trung tu dưỡng nội lực và quản trị rủi ro.';
-      }
-
-      const branchIdx = ['Yin_B', 'Mao', 'Chen', 'Si', 'Wu_B', 'Wei', 'Shen', 'You', 'Xu', 'Hai', 'Zi', 'Chou'].indexOf(monthPillar.branch);
-      const solarTermName = branchIdx >= 0 ? SOLAR_TERM_MONTH_NAMES[branchIdx] : 'Tiết Khí';
-
-      points.push({
-        monthIndex: i,
-        label: `T${targetMonth}/${String(targetYear).slice(2)}`,
-        fullLabel: `Tháng ${targetMonth}/${targetYear}`,
-        year: targetYear,
-        month: targetMonth,
-        stem: monthPillar.stem,
-        branch: monthPillar.branch,
-        canChiName: `${monthStemInfo.nameVi} ${monthBranchInfo.nameVi}`,
-        element: monthElement,
-        solarTermName,
-        activeCycleName: cycleName,
-        activeCycleElement: cycleElement,
-        activeCycleScore: cycleBaseScore,
-        vitalityEnergy,
-        opportunityScore,
-        harmonyScore,
-        compositeEnergy,
-        statusTag,
-        strategicAdvice,
-        elementInteraction: interactionDescription
-      });
     }
-
-    return points;
-  }, [cycles, birthYear, dayMasterElement]);
+  }, [selectedMonthTarget, monthlyData]);
 
   // Insights highlights
   const peakMonth = useMemo(() => {
@@ -232,13 +114,13 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
     return Math.round(sum / monthlyData.length);
   }, [monthlyData]);
 
-  const currentGoverningCycle = cycles[0];
-
-  // Custom Tooltip component for Recharts
+  // Custom Tooltip component for Recharts with sudden drop/surge alerts
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
     const data: MonthlyEnergyPoint = payload[0]?.payload;
     if (!data) return null;
+
+    const monthAlert = alerts.find((a) => a.year === data.year && a.month === data.month);
 
     return (
       <div className="bg-[#0b0f19]/95 border border-amber-500/30 p-3.5 rounded-xl shadow-2xl backdrop-blur-xl text-xs max-w-xs space-y-2 z-50 pointer-events-none">
@@ -287,6 +169,25 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
           </div>
         </div>
 
+        {/* Gentle Warning in Tooltip if Month has Sudden Shift */}
+        {monthAlert && (
+          <div
+            className={`p-2 rounded-lg text-[11px] border flex items-start gap-1.5 ${
+              monthAlert.type === 'drop'
+                ? 'bg-rose-500/15 border-rose-500/30 text-rose-200'
+                : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200'
+            }`}
+          >
+            <span className="shrink-0 mt-0.5">
+              {monthAlert.type === 'drop' ? '⚠️' : '⚡'}
+            </span>
+            <div>
+              <span className="font-semibold">{monthAlert.title}: </span>
+              <span>{monthAlert.shortWarning}</span>
+            </div>
+          </div>
+        )}
+
         <div className="border-t border-white/10 pt-1.5 space-y-1 text-[11px]">
           <div className="text-slate-400">
             <span className="text-amber-400/80 font-medium">Chu kỳ trực chiếu:</span> {data.activeCycleName}
@@ -297,6 +198,16 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
         </div>
       </div>
     );
+  }
+
+  const handleSelectMonthFromAlert = (target: { year: number; month: number }) => {
+    const match = monthlyData.find((m) => m.year === target.year && m.month === target.month);
+    if (match) {
+      setSelectedMonth(match);
+      if (onSelectMonthTarget) {
+        onSelectMonthTarget(target);
+      }
+    }
   };
 
   return (
@@ -330,7 +241,7 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
         <div className="flex flex-wrap items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/10 self-start md:self-auto">
           <button
             onClick={() => setActiveMetric('all')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
               activeMetric === 'all'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -340,7 +251,7 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
           </button>
           <button
             onClick={() => setActiveMetric('vitality')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
               activeMetric === 'vitality'
                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                 : 'text-slate-400 hover:text-white'
@@ -351,7 +262,7 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
           </button>
           <button
             onClick={() => setActiveMetric('opportunity')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
               activeMetric === 'opportunity'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                 : 'text-slate-400 hover:text-white'
@@ -362,7 +273,7 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
           </button>
           <button
             onClick={() => setActiveMetric('harmony')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
               activeMetric === 'harmony'
                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                 : 'text-slate-400 hover:text-white'
@@ -374,10 +285,23 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
         </div>
       </div>
 
+      {/* GENTLE ALERT NOTIFICATION BANNER (IF DETECTED) */}
+      {showInlineAlerts && alerts.length > 0 && (
+        <PersonalEnergyAlertBanner
+          alerts={alerts}
+          onSelectMonth={handleSelectMonthFromAlert}
+          onOpenReportModal={onOpenReportModal}
+          defaultExpanded={true}
+        />
+      )}
+
       {/* 4 SUMMARY STAT CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Peak Month */}
-        <div className="p-3.5 rounded-xl bg-black/40 border border-emerald-500/20 space-y-1">
+        <div
+          onClick={() => setSelectedMonth(peakMonth)}
+          className="p-3.5 rounded-xl bg-black/40 border border-emerald-500/20 space-y-1 cursor-pointer hover:border-emerald-500/50 transition-all"
+        >
           <div className="flex items-center justify-between text-[11px] text-emerald-400 font-semibold">
             <span>Tháng Đỉnh Cao</span>
             <Sparkles className="w-3.5 h-3.5" />
@@ -394,7 +318,10 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
         </div>
 
         {/* Caution Month */}
-        <div className="p-3.5 rounded-xl bg-black/40 border border-rose-500/20 space-y-1">
+        <div
+          onClick={() => setSelectedMonth(cautionMonth)}
+          className="p-3.5 rounded-xl bg-black/40 border border-rose-500/20 space-y-1 cursor-pointer hover:border-rose-500/50 transition-all"
+        >
           <div className="flex items-center justify-between text-[11px] text-rose-400 font-semibold">
             <span>Tháng Cần Thận Trọng</span>
             <AlertTriangle className="w-3.5 h-3.5" />
@@ -447,26 +374,30 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
             margin={{ top: 15, right: 15, left: -15, bottom: 5 }}
             onClick={(e: any) => {
               if (e && e.activePayload && e.activePayload[0]) {
-                setSelectedMonth(e.activePayload[0].payload);
+                const clickedPoint = e.activePayload[0].payload;
+                setSelectedMonth(clickedPoint);
+                if (onSelectMonthTarget) {
+                  onSelectMonthTarget({ year: clickedPoint.year, month: clickedPoint.month });
+                }
               }
             }}
           >
             <defs>
-              <linearGradient id="vitalityGlow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#10b981" />
-                <stop offset="100%" stopColor="#34d399" />
+              <linearGradient id="vitalityGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#059669" stopOpacity={0.3} />
               </linearGradient>
-              <linearGradient id="opportunityGlow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#f59e0b" />
-                <stop offset="100%" stopColor="#fbbf24" />
+              <linearGradient id="opportunityGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#d97706" stopOpacity={0.3} />
               </linearGradient>
-              <linearGradient id="harmonyGlow" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#8b5cf6" />
-                <stop offset="100%" stopColor="#a78bfa" />
+              <linearGradient id="harmonyGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#a855f7" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.3} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
 
             <XAxis
               dataKey="label"
@@ -585,7 +516,7 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
               </div>
               <button
                 onClick={() => setSelectedMonth(null)}
-                className="text-slate-400 hover:text-white px-2 py-0.5 rounded text-[11px]"
+                className="text-slate-400 hover:text-white px-2 py-0.5 rounded text-[11px] cursor-pointer"
               >
                 Đóng
               </button>
@@ -618,7 +549,7 @@ export const PersonalEnergy12MonthsChart: React.FC<PersonalEnergy12MonthsChartPr
               {onOpenReportModal && (
                 <button
                   onClick={onOpenReportModal}
-                  className="flex items-center gap-1 text-teal-300 hover:text-teal-200 underline font-medium"
+                  className="flex items-center gap-1 text-teal-300 hover:text-teal-200 underline font-medium cursor-pointer"
                 >
                   Xem Báo Cáo Chuyên Sâu <ArrowUpRight className="w-3 h-3" />
                 </button>

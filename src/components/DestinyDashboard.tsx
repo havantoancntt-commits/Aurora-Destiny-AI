@@ -44,6 +44,8 @@ import { BaGuaCompassWidget } from './BaGuaCompassWidget';
 import { RealTimeLuckRadarBar } from './RealTimeLuckRadarBar';
 import { AgentInfluenceChart } from './AgentInfluenceChart';
 import { PersonalEnergy12MonthsChart } from './PersonalEnergy12MonthsChart';
+import { PersonalEnergyAlertBanner } from './PersonalEnergyAlertBanner';
+import { compute12MonthsEnergyTrajectory, detectEnergyShifts } from '../engine/personalEnergyEngine';
 import { sacredVoice } from '../services/sacredVoiceService';
 import { sacredSound } from '../services/soundService';
 import { SacredSealBadge } from './SacredSealBadge';
@@ -114,6 +116,7 @@ export const DestinyDashboard: React.FC<Props> = ({
   const [analysisTab, setAnalysisTab] = useState<'essence' | 'body' | 'sanfang' | 'transit'>('essence');
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [voiceState, setVoiceState] = useState(sacredVoice.getState());
+  const [selectedEnergyMonth, setSelectedEnergyMonth] = useState<{ year: number; month: number } | null>(null);
 
   useEffect(() => {
     const unsub = sacredVoice.subscribe(setVoiceState);
@@ -123,6 +126,18 @@ export const DestinyDashboard: React.FC<Props> = ({
   const { bazi, ziwei, confidence } = calculation;
   const dm = STEMS[bazi.dayMaster];
   const selectedPalace = ziwei.palaces[selectedPalaceKey] || ziwei.palaces.life;
+
+  // Compute 12-month energy forecast & detect sudden drops/surges for gentle notifications
+  const energyData = useMemo(() => {
+    return compute12MonthsEnergyTrajectory(calculation);
+  }, [calculation]);
+
+  const energyAlerts = useMemo(() => {
+    return detectEnergyShifts(energyData, {
+      favorableElements: bazi.favorableElements,
+      unfavorableElements: bazi.unfavorableElements
+    });
+  }, [energyData, bazi.favorableElements, bazi.unfavorableElements]);
 
   // Map each Earthly Branch to its assigned Zi Wei Palace
   const palaceByBranch = useMemo(() => {
@@ -1234,11 +1249,30 @@ export const DestinyDashboard: React.FC<Props> = ({
         )}
       </motion.div>
 
-      {/* 4.5. PERSONAL ENERGY 12-MONTH FORECAST CHART (RECHARTS) */}
-      <PersonalEnergy12MonthsChart
-        calculation={calculation}
-        onOpenReportModal={onOpenReportModal}
-      />
+      {/* 4.5. PERSONAL ENERGY 12-MONTH FORECAST CHART (RECHARTS) & GENTLE ALERT SYSTEM */}
+      <div id="personal-energy-forecast-section" className="space-y-4">
+        {energyAlerts.length > 0 && (
+          <PersonalEnergyAlertBanner
+            alerts={energyAlerts}
+            onSelectMonth={(target) => {
+              setSelectedEnergyMonth(target);
+              const el = document.getElementById('personal-energy-chart-container');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }}
+            onOpenReportModal={onOpenReportModal}
+          />
+        )}
+
+        <div id="personal-energy-chart-container">
+          <PersonalEnergy12MonthsChart
+            calculation={calculation}
+            onOpenReportModal={onOpenReportModal}
+            selectedMonthTarget={selectedEnergyMonth}
+            onSelectMonthTarget={setSelectedEnergyMonth}
+            showInlineAlerts={false}
+          />
+        </div>
+      </div>
 
       {/* 5. CURRENT TRANSIT & STRATEGIC RECOMMENDATIONS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
