@@ -2374,7 +2374,6 @@ let appInitError: Error | null = null;
 
 export async function ensureAppInitialized(): Promise<void> {
   if (isAppInitialized) return;
-  if (appInitError) throw appInitError;
 
   if (!appInitPromise) {
     appInitPromise = (async () => {
@@ -2398,6 +2397,7 @@ export async function ensureAppInitialized(): Promise<void> {
         }
 
         isAppInitialized = true;
+        appInitError = null;
       } catch (err: any) {
         appInitPromise = null;
         appInitError = err;
@@ -2407,7 +2407,12 @@ export async function ensureAppInitialized(): Promise<void> {
     })();
   }
 
-  await appInitPromise;
+  try {
+    await appInitPromise;
+  } catch (err) {
+    appInitPromise = null;
+    throw err;
+  }
 }
 
 // ----------------------------------------------------

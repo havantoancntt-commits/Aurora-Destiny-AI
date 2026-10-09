@@ -121,6 +121,14 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
 
   public async ensureInitialized(): Promise<void> {
     if (this.migrationPromise) {
+      try {
+        await this.migrationPromise;
+      } catch {
+        this.migrationPromise = null;
+      }
+    }
+    if (!this.isConnected) {
+      this.migrationPromise = this.init();
       await this.migrationPromise;
     }
     if (!this.isConnected && process.env.NODE_ENV === 'production') {
