@@ -563,6 +563,21 @@ class ApiClient {
     return res.json();
   }
 
+  public async getMetrics(): Promise<any> {
+    const res = await this.fetchWithAuth('/api/metrics');
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) throw new Error('Cần quyền Quản trị viên (Admin/Super Admin)');
+      throw new Error(`HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  public async getSecurityThreats(): Promise<any> {
+    const res = await this.fetchWithAuth('/api/admin/security-threats');
+    if (res.ok) return res.json();
+    return null;
+  }
+
   public async getAuditLogs() {
     const res = await this.fetchWithAuth('/api/audit-logs');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

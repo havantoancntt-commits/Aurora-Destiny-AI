@@ -47,19 +47,10 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
       setAuthError(null);
 
       const [resMetrics, resLogs, resFlags, resSec] = await Promise.all([
-        fetch('/api/metrics', { credentials: 'same-origin' }).then(r => {
-          if (r.status === 401 || r.status === 403) throw new Error('Cần quyền Quản trị viên (Admin/Super Admin)');
-          return r.json();
-        }),
-        fetch('/api/audit-logs', { credentials: 'same-origin' }).then(r => {
-          if (r.status === 401 || r.status === 403) return [];
-          return r.json();
-        }),
-        fetch('/api/feature-flags', { credentials: 'same-origin' }).then(r => r.json()),
-        fetch('/api/admin/security-threats', { credentials: 'same-origin' }).then(r => {
-          if (r.ok) return r.json();
-          return null;
-        }).catch(() => null)
+        api.getMetrics(),
+        api.getAuditLogs().catch(() => []),
+        api.getFeatureFlags().catch(() => []),
+        api.getSecurityThreats().catch(() => null)
       ]);
       setMetrics(resMetrics);
       setAuditLogs(Array.isArray(resLogs) ? resLogs : []);
@@ -68,7 +59,7 @@ export const AdminDashboard: React.FC<Props> = ({ onClose }) => {
     } catch (e: any) {
       setAuthError(e?.message || 'Không có quyền truy cập');
       // Fetch feature flags even if not admin
-      fetch('/api/feature-flags').then(r => r.json()).then(f => setFlags(Array.isArray(f) ? f : [])).catch(() => {});
+      api.getFeatureFlags().then(f => setFlags(Array.isArray(f) ? f : [])).catch(() => {});
     }
   };
 
