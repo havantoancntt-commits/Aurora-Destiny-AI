@@ -620,6 +620,9 @@ export const Navbar: React.FC<Props> = ({
         </div>
       </header>
 
+      {/* Mobile Top Smart PWA Install Banner */}
+      <PWAInstallButton variant="banner" />
+
       {/* PWA Install Guided Modal */}
       <PWAInstallModal
         isOpen={showPWAModal}
