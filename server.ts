@@ -1694,7 +1694,7 @@ app.post(
 );
 
 // Stream the staged PDF with standard HTTP attachment headers for native mobile DownloadManager
-app.get('/api/pdf/download/:id', pdfRateLimiter, async (req: Request, res: Response) => {
+app.get(['/api/pdf/download/:id', '/api/storage/pdf/download/:id'], pdfRateLimiter, async (req: Request, res: Response) => {
   const { id } = req.params;
   const token = req.query.token as string | undefined;
 
@@ -2319,7 +2319,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 // 404 Handler for undefined API routes (prevent falling through to HTML index.html)
 // Mounted on app instance directly so it applies in both standalone and serverless environments
-app.all('/api/*', (req: Request, res: Response) => {
+app.all(['/api', '/api/*'], (req: Request, res: Response) => {
   res.status(404).json({
     error: {
       category: 'NOT_FOUND_ERROR',
@@ -2453,6 +2453,16 @@ async function startServer() {
     const distPath = candidates.find(dir => fs.existsSync(path.join(dir, 'index.html'))) || candidates[0];
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({
+          error: {
+            category: 'NOT_FOUND_ERROR',
+            code: 'API_ENDPOINT_NOT_FOUND',
+            message: `Đường dẫn API '${req.method} ${req.path}' không tồn tại trên hệ thống.`,
+            requestId: (req as any).requestId
+          }
+        });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

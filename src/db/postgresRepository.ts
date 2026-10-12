@@ -7,6 +7,7 @@
 
 import pg from 'pg';
 import crypto from 'crypto';
+import fs from 'fs';
 import { IAsyncDatabaseRepository, AuditLogEntry, FeatureFlag, PatronEntity, WebhookEventRecord } from './repository';
 import { UserAccount, UserPreferences, StoredSession, UserProfile } from '../types/user';
 import { CalculationResult } from '../types/destiny';
@@ -68,13 +69,19 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
           ))
         );
 
+        const sslRejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true' || process.env.PGSSLMODE === 'verify-full';
+        const sslCa = process.env.DATABASE_CA_CERT || (process.env.PGSSLROOTCERT && fs.existsSync(process.env.PGSSLROOTCERT) ? fs.readFileSync(process.env.PGSSLROOTCERT, 'utf8') : undefined);
+        const sslConfig = useSsl
+          ? { ssl: { rejectUnauthorized: sslRejectUnauthorized, ...(sslCa ? { ca: sslCa } : {}) } }
+          : {};
+
         this.pool = new Pool({
           connectionString: connStr,
           max: normalizedConfig?.max || parseInt(process.env.DB_POOL_MAX || (isServerless ? '3' : '20'), 10),
           idleTimeoutMillis: normalizedConfig?.idleTimeoutMillis || (isServerless ? 10000 : 30000),
           connectionTimeoutMillis: normalizedConfig?.connectionTimeoutMillis || 5000,
           statement_timeout: normalizedConfig?.statement_timeout || 15000,
-          ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {})
+          ...sslConfig
         });
 
         // Prevent uncaught exception crash on idle client disconnection

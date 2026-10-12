@@ -277,7 +277,8 @@ export const guestRateLimiter = createRateLimiter({
   keyPrefix: 'rl_guest',
   windowMs: 60 * 60 * 1000, // 1 hour
   maxRequests: 10,
-  message: 'Giới hạn tạo phiên khách tạm thời đạt mức tối đa. Vui lòng thử lại sau.'
+  message: 'Giới hạn tạo phiên khách tạm thời đạt mức tối đa. Vui lòng thử lại sau.',
+  isSensitiveEndpoint: true
 });
 
 // 2. AI Chat & Scenario Rate Limiters (Sensitive LLM endpoints)
@@ -311,7 +312,8 @@ export const adminRateLimiter = createRateLimiter({
   keyPrefix: 'rl_admin',
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 60,
-  message: 'Tần suất truy vấn quản trị viên vượt quá giới hạn (tối đa 60 yêu cầu/phút).'
+  message: 'Tần suất truy vấn quản trị viên vượt quá giới hạn (tối đa 60 yêu cầu/phút).',
+  isSensitiveEndpoint: true
 });
 
 // 5. PDF Staging & Download Rate Limiter
@@ -319,7 +321,8 @@ export const pdfRateLimiter = createRateLimiter({
   keyPrefix: 'rl_pdf',
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 15,
-  message: 'Tần suất xử lý hoặc tải tệp PDF vượt quá giới hạn cho phép (tối đa 15 yêu cầu/phút).'
+  message: 'Tần suất xử lý hoặc tải tệp PDF vượt quá giới hạn cho phép (tối đa 15 yêu cầu/phút).',
+  isSensitiveEndpoint: true
 });
 
 // 6. Webhook Rate Limiter (Sensitive payment gateway ingestion)
