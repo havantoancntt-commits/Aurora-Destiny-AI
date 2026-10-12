@@ -8,6 +8,9 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import Redis from 'ioredis';
 import { repository } from '../db/repository';
+import { normalizeClientIp, normalizeIp } from './ipUtils';
+
+export { normalizeClientIp, normalizeIp };
 
 export interface SecurityThreatRecord {
   id: string;
@@ -259,18 +262,6 @@ function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: Secu
   }
 
   return { detected: false };
-}
-
-export function normalizeClientIp(req: Request): string {
-  let rawIp = req.ip || req.socket?.remoteAddress || '127.0.0.1';
-  if (rawIp.startsWith('::ffff:')) {
-    rawIp = rawIp.slice(7);
-  }
-  if (rawIp.includes(':')) {
-    const parts = rawIp.split(':');
-    return parts.slice(0, 4).join(':') + '::/64';
-  }
-  return rawIp;
 }
 
 /**

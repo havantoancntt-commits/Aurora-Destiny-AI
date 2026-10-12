@@ -370,10 +370,12 @@ app.get('/api/health', async (req, res) => {
   const circuitOpen = isCircuitBreakerOpen();
 
   const isHealthy = integrity.valid;
-  const status = isHealthy ? (hasGeminiKey && !circuitOpen ? 'ok' : 'degraded') : 'error';
+  const storageHealth = await getStorageProvider().checkHealth();
+  const isOverallHealthy = isHealthy && storageHealth.status !== 'unhealthy';
+  const status = isOverallHealthy ? (hasGeminiKey && !circuitOpen && storageHealth.status === 'healthy' ? 'ok' : 'degraded') : 'error';
   const metrics = await repository.getMetrics();
 
-  res.status(isHealthy ? 200 : 503).json({
+  res.status(isOverallHealthy ? 200 : 503).json({
     status,
     app: 'Aurora Destiny AI',
     version: '2.5.0',
@@ -384,6 +386,12 @@ app.get('/api/health', async (req, res) => {
         status: integrity.valid ? 'pass' : 'fail',
         storageMode: metrics.storageMode || (process.env.DATABASE_URL && (process.env.DATABASE_URL.startsWith('postgresql://') || process.env.DATABASE_URL.startsWith('postgres://')) && !process.env.DATABASE_URL.toLowerCase().includes('none') ? 'postgresql_production_adapter' : 'durable_atomic_file_adapter'),
         integrityErrors: integrity.errors
+      },
+      storage: {
+        status: storageHealth.status === 'healthy' ? 'pass' : (storageHealth.status === 'degraded' ? 'degraded' : 'fail'),
+        backend: storageHealth.backend,
+        isDurable: storageHealth.isDurable,
+        persisted: storageHealth.persisted
       },
       ai: {
         status: hasGeminiKey ? (circuitOpen ? 'circuit_open_fallback_active' : 'pass') : 'unconfigured_deterministic_fallback_active',
@@ -450,11 +458,22 @@ app.get(['/health/ai', '/api/health/ai'], (req, res) => {
 });
 
 app.get(['/health/storage', '/api/health/storage'], async (req, res) => {
-  const metrics = await repository.getMetrics();
-  res.status(200).json({
-    status: 'healthy',
-    mode: metrics.storageMode || 'durable_persistent',
-    persisted: true
+  const storage = getStorageProvider();
+  const storageHealth = await storage.checkHealth();
+  const isProduction = process.env.NODE_ENV === 'production';
+  const allowNonDurable = Boolean(process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION);
+
+  // In production, object storage must be durable unless explicitly allowed
+  const isHealthy = storageHealth.status !== 'unhealthy' && (!isProduction || storageHealth.isDurable || allowNonDurable);
+  const httpCode = isHealthy ? 200 : 503;
+
+  res.status(httpCode).json({
+    status: isHealthy ? storageHealth.status : 'unhealthy',
+    backend: storageHealth.backend,
+    isDurable: storageHealth.isDurable,
+    persisted: storageHealth.persisted,
+    location: storageHealth.location,
+    ...(storageHealth.error ? { error: storageHealth.error } : {})
   });
 });
 
@@ -475,6 +494,8 @@ app.get('/api/health/dependencies', async (req, res) => {
   const circuitOpen = isCircuitBreakerOpen();
   const cacheStatus = getCacheStatus();
   const metrics = await repository.getMetrics();
+  const storage = getStorageProvider();
+  const storageHealth = await storage.checkHealth();
 
   const dependencies = {
     application: {
@@ -501,16 +522,26 @@ app.get('/api/health/dependencies', async (req, res) => {
       hitRatio: metrics.cacheHitRatio
     },
     storage: {
-      status: 'healthy',
-      mode: 'durable_persistent'
+      status: storageHealth.status,
+      backend: storageHealth.backend,
+      isDurable: storageHealth.isDurable,
+      persisted: storageHealth.persisted,
+      location: storageHealth.location,
+      ...(storageHealth.error ? { error: storageHealth.error } : {})
     }
   };
 
-  const allCrucialHealthy = dependencies.application.status === 'healthy' &&
-    dependencies.database.status === 'healthy';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const allowNonDurable = Boolean(process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION);
+  const storageOk = storageHealth.status !== 'unhealthy' && (!isProduction || storageHealth.isDurable || allowNonDurable);
+
+  const allCrucialHealthy =
+    dependencies.application.status === 'healthy' &&
+    dependencies.database.status === 'healthy' &&
+    storageOk;
 
   res.status(allCrucialHealthy ? 200 : 503).json({
-    status: allCrucialHealthy ? (circuitOpen || !hasGeminiKey ? 'degraded' : 'healthy') : 'unhealthy',
+    status: allCrucialHealthy ? (circuitOpen || !hasGeminiKey || storageHealth.status === 'degraded' ? 'degraded' : 'healthy') : 'unhealthy',
     timestamp: new Date().toISOString(),
     dependencies
   });
@@ -2335,35 +2366,133 @@ app.all(['/api', '/api/*'], (req: Request, res: Response) => {
 // Synchronizes cold-start, environment validation, database migrations,
 // admin bootstrapping and session cleanup across both Node.js & Serverless runtimes.
 // ----------------------------------------------------
+export class InitializationError extends Error {
+  code: 'CONFIG_ERROR' | 'MIGRATION_ERROR' | 'DATABASE_ERROR' | 'STORAGE_ERROR' | 'RATE_LIMITER_ERROR' | 'INITIALIZATION_ERROR';
+  category: 'CONFIGURATION' | 'MIGRATION' | 'DATABASE' | 'STORAGE' | 'INFRASTRUCTURE';
+  statusCode: number;
+  publicMessage: string;
+
+  constructor(
+    message: string,
+    code: 'CONFIG_ERROR' | 'MIGRATION_ERROR' | 'DATABASE_ERROR' | 'STORAGE_ERROR' | 'RATE_LIMITER_ERROR' | 'INITIALIZATION_ERROR' = 'INITIALIZATION_ERROR',
+    statusCode: number = 503,
+    category: 'CONFIGURATION' | 'MIGRATION' | 'DATABASE' | 'STORAGE' | 'INFRASTRUCTURE' = 'INFRASTRUCTURE',
+    publicMessage?: string
+  ) {
+    super(message);
+    this.name = 'InitializationError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.category = category;
+    this.publicMessage = publicMessage || 'Dịch vụ hệ thống gặp sự cố trong quá trình khởi tạo.';
+  }
+}
+
+/**
+ * Validates cryptographic secret entropy and guards against weak/placeholder defaults.
+ * Does not leak secret values in error messages.
+ */
+export function validateSecretEntropy(
+  secretName: string,
+  secretValue: string | undefined | null,
+  minLength = 32
+): { valid: boolean; reason?: string } {
+  if (!secretValue || typeof secretValue !== 'string') {
+    return { valid: false, reason: `${secretName} chưa được thiết lập` };
+  }
+
+  const trimmed = secretValue.trim();
+  if (trimmed.length < minLength) {
+    return {
+      valid: false,
+      reason: `${secretName} có độ dài ${trimmed.length} ký tự, yêu cầu tối thiểu ${minLength} ký tự trong môi trường production`
+    };
+  }
+
+  const lower = trimmed.toLowerCase();
+  const knownWeakPatterns = [
+    'change_me',
+    'changeme',
+    'secret_key',
+    'default_secret',
+    'production_secret',
+    'password123',
+    '12345678',
+    'admin123',
+    'aurora_destiny'
+  ];
+
+  for (const pattern of knownWeakPatterns) {
+    if (lower.includes(pattern)) {
+      return {
+        valid: false,
+        reason: `${secretName} chứa chuỗi mặc định/mẫu không an toàn (${pattern})`
+      };
+    }
+  }
+
+  const uniqueChars = new Set(trimmed).size;
+  if (uniqueChars < 8) {
+    return {
+      valid: false,
+      reason: `${secretName} có entropy thấp (${uniqueChars} ký tự khác nhau, tối thiểu 8 ký tự độc nhất)`
+    };
+  }
+
+  return { valid: true };
+}
+
 export function validateProductionConfig(): void {
   if (process.env.NODE_ENV === 'production') {
-    const missingVars: string[] = [];
+    const configIssues: string[] = [];
     const rawDbUrl = process.env.DATABASE_URL;
     const isPostgresUrl = typeof rawDbUrl === 'string' &&
       (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
       !rawDbUrl.toLowerCase().includes('none');
 
     if (!isPostgresUrl && process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
-      missingVars.push('MISSING_DATABASE_URL: DATABASE_URL is strictly required for PostgreSQL in production (or set ALLOW_FILE_STORAGE_IN_PRODUCTION=true)');
+      configIssues.push('DATABASE_URL is strictly required for PostgreSQL in production (or set ALLOW_FILE_STORAGE_IN_PRODUCTION=true)');
     }
 
     if (process.env.REDIS_REQUIRED_IN_PRODUCTION === 'true') {
       const redisUrl = process.env.REDIS_URL;
       const isRedisUrl = typeof redisUrl === 'string' && (redisUrl.startsWith('redis://') || redisUrl.startsWith('rediss://'));
       if (!isRedisUrl) {
-        missingVars.push('MISSING_REDIS_URL: REDIS_URL is strictly required when REDIS_REQUIRED_IN_PRODUCTION=true');
+        configIssues.push('REDIS_URL is strictly required when REDIS_REQUIRED_IN_PRODUCTION=true');
       }
     }
 
-    const secretKey = process.env.ALGORITHM_PROTECTION_SECRET || process.env.APP_SECRET || process.env.SESSION_SECRET;
-    if (!secretKey || secretKey.length < 16) {
-      missingVars.push('INSECURE_APP_SECRET: ALGORITHM_PROTECTION_SECRET or APP_SECRET or SESSION_SECRET (minimum 16 characters required)');
+    // Validate essential cryptographic secrets
+    const primarySecret = process.env.SESSION_SECRET || process.env.APP_SECRET;
+    const primaryEntropy = validateSecretEntropy('SESSION_SECRET / APP_SECRET', primarySecret, 32);
+    if (!primaryEntropy.valid) {
+      configIssues.push(primaryEntropy.reason || 'Invalid SESSION_SECRET / APP_SECRET entropy');
     }
 
-    if (missingVars.length > 0) {
-      console.error('🚨 [FATAL STARTUP] Critical production environment variable(s) missing or insecure:');
-      missingVars.forEach(v => console.error(`   - ${v}`));
-      throw new Error(`Critical environment variables missing or invalid in production: ${missingVars.join(', ')}`);
+    if (process.env.ALGORITHM_PROTECTION_SECRET) {
+      const algoEntropy = validateSecretEntropy('ALGORITHM_PROTECTION_SECRET', process.env.ALGORITHM_PROTECTION_SECRET, 32);
+      if (!algoEntropy.valid) {
+        configIssues.push(algoEntropy.reason || 'Invalid ALGORITHM_PROTECTION_SECRET entropy');
+      }
+    }
+
+    if (process.env.PAYMENT_WEBHOOK_SECRET) {
+      const webhookEntropy = validateSecretEntropy('PAYMENT_WEBHOOK_SECRET', process.env.PAYMENT_WEBHOOK_SECRET, 32);
+      if (!webhookEntropy.valid) {
+        configIssues.push(webhookEntropy.reason || 'Invalid PAYMENT_WEBHOOK_SECRET entropy');
+      }
+    }
+
+    if (configIssues.length > 0) {
+      console.error('🚨 [FATAL STARTUP] Critical production configuration issue(s) detected:');
+      configIssues.forEach(v => console.error(`   - ${v}`));
+      throw new InitializationError(
+        `Critical production configuration invalid: ${configIssues.join('; ')}`,
+        'CONFIG_ERROR',
+        503,
+        'CONFIGURATION',
+        'Cấu hình môi trường sản xuất chưa hợp lệ hoặc thiếu biến môi trường bắt buộc.'
+      );
     }
   }
 }
@@ -2383,11 +2512,41 @@ export async function ensureAppInitialized(): Promise<void> {
 
         // 2. Ensure database repository is initialized & migrations ran
         if (repository.ensureInitialized) {
-          await repository.ensureInitialized();
+          try {
+            await repository.ensureInitialized();
+          } catch (dbErr: any) {
+            const isMigration = dbErr.message && (dbErr.message.includes('migration') || dbErr.message.includes('DatabaseMigrator'));
+            if (isMigration) {
+              throw new InitializationError(
+                `Database migration failed: ${dbErr.message}`,
+                'MIGRATION_ERROR',
+                503,
+                'MIGRATION',
+                'Quá trình cập nhật cấu trúc cơ sở dữ liệu (migration) gặp sự cố.'
+              );
+            }
+            throw new InitializationError(
+              `Database connection failed: ${dbErr.message}`,
+              'DATABASE_ERROR',
+              503,
+              'DATABASE',
+              'Không thể thiết lập kết nối tới cơ sở dữ liệu production.'
+            );
+          }
         }
 
         // 3. Dynamic Bootstrap Admin account if configured
-        await bootstrapAdminIfConfiguredAsync();
+        try {
+          await bootstrapAdminIfConfiguredAsync();
+        } catch (adminErr: any) {
+          throw new InitializationError(
+            `Admin bootstrap failed: ${adminErr.message}`,
+            'INITIALIZATION_ERROR',
+            503,
+            'INFRASTRUCTURE',
+            'Khởi tạo tài khoản quản trị gặp sự cố.'
+          );
+        }
 
         // 4. Initial cleanup of expired sessions on startup
         try {

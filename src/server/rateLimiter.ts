@@ -7,6 +7,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import Redis from 'ioredis';
+import { normalizeClientIp } from './ipUtils';
 
 export interface RateLimitConfig {
   windowMs: number;
@@ -203,16 +204,7 @@ export function getRateLimitStore(): IRateLimitStore {
 export function createRateLimiter(config: RateLimitConfig) {
   return async function rateLimiterMiddleware(req: Request, res: Response, next: NextFunction) {
     try {
-      let rawIp = req.ip || req.socket.remoteAddress || 'unknown';
-      if (rawIp.startsWith('::ffff:')) {
-        rawIp = rawIp.slice(7);
-      }
-      let normalizedIp = rawIp;
-      if (rawIp.includes(':')) {
-        const parts = rawIp.split(':');
-        normalizedIp = parts.slice(0, 4).join(':') + '::/64';
-      }
-
+      const normalizedIp = normalizeClientIp(req);
       const userId = req.user?.id;
       // For user-based actions, key on user ID if authenticated, else normalized IP
       const identifier = userId ? `u_${userId}` : `ip_${normalizedIp}`;

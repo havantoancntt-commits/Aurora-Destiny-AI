@@ -35,6 +35,126 @@ export interface PostgresConfig {
   statement_timeout?: number;
 }
 
+export interface PostgresSslConfigResult {
+  ssl: boolean | { rejectUnauthorized: boolean; ca?: string };
+  mode: 'disable' | 'require' | 'verify-ca' | 'verify-full';
+  rejectUnauthorized: boolean;
+  hasCaCert: boolean;
+  isInsecureProductionOverride: boolean;
+}
+
+/**
+ * Resolves PostgreSQL TLS/SSL configuration with strict production verification.
+ * - In production: certificate verification (rejectUnauthorized) defaults to TRUE.
+ * - In dev/test: defaults to relaxed verification unless explicitly configured.
+ * - Supports custom CA certificates via DATABASE_CA_CERT (content) or PGSSLROOTCERT (file path).
+ * - Never silently downgrades security upon connection failures.
+ */
+export function resolvePostgresSslConfig(
+  env: NodeJS.ProcessEnv = process.env,
+  connStr?: string
+): PostgresSslConfigResult {
+  const isProduction = env.NODE_ENV === 'production';
+  const sslModeRaw = (env.PGSSLMODE || '').toLowerCase().trim();
+
+  // Explicit disable check
+  if (sslModeRaw === 'disable' || (connStr && connStr.includes('sslmode=disable'))) {
+    return {
+      ssl: false,
+      mode: 'disable',
+      rejectUnauthorized: false,
+      hasCaCert: false,
+      isInsecureProductionOverride: false
+    };
+  }
+
+  // Determine if SSL is requested by mode, flag, or known cloud database provider domain
+  const hasCloudDbDomain = Boolean(
+    connStr && (
+      connStr.includes('neon.tech') ||
+      connStr.includes('supabase.co') ||
+      connStr.includes('pooler.supabase.com') ||
+      connStr.includes('aws.neon') ||
+      connStr.includes('cockroachlabs.cloud') ||
+      connStr.includes('rds.amazonaws.com')
+    )
+  );
+
+  const isSslRequested =
+    sslModeRaw === 'require' ||
+    sslModeRaw === 'verify-ca' ||
+    sslModeRaw === 'verify-full' ||
+    env.DATABASE_SSL === 'true' ||
+    (connStr && (
+      connStr.includes('sslmode=require') ||
+      connStr.includes('sslmode=verify-ca') ||
+      connStr.includes('sslmode=verify-full')
+    )) ||
+    hasCloudDbDomain;
+
+  if (!isSslRequested) {
+    return {
+      ssl: false,
+      mode: 'disable',
+      rejectUnauthorized: false,
+      hasCaCert: false,
+      isInsecureProductionOverride: false
+    };
+  }
+
+  // Load CA certificate if provided
+  let caCert: string | undefined = undefined;
+  if (env.DATABASE_CA_CERT && env.DATABASE_CA_CERT.trim()) {
+    caCert = env.DATABASE_CA_CERT.trim();
+  } else {
+    const certPath = env.DATABASE_CA_CERT_PATH || env.PGSSLROOTCERT;
+    if (certPath && fs.existsSync(certPath)) {
+      try {
+        caCert = fs.readFileSync(certPath, 'utf8');
+      } catch (err: any) {
+        console.warn('⚠️ [PostgreSQL TLS] Could not read CA root certificate from path:', certPath, err.message);
+      }
+    }
+  }
+
+  // Determine certificate rejection policy
+  let rejectUnauthorized: boolean;
+  let isInsecureProductionOverride = false;
+
+  if (env.DATABASE_SSL_REJECT_UNAUTHORIZED !== undefined) {
+    rejectUnauthorized = env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true';
+    if (isProduction && !rejectUnauthorized) {
+      isInsecureProductionOverride = true;
+      console.warn(
+        '🚨 [SECURITY WARNING] PostgreSQL TLS certificate verification is explicitly disabled in production via DATABASE_SSL_REJECT_UNAUTHORIZED=false! Connection is vulnerable to MITM attacks.'
+      );
+    }
+  } else if (sslModeRaw === 'verify-full' || sslModeRaw === 'verify-ca') {
+    rejectUnauthorized = true;
+  } else if (isProduction) {
+    // Production DEFAULT: Always verify server certificates
+    rejectUnauthorized = true;
+  } else {
+    // Development / Test default: Allow local self-signed certificates
+    rejectUnauthorized = false;
+  }
+
+  const effectiveMode = (sslModeRaw === 'verify-full' || sslModeRaw === 'verify-ca')
+    ? (sslModeRaw as 'verify-ca' | 'verify-full')
+    : 'require';
+
+  return {
+    ssl: {
+      rejectUnauthorized,
+      ...(caCert ? { ca: caCert } : {})
+    },
+    mode: effectiveMode,
+    rejectUnauthorized,
+    hasCaCert: Boolean(caCert),
+    isInsecureProductionOverride
+  };
+}
+
 export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   private pool: pg.Pool;
   private isConnected: boolean = false;
@@ -57,23 +177,8 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
       if (globalThis.__aurora_pg_pool && !((globalThis.__aurora_pg_pool as any)._ending || (globalThis.__aurora_pg_pool as any).ended)) {
         this.pool = globalThis.__aurora_pg_pool;
       } else {
-        const useSsl = Boolean(
-          process.env.PGSSLMODE === 'require' ||
-          (connStr && (
-            connStr.includes('sslmode=require') ||
-            connStr.includes('neon.tech') ||
-            connStr.includes('supabase.co') ||
-            connStr.includes('pooler.supabase.com') ||
-            connStr.includes('aws.neon') ||
-            connStr.includes('cockroachlabs.cloud')
-          ))
-        );
-
-        const sslRejectUnauthorized = process.env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'true' || process.env.PGSSLMODE === 'verify-full';
-        const sslCa = process.env.DATABASE_CA_CERT || (process.env.PGSSLROOTCERT && fs.existsSync(process.env.PGSSLROOTCERT) ? fs.readFileSync(process.env.PGSSLROOTCERT, 'utf8') : undefined);
-        const sslConfig = useSsl
-          ? { ssl: { rejectUnauthorized: sslRejectUnauthorized, ...(sslCa ? { ca: sslCa } : {}) } }
-          : {};
+        const sslResolution = resolvePostgresSslConfig(process.env, connStr);
+        const sslPoolOption = sslResolution.ssl ? { ssl: sslResolution.ssl } : {};
 
         this.pool = new Pool({
           connectionString: connStr,
@@ -81,7 +186,7 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
           idleTimeoutMillis: normalizedConfig?.idleTimeoutMillis || (isServerless ? 10000 : 30000),
           connectionTimeoutMillis: normalizedConfig?.connectionTimeoutMillis || 5000,
           statement_timeout: normalizedConfig?.statement_timeout || 15000,
-          ...sslConfig
+          ...sslPoolOption
         });
 
         // Prevent uncaught exception crash on idle client disconnection

@@ -8,6 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { CalculationResult } from '../types/destiny';
 import { repository } from '../db/repository';
+import { normalizeClientIp } from './ipUtils';
 
 // Master server key used for HMAC signature of algorithm calculations.
 // FAIL-FAST IN PRODUCTION: In production, ALGORITHM_PROTECTION_SECRET MUST be explicitly configured.
@@ -336,11 +337,7 @@ export function verifyAlgorithmSignature(
  * proprietary astrological rule table via differential analysis.
  */
 export function antiScrapingSweeperMiddleware(req: Request, res: Response, next: NextFunction) {
-  let rawIp = req.ip || req.socket?.remoteAddress || '127.0.0.1';
-  if (rawIp.startsWith('::ffff:')) {
-    rawIp = rawIp.slice(7);
-  }
-  const ip = rawIp.includes(':') ? rawIp.split(':').slice(0, 4).join(':') + '::/64' : rawIp;
+  const ip = normalizeClientIp(req);
   const userId = req.user?.id;
   const clientKey = userId ? `u_${userId}` : `ip_${ip}`;
 

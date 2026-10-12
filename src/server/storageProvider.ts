@@ -36,6 +36,15 @@ export interface ConsumeDownloadResult {
   reason?: 'EXPIRED' | 'LIMIT_EXCEEDED' | 'NOT_FOUND';
 }
 
+export interface StorageHealthDetails {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  backend: 'postgres_object_storage' | 'local_disk' | 'in_memory';
+  isDurable: boolean;
+  persisted: boolean;
+  location?: string;
+  error?: string;
+}
+
 export interface IObjectStorageProvider {
   save(key: string, data: Buffer, metadata: Omit<StoredFileMetadata, 'checksum' | 'size' | 'downloadCount'>): Promise<void>;
   get(key: string): Promise<StoredFileResult | null>;
@@ -43,6 +52,7 @@ export interface IObjectStorageProvider {
   consumeDownload(key: string): Promise<ConsumeDownloadResult>;
   incrementDownloadCount(key: string): Promise<number>; // Backward-compatible
   cleanupExpired(): Promise<number>;
+  checkHealth(): Promise<StorageHealthDetails>;
 }
 
 // ----------------------------------------------------
@@ -264,6 +274,32 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
     }
     return evicted;
   }
+
+  async checkHealth(): Promise<StorageHealthDetails> {
+    try {
+      const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+      if (!fs.existsSync(this.baseDir)) {
+        fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
+      }
+      fs.accessSync(this.baseDir, fs.constants.R_OK | fs.constants.W_OK);
+      return {
+        status: isServerless && process.env.NODE_ENV === 'production' ? 'degraded' : 'healthy',
+        backend: 'local_disk',
+        isDurable: !isServerless,
+        persisted: true,
+        location: this.baseDir
+      };
+    } catch (err: any) {
+      return {
+        status: 'unhealthy',
+        backend: 'local_disk',
+        isDurable: false,
+        persisted: false,
+        location: this.baseDir,
+        error: err.message
+      };
+    }
+  }
 }
 
 // ----------------------------------------------------
@@ -357,10 +393,17 @@ export class MemoryStorageProvider implements IObjectStorageProvider {
     }
     return evicted;
   }
-}
 
-// ----------------------------------------------------
-// 3. POSTGRESQL DURABLE OBJECT STORAGE PROVIDER
+  async checkHealth(): Promise<StorageHealthDetails> {
+    return {
+      status: process.env.NODE_ENV === 'production' ? 'degraded' : 'healthy',
+      backend: 'in_memory',
+      isDurable: false,
+      persisted: false,
+      location: 'in_memory_map'
+    };
+  }
+}
 // (Production multi-instance / serverless durable tier)
 // ----------------------------------------------------
 export class PostgresObjectStorageProvider implements IObjectStorageProvider {
@@ -544,6 +587,28 @@ export class PostgresObjectStorageProvider implements IObjectStorageProvider {
       `DELETE FROM staged_objects WHERE expires_at < NOW() OR download_count >= max_downloads;`
     );
     return res.rowCount || 0;
+  }
+
+  async checkHealth(): Promise<StorageHealthDetails> {
+    try {
+      await this.pool.query('SELECT 1 FROM staged_objects LIMIT 1;');
+      return {
+        status: 'healthy',
+        backend: 'postgres_object_storage',
+        isDurable: true,
+        persisted: true,
+        location: 'postgresql://staged_objects'
+      };
+    } catch (err: any) {
+      return {
+        status: 'unhealthy',
+        backend: 'postgres_object_storage',
+        isDurable: true,
+        persisted: false,
+        location: 'postgresql://staged_objects',
+        error: err.message
+      };
+    }
   }
 }
 
