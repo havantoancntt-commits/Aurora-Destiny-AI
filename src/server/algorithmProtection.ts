@@ -336,7 +336,11 @@ export function verifyAlgorithmSignature(
  * proprietary astrological rule table via differential analysis.
  */
 export function antiScrapingSweeperMiddleware(req: Request, res: Response, next: NextFunction) {
-  const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+  let rawIp = req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  if (rawIp.startsWith('::ffff:')) {
+    rawIp = rawIp.slice(7);
+  }
+  const ip = rawIp.includes(':') ? rawIp.split(':').slice(0, 4).join(':') + '::/64' : rawIp;
   const userId = req.user?.id;
   const clientKey = userId ? `u_${userId}` : `ip_${ip}`;
 

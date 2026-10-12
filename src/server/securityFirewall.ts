@@ -261,11 +261,23 @@ function inspectValue(val: unknown, depth = 0): { detected: boolean; type?: Secu
   return { detected: false };
 }
 
+export function normalizeClientIp(req: Request): string {
+  let rawIp = req.ip || req.socket?.remoteAddress || '127.0.0.1';
+  if (rawIp.startsWith('::ffff:')) {
+    rawIp = rawIp.slice(7);
+  }
+  if (rawIp.includes(':')) {
+    const parts = rawIp.split(':');
+    return parts.slice(0, 4).join(':') + '::/64';
+  }
+  return rawIp;
+}
+
 /**
  * Enterprise Web Application Firewall (WAF) & Intrusion Prevention Middleware
  */
 export async function enterpriseSecurityFirewall(req: Request, res: Response, next: NextFunction) {
-  const ip = req.ip || req.socket.remoteAddress || '127.0.0.1';
+  const ip = normalizeClientIp(req);
   const ipHashed = hashIp(ip);
   const now = Date.now();
 
