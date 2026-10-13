@@ -437,7 +437,7 @@ export const CelestialTalismanModal: React.FC<Props> = ({
                     id="btn-download-talisman-card"
                     onClick={handleDownloadCard}
                     disabled={isDownloading}
-                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-600 hover:from-amber-300 hover:to-yellow-500 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-600 hover:from-amber-300 hover:to-yellow-500 text-slate-950 font-bold text-xs sm:text-sm transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] hover-sacred-wobble flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Download className="w-4 h-4" />
                     <span>{isDownloading ? 'Đang Khởi Tạo Thẻ...' : 'Tải Về Ảnh Thẻ Kim Giáp (HD)'}</span>

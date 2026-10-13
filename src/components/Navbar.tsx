@@ -210,7 +210,7 @@ export const Navbar: React.FC<Props> = ({
                         onOpenNewProfileModal();
                         setShowProfileMenu(false);
                       }}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-semibold transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-semibold transition-all shadow-sm active:scale-[0.98] hover-sacred-wobble cursor-pointer"
                     >
                       <Plus className="w-4 h-4 shrink-0 stroke-[2.5]" />
                       <span className="tracking-wide">Nhập Thông Tin / Lập Lá Số Mới</span>
@@ -280,7 +280,7 @@ export const Navbar: React.FC<Props> = ({
               <button
                 id="btn-nav-talisman-card"
                 onClick={onOpenTalismanModal}
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-600/20 border border-amber-400/50 text-amber-200 hover:text-white hover:border-amber-300 text-xs transition-all cursor-pointer shadow-[0_0_12px_rgba(251,191,36,0.2)] font-semibold"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-600/20 border border-amber-400/50 text-amber-200 hover:text-white hover:border-amber-300 text-xs hover-sacred-wobble transition-all cursor-pointer shadow-[0_0_12px_rgba(251,191,36,0.2)] font-semibold"
                 title="Khai Mở Thẻ Mệnh Kim Giáp 3D & Bia Vàng Công Đức"
               >
                 <Crown className="w-3.5 h-3.5 text-amber-400 fill-amber-400/30" />

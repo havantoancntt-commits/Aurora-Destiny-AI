@@ -1441,7 +1441,7 @@ export const OnboardingWizard: React.FC<Props> = ({
                         if (onSelectProfile) onSelectProfile(prof.id);
                         if (onCancel) onCancel();
                       }}
-                      className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                      className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer hover-sacred-wobble ${
                         isCurrent
                           ? 'bg-teal-400 text-black shadow-md'
                           : 'bg-white/10 hover:bg-white/20 text-white'
@@ -1470,12 +1470,17 @@ export const OnboardingWizard: React.FC<Props> = ({
             </div>
 
             <motion.button
-              whileHover={{ scale: 1.02 }}
+              whileHover={{
+                scale: 1.025,
+                rotate: [0, -1.8, 1.8, -1.1, 0.7, -0.3, 0],
+                y: [0, -2, -3, -2, -1, 0],
+                transition: { duration: 0.85, ease: "easeInOut" }
+              }}
               whileTap={{ scale: 0.98 }}
               type="button"
               disabled={isSubmitting}
               onClick={handleFinish}
-              className="w-full sm:w-auto min-h-[58px] flex flex-col items-center justify-center px-8 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold shadow-[0_0_40px_rgba(245,158,11,0.4)] hover:shadow-[0_0_60px_rgba(245,158,11,0.6)] transition-all cursor-pointer order-1 sm:order-2 border border-amber-300/80 group"
+              className="w-full sm:w-auto min-h-[58px] flex flex-col items-center justify-center px-8 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-300 hover:from-amber-300 hover:to-yellow-200 text-slate-950 font-bold shadow-[0_0_40px_rgba(245,158,11,0.4)] hover:shadow-[0_0_60px_rgba(245,158,11,0.6)] hover-sacred-wobble transition-all cursor-pointer order-1 sm:order-2 border border-amber-300/80 group"
             >
               <div className="flex items-center gap-2 text-sm sm:text-base font-extrabold tracking-wide">
                 <SacredTaijiSpinner size={24} speed={5} className="shrink-0" />

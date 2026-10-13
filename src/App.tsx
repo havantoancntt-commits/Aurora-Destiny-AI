@@ -603,13 +603,18 @@ export default function App() {
             <div className="w-full max-w-md mx-auto my-2">
               <motion.button
                 id="btn-open-onboarding-empty-state"
-                whileHover={{ scale: 1.02 }}
+                whileHover={{
+                  scale: 1.025,
+                  rotate: [0, -1.8, 1.8, -1.1, 0.7, -0.3, 0],
+                  y: [0, -2, -3, -2, -1, 0],
+                  transition: { duration: 0.85, ease: "easeInOut" }
+                }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   sacredSound.playSacredTap(528);
                   setShowOnboarding(true);
                 }}
-                className="group relative w-full overflow-hidden px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-yellow-300 hover:via-amber-300 hover:to-orange-400 text-slate-950 font-bold shadow-[0_0_35px_rgba(245,158,11,0.5)] hover:shadow-[0_0_60px_rgba(245,158,11,0.8)] transition-all cursor-pointer border-2 border-amber-200/90 ring-1 ring-amber-400/50 flex flex-col items-center justify-center gap-1 z-10"
+                className="group relative w-full overflow-hidden px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-yellow-300 hover:via-amber-300 hover:to-orange-400 text-slate-950 font-bold shadow-[0_0_35px_rgba(245,158,11,0.5)] hover:shadow-[0_0_60px_rgba(245,158,11,0.8)] hover-sacred-wobble transition-all cursor-pointer border-2 border-amber-200/90 ring-1 ring-amber-400/50 flex flex-col items-center justify-center gap-1 z-10"
               >
                 {/* Internal Shimmering Light Sweep Beam */}
                 <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
