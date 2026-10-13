@@ -620,10 +620,7 @@ export const Navbar: React.FC<Props> = ({
         </div>
       </header>
 
-      {/* Mobile Top Smart PWA Install Banner */}
-      <PWAInstallButton variant="banner" />
-
-      {/* PWA Install Guided Modal */}
+      {/* PWA Install Guided Modal (Available when triggered from menu or actions) */}
       <PWAInstallModal
         isOpen={showPWAModal}
         onClose={() => setShowPWAModal(false)}

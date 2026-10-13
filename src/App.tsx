@@ -8,7 +8,6 @@ import { Sparkles, UserPlus, Volume2, ArrowRight, BookOpen, Compass, ShieldCheck
 import { Navbar } from './components/Navbar';
 import { Top3DTabBar } from './components/Top3DTabBar';
 import { BottomNav, TabKey } from './components/BottomNav';
-import { ResponsibleAIBanner } from './components/ResponsibleAIBanner';
 import { DestinyDashboard } from './components/DestinyDashboard';
 import { LifeRadarView } from './components/LifeRadarView';
 import { TimelineView } from './components/TimelineView';
@@ -479,39 +478,7 @@ export default function App() {
         <div className="absolute inset-0 bg-immersive-radial opacity-25 pointer-events-none" />
       </div>
 
-      {/* 1. Scientific & Ethical Transparency Banner */}
-      <div className="relative z-10">
-        <ResponsibleAIBanner
-          language={language}
-          consistencyScore={ensemble?.overallConsistencyScore}
-          uncertaintyIndex={calculation?.confidence.uncertaintyIndex}
-        />
-      </div>
-
-      {/* Offline / Local-Only Sync Banner (Only shown when there are local profiles awaiting sync) */}
-      {(syncStatus === 'local_only' || syncStatus === 'sync_error' || syncStatus === 'syncing') && localProfileIds.size > 0 && (
-        <div id="offline-sync-indicator" className="relative z-20 bg-amber-950/90 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-200 flex flex-wrap items-center justify-between gap-2 shadow-sm backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${syncStatus === 'syncing' ? 'bg-blue-400 animate-spin' : syncStatus === 'sync_error' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-            <span>
-              <strong>{syncStatus === 'syncing' ? 'Đang đồng bộ...' : syncStatus === 'sync_error' ? 'Chưa đồng bộ máy chủ:' : 'Chế độ Thiết Bị (Local-Only):'}</strong>{' '}
-              {syncStatus === 'syncing'
-                ? 'Đang gửi dữ liệu tính toán lên máy chủ lưu trữ an toàn.'
-                : syncStatus === 'sync_error'
-                ? 'Không thể kết nối máy chủ. Lá số của bạn đang được lưu an toàn trên thiết bị này.'
-                : 'Hồ sơ này đang hoạt động trên trình duyệt và chưa được đồng bộ lưu trữ vào máy chủ.'}
-            </span>
-          </div>
-          <button
-            id="btn-retry-sync"
-            onClick={handleRetrySync}
-            disabled={syncStatus === 'syncing'}
-            className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 border border-amber-400/40 rounded text-xs font-mono font-medium transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            {syncStatus === 'syncing' ? 'Đang đồng bộ...' : 'Thử đồng bộ lại'}
-          </button>
-        </div>
-      )}
+      {/* 2. Top Header Navigation (Clean, unobstructed professional top bar) */}
 
       {/* 2. Top Header Navigation */}
       <div className="relative z-30">

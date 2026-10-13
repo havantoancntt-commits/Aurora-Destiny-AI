@@ -105,42 +105,8 @@ export const PWAInstallButton: React.FC<Props> = ({
         </button>
       )}
 
-      {/* Smart Banner variant: Elegant top notification banner for mobile web */}
-      {variant === 'banner' && !isDismissed && (
-        <div
-          id="banner-pwa-smart-install"
-          className={`w-full bg-gradient-to-r from-amber-950/70 via-slate-900/90 to-purple-950/70 border-b border-amber-500/30 px-3 py-2 text-xs flex items-center justify-between gap-2 shadow-lg backdrop-blur-md ${className}`}
-        >
-          <div className="flex items-center gap-2 overflow-hidden">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center shrink-0 shadow-sm">
-              <Sparkles className="w-4 h-4 text-slate-950" />
-            </div>
-            <div className="text-left truncate">
-              <p className="font-semibold text-amber-200 text-[11px] truncate">
-                Cài đặt Tinh Hoa Tử Vi
-              </p>
-              <p className="text-[10px] text-slate-400 truncate hidden min-[340px]:block">
-                Mượt mà, không quảng cáo, mở nhanh từ màn hình chính
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={handleTriggerInstall}
-              className="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-[11px] shadow-sm cursor-pointer transition-all"
-            >
-              Cài Đặt
-            </button>
-            <button
-              onClick={handleDismissBanner}
-              className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
-              title="Để sau"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Smart Banner variant: Disabled to prevent intrusive banners at the top of the screen */}
+      {/* PWA installation is comfortably handled via Navbar, BottomNav, and modals */}
 
       <PWAInstallModal
         isOpen={isModalOpen}
