@@ -4,6 +4,8 @@
 // and strict absence of secret/path leakage in serverless error responses.
 // ==========================================
 
+process.env.DISABLE_SERVER_LISTEN = 'true';
+
 import assert from 'node:assert';
 import test from 'node:test';
 import { EventEmitter } from 'node:events';
@@ -67,6 +69,20 @@ test('⚡ Vercel Serverless Initialization Error Classification Suite', async (t
 
       // Public message must NOT contain the secret password
       assert.strictEqual(classified.publicMessage.includes('SuperSecretPassword123'), false);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+    }
+  });
+
+  await t.test('5. Handler response preserves request ID and returns classified HTTP status', async () => {
+    const prevEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    try {
+      const classified = classifyInitializationError(new Error('DatabaseMigrator: table already exists'));
+      assert.strictEqual(classified.statusCode, 503);
+      assert.strictEqual(classified.code, 'MIGRATION_ERROR');
+      assert.strictEqual(classified.category, 'MIGRATION');
     } finally {
       process.env.NODE_ENV = prevEnv;
     }

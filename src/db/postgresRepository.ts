@@ -56,9 +56,30 @@ export function resolvePostgresSslConfig(
 ): PostgresSslConfigResult {
   const isProduction = env.NODE_ENV === 'production';
   const sslModeRaw = (env.PGSSLMODE || '').toLowerCase().trim();
+  const isDisableRequested = sslModeRaw === 'disable' || (connStr && connStr.includes('sslmode=disable')) || env.DATABASE_SSL === 'false';
 
-  // Explicit disable check
-  if (sslModeRaw === 'disable' || (connStr && connStr.includes('sslmode=disable'))) {
+  // Explicit disable check: Never silently allow disabling TLS in production!
+  if (isDisableRequested) {
+    if (isProduction) {
+      const allowInsecureNoSsl = env.DATABASE_ALLOW_INSECURE_NO_SSL_IN_PRODUCTION === 'true';
+      if (!allowInsecureNoSsl) {
+        throw new Error(
+          'FATAL SECURITY: Disabling PostgreSQL TLS (PGSSLMODE=disable / sslmode=disable) is strictly prohibited in production mode. Set DATABASE_ALLOW_INSECURE_NO_SSL_IN_PRODUCTION=true only if connecting via an isolated, private VPC network.'
+        );
+      }
+      console.warn(
+        '🚨 [SECURITY WARNING] PostgreSQL TLS is disabled in production via explicit DATABASE_ALLOW_INSECURE_NO_SSL_IN_PRODUCTION=true! All database wire traffic is unencrypted.'
+      );
+      return {
+        ssl: false,
+        mode: 'disable',
+        rejectUnauthorized: false,
+        hasCaCert: false,
+        isInsecureProductionOverride: true
+      };
+    }
+
+    // In dev / test: allow disabling TLS freely
     return {
       ssl: false,
       mode: 'disable',
@@ -90,7 +111,8 @@ export function resolvePostgresSslConfig(
       connStr.includes('sslmode=verify-ca') ||
       connStr.includes('sslmode=verify-full')
     )) ||
-    hasCloudDbDomain;
+    hasCloudDbDomain ||
+    isProduction; // In production, TLS is strictly required by default
 
   if (!isSslRequested) {
     return {

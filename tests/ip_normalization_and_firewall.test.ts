@@ -119,4 +119,28 @@ test('🔒 IP Normalization & /64 Subnet Aggregation Suite', async (t) => {
 
     assert.strictEqual(key1, key2, 'Both IPs in 2001:db8:1234:5678::/64 share identical rate limit bucket');
   });
+
+  await t.test('10. Zone identifiers and URL brackets are safely stripped prior to parsing', () => {
+    assert.strictEqual(normalizeIp('fe80::1%eth0'), 'fe80:0:0:0::/64');
+    assert.strictEqual(normalizeIp('2001:db8:85a3::1%12'), '2001:db8:85a3:0::/64');
+    assert.strictEqual(normalizeIp('[2001:db8::1]:8080'), '2001:db8:0:0::/64');
+    assert.strictEqual(normalizeIp('[::1]'), '0:0:0:0::/64');
+  });
+
+  await t.test('11. Security firewall, rate limiter and anti-scraping all rely on shared normalizeClientIp', () => {
+    const mockReqA: any = {
+      ip: '2001:db8:abcd:0012:0000:0000:0000:0001',
+      socket: { remoteAddress: '2001:db8:abcd:0012:0000:0000:0000:0001' }
+    };
+    const mockReqB: any = {
+      ip: '2001:db8:abcd:12::ffff',
+      socket: { remoteAddress: '2001:db8:abcd:12::ffff' }
+    };
+
+    const normA = normalizeClientIp(mockReqA);
+    const normB = normalizeClientIp(mockReqB);
+
+    assert.strictEqual(normA, '2001:db8:abcd:12::/64');
+    assert.strictEqual(normA, normB, 'Both firewall and anti-scraping see identical subnet key');
+  });
 });

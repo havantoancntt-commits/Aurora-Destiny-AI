@@ -4,6 +4,8 @@
 // and safe error messaging that never leaks secret values.
 // ==========================================
 
+process.env.DISABLE_SERVER_LISTEN = 'true';
+
 import assert from 'node:assert';
 import test from 'node:test';
 import { validateSecretEntropy, validateProductionConfig, InitializationError } from '../server';

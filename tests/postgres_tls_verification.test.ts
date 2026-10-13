@@ -99,13 +99,34 @@ test('🐘 PostgreSQL TLS/SSL Verification Policy Suite', async (t) => {
     assert.strictEqual(res.isInsecureProductionOverride, true, 'Must flag insecure production override');
   });
 
-  await t.test('8. PGSSLMODE=disable or sslmode=disable disables SSL completely', () => {
-    const env: NodeJS.ProcessEnv = {
+  await t.test('8. PGSSLMODE=disable is strictly rejected in production unless explicit override is configured', () => {
+    const envProdWithoutOverride: NodeJS.ProcessEnv = {
       NODE_ENV: 'production',
       PGSSLMODE: 'disable'
     };
-    const res = resolvePostgresSslConfig(env, 'postgresql://user:pass@db.supabase.co/db');
-    assert.strictEqual(res.ssl, false);
-    assert.strictEqual(res.mode, 'disable');
+    assert.throws(
+      () => resolvePostgresSslConfig(envProdWithoutOverride, 'postgresql://user:pass@db.supabase.co/db'),
+      /Disabling PostgreSQL TLS.*is strictly prohibited in production mode/
+    );
+
+    // With explicit insecure override in production
+    const envProdWithOverride: NodeJS.ProcessEnv = {
+      NODE_ENV: 'production',
+      PGSSLMODE: 'disable',
+      DATABASE_ALLOW_INSECURE_NO_SSL_IN_PRODUCTION: 'true'
+    };
+    const resOverride = resolvePostgresSslConfig(envProdWithOverride, 'postgresql://user:pass@db.supabase.co/db');
+    assert.strictEqual(resOverride.ssl, false);
+    assert.strictEqual(resOverride.mode, 'disable');
+    assert.strictEqual(resOverride.isInsecureProductionOverride, true);
+
+    // In development mode, PGSSLMODE=disable is permitted for local containers
+    const envDev: NodeJS.ProcessEnv = {
+      NODE_ENV: 'development',
+      PGSSLMODE: 'disable'
+    };
+    const resDev = resolvePostgresSslConfig(envDev, 'postgresql://user:pass@localhost:5432/db');
+    assert.strictEqual(resDev.ssl, false);
+    assert.strictEqual(resDev.mode, 'disable');
   });
 });

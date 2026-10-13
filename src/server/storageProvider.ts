@@ -45,6 +45,96 @@ export interface StorageHealthDetails {
   error?: string;
 }
 
+/**
+ * Safely parses boolean environment variables.
+ * Strictly requires the string "true" (case-insensitive).
+ * "false", "0", undefined, null, or empty string are strictly treated as false.
+ */
+export function parseBooleanEnv(val: string | undefined | null): boolean {
+  if (!val || typeof val !== 'string') return false;
+  return val.trim().toLowerCase() === 'true';
+}
+
+/**
+ * Checks if non-durable file storage is explicitly allowed in production.
+ * Only returns true if ALLOW_FILE_STORAGE_IN_PRODUCTION is strictly "true".
+ */
+export function isAllowFileStorageInProduction(env: NodeJS.ProcessEnv = process.env): boolean {
+  return parseBooleanEnv(env.ALLOW_FILE_STORAGE_IN_PRODUCTION);
+}
+
+export interface StoragePolicyEvaluation {
+  isAcceptable: boolean;
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  backend: 'postgres_object_storage' | 'local_disk' | 'in_memory' | string;
+  isDurable: boolean;
+  persisted: boolean;
+  location?: string;
+  reason?: string;
+  error?: string;
+}
+
+/**
+ * Unified storage policy evaluation across all health checks (/api/health, /health/storage, /api/health/dependencies).
+ * - Distinguishes liveness, readiness and durability.
+ * - Local filesystem on serverless is strictly non-durable (ephemeral).
+ * - Rejects non-durable storage in production unless ALLOW_FILE_STORAGE_IN_PRODUCTION === 'true'.
+ */
+export function evaluateStoragePolicy(
+  health: StorageHealthDetails,
+  env: NodeJS.ProcessEnv = process.env
+): StoragePolicyEvaluation {
+  const isProduction = env.NODE_ENV === 'production';
+  const allowNonDurable = isAllowFileStorageInProduction(env);
+
+  if (health.status === 'unhealthy') {
+    return {
+      isAcceptable: false,
+      status: 'unhealthy',
+      backend: health.backend,
+      isDurable: health.isDurable,
+      persisted: health.persisted,
+      location: health.location,
+      reason: 'STORAGE_UNHEALTHY',
+      error: health.error
+    };
+  }
+
+  // In production, non-durable backend is forbidden unless ALLOW_FILE_STORAGE_IN_PRODUCTION is explicitly 'true'
+  if (isProduction && !health.isDurable) {
+    if (!allowNonDurable) {
+      return {
+        isAcceptable: false,
+        status: 'unhealthy',
+        backend: health.backend,
+        isDurable: health.isDurable,
+        persisted: health.persisted,
+        location: health.location,
+        reason: 'NON_DURABLE_STORAGE_FORBIDDEN_IN_PRODUCTION',
+        error: 'Non-durable storage is strictly forbidden in production without explicit ALLOW_FILE_STORAGE_IN_PRODUCTION=true'
+      };
+    }
+    return {
+      isAcceptable: true,
+      status: 'degraded',
+      backend: health.backend,
+      isDurable: health.isDurable,
+      persisted: health.persisted,
+      location: health.location,
+      reason: 'NON_DURABLE_STORAGE_ALLOWED_VIA_OVERRIDE'
+    };
+  }
+
+  return {
+    isAcceptable: true,
+    status: health.status,
+    backend: health.backend,
+    isDurable: health.isDurable,
+    persisted: health.persisted,
+    location: health.location
+  };
+}
+
 export interface IObjectStorageProvider {
   save(key: string, data: Buffer, metadata: Omit<StoredFileMetadata, 'checksum' | 'size' | 'downloadCount'>): Promise<void>;
   get(key: string): Promise<StoredFileResult | null>;
@@ -282,11 +372,22 @@ export class LocalDiskStorageProvider implements IObjectStorageProvider {
         fs.mkdirSync(this.baseDir, { recursive: true, mode: 0o700 });
       }
       fs.accessSync(this.baseDir, fs.constants.R_OK | fs.constants.W_OK);
+
+      // Perform active read/write check to verify actual filesystem health
+      const testFile = path.join(this.baseDir, `.health_${Date.now()}_${Math.random().toString(36).slice(2)}.tmp`);
+      fs.writeFileSync(testFile, 'aurora_health_check', 'utf8');
+      const readBack = fs.readFileSync(testFile, 'utf8');
+      fs.unlinkSync(testFile);
+      if (readBack !== 'aurora_health_check') {
+        throw new Error('Filesystem read/write verification mismatch');
+      }
+
+      const isProd = process.env.NODE_ENV === 'production';
       return {
-        status: isServerless && process.env.NODE_ENV === 'production' ? 'degraded' : 'healthy',
+        status: isServerless && isProd ? 'degraded' : 'healthy',
         backend: 'local_disk',
-        isDurable: !isServerless,
-        persisted: true,
+        isDurable: !isServerless && !isProd,
+        persisted: !isServerless,
         location: this.baseDir
       };
     } catch (err: any) {
@@ -591,6 +692,9 @@ export class PostgresObjectStorageProvider implements IObjectStorageProvider {
 
   async checkHealth(): Promise<StorageHealthDetails> {
     try {
+      if (!this.pool) {
+        throw new Error('Database pool not initialized');
+      }
       await this.pool.query('SELECT 1 FROM staged_objects LIMIT 1;');
       return {
         status: 'healthy',
@@ -618,7 +722,7 @@ export class PostgresObjectStorageProvider implements IObjectStorageProvider {
 export function createStorageProvider(): IObjectStorageProvider {
   const isProduction = process.env.NODE_ENV === 'production';
   const hasPg = Boolean(process.env.DATABASE_URL);
-  const allowLocalFileInProd = Boolean(process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION);
+  const allowLocalFileInProd = isAllowFileStorageInProduction();
 
   if (hasPg && (isProduction || process.env.STORAGE_PROVIDER === 'postgres')) {
     return new PostgresObjectStorageProvider();

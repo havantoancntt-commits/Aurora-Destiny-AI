@@ -155,6 +155,12 @@ export function normalizeIp(rawInput: string | undefined | null): string {
     str = str.slice(0, str.indexOf(':'));
   }
 
+  // Strip zone identifier e.g. "fe80::1%eth0" or "fe80::1%12"
+  const zoneIndex = str.indexOf('%');
+  if (zoneIndex !== -1) {
+    str = str.slice(0, zoneIndex);
+  }
+
   // Quick check for IPv4
   if (net.isIPv4(str)) {
     return str;
@@ -210,8 +216,19 @@ export function normalizeIp(rawInput: string | undefined | null): string {
 export function getClientIp(req: Request): string {
   if (!req) return '127.0.0.1';
 
-  // Express automatically resolves trusted reverse-proxy chain via req.ip
-  // only when 'trust proxy' is configured on the app.
+  // If Express app is bound to request, check whether 'trust proxy' is actually enabled
+  if (req.app && typeof req.app.get === 'function') {
+    const trustProxy = req.app.get('trust proxy');
+    // If trust proxy is disabled (false, 0, undefined), Express ignores X-Forwarded-For
+    // and remoteAddress is the authoritative connection source.
+    if (!trustProxy) {
+      if (req.socket?.remoteAddress && typeof req.socket.remoteAddress === 'string') {
+        return req.socket.remoteAddress;
+      }
+    }
+  }
+
+  // When trust proxy is active (or standalone), use Express's trusted req.ip
   if (req.ip && typeof req.ip === 'string') {
     return req.ip;
   }

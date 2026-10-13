@@ -15,6 +15,7 @@ import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { ChatMessage } from '../types/ai';
 import { PostgresDatabaseRepository } from './postgresRepository';
 import { telemetry } from '../telemetry/telemetryService';
+import { isAllowFileStorageInProduction } from '../server/storageProvider';
 
 export interface AuditLogEntry {
   id: string;
@@ -1677,14 +1678,14 @@ export function createRepository(options?: { forceMode?: 'postgresql' | 'file'; 
     return new PostgresDatabaseRepository({ connectionString: rawDbUrl });
   }
 
-  if (isProd && options?.forceMode === 'file' && process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
+  if (isProd && options?.forceMode === 'file' && !isAllowFileStorageInProduction()) {
     const msg = 'FATAL: forceMode="file" is not permitted in production mode without ALLOW_FILE_STORAGE_IN_PRODUCTION=true.';
     console.error(`🚨 [Repository Factory] ${msg}`);
     throw new Error(msg);
   }
 
   if (isProd && !isPostgresUrl) {
-    if (process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION === 'true') {
+    if (isAllowFileStorageInProduction()) {
       console.error('🚨 [CRITICAL PRODUCTION WARNING] Running PersistentDatabaseRepository in production mode because ALLOW_FILE_STORAGE_IN_PRODUCTION=true. WARNING: Data stored on the local or ephemeral filesystem will NOT persist across serverless invocations or multiple container instances! Configure PostgreSQL DATABASE_URL for durable persistent storage.');
     } else {
       const msg = 'FATAL: Production mode strictly requires DATABASE_URL configured for PostgreSQL repository in multi-instance / serverless environments. Set ALLOW_FILE_STORAGE_IN_PRODUCTION=true only if explicitly running a single-instance container with durable persistent volume.';

@@ -61,7 +61,10 @@ import {
   getStorageProvider,
   setStorageProvider,
   generateSignedDownloadToken,
-  verifySignedDownloadToken
+  verifySignedDownloadToken,
+  evaluateStoragePolicy,
+  isAllowFileStorageInProduction,
+  parseBooleanEnv
 } from './src/server/storageProvider';
 
 import { runFullDestinyCalculation, CALCULATION_ENGINE_VERSION, ASTROLOGY_RULES_VERSION, ANALYSIS_MODEL_VERSION } from './src/engine/destinyEngine';
@@ -369,10 +372,12 @@ app.get('/api/health', async (req, res) => {
   const hasGeminiKey = !!process.env.GEMINI_API_KEY;
   const circuitOpen = isCircuitBreakerOpen();
 
-  const isHealthy = integrity.valid;
-  const storageHealth = await getStorageProvider().checkHealth();
-  const isOverallHealthy = isHealthy && storageHealth.status !== 'unhealthy';
-  const status = isOverallHealthy ? (hasGeminiKey && !circuitOpen && storageHealth.status === 'healthy' ? 'ok' : 'degraded') : 'error';
+  const isDbHealthy = integrity.valid;
+  const rawStorageHealth = await getStorageProvider().checkHealth();
+  const storagePolicy = evaluateStoragePolicy(rawStorageHealth);
+
+  const isOverallHealthy = isDbHealthy && storagePolicy.isAcceptable;
+  const status = isOverallHealthy ? (hasGeminiKey && !circuitOpen && storagePolicy.status === 'healthy' ? 'ok' : 'degraded') : 'error';
   const metrics = await repository.getMetrics();
 
   res.status(isOverallHealthy ? 200 : 503).json({
@@ -388,10 +393,11 @@ app.get('/api/health', async (req, res) => {
         integrityErrors: integrity.errors
       },
       storage: {
-        status: storageHealth.status === 'healthy' ? 'pass' : (storageHealth.status === 'degraded' ? 'degraded' : 'fail'),
-        backend: storageHealth.backend,
-        isDurable: storageHealth.isDurable,
-        persisted: storageHealth.persisted
+        status: storagePolicy.isAcceptable ? (storagePolicy.status === 'healthy' ? 'pass' : 'warn') : 'fail',
+        backend: storagePolicy.backend,
+        isDurable: storagePolicy.isDurable,
+        persisted: storagePolicy.persisted,
+        ...(storagePolicy.reason ? { reason: storagePolicy.reason } : {})
       },
       ai: {
         status: hasGeminiKey ? (circuitOpen ? 'circuit_open_fallback_active' : 'pass') : 'unconfigured_deterministic_fallback_active',
@@ -413,10 +419,18 @@ app.get(['/health', '/api/health/live'], (req, res) => {
 
 app.get(['/ready', '/api/health/ready'], async (req, res) => {
   const integrity = await repository.verifyDatabaseIntegrity();
-  if (integrity.valid) {
-    res.status(200).json({ status: 'ready', database: 'connected' });
+  const rawStorageHealth = await getStorageProvider().checkHealth();
+  const storagePolicy = evaluateStoragePolicy(rawStorageHealth);
+
+  if (integrity.valid && storagePolicy.isAcceptable) {
+    res.status(200).json({ status: 'ready', database: 'connected', storage: storagePolicy.status });
   } else {
-    res.status(503).json({ status: 'unavailable', reason: 'DATABASE_INTEGRITY_FAILED', errors: integrity.errors });
+    res.status(503).json({
+      status: 'unavailable',
+      reason: !integrity.valid ? 'DATABASE_INTEGRITY_FAILED' : 'STORAGE_POLICY_FAILED',
+      errors: integrity.errors,
+      ...(storagePolicy.reason ? { storageReason: storagePolicy.reason } : {})
+    });
   }
 });
 
@@ -458,22 +472,18 @@ app.get(['/health/ai', '/api/health/ai'], (req, res) => {
 });
 
 app.get(['/health/storage', '/api/health/storage'], async (req, res) => {
-  const storage = getStorageProvider();
-  const storageHealth = await storage.checkHealth();
-  const isProduction = process.env.NODE_ENV === 'production';
-  const allowNonDurable = Boolean(process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION);
-
-  // In production, object storage must be durable unless explicitly allowed
-  const isHealthy = storageHealth.status !== 'unhealthy' && (!isProduction || storageHealth.isDurable || allowNonDurable);
-  const httpCode = isHealthy ? 200 : 503;
+  const rawStorageHealth = await getStorageProvider().checkHealth();
+  const storagePolicy = evaluateStoragePolicy(rawStorageHealth);
+  const httpCode = storagePolicy.isAcceptable ? 200 : 503;
 
   res.status(httpCode).json({
-    status: isHealthy ? storageHealth.status : 'unhealthy',
-    backend: storageHealth.backend,
-    isDurable: storageHealth.isDurable,
-    persisted: storageHealth.persisted,
-    location: storageHealth.location,
-    ...(storageHealth.error ? { error: storageHealth.error } : {})
+    status: storagePolicy.isAcceptable ? storagePolicy.status : 'unhealthy',
+    backend: storagePolicy.backend,
+    isDurable: storagePolicy.isDurable,
+    persisted: storagePolicy.persisted,
+    location: storagePolicy.location,
+    ...(storagePolicy.reason ? { reason: storagePolicy.reason } : {}),
+    ...(storagePolicy.error ? { error: storagePolicy.error } : {})
   });
 });
 
@@ -494,8 +504,8 @@ app.get('/api/health/dependencies', async (req, res) => {
   const circuitOpen = isCircuitBreakerOpen();
   const cacheStatus = getCacheStatus();
   const metrics = await repository.getMetrics();
-  const storage = getStorageProvider();
-  const storageHealth = await storage.checkHealth();
+  const rawStorageHealth = await getStorageProvider().checkHealth();
+  const storagePolicy = evaluateStoragePolicy(rawStorageHealth);
 
   const dependencies = {
     application: {
@@ -522,26 +532,23 @@ app.get('/api/health/dependencies', async (req, res) => {
       hitRatio: metrics.cacheHitRatio
     },
     storage: {
-      status: storageHealth.status,
-      backend: storageHealth.backend,
-      isDurable: storageHealth.isDurable,
-      persisted: storageHealth.persisted,
-      location: storageHealth.location,
-      ...(storageHealth.error ? { error: storageHealth.error } : {})
+      status: storagePolicy.isAcceptable ? storagePolicy.status : 'unhealthy',
+      backend: storagePolicy.backend,
+      isDurable: storagePolicy.isDurable,
+      persisted: storagePolicy.persisted,
+      location: storagePolicy.location,
+      ...(storagePolicy.reason ? { reason: storagePolicy.reason } : {}),
+      ...(storagePolicy.error ? { error: storagePolicy.error } : {})
     }
   };
-
-  const isProduction = process.env.NODE_ENV === 'production';
-  const allowNonDurable = Boolean(process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION);
-  const storageOk = storageHealth.status !== 'unhealthy' && (!isProduction || storageHealth.isDurable || allowNonDurable);
 
   const allCrucialHealthy =
     dependencies.application.status === 'healthy' &&
     dependencies.database.status === 'healthy' &&
-    storageOk;
+    storagePolicy.isAcceptable;
 
   res.status(allCrucialHealthy ? 200 : 503).json({
-    status: allCrucialHealthy ? (circuitOpen || !hasGeminiKey || storageHealth.status === 'degraded' ? 'degraded' : 'healthy') : 'unhealthy',
+    status: allCrucialHealthy ? (circuitOpen || !hasGeminiKey || storagePolicy.status === 'degraded' ? 'degraded' : 'healthy') : 'unhealthy',
     timestamp: new Date().toISOString(),
     dependencies
   });
@@ -2450,7 +2457,7 @@ export function validateProductionConfig(): void {
       (rawDbUrl.startsWith('postgresql://') || rawDbUrl.startsWith('postgres://')) &&
       !rawDbUrl.toLowerCase().includes('none');
 
-    if (!isPostgresUrl && process.env.ALLOW_FILE_STORAGE_IN_PRODUCTION !== 'true') {
+    if (!isPostgresUrl && !isAllowFileStorageInProduction()) {
       configIssues.push('DATABASE_URL is strictly required for PostgreSQL in production (or set ALLOW_FILE_STORAGE_IN_PRODUCTION=true)');
     }
 
@@ -2672,7 +2679,10 @@ export { app, startServer };
 export default app;
 
 const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const isTest = process.env.NODE_ENV === 'test' || process.env.DISABLE_SERVER_LISTEN === 'true';
+const isTest =
+  process.env.NODE_ENV === 'test' ||
+  process.env.DISABLE_SERVER_LISTEN === 'true' ||
+  Boolean(process.argv.some(arg => typeof arg === 'string' && (arg.includes('.test.') || arg.includes('tests/'))));
 
 if (!isServerless && !isTest) {
   startServer().catch(err => {
