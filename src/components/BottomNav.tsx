@@ -37,7 +37,12 @@ export const BottomNav: React.FC<Props> = ({ activeTab, onSelectTab, language })
   ];
 
   return (
-    <div className="fixed bottom-2 sm:bottom-3 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-xl pointer-events-none transition-all duration-300">
+    <div
+      style={{
+        bottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))'
+      }}
+      className="fixed left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-xl pointer-events-none transition-all duration-300"
+    >
       <nav aria-label="Bottom Navigation Dock" className="relative pointer-events-auto bg-[#080912]/95 backdrop-blur-2xl border border-white/15 p-1 sm:p-1.5 rounded-2xl shadow-[0_16px_50px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)]">
         {/* Specular Ambient Top Glow */}
         <div className="absolute top-0 inset-x-12 h-[1px] bg-gradient-to-r from-transparent via-teal-400/50 to-transparent pointer-events-none" />
@@ -50,7 +55,7 @@ export const BottomNav: React.FC<Props> = ({ activeTab, onSelectTab, language })
               <button
                 key={key}
                 onClick={() => onSelectTab(key)}
-                className={`group relative flex flex-col items-center justify-center py-1.5 sm:py-2 px-0.5 sm:px-1 rounded-xl transition-all duration-200 select-none cursor-pointer transform-gpu ${
+                className={`group relative flex flex-col items-center justify-center py-1.5 sm:py-2 px-0.5 sm:px-1 rounded-xl transition-all duration-200 select-none cursor-pointer transform-gpu touch-manipulation ${
                   isActive
                     ? 'text-white font-medium'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'

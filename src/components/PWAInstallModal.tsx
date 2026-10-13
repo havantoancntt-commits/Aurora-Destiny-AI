@@ -101,10 +101,10 @@ export const PWAInstallModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </span>
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-white tracking-wide">
-                Cài Đặt Aurora Destiny AI
+                Cài Đặt Tinh Hoa Tử Vi
               </h2>
               <p className="text-xs text-slate-400">
-                Trải nghiệm ứng dụng bản địa độc lập trên thiết bị của bạn
+                Trải nghiệm ứng dụng bản địa độc lập trên mọi thiết bị (PWA)
               </p>
             </div>
           </div>
@@ -117,7 +117,7 @@ export const PWAInstallModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <span>Ứng dụng đã được cài đặt thành công!</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Bạn đang chạy Aurora Destiny AI trong chế độ Standalone Native độc lập. Mọi cập nhật và tính năng ngoại tuyến đã được kích hoạt hoàn toàn.
+                Bạn đang chạy Tinh Hoa Tử Vi (Aurora Destiny AI) trong chế độ Standalone Native độc lập. Mọi cập nhật và tính năng ngoại tuyến đã được kích hoạt hoàn toàn.
               </p>
             </div>
           ) : (

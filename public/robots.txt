@@ -1,8 +1,8 @@
 # ==========================================================
-# AURORA DESTINY AI — ROBOTS.TXT
+# TINH HOA TỬ VI — AURORA DESTINY AI — ROBOTS.TXT
 # Official Platform: Kênh Huyền Phong Phật Đạo
 # Conceived & Engineered by: Giáo Sư - Prof.TOAN
-# Canonical URL: https://auroradestiny.ai
+# Canonical URL: https://tinhhoa-tuvi.vercel.app
 # ==========================================================
 
 User-agent: *
@@ -53,4 +53,4 @@ User-agent: facebookexternalhit
 Allow: /
 
 # Canonical Sitemap Location
-Sitemap: https://auroradestiny.ai/sitemap.xml
+Sitemap: https://tinhhoa-tuvi.vercel.app/sitemap.xml

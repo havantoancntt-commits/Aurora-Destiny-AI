@@ -49,13 +49,17 @@ export const SocialShareCardModal: React.FC<Props> = ({
   // Compute privacy-safe codex ID
   const codexId = `AURORA-${calculation.inputSnapshot.solarYear}-${bazi.dayMaster.substring(0, 3).toUpperCase()}-${Math.abs(calculation.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 9000 + 1000)}`;
 
-  const shareSummaryText = `✨ Thẻ Khám Phá Năng Lượng Bản Mệnh — Aurora Destiny AI
+  const shareUrl = typeof window !== 'undefined' && window.location.origin.includes('vercel.app')
+    ? window.location.origin
+    : 'https://tinhhoa-tuvi.vercel.app';
+
+  const shareSummaryText = `✨ Thẻ Khám Phá Năng Lượng Bản Mệnh — Tinh Hoa Tử Vi (Aurora Destiny AI)
 Nhật Chủ: ${dm.nameVi} (${dmElementVi})
 Cách Cục: ${bazi.structureType}
 Dụng Thần Cân Bằng: ${favorableStr}
 Mã Bản Mệnh Codex: ${codexId}
-"Understand the patterns. Shape your future."
-Khám phá tại: https://auroradestiny.ai`;
+"Chiêm bái thiên văn, thấu hiểu vận mệnh."
+Khám phá tại: ${shareUrl}`;
 
   const handleCopyText = () => {
     navigator.clipboard.writeText(shareSummaryText);

@@ -43,7 +43,7 @@ export function initClientSecurityShield() {
       if (!selection || selection.toString().length < 50) return;
 
       const selectedText = selection.toString();
-      const watermark = '\n\n[Nguồn xác thực: Aurora Destiny AI — Bản quyền thuật toán độc quyền thuộc Prof.TOAN & Kênh Huyền Phong Phật Đạo (https://auroradestiny.ai)]';
+      const watermark = '\n\n[Nguồn xác thực: Tinh Hoa Tử Vi (Aurora Destiny AI) — Bản quyền thuật toán độc quyền thuộc Prof.TOAN & Kênh Huyền Phong Phật Đạo (https://tinhhoa-tuvi.vercel.app)]';
 
       if (e.clipboardData) {
         e.clipboardData.setData('text/plain', selectedText + watermark);

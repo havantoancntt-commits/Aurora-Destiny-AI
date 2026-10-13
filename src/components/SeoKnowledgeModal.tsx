@@ -44,9 +44,11 @@ export const SeoKnowledgeModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   const isVi = language === 'vi';
-  const canonicalUrl = 'https://auroradestiny.ai/';
+  const canonicalUrl = typeof window !== 'undefined' && window.location.origin.includes('vercel.app')
+    ? window.location.origin + '/'
+    : 'https://tinhhoa-tuvi.vercel.app/';
 
-  const citationText = `Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo. (2024-${new Date().getFullYear()}). "Aurora Destiny AI — Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý Tử Vi 108 Tinh Bàn Chuẩn Xác". Truy cập tại: https://auroradestiny.ai/`;
+  const citationText = `Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo. (2024-${new Date().getFullYear()}). "Tinh Hoa Tử Vi — Aurora Destiny AI — Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý Tử Vi 108 Tinh Bàn Chuẩn Xác". Truy cập tại: ${canonicalUrl}`;
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(canonicalUrl).then(() => {

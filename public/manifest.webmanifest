@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "short_name": "Aurora AI",
-  "name": "Aurora Destiny AI — Huyền Phong Phật Đạo",
+  "short_name": "Tinh Hoa AI",
+  "name": "Tinh Hoa Tử Vi — Aurora Destiny AI",
   "description": "Nền tảng Siêu Trí Tuệ Nhân Tạo & Thiên Văn Mệnh Lý trực thuộc kênh Huyền Phong Phật Đạo. Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn và Hội đồng 7 Tác tử AI.",
   "icons": [
     {
@@ -40,7 +40,7 @@
   "display": "standalone",
   "theme_color": "#050508",
   "background_color": "#050508",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "categories": [
     "lifestyle",
     "utilities",

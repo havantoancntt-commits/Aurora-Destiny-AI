@@ -540,8 +540,8 @@ export default function App() {
       {/* 3. Main Workspace Content Area */}
       <main className={`relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-4 flex-1 w-full flex flex-col ${
         activeProfile && calculation && ensemble
-          ? 'pb-6 sm:pb-10'
-          : 'pb-4 sm:pb-8 min-h-[calc(100vh-120px)] justify-center'
+          ? 'pb-28 sm:pb-32'
+          : 'pb-6 sm:pb-10 min-h-[calc(100vh-120px)] justify-center'
       }`}>
         {/* Top 3D Navigation Tab Bar (Only when active profile exists) */}
         {activeProfile && calculation && ensemble && (

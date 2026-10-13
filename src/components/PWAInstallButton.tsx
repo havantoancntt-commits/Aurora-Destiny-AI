@@ -63,7 +63,7 @@ export const PWAInstallButton: React.FC<Props> = ({
           id="btn-pwa-install-header"
           onClick={handleTriggerInstall}
           className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-amber-400/20 to-yellow-500/15 hover:from-amber-500/25 hover:to-yellow-400/25 border border-amber-500/40 text-amber-200 hover:text-amber-100 text-xs font-medium transition-all shadow-[0_0_10px_rgba(245,158,11,0.15)] cursor-pointer select-none shrink-0 ${className}`}
-          title="Cài đặt ứng dụng Aurora Destiny AI vào thiết bị"
+          title="Cài đặt ứng dụng Tinh Hoa Tử Vi vào thiết bị"
         >
           {isIOS ? (
             <Smartphone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -88,7 +88,7 @@ export const PWAInstallButton: React.FC<Props> = ({
           ) : (
             <Download className="w-4 h-4 text-slate-950" />
           )}
-          <span>Cài Đặt Aurora AI (PWA)</span>
+          <span>Cài Đặt Tinh Hoa Tử Vi (PWA)</span>
         </button>
       )}
 
@@ -117,7 +117,7 @@ export const PWAInstallButton: React.FC<Props> = ({
             </div>
             <div className="text-left truncate">
               <p className="font-semibold text-amber-200 text-[11px] truncate">
-                Cài đặt Aurora Destiny AI
+                Cài đặt Tinh Hoa Tử Vi
               </p>
               <p className="text-[10px] text-slate-400 truncate hidden min-[340px]:block">
                 Mượt mà, không quảng cáo, mở nhanh từ màn hình chính

@@ -4,7 +4,7 @@
 // Curated by Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo
 // ==========================================================
 
-const CACHE_VERSION = 'v2.6.0';
+const CACHE_VERSION = 'v3.1.0-tinhhoa';
 const STATIC_CACHE_NAME = `aurora-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `aurora-dynamic-${CACHE_VERSION}`;
 
@@ -123,7 +123,7 @@ self.addEventListener('fetch', (event) => {
 // 5. PUSH NOTIFICATION: Can-Chi hourly transit alerts & Astrological updates
 self.addEventListener('push', (event) => {
   let data = {
-    title: 'Aurora Destiny AI • Vận Khí Can Chi',
+    title: 'Tinh Hoa Tử Vi • Vận Khí Can Chi',
     body: 'Thời khắc thiên bàn vừa chuyển canh giờ mới. Hãy kiểm tra nhịp năng lượng.',
     icon: '/pwa-192x192.png',
     badge: '/icon.svg',

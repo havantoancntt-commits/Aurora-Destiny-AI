@@ -197,7 +197,15 @@ export function isOriginAllowed(originHeader: string | undefined, hostHeader: st
       }
     }
 
-    // In production: reject any origin not explicitly allowlisted (no wildcards)
+    // 3. Deployed Vercel domain & preview environments
+    if (
+      originUrl.hostname === 'tinhhoa-tuvi.vercel.app' ||
+      originUrl.hostname.endsWith('.vercel.app')
+    ) {
+      return true;
+    }
+
+    // In production: reject any origin not explicitly allowlisted
     if (isProd) {
       return false;
     }
@@ -1849,7 +1857,7 @@ app.get('/robots.txt', (req: Request, res: Response) => {
   }
 
   // Guaranteed resilient fallback
-  const fallbackRobots = `User-agent: *\nAllow: /\nDisallow: /api/admin/\nDisallow: /api/auth/\n\nSitemap: https://auroradestiny.ai/sitemap.xml\n`;
+  const fallbackRobots = `User-agent: *\nAllow: /\nDisallow: /api/admin/\nDisallow: /api/auth/\n\nSitemap: https://tinhhoa-tuvi.vercel.app/sitemap.xml\n`;
   return res.send(fallbackRobots);
 });
 
@@ -1863,7 +1871,7 @@ app.get('/sitemap.xml', (req: Request, res: Response) => {
     return res.sendFile(sitemapPath);
   }
 
-  const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://auroradestiny.ai/</loc><lastmod>${new Date().toISOString()}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>`;
+  const fallbackSitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://tinhhoa-tuvi.vercel.app/</loc><lastmod>${new Date().toISOString()}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>`;
   return res.send(fallbackSitemap);
 });
 
@@ -1886,21 +1894,22 @@ app.get('/og-image.svg', (req: Request, res: Response) => {
   if (fs.existsSync(ogPath)) {
     return res.sendFile(ogPath);
   }
-  return res.status(404).send('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#050508"/><text x="50%" y="50%" fill="#ffffff" text-anchor="middle" font-size="40">Aurora Destiny AI</text></svg>');
+  return res.status(404).send('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630"><rect width="1200" height="630" fill="#050508"/><text x="50%" y="50%" fill="#ffffff" text-anchor="middle" font-size="40">Tinh Hoa Tử Vi — Aurora Destiny AI</text></svg>');
 });
 
 app.get('/api/seo/metadata', (req: Request, res: Response) => {
   res.json({
-    platform: 'Aurora Destiny AI',
+    platform: 'Tinh Hoa Tử Vi — Aurora Destiny AI',
     channel: 'Kênh Huyền Phong Phật Đạo',
     author: 'Giáo Sư - Prof.TOAN',
     email: 'havantoancntt@gmail.com',
-    canonicalUrl: 'https://auroradestiny.ai/',
-    sitemapUrl: 'https://auroradestiny.ai/sitemap.xml',
-    robotsUrl: 'https://auroradestiny.ai/robots.txt',
-    ogImageUrl: 'https://auroradestiny.ai/og-image.svg',
-    title: 'Aurora Destiny AI — Luận Giải Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn & Siêu Trí Tuệ Nhân Tạo',
+    canonicalUrl: 'https://tinhhoa-tuvi.vercel.app/',
+    sitemapUrl: 'https://tinhhoa-tuvi.vercel.app/sitemap.xml',
+    robotsUrl: 'https://tinhhoa-tuvi.vercel.app/robots.txt',
+    ogImageUrl: 'https://tinhhoa-tuvi.vercel.app/og-image.svg',
+    title: 'Tinh Hoa Tử Vi — Luận Giải Bát Tự Tứ Trụ, Tử Vi Đẩu Số 108 Tinh Bàn & Siêu Trí Tuệ Nhân Tạo',
     keywords: [
+      'Tinh Hoa Tử Vi',
       'Tử Vi Đẩu Số 108 Tinh Bàn',
       'Bát Tự Tứ Trụ',
       'Giờ Sinh Chân Mặt Trời',
