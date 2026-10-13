@@ -383,3 +383,12 @@
   overflow: hidden !important;
   margin: 0 !important;
 }
+
+/* Anti-Scraping & Asset Protection Shield */
+.protect-intellectual-property,
+.sacred-chart-protected {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+

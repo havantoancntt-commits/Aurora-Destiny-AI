@@ -108,6 +108,7 @@ export class AppError extends Error {
 }
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = Number(process.env.PORT) || 3000;
 
 // Trust reverse proxy configurable by environment (defaults to 1 hop behind Cloud Run/Nginx)
@@ -323,36 +324,40 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Download-Options', 'noopen');
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), accelerometer=(), gyroscope=(), magnetometer=(), display-capture=()');
   
   if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   }
 
-  // Content Security Policy - hardened for production while permitting development and AI Studio preview
+  // Content Security Policy - hardened for production while permitting Vercel and AI Studio preview
   const isProd = process.env.NODE_ENV === 'production';
   const cspPolicy = isProd
     ? [
         "default-src 'self'",
-        "script-src 'self'",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        "font-src 'self' https://fonts.gstatic.com data:",
-        "img-src 'self' data: blob:",
-        "connect-src 'self'",
-        "object-src 'none'",
-        "base-uri 'self'",
-        "frame-ancestors 'self' https://aistudio.google.com https://ai.studio"
-      ].join('; ')
-    : [
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",
-        "connect-src 'self' ws: wss: https:",
+        "connect-src 'self' https: wss: https://*.vercel.app https://generativelanguage.googleapis.com",
         "object-src 'none'",
         "base-uri 'self'",
-        "frame-ancestors 'self' https://aistudio.google.com https://ai.studio"
+        "form-action 'self'",
+        "frame-ancestors 'self' https://aistudio.google.com https://ai.studio https://tinhhoa-tuvi.vercel.app https://*.vercel.app"
+      ].join('; ')
+    : [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob: https:",
+        "connect-src 'self' ws: wss: https: https://*.vercel.app https://generativelanguage.googleapis.com",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'self' https://aistudio.google.com https://ai.studio https://tinhhoa-tuvi.vercel.app https://*.vercel.app"
       ].join('; ');
 
   res.setHeader('Content-Security-Policy', cspPolicy);

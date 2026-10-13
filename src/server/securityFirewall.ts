@@ -109,7 +109,11 @@ const COMMAND_INJECTION_PATTERNS = [
   /(;\s*(cat|ls|id|whoami|uname|nc|bash|sh|curl|wget)\b)/i,
   /(\|\s*(cat|ls|id|whoami|uname|nc|bash|sh|curl|wget)\b)/i,
   /(`[^`]*`)/,
-  /(\$\([^)]*\))/
+  /(\$\([^)]*\))/,
+  /(169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200)/i, // Cloud metadata SSRF
+  /(\b(gopher|dict|ldap|tftp)\:\/\/)/i, // Protocol smuggling SSRF
+  /(\$\{\s*(jndi|lower|upper|env|sys):)/i, // Log4j / JNDI Remote Code Execution
+  /(\{\{\s*(\d+\s*[\*\+\-\/]\s*\d+|config|request|session|self)\s*\}\})/i // Server-Side Template Injection (SSTI)
 ];
 
 const MALICIOUS_BOT_USER_AGENTS = [
