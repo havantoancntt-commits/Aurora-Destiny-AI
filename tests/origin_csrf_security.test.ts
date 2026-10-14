@@ -107,6 +107,4 @@ test('Origin, CORS & CSRF Defense Suite', async (t) => {
       'AI Studio origin must be allowed in dev'
     );
   });
-}).then(() => {
-  process.exit(0);
 });

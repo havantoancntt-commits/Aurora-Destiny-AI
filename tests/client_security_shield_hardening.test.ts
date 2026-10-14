@@ -98,4 +98,21 @@ test('🛡️ Client Security Shield & CSP Hardening Suite', async (t) => {
       'pdfExport.ts must use safeTitle in title tags'
     );
   });
+
+  await t.test('6. initClientSecurityShield is idempotent across multiple sequential calls', () => {
+    // Calling multiple times must not throw, re-bind duplicate listeners or throw errors
+    assert.doesNotThrow(() => {
+      initClientSecurityShield();
+      initClientSecurityShield({ allowDevInLocalhost: true });
+      initClientSecurityShield({ allowDevInLocalhost: false });
+    });
+  });
+
+  await t.test('7. showSecurityToast handles non-browser environment safely without throw', () => {
+    // In Node.js / test environment (document is undefined), showSecurityToast exits cleanly
+    assert.doesNotThrow(() => {
+      showSecurityToast('Test notification');
+      showSecurityToast('<script>alert("xss")</script>');
+    });
+  });
 });

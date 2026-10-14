@@ -101,6 +101,4 @@ test('Rate Limiter Fail-Closed & Store Integrity Suite', async (t) => {
     assert.strictEqual(finalCount, iterations, `Final count must strictly equal ${iterations}`);
     store.destroy();
   });
-}).then(() => {
-  process.exit(0);
 });
