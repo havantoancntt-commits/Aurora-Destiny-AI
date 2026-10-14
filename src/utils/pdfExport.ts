@@ -276,12 +276,22 @@ export async function exportDossierToPDF(
  * Produces an ultra-fast, zero-dependency .html file that can be opened on any phone,
  * runs 100% offline, and includes full fonts, dark theme, and an embedded native Print button.
  */
+function escapeHtml(str: string): string {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function exportOfflineHtmlBook(
   pageContainerElement: HTMLElement,
   title: string,
   fileName: string
 ): boolean {
   try {
+    const safeTitle = escapeHtml(title);
     const rawHtml = pageContainerElement.innerHTML;
 
     // Collect all computed or existing stylesheets for standalone rendering
@@ -290,7 +300,7 @@ export function exportOfflineHtmlBook(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} — Sách Bản Mệnh Tinh Hoa (Offline Edition)</title>
+  <title>${safeTitle} — Sách Bản Mệnh Tinh Hoa (Offline Edition)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -432,6 +442,7 @@ export function openInDedicatedPrintWindow(
   title: string
 ): boolean {
   try {
+    const safeTitle = escapeHtml(title);
     const rawHtml = pageContainerElement.innerHTML;
     const printWindow = window.open('', '_blank');
 
@@ -445,7 +456,7 @@ export function openInDedicatedPrintWindow(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} — Xuất Bản A4</title>
+  <title>${safeTitle} — Xuất Bản A4</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">

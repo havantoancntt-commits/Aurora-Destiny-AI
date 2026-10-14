@@ -337,7 +337,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const cspPolicy = isProd
     ? [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+        "script-src 'self' 'unsafe-inline' https:",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",
@@ -349,7 +349,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
       ].join('; ')
     : [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+        "script-src 'self' 'unsafe-inline' https:",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",
