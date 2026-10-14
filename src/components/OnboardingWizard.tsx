@@ -38,7 +38,6 @@ import { SacredVoiceGuideWidget } from './SacredVoiceGuideWidget';
 import { sacredVoice } from '../services/sacredVoiceService';
 import { sacredSound } from '../services/soundService';
 import { SacredParticles } from './SacredParticles';
-import { SacredMandalaAura } from './SacredMandalaAura';
 import { SacredSealBadge } from './SacredSealBadge';
 import { SacredTaijiSpinner } from './SacredTaijiSpinner';
 
@@ -436,10 +435,8 @@ export const OnboardingWizard: React.FC<Props> = ({
         transition={{ duration: 0.35, ease: 'easeOut' }}
         className="w-full max-w-2xl rounded-3xl bg-[#0d0e17] border border-amber-500/40 p-5 sm:p-7 space-y-6 shadow-[0_0_80px_rgba(245,158,11,0.25)] text-slate-100 relative my-auto max-h-[94vh] flex flex-col justify-between overflow-y-auto"
       >
-        {/* SACRED PARTICLES & ROTATING MANDALA AURA BACKGROUND */}
-        <SacredParticles density="subtle" className="opacity-35" />
-        <SacredMandalaAura size={420} className="-top-16 -right-20" opacity={0.16} />
-        <SacredMandalaAura size={340} className="-bottom-20 -left-16" opacity={0.12} />
+        {/* Clean Atmospheric Starlight Particle Background (Không vòng xoay gây rối mắt) */}
+        <SacredParticles density="subtle" className="opacity-25" />
 
         {/* Top Glow Accent */}
         <div className="absolute top-0 left-1/4 right-1/4 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90 blur-xs pointer-events-none" />

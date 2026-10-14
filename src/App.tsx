@@ -37,7 +37,6 @@ import { PWAOfflineIndicator } from './components/PWAOfflineIndicator';
 import { sacredSound } from './services/soundService';
 import { sacredVoice } from './services/sacredVoiceService';
 import { SacredSealBadge } from './components/SacredSealBadge';
-import { SacredMandalaAura } from './components/SacredMandalaAura';
 import { SacredTaijiSpinner } from './components/SacredTaijiSpinner';
 
 import { UserProfile, UserPreferences } from './types/user';
@@ -555,8 +554,10 @@ export default function App() {
           </div>
         ) : !activeProfile || !calculation || !ensemble ? (
           <div className="flex flex-col items-center justify-center my-auto w-full max-w-xl mx-auto text-center px-4 py-2 relative">
-            {/* Sacred Rotating Mandala Aura in Background */}
-            <SacredMandalaAura size={480} className="-top-12" opacity={0.16} />
+            {/* Sacred Ambient Atmospheric Backlight (Êm dịu, tĩnh tại, hoàn toàn không có vòng tròn chồng lấn) */}
+            <div className="absolute -top-6 inset-x-0 h-80 pointer-events-none flex items-center justify-center -z-10 overflow-hidden">
+              <div className="w-full max-w-lg h-60 bg-gradient-to-b from-amber-500/10 via-yellow-600/5 to-transparent blur-3xl pointer-events-none" />
+            </div>
 
             {/* Dignified Kicker & Title Header */}
             <div className="space-y-1.5 mb-2 relative z-10">
@@ -578,7 +579,7 @@ export default function App() {
               </p>
             </div>
 
-            {/* The Centerpiece: Cuốn Sách Tử Vi Cổ Nhiệm Màu trong Vòng Tròn Thiên Cơ */}
+            {/* The Centerpiece: Cuốn Cổ Thư Tử Vi Hoàng Gia Ngự Trên Bệ Sen Kim Cương */}
             <SacredCosmicCipher3D onActivate={() => {
               sacredSound.playSacredTap(528);
               setShowOnboarding(true);

@@ -33,7 +33,6 @@ import { convertSolarToLunar, convertLunarToSolar } from '../engine/lunarSolar';
 import { locationProvider } from '../services/locationProvider';
 import { sacredSound } from '../services/soundService';
 import { SacredParticles } from './SacredParticles';
-import { SacredMandalaAura } from './SacredMandalaAura';
 import { SacredSealBadge } from './SacredSealBadge';
 
 interface Props {
@@ -473,9 +472,8 @@ export const SeniorDestinyGuideModal: React.FC<Props> = ({
         transition={{ duration: 0.28, ease: 'easeOut' }}
         className="w-full max-w-3xl max-h-[92vh] sm:max-h-[88vh] rounded-3xl bg-[#0e0f18] border-2 border-amber-500/50 shadow-[0_0_80px_rgba(245,158,11,0.25)] text-slate-100 flex flex-col overflow-hidden relative"
       >
-        {/* SACRED PARTICLES & MANDALA AURA */}
-        <SacredParticles density="subtle" className="opacity-30" />
-        <SacredMandalaAura size={400} className="-top-12 -right-16" opacity={0.14} />
+        {/* SACRED PARTICLES (Không vòng xoay gây rối mắt) */}
+        <SacredParticles density="subtle" className="opacity-25" />
 
         {/* Top Gold Horizon Accent */}
         <div className="absolute top-0 left-8 right-8 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-90 blur-xs pointer-events-none" />
