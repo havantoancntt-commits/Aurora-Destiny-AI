@@ -35,17 +35,23 @@ import {
   StrategicActionType
 } from '../engine/chronoNavigator';
 import { ReflectionJournal } from './ReflectionJournal';
+import { UserProfile } from '../types/user';
+import { DailyGoldenCompassCard } from './DailyGoldenCompassCard';
 
 interface Props {
   calculation: CalculationResult;
   language: LanguageCode;
+  profile?: UserProfile;
   onOpenAlertCenter?: () => void;
+  onOpenSponsorshipModal?: () => void;
 }
 
 export const StrategicChronoNavigatorView: React.FC<Props> = ({
   calculation,
   language,
-  onOpenAlertCenter
+  profile,
+  onOpenAlertCenter,
+  onOpenSponsorshipModal
 }) => {
   const [selectedCity, setSelectedCity] = useState<ChronoNavigatorLocation>(PRESET_NAVIGATOR_CITIES[0]);
   const [activeActionType, setActiveActionType] = useState<StrategicActionType>('CONTRACT_SIGNING');
@@ -140,6 +146,15 @@ export const StrategicChronoNavigatorView: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
+      {/* 0. NHẬT THỜI KHANG NINH: LA BÀN HOÀNG KIM 24 GIỜ */}
+      {profile && (
+        <DailyGoldenCompassCard
+          profile={profile}
+          calculation={calculation}
+          onOpenSponsorshipModal={onOpenSponsorshipModal}
+        />
+      )}
+
       {/* 1. TOP HEADER & NAVIGATION */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
         <div>

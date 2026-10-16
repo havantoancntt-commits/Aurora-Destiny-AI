@@ -50,6 +50,7 @@ import { compute12MonthsEnergyTrajectory, detectEnergyShifts } from '../engine/p
 import { sacredVoice } from '../services/sacredVoiceService';
 import { sacredSound } from '../services/soundService';
 import { SacredSealBadge } from './SacredSealBadge';
+import { DailyGoldenCompassCard } from './DailyGoldenCompassCard';
 
 interface Props {
   profile: UserProfile;
@@ -246,6 +247,15 @@ export const DestinyDashboard: React.FC<Props> = ({
       <RealTimeLuckRadarBar
         calculation={calculation}
         onOpenFullRadar={onOpenAlertCenter}
+      />
+
+      {/* 0.5. NHẬT THỜI KHANG NINH: LA BÀN HOÀNG KIM 24 GIỜ & PHONG BAO MINH TRIẾT */}
+      <DailyGoldenCompassCard
+        profile={profile}
+        calculation={calculation}
+        onOpenSponsorshipModal={onOpenSponsorshipModal}
+        onNavigateToDailyTab={() => onNavigateTab && onNavigateTab('daily')}
+        onOpenShareCardModal={onOpenShareCardModal}
       />
 
       {/* 1. EXECUTIVE DOSSIER HERO CARD */}

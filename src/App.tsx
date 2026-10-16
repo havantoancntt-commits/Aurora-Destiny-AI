@@ -824,7 +824,9 @@ export default function App() {
                 <StrategicChronoNavigatorView
                   calculation={calculation}
                   language={language}
+                  profile={activeProfile}
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
+                  onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                 />
               )}
             </motion.div>
