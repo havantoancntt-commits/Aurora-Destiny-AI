@@ -28,7 +28,8 @@ import {
   Users,
   Download,
   Sun,
-  HeartHandshake
+  HeartHandshake,
+  HardDrive
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -58,6 +59,7 @@ interface Props {
   onOpenCommunityModal?: () => void;
   onNavigateTab?: (tab: 'dashboard' | 'radar' | 'timeline' | 'compatibility' | 'remedies' | 'daily') => void;
   onOpenSeniorGuide?: () => void;
+  onOpenPwaProfileManager?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -79,7 +81,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenTalismanModal,
   onOpenCommunityModal,
   onNavigateTab,
-  onOpenSeniorGuide
+  onOpenSeniorGuide,
+  onOpenPwaProfileManager
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -271,6 +274,25 @@ export const Navbar: React.FC<Props> = ({
                       })}
                     </div>
                   )}
+
+                  {/* PWA Vault & Backup Button */}
+                  <div className="pt-2.5 mt-2 border-t border-white/10">
+                    <button
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        onOpenPwaProfileManager?.();
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-teal-400/40 text-teal-300 text-xs font-medium transition-all cursor-pointer group"
+                    >
+                      <span className="flex items-center gap-2">
+                        <HardDrive className="w-3.5 h-3.5 text-teal-400 group-hover:scale-110 transition-transform" />
+                        <span>Kho Hồ Sơ PWA &amp; Sao Lưu</span>
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/20 text-teal-300 font-semibold">
+                        {profiles.length} Lá Số
+                      </span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

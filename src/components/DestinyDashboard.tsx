@@ -32,7 +32,8 @@ import {
   HeartHandshake,
   ArrowRight,
   Volume2,
-  AlertTriangle
+  AlertTriangle,
+  HardDrive
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -66,6 +67,7 @@ interface Props {
   onOpenAlertCenter?: () => void;
   onOpenTalismanModal?: () => void;
   onOpenSeniorGuide?: () => void;
+  onOpenPwaProfileManager?: () => void;
 }
 
 // 4x4 Classical Celestial Grid Coordinate Definition (12 Earthly Branches clockwise perimeter)
@@ -111,7 +113,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   onOpenSponsorshipModal = () => {},
   onOpenAlertCenter = () => {},
   onOpenTalismanModal,
-  onOpenSeniorGuide
+  onOpenSeniorGuide,
+  onOpenPwaProfileManager
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [ziweiViewMode, setZiweiViewMode] = useState<'board4x4' | 'cardList'>('board4x4');
@@ -332,6 +335,19 @@ export const DestinyDashboard: React.FC<Props> = ({
                 />
               </div>
             </div>
+
+            {onOpenPwaProfileManager && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onOpenPwaProfileManager}
+                className="p-3 rounded-2xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                title="Quản lý kho hồ sơ lá số & sao lưu PWA ngoại tuyến"
+              >
+                <HardDrive className="w-5 h-5 text-teal-400" />
+                <span className="hidden xl:inline text-xs font-semibold">Kho Lá Số PWA</span>
+              </motion.button>
+            )}
 
             {onRecalculate && (
               <motion.button

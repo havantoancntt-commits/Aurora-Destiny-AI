@@ -34,6 +34,8 @@ import { CelestialTalismanModal } from './components/CelestialTalismanModal';
 import { SponsorshipModal } from './components/SponsorshipModal';
 import { CommunitySocialModal } from './components/CommunitySocialModal';
 import { PWAOfflineIndicator } from './components/PWAOfflineIndicator';
+import { PWAProfileManagerModal } from './components/PWAProfileManagerModal';
+import { pwaProfileStorage } from './services/pwaProfileStorage';
 import { sacredSound } from './services/soundService';
 import { sacredVoice } from './services/sacredVoiceService';
 import { SacredSealBadge } from './components/SacredSealBadge';
@@ -76,6 +78,7 @@ export default function App() {
   const [showSponsorshipModal, setShowSponsorshipModal] = useState<boolean>(false);
   const [showCommunityModal, setShowCommunityModal] = useState<boolean>(false);
   const [showSeniorGuideModal, setShowSeniorGuideModal] = useState<boolean>(false);
+  const [showPwaProfileModal, setShowPwaProfileModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -100,12 +103,35 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localProfileIds, setLocalProfileIds] = useState<Set<string>>(new Set());
 
-  // Initial Load from API
+  // Initial Load from API & PWA Offline Storage
   const loadInitialData = async () => {
     try {
       setIsLoading(true);
       setLoadError(null);
-      await api.ensureSession();
+
+      // Pre-flight: Immediately check PWA local storage for instant zero-delay UX
+      const pwaCached = await pwaProfileStorage.getProfiles().catch(() => []);
+      if (pwaCached.length > 0) {
+        setProfiles(pwaCached);
+        const initialId = pwaCached[0].id;
+        setActiveProfileId(initialId);
+        const cachedCalc = await pwaProfileStorage.getCalculation(initialId).catch(() => null);
+        if (cachedCalc) {
+          setCalculation(cachedCalc);
+          const bt = runBacktestAnalysis([], cachedCalc);
+          setBacktestResult(bt);
+          setEnsemble(generateMultiAgentEnsemble(pwaCached[0], cachedCalc, bt.destinyConsistencyScore));
+        } else if (pwaCached[0].birthData) {
+          const calc = runFullDestinyCalculation(pwaCached[0].birthData, initialId, 0);
+          setCalculation(calc);
+          pwaProfileStorage.saveCalculation(initialId, calc).catch(() => {});
+          const bt = runBacktestAnalysis([], calc);
+          setBacktestResult(bt);
+          setEnsemble(generateMultiAgentEnsemble(pwaCached[0], calc, bt.destinyConsistencyScore));
+        }
+      }
+
+      await api.ensureSession().catch(() => false);
 
       // Fetch profiles with explicit error propagation
       let loadedProfiles: UserProfile[] = [];
@@ -116,6 +142,9 @@ export default function App() {
       } catch (profErr: any) {
         console.warn('Notice: Server profile sync deferred, checking local offline profiles:', profErr);
         loadedProfiles = api.getCachedProfiles();
+        if (loadedProfiles.length === 0) {
+          loadedProfiles = await pwaProfileStorage.getProfiles().catch(() => []);
+        }
         setProfiles(loadedProfiles);
         setSyncStatus(loadedProfiles.length > 0 ? 'local_only' : 'synced');
       }
@@ -133,16 +162,24 @@ export default function App() {
         return;
       }
 
-      const targetId = loadedProfiles[0]?.id;
+      const targetId = activeProfileId && loadedProfiles.some((p) => p.id === activeProfileId)
+        ? activeProfileId
+        : loadedProfiles[0]?.id;
       setActiveProfileId(targetId);
+
+      const targetProf = loadedProfiles.find((p) => p.id === targetId) || loadedProfiles[0];
 
       // Fetch calculation & ensemble & backtest
       const calcData = await api.getCalculation(targetId).catch(() => ({ calculation: null, ensemble: null, backtest: null }));
       const btData = await api.getBacktests(targetId).catch(() => ({ events: [], result: null }));
 
       let currentCalc = calcData.calculation;
-      if (!currentCalc && loadedProfiles[0]?.birthData) {
-        currentCalc = runFullDestinyCalculation(loadedProfiles[0].birthData, targetId, (btData.events || []).length);
+      if (!currentCalc) {
+        currentCalc = await pwaProfileStorage.getCalculation(targetId).catch(() => null);
+      }
+      if (!currentCalc && targetProf?.birthData) {
+        currentCalc = runFullDestinyCalculation(targetProf.birthData, targetId, (btData.events || []).length);
+        pwaProfileStorage.saveCalculation(targetId, currentCalc).catch(() => {});
       }
       setCalculation(currentCalc);
 
@@ -154,8 +191,8 @@ export default function App() {
       setEvents(btData.events || []);
 
       let currentEnsemble = calcData.ensemble;
-      if (!currentEnsemble && currentCalc && loadedProfiles[0]) {
-        currentEnsemble = generateMultiAgentEnsemble(loadedProfiles[0], currentCalc, currentBt?.destinyConsistencyScore ?? null);
+      if (!currentEnsemble && currentCalc && targetProf) {
+        currentEnsemble = generateMultiAgentEnsemble(targetProf, currentCalc, currentBt?.destinyConsistencyScore ?? null);
       }
       setEnsemble(currentEnsemble);
 
@@ -166,14 +203,30 @@ export default function App() {
       console.error('API Error details:', e);
       // Explicitly mark offline mode
       setSyncStatus('local_only');
-      // Offline fallback: giữ trạng thái sạch, mở ô nhập thông tin
-      setShowOnboarding(true);
-      setProfiles([]);
-      setActiveProfileId('');
-      setCalculation(null);
-      setEnsemble(null);
-      setBacktestResult(null);
-      setEvents([]);
+      // Offline fallback: try to recover from PWA storage without wiping user data
+      const pwaRecovered = await pwaProfileStorage.getProfiles().catch(() => []);
+      if (pwaRecovered.length > 0) {
+        setProfiles(pwaRecovered);
+        const target = pwaRecovered[0];
+        setActiveProfileId(target.id);
+        const calc = (await pwaProfileStorage.getCalculation(target.id).catch(() => null))
+          || (target.birthData ? runFullDestinyCalculation(target.birthData, target.id, 0) : null);
+        setCalculation(calc);
+        if (calc) {
+          const bt = runBacktestAnalysis([], calc);
+          setBacktestResult(bt);
+          setEnsemble(generateMultiAgentEnsemble(target, calc, bt.destinyConsistencyScore));
+        }
+        setShowOnboarding(false);
+      } else {
+        setShowOnboarding(true);
+        setProfiles([]);
+        setActiveProfileId('');
+        setCalculation(null);
+        setEnsemble(null);
+        setBacktestResult(null);
+        setEvents([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -232,7 +285,18 @@ export default function App() {
       }
     };
     window.addEventListener('keydown', handleAdminShortcut);
-    return () => window.removeEventListener('keydown', handleAdminShortcut);
+
+    // Online event listener to trigger seamless PWA background sync
+    const handleOnline = () => {
+      console.log('[PWA Sync] Network restored, synchronizing pending offline profiles...');
+      handleRetrySync();
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('keydown', handleAdminShortcut);
+      window.removeEventListener('online', handleOnline);
+    };
   }, []);
 
   // Handle Profile Switch
@@ -318,6 +382,9 @@ export default function App() {
       setCalculation(data.calculation);
       setSyncStatus('synced');
 
+      pwaProfileStorage.saveProfile(data.profile).catch(() => {});
+      pwaProfileStorage.saveCalculation(data.profile.id, data.calculation).catch(() => {});
+
       const bt = runBacktestAnalysis([], data.calculation);
       setBacktestResult(bt);
       setEvents([]);
@@ -336,6 +403,7 @@ export default function App() {
         birthData,
         behavioralContext: behavioral,
         latestCalculationId: newCalc.id,
+        tag: profiles.length === 0 ? 'self' : 'family',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -344,6 +412,12 @@ export default function App() {
       setCalculation(newCalc);
       setSyncStatus('local_only');
       setLocalProfileIds((prev) => new Set(prev).add(newProfile.id));
+
+      // Persist to PWA local storage immediately
+      pwaProfileStorage.saveProfile(newProfile).catch(() => {});
+      pwaProfileStorage.saveCalculation(newProfile.id, newCalc).catch(() => {});
+      api.cacheProfiles([...profiles, newProfile]);
+
       const bt = runBacktestAnalysis([], newCalc);
       setBacktestResult(bt);
       setEvents([]);
@@ -500,6 +574,7 @@ export default function App() {
           onOpenCommunityModal={() => setShowCommunityModal(true)}
           onNavigateTab={setActiveTab}
           onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
+          onOpenPwaProfileManager={() => setShowPwaProfileModal(true)}
         />
       </div>
 
@@ -765,6 +840,7 @@ export default function App() {
                   onOpenTalismanModal={() => setShowTalismanModal(true)}
                   onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                   onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
+                  onOpenPwaProfileManager={() => setShowPwaProfileModal(true)}
                 />
               )}
 
@@ -985,6 +1061,22 @@ export default function App() {
         isOpen={showCommunityModal}
         onClose={() => setShowCommunityModal(false)}
         language={language}
+      />
+
+      {/* PWA Profile Vault & Offline Manager Modal */}
+      <PWAProfileManagerModal
+        isOpen={showPwaProfileModal}
+        onClose={() => setShowPwaProfileModal(false)}
+        profiles={profiles}
+        activeProfileId={activeProfileId}
+        onSelectProfile={handleSelectProfile}
+        onOpenNewProfileModal={() => setShowOnboarding(true)}
+        onProfilesUpdated={(updated) => {
+          setProfiles(updated);
+          if (activeProfileId && !updated.some((p) => p.id === activeProfileId) && updated.length > 0) {
+            handleSelectProfile(updated[0].id);
+          }
+        }}
       />
 
       {/* PWA Enterprise Connectivity & Update Status Floating Toast */}

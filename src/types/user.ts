@@ -19,6 +19,10 @@ export interface UserProfile {
   latestCalculationId?: string;
   idempotencyKey?: string;
   clientProfileId?: string;
+  tag?: 'self' | 'family' | 'partner' | 'friend' | 'client' | string;
+  notes?: string;
+  isPinned?: boolean;
+  colorHex?: string;
   createdAt: string;
   updatedAt: string;
 }

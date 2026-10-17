@@ -8,6 +8,7 @@ import { UserProfile, UserPreferences, UserAccount } from '../types/user';
 import { CalculationResult, BirthData, BehavioralContext } from '../types/destiny';
 import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { MultiAgentEnsemble, ChatMessage, ScenarioAnalysisResult, DailyDestiny } from '../types/ai';
+import { pwaProfileStorage } from './pwaProfileStorage';
 
 class ApiClient {
   private sessionInitialized = false;
@@ -367,6 +368,7 @@ class ApiClient {
           profiles
         };
         localStorage.setItem(key, JSON.stringify(payload));
+        pwaProfileStorage.saveAllProfiles(profiles).catch(() => {});
       }
     } catch {}
   }
@@ -403,7 +405,9 @@ class ApiClient {
       const res = await this.fetchWithAuth('/api/profiles');
       if (!res.ok) {
         console.warn(`[ApiClient] Server returned HTTP ${res.status} for getProfiles, using local cache.`);
-        return this.getCachedProfiles();
+        const local = this.getCachedProfiles();
+        if (local.length > 0) return local;
+        return await pwaProfileStorage.getProfiles().catch(() => []);
       }
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -413,7 +417,9 @@ class ApiClient {
       return this.getCachedProfiles();
     } catch (err: any) {
       console.warn('[ApiClient] Failed to fetch profiles from network, using local cache:', err.message);
-      return this.getCachedProfiles();
+      const local = this.getCachedProfiles();
+      if (local.length > 0) return local;
+      return await pwaProfileStorage.getProfiles().catch(() => []);
     }
   }
 
@@ -436,6 +442,10 @@ class ApiClient {
     if (result?.profile) {
       const cached = this.getCachedProfiles().filter((p) => p.id !== result.profile.id);
       this.cacheProfiles([result.profile, ...cached]);
+      pwaProfileStorage.saveProfile(result.profile).catch(() => {});
+      if (result.calculation) {
+        pwaProfileStorage.saveCalculation(result.profile.id, result.calculation).catch(() => {});
+      }
     }
     return result;
   }
@@ -447,7 +457,11 @@ class ApiClient {
       body: JSON.stringify(updates)
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    const updated = await res.json();
+    if (updated?.id) {
+      pwaProfileStorage.saveProfile(updated).catch(() => {});
+    }
+    return updated;
   }
 
   public async deleteProfile(profileId: string): Promise<boolean> {
@@ -456,6 +470,9 @@ class ApiClient {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    if (data.success) {
+      pwaProfileStorage.deleteProfile(profileId).catch(() => {});
+    }
     return data.success === true;
   }
 
@@ -465,9 +482,25 @@ class ApiClient {
     ensemble: MultiAgentEnsemble | null;
     backtest: BacktestResult | null;
   }> {
-    const res = await this.fetchWithAuth(`/api/calculations/${profileId}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    try {
+      const res = await this.fetchWithAuth(`/api/calculations/${profileId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.calculation) {
+          pwaProfileStorage.saveCalculation(profileId, data.calculation).catch(() => {});
+        }
+        return data;
+      }
+    } catch (netErr) {
+      console.warn('[ApiClient] Failed to fetch calculation from network, checking PWA offline storage:', netErr);
+    }
+    // Fallback to offline PWA storage
+    const offlineCalc = await pwaProfileStorage.getCalculation(profileId).catch(() => null);
+    return {
+      calculation: offlineCalc,
+      ensemble: null,
+      backtest: null
+    };
   }
 
   public async recalculate(profileId: string): Promise<{
