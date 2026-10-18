@@ -5,7 +5,7 @@
 // ==========================================
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import {
   Sparkles,
   Shield,
@@ -52,6 +52,7 @@ import { sacredVoice } from '../services/sacredVoiceService';
 import { sacredSound } from '../services/soundService';
 import { SacredSealBadge } from './SacredSealBadge';
 import { DailyGoldenCompassCard } from './DailyGoldenCompassCard';
+import { TermExplainerTooltip } from './TermExplainerTooltip';
 
 interface Props {
   profile: UserProfile;
@@ -68,6 +69,7 @@ interface Props {
   onOpenTalismanModal?: () => void;
   onOpenSeniorGuide?: () => void;
   onOpenPwaProfileManager?: () => void;
+  onOpenGlossaryModal?: () => void;
 }
 
 // 4x4 Classical Celestial Grid Coordinate Definition (12 Earthly Branches clockwise perimeter)
@@ -114,7 +116,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   onOpenAlertCenter = () => {},
   onOpenTalismanModal,
   onOpenSeniorGuide,
-  onOpenPwaProfileManager
+  onOpenPwaProfileManager,
+  onOpenGlossaryModal
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [ziweiViewMode, setZiweiViewMode] = useState<'board4x4' | 'cardList'>('board4x4');
@@ -583,16 +586,43 @@ export const DestinyDashboard: React.FC<Props> = ({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-4 bg-gradient-to-b from-purple-400 to-indigo-500 rounded-full shadow-[0_0_8px_#a855f7]"></span>
-            <h3 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
-              Tứ Trụ Bát Tự Nguyên Bản (Bazi Pillars)
-            </h3>
+            <TermExplainerTooltip
+              customTerm="Tứ Trụ Bát Tự"
+              customDefinition="Bản đồ 8 chữ Thiên Can và Địa Chi ghi lại cấu trúc năng lượng vũ trụ thời khắc bạn cất tiếng khóc chào đời."
+              customLifeMeaning="Phản ánh tiềm năng nội tại, ưu thế nghề nghiệp, khả năng quản trị tài chính và chu kỳ thăng trầm."
+              onOpenFullGlossary={onOpenGlossaryModal}
+            >
+              <h3 className="text-xs uppercase tracking-widest text-slate-200 font-semibold">
+                Tứ Trụ Bát Tự Nguyên Bản (Bazi Pillars)
+              </h3>
+            </TermExplainerTooltip>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">Nhật Chủ:</span>
+            <TermExplainerTooltip termId="nhat_chu" onOpenFullGlossary={onOpenGlossaryModal}>
+              <span className="text-xs text-slate-400">Nhật Chủ:</span>
+            </TermExplainerTooltip>
             <span className={`px-2.5 py-0.5 rounded-lg text-xs font-semibold font-mono border ${getElementBadgeColor(bazi.dayMasterElement)}`}>
               {dm.nameVi} ({dm.yinYang} {ELEMENT_RELATIONS[bazi.dayMasterElement]?.vi || bazi.dayMasterElement}) — {bazi.dayMasterStrength}
             </span>
           </div>
+        </div>
+
+        {/* Term Guidance Banner */}
+        <div className="flex items-center justify-between text-xs text-amber-300/90 bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 rounded-xl">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[11px] text-slate-200">
+              Chạm vào bất kỳ tên <strong>Thập Thần</strong>, <strong>Nhật Chủ</strong> hoặc <strong>Dụng Thần</strong> để xem giải nghĩa đời sống thực tế.
+            </span>
+          </div>
+          {onOpenGlossaryModal && (
+            <button
+              onClick={onOpenGlossaryModal}
+              className="text-amber-400 hover:text-amber-300 underline font-medium text-[11px] shrink-0 cursor-pointer ml-2"
+            >
+              Cẩm Nang Tra Cứu A-Z
+            </button>
+          )}
         </div>
 
         {/* 4 Pillars Columns */}
@@ -616,10 +646,16 @@ export const DestinyDashboard: React.FC<Props> = ({
                 {label}
               </span>
 
-              {/* Ten God Badge */}
-              <span className="mt-1 px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-teal-300 border border-white/10 truncate max-w-full font-medium">
-                {pillar.tenGod}
-              </span>
+              {/* Ten God Badge with Contextual Explainer */}
+              <TermExplainerTooltip
+                customTerm={pillar.tenGod}
+                customDefinition={`Thập Thần ${pillar.tenGod} đóng tại ${label}, chi phối phương diện: ${note}.`}
+                onOpenFullGlossary={onOpenGlossaryModal}
+              >
+                <span className="mt-1 px-2 py-0.5 rounded text-[10px] font-mono bg-white/5 text-teal-300 border border-white/10 truncate max-w-full font-medium inline-block">
+                  {pillar.tenGod}
+                </span>
+              </TermExplainerTooltip>
 
               {/* Stem & Branch Display */}
               <div className="my-2 space-y-0.5">
@@ -683,13 +719,22 @@ export const DestinyDashboard: React.FC<Props> = ({
             </div>
             <div className="space-y-1 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">Dụng Thần:</span>
+                <TermExplainerTooltip termId="dung_than_hy_than" onOpenFullGlossary={onOpenGlossaryModal}>
+                  <span className="text-slate-400">Dụng Thần:</span>
+                </TermExplainerTooltip>
                 <span className="font-bold text-teal-400">
                   {bazi.favorableElements.map((e) => ELEMENT_RELATIONS[e]?.vi || e).join(', ')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-400">Kỵ Thần:</span>
+                <TermExplainerTooltip
+                  customTerm="Kỵ Thần (Yếu tố bất lợi)"
+                  customDefinition="Hành ngũ hành đã quá vượng hoặc gây xung hại bản thể, cần giảm bớt hoặc chuyển hóa."
+                  customLifeMeaning="Tránh chọn ngành nghề, màu sắc hoặc phương hướng mang nặng năng lượng Kỵ Thần."
+                  onOpenFullGlossary={onOpenGlossaryModal}
+                >
+                  <span className="text-slate-400">Kỵ Thần:</span>
+                </TermExplainerTooltip>
                 <span className="font-bold text-rose-400">
                   {bazi.unfavorableElements.map((e) => ELEMENT_RELATIONS[e]?.vi || e).join(', ')}
                 </span>
@@ -1207,21 +1252,24 @@ export const DestinyDashboard: React.FC<Props> = ({
                     Đại Vận: {selectedPalace.decadeRangeStr} tuổi
                   </span>
                   {selectedPalace.isBodyPalace && (
-                    <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-500/20 border border-amber-500/40 text-amber-300">
-                      Cung Thân Tọa Thủ
-                    </span>
+                    <TermExplainerTooltip termId="cung_than" onOpenFullGlossary={onOpenGlossaryModal}>
+                      <span className="px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-500/20 border border-amber-500/40 text-amber-300 inline-block">
+                        Cung Thân Tọa Thủ
+                      </span>
+                    </TermExplainerTooltip>
                   )}
                   {selectedPalace.tuanTriet?.map((tt, i) => (
-                    <span
-                      key={i}
-                      className={`px-2 py-0.5 rounded-lg text-xs font-bold ${
-                        tt === 'Triệt'
-                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                          : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                      }`}
-                    >
-                      Ngộ {tt} Không
-                    </span>
+                    <TermExplainerTooltip key={i} termId="tuan_triet_khong_vong" onOpenFullGlossary={onOpenGlossaryModal}>
+                      <span
+                        className={`px-2 py-0.5 rounded-lg text-xs font-bold inline-block ${
+                          tt === 'Triệt'
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                            : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                        }`}
+                      >
+                        Ngộ {tt} Không
+                      </span>
+                    </TermExplainerTooltip>
                   ))}
                 </div>
                 <p className="text-xs text-slate-400 mt-1">{selectedPalace.focalTheme}</p>

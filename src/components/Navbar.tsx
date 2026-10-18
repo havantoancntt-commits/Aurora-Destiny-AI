@@ -60,6 +60,7 @@ interface Props {
   onNavigateTab?: (tab: 'dashboard' | 'radar' | 'timeline' | 'compatibility' | 'remedies' | 'daily') => void;
   onOpenSeniorGuide?: () => void;
   onOpenPwaProfileManager?: () => void;
+  onOpenGlossaryModal?: () => void;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -82,7 +83,8 @@ export const Navbar: React.FC<Props> = ({
   onOpenCommunityModal,
   onNavigateTab,
   onOpenSeniorGuide,
-  onOpenPwaProfileManager
+  onOpenPwaProfileManager,
+  onOpenGlossaryModal
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -352,6 +354,19 @@ export const Navbar: React.FC<Props> = ({
               </button>
             )}
 
+            {/* Desktop Direct Action: Cẩm Nang Giải Mã Thuật Ngữ */}
+            {onOpenGlossaryModal && (
+              <button
+                id="btn-nav-glossary"
+                onClick={onOpenGlossaryModal}
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 text-amber-200 hover:text-white text-xs transition-all cursor-pointer font-medium"
+                title="Cẩm Nang Giải Mã Thuật Ngữ Huyền Học Dễ Hiểu"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>Giải Mã Thuật Ngữ</span>
+              </button>
+            )}
+
             {/* Desktop Direct Action: Sách Bản Mệnh Dossier */}
             {calculation && onOpenReportModal && (
               <button
@@ -497,6 +512,22 @@ export const Navbar: React.FC<Props> = ({
                               <span className="font-semibold text-xs">Trợ Lý Lập Lá Số Người Lớn Tuổi</span>
                             </div>
                             <span className="text-[9px] font-mono uppercase bg-amber-400/20 px-1.5 py-0.5 rounded text-amber-200">A-Z</span>
+                          </button>
+                        )}
+
+                        {onOpenGlossaryModal && (
+                          <button
+                            onClick={() => {
+                              setShowMoreMenu(false);
+                              onOpenGlossaryModal();
+                            }}
+                            className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/35 transition-colors text-left cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span className="font-semibold text-xs">Cẩm Nang Giải Mã Thuật Ngữ</span>
+                            </div>
+                            <span className="text-[9px] font-mono uppercase bg-amber-400/20 px-1.5 py-0.5 rounded text-amber-200">Dễ hiểu</span>
                           </button>
                         )}
                       </>

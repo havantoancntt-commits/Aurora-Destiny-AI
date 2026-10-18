@@ -35,6 +35,7 @@ import { SponsorshipModal } from './components/SponsorshipModal';
 import { CommunitySocialModal } from './components/CommunitySocialModal';
 import { PWAOfflineIndicator } from './components/PWAOfflineIndicator';
 import { PWAProfileManagerModal } from './components/PWAProfileManagerModal';
+import { AstrologyGlossaryModal } from './components/AstrologyGlossaryModal';
 import { pwaProfileStorage } from './services/pwaProfileStorage';
 import { sacredSound } from './services/soundService';
 import { sacredVoice } from './services/sacredVoiceService';
@@ -79,6 +80,7 @@ export default function App() {
   const [showCommunityModal, setShowCommunityModal] = useState<boolean>(false);
   const [showSeniorGuideModal, setShowSeniorGuideModal] = useState<boolean>(false);
   const [showPwaProfileModal, setShowPwaProfileModal] = useState<boolean>(false);
+  const [showGlossaryModal, setShowGlossaryModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -575,6 +577,7 @@ export default function App() {
           onNavigateTab={setActiveTab}
           onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
           onOpenPwaProfileManager={() => setShowPwaProfileModal(true)}
+          onOpenGlossaryModal={() => setShowGlossaryModal(true)}
         />
       </div>
 
@@ -841,6 +844,7 @@ export default function App() {
                   onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                   onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
                   onOpenPwaProfileManager={() => setShowPwaProfileModal(true)}
+                  onOpenGlossaryModal={() => setShowGlossaryModal(true)}
                 />
               )}
 
@@ -1077,6 +1081,12 @@ export default function App() {
             handleSelectProfile(updated[0].id);
           }
         }}
+      />
+
+      {/* Cẩm Nang & Từ Điển Giải Mã Thuật Ngữ Huyền Học Tinh Hoa */}
+      <AstrologyGlossaryModal
+        isOpen={showGlossaryModal}
+        onClose={() => setShowGlossaryModal(false)}
       />
 
       {/* PWA Enterprise Connectivity & Update Status Floating Toast */}
