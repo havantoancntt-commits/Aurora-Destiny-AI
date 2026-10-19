@@ -924,6 +924,7 @@ export default function App() {
         onOpenLegalModal={() => setShowLegalModal(true)}
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         onOpenCommunityModal={() => setShowCommunityModal(true)}
+        onOpenGlossaryModal={() => setShowGlossaryModal(true)}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 

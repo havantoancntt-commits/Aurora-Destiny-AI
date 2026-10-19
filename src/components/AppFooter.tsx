@@ -23,7 +23,8 @@ import {
   QrCode,
   Crown,
   Scale,
-  Users
+  Users,
+  BookOpen
 } from 'lucide-react';
 import { LanguageCode } from '../types/destiny';
 import { OfficialSocialChannels } from './OfficialSocialChannels';
@@ -39,6 +40,7 @@ interface Props {
   onOpenTalismanModal?: () => void;
   onOpenLegalModal?: () => void;
   onOpenCommunityModal?: () => void;
+  onOpenGlossaryModal?: () => void;
   hasFloatingDock?: boolean;
 }
 
@@ -53,6 +55,7 @@ export const AppFooter: React.FC<Props> = ({
   onOpenTalismanModal,
   onOpenLegalModal,
   onOpenCommunityModal,
+  onOpenGlossaryModal,
   hasFloatingDock = false
 }) => {
   const [copied, setCopied] = useState(false);
@@ -331,6 +334,17 @@ export const AppFooter: React.FC<Props> = ({
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+            {onOpenGlossaryModal && (
+              <button
+                id="btn-footer-glossary-modal"
+                onClick={onOpenGlossaryModal}
+                className="text-amber-300 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-semibold"
+                title="Cẩm Nang & Từ Điển Giải Mã Thuật Ngữ Huyền Học Tinh Hoa"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isVi ? 'Cẩm Nang Giải Mã' : 'Astrology Glossary'}</span>
+              </button>
+            )}
             {onOpenCommunityModal && (
               <button
                 id="btn-footer-community-modal"
