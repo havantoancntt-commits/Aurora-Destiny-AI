@@ -154,4 +154,16 @@ export interface PersonalizedDestinyDossier {
   
   // Chữ ký vân tay chống trùng lặp (Deduplication Fingerprint)
   semanticFingerprint: string;
+  contentFingerprint: string;
+}
+
+// Chỉ số phát hiện khuôn mẫu trùng lặp & tái sử dụng văn bản (Pattern & Anti-Template Metrics)
+export interface PatternComparisonMetrics {
+  exactParagraphMatchRatio: number; // 0 to 1: Tỷ lệ đoạn văn trùng nguyên văn sau chuẩn hóa
+  claimOverlapRatio: number;        // 0 to 1: Tỷ lệ nhận định trùng nhau
+  distinctEvidenceRatio: number;    // 0 to 1: Tỷ lệ nhận định có căn cứ dữ liệu riêng
+  unlinkedContentRatio: number;     // 0 to 1: Tỷ lệ nội dung không liên kết được với dữ kiện hoặc quy tắc
+  conflictingFactRatio: number;     // 0 to 1: Tỷ lệ dữ kiện bị mâu thuẫn hoặc thiếu nguồn gốc
+  isSuspiciousTemplateReuse: boolean;
+  explanation: string;
 }

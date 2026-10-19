@@ -68,6 +68,7 @@ import {
 } from './src/server/storageProvider';
 
 import { runFullDestinyCalculation, CALCULATION_ENGINE_VERSION, ASTROLOGY_RULES_VERSION, ANALYSIS_MODEL_VERSION } from './src/engine/destinyEngine';
+import { buildPersonalizedDestinyDossier } from './src/engine/personalizationEngine';
 import { getDefaultAnalysisYear } from './src/engine/canonicalInput';
 import { runBacktestAnalysis } from './src/engine/backtesting';
 import { evaluateWhatIfScenario } from './src/engine/scenarios';
@@ -1068,6 +1069,7 @@ app.post('/api/profiles', requireAuth, calculationRateLimiter, antiScrapingSweep
         };
 
         const computedCalc = runFullDestinyCalculation(createdProfile.birthData, createdProfile.id, 0);
+        computedCalc.personalizedDossier = buildPersonalizedDestinyDossier(createdProfile, computedCalc);
         computedCalc.cryptographicSignature = generateAlgorithmSignature(computedCalc);
         createdProfile.latestCalculationId = computedCalc.id;
 
@@ -1129,6 +1131,8 @@ app.put('/api/profiles/:id', requireAuth, async (req, res, next) => {
       if (validated.birthData) {
         const events = await repo.getHistoricalEvents(id);
         const calc = runFullDestinyCalculation(validated.birthData, id, events.length);
+        calc.personalizedDossier = buildPersonalizedDestinyDossier(updatedProfile, calc);
+        calc.cryptographicSignature = generateAlgorithmSignature(calc);
         updatedProfile.latestCalculationId = calc.id;
         await repo.saveCalculation(calc);
 

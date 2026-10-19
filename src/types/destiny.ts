@@ -431,4 +431,5 @@ export interface CalculationResult {
     hourStatus: 'EXACT' | 'APPROXIMATE_ESTIMATE';
     warningVi?: string;
   };
+  personalizedDossier?: any; // PersonalizedDestinyDossier
 }

@@ -81,8 +81,59 @@ test('📖 Astrology Glossary & Explainer Knowledge Base Suite', async (t) => {
     assert.ok(resultsSun.some((r) => r.id === 'sao_thai_duong' || r.id === 'chan_gio_mat_troi'));
   });
 
-  await t.test('5. getGlossaryItemById returns undefined for non-existent IDs', () => {
+  await t.test('5. Case-insensitivity (chữ hoa / chữ thường không phân biệt)', () => {
+    const upperCaseResults = searchGlossary('CHÍNH QUAN');
+    const lowerCaseResults = searchGlossary('chính quan');
+    const mixedCaseResults = searchGlossary('cHíNh QuAn');
+
+    assert.ok(upperCaseResults.some((r) => r.id === 'chinh_quan'), 'UPPERCASE search must find chinh_quan');
+    assert.ok(lowerCaseResults.some((r) => r.id === 'chinh_quan'), 'lowercase search must find chinh_quan');
+    assert.ok(mixedCaseResults.some((r) => r.id === 'chinh_quan'), 'mIxEdCaSe search must find chinh_quan');
+  });
+
+  await t.test('6. Vietnamese diacritics handling (có dấu & không dấu)', () => {
+    // Có dấu
+    const accentedResults = searchGlossary('Thất Sát');
+    assert.ok(accentedResults.some((r) => r.id === 'that_sat'), 'Accented "Thất Sát" must find that_sat');
+
+    // Không dấu
+    const unaccentedResults = searchGlossary('that sat');
+    assert.ok(unaccentedResults.some((r) => r.id === 'that_sat'), 'Unaccented "that sat" must find that_sat');
+
+    // Dụng Thần không dấu
+    const dungThanUnaccented = searchGlossary('dung than');
+    assert.ok(dungThanUnaccented.some((r) => r.id === 'dung_than_hy_than'), 'Unaccented "dung than" must find dung_than_hy_than');
+
+    // Cung Mệnh có dấu & không dấu
+    const cungMenhAccented = searchGlossary('Cung Mệnh');
+    const cungMenhUnaccented = searchGlossary('cung menh');
+    assert.ok(cungMenhAccented.some((r) => r.id === 'cung_menh'));
+    assert.ok(cungMenhUnaccented.some((r) => r.id === 'cung_menh'));
+  });
+
+  await t.test('7. Empty keyword and whitespace handling', () => {
+    const emptyResults = searchGlossary('');
+    assert.strictEqual(emptyResults.length, ASTROLOGY_GLOSSARY.length, 'Empty keyword must return all items');
+
+    const whitespaceResults = searchGlossary('   ');
+    assert.strictEqual(whitespaceResults.length, ASTROLOGY_GLOSSARY.length, 'Whitespace-only query must return all items');
+
+    const nullResults = searchGlossary(null);
+    assert.strictEqual(nullResults.length, ASTROLOGY_GLOSSARY.length, 'null query must return all items');
+
+    const undefinedResults = searchGlossary(undefined);
+    assert.strictEqual(undefinedResults.length, ASTROLOGY_GLOSSARY.length, 'undefined query must return all items');
+  });
+
+  await t.test('8. getGlossaryItemById returns item for existing IDs and undefined for non-existent IDs', () => {
     const item = getGlossaryItemById('non_existent_term_xyz');
-    assert.strictEqual(item, undefined);
+    assert.strictEqual(item, undefined, 'Unknown ID should return undefined');
+
+    const emptyIdItem = getGlossaryItemById('');
+    assert.strictEqual(emptyIdItem, undefined, 'Empty ID should return undefined');
+
+    const validItem = getGlossaryItemById('sao_tu_vi');
+    assert.ok(validItem, 'Valid ID sao_tu_vi must return item');
+    assert.strictEqual(validItem?.id, 'sao_tu_vi');
   });
 });

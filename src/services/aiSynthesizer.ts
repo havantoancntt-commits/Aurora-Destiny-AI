@@ -53,7 +53,7 @@ export function generateMultiAgentEnsemble(
     ? wealthMajorStars.map(s => `${s.nameVi} (${s.brightness})${s.transformation ? ' ' + s.transformation : ''}`).join(', ')
     : 'Tài Bạch Vô Chính Diệu';
 
-  const bodyPalaceName = ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || 'Quan Lộc';
+  const bodyPalaceName = ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || (ziwei.palaces.life?.nameVi ? `Mệnh (${ziwei.palaces.life.nameVi})` : 'Chưa xác định');
 
   // Dynamically compute domain-specific confidence scores grounded in calculation metrics
   const rawConsistency = confidence.ruleConsistencyScore ?? confidence.consistencyScore ?? 0;
@@ -119,7 +119,7 @@ export function generateMultiAgentEnsemble(
     confidenceScore: ziweiConfidence,
     keyFindings: [
       `Cung Mệnh tại ${ziwei.palaces.life.branch} (${ziwei.palaces.life.stem}) tọa thủ: ${lifeStarStr} (Vòng Tràng Sinh: ${ziwei.palaces.life?.trangSinhStar || ''}, Vòng Thái Tuế: ${ziwei.palaces.life?.thaiTueStar || ''}).`,
-      `Bản Thể: ${ziwei.yinYangGenderHarmony?.yinYangNature || 'Dương Nam'} (${ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'}). Cục Số: ${ziwei.elementBureau} (${ziwei.elementDestinyBureauHarmony?.relation || 'Mệnh Cục Tỷ Hòa'} - ${ziwei.elementDestinyBureauHarmony?.quality || 'Bình Hòa'}).`,
+      `Bản Thể: ${ziwei.yinYangGenderHarmony?.yinYangNature || 'Chưa xác định'} (${ziwei.yinYangGenderHarmony?.direction || 'Chưa xác định'}). Cục Số: ${ziwei.elementBureau} (${ziwei.elementDestinyBureauHarmony?.relation || 'Chưa xác định'} - ${ziwei.elementDestinyBureauHarmony?.quality || 'Chưa xác định'}).`,
       `Cung Thân cư ${bodyPalaceName}: ${ziwei.bodyPalaceAnalysis?.meaning || ''} — ${ziwei.bodyPalaceAnalysis?.lifeImpact || ''}`,
       `Tam Phương Tứ Chính: Quan Lộc (${careerStarStr}), Tài Bạch (${wealthStarStr}), Thiên Di (${ziwei.palaces.travel.score}đ). Cách Cục: ${ziwei.majorConfigurations.join('; ')}.`,
       `${ziwei.currentDecade?.evaluation || ''}`

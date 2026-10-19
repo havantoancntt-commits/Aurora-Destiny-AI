@@ -1034,13 +1034,13 @@ export const DestinyDashboard: React.FC<Props> = ({
                   </h4>
                   <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-300">
                     <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 font-mono">
-                      {ziwei.yinYangGenderHarmony?.yinYangNature || (profile.birthData.gender === 'Male' ? 'Dương Nam' : 'Âm Nữ')}
+                      {ziwei.yinYangGenderHarmony?.yinYangNature || (profile.birthData.gender === 'Male' ? 'Nam' : profile.birthData.gender === 'Female' ? 'Nữ' : 'Chưa xác định')}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30 font-medium">
-                      {ziwei.elementBureau}
+                      {ziwei.elementBureau || 'Chưa xác định'}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
-                      Thân cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi}
+                      Thân cư {ziwei.palaces[ziwei.bodyPalaceKey]?.nameVi || 'Chưa xác định'}
                     </span>
                   </div>
                 </div>
@@ -1050,25 +1050,25 @@ export const DestinyDashboard: React.FC<Props> = ({
                   <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
                     <div className="text-[10px] text-slate-400">Bản Mệnh Nạp Âm:</div>
                     <div className="font-bold text-teal-300 truncate">
-                      {ziwei.elementDestinyBureauHarmony?.birthYearNaYin || bazi.yearPillar.naYin}
+                      {ziwei.elementDestinyBureauHarmony?.birthYearNaYin || bazi.yearPillar.naYin || 'Chưa xác định'}
                     </div>
                   </div>
                   <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
                     <div className="text-[10px] text-slate-400">Tương Phối Mệnh - Cục:</div>
                     <div className="font-bold text-purple-300 truncate">
-                      {ziwei.elementDestinyBureauHarmony?.relation || 'Tỷ Hòa'} ({ziwei.elementDestinyBureauHarmony?.quality || 'Cát Lợi'})
+                      {ziwei.elementDestinyBureauHarmony?.relation || 'Chưa xác định'}{ziwei.elementDestinyBureauHarmony?.quality ? ` (${ziwei.elementDestinyBureauHarmony.quality})` : ''}
                     </div>
                   </div>
                   <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
                     <div className="text-[10px] text-slate-400">Âm Dương Lý:</div>
                     <div className="font-bold text-amber-300 truncate">
-                      {ziwei.yinYangGenderHarmony?.direction || 'Thuận Lý'} ({ziwei.yinYangGenderHarmony?.decadeDirection || 'Vận Thuận'})
+                      {ziwei.yinYangGenderHarmony?.direction || 'Chưa xác định'}{ziwei.yinYangGenderHarmony?.decadeDirection ? ` (${ziwei.yinYangGenderHarmony.decadeDirection})` : ''}
                     </div>
                   </div>
                   <div className="p-2 rounded-lg bg-white/[0.02] border border-white/5 space-y-0.5">
                     <div className="text-[10px] text-slate-400">Cách Cục Chính Tông:</div>
                     <div className="font-bold text-slate-200 truncate">
-                      {ziwei.majorConfigurations[0] || 'Chính Cách'}
+                      {ziwei.majorConfigurations[0] || 'Đang cập nhật'}
                     </div>
                   </div>
                 </div>

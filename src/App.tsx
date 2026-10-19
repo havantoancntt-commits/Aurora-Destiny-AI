@@ -50,6 +50,19 @@ import { api } from './services/apiClient';
 import { runFullDestinyCalculation } from './engine/destinyEngine';
 import { generateMultiAgentEnsemble } from './services/aiSynthesizer';
 import { runBacktestAnalysis } from './engine/backtesting';
+import { buildPersonalizedDestinyDossier } from './engine/personalizationEngine';
+
+function ensureCalculationWithDossier(prof: UserProfile | undefined, calc: CalculationResult | null): CalculationResult | null {
+  if (!calc || !prof) return calc;
+  if (!calc.personalizedDossier) {
+    try {
+      calc.personalizedDossier = buildPersonalizedDestinyDossier(prof, calc);
+    } catch (err) {
+      console.warn('[Personalization] Could not build dossier:', err);
+    }
+  }
+  return calc;
+}
 
 export default function App() {
   // Navigation & Language
@@ -119,17 +132,19 @@ export default function App() {
         setActiveProfileId(initialId);
         const cachedCalc = await pwaProfileStorage.getCalculation(initialId).catch(() => null);
         if (cachedCalc) {
-          setCalculation(cachedCalc);
-          const bt = runBacktestAnalysis([], cachedCalc);
+          const readyCalc = ensureCalculationWithDossier(pwaCached[0], cachedCalc);
+          setCalculation(readyCalc);
+          const bt = runBacktestAnalysis([], readyCalc || cachedCalc);
           setBacktestResult(bt);
-          setEnsemble(generateMultiAgentEnsemble(pwaCached[0], cachedCalc, bt.destinyConsistencyScore));
+          setEnsemble(generateMultiAgentEnsemble(pwaCached[0], readyCalc || cachedCalc, bt.destinyConsistencyScore));
         } else if (pwaCached[0].birthData) {
           const calc = runFullDestinyCalculation(pwaCached[0].birthData, initialId, 0);
-          setCalculation(calc);
-          pwaProfileStorage.saveCalculation(initialId, calc).catch(() => {});
-          const bt = runBacktestAnalysis([], calc);
+          const readyCalc = ensureCalculationWithDossier(pwaCached[0], calc);
+          setCalculation(readyCalc);
+          pwaProfileStorage.saveCalculation(initialId, readyCalc || calc).catch(() => {});
+          const bt = runBacktestAnalysis([], readyCalc || calc);
           setBacktestResult(bt);
-          setEnsemble(generateMultiAgentEnsemble(pwaCached[0], calc, bt.destinyConsistencyScore));
+          setEnsemble(generateMultiAgentEnsemble(pwaCached[0], readyCalc || calc, bt.destinyConsistencyScore));
         }
       }
 
@@ -183,18 +198,19 @@ export default function App() {
         currentCalc = runFullDestinyCalculation(targetProf.birthData, targetId, (btData.events || []).length);
         pwaProfileStorage.saveCalculation(targetId, currentCalc).catch(() => {});
       }
-      setCalculation(currentCalc);
+      const readyCalc = ensureCalculationWithDossier(targetProf, currentCalc);
+      setCalculation(readyCalc);
 
       let currentBt = calcData.backtest || btData.result;
-      if (!currentBt && currentCalc) {
-        currentBt = runBacktestAnalysis(btData.events || [], currentCalc);
+      if (!currentBt && readyCalc) {
+        currentBt = runBacktestAnalysis(btData.events || [], readyCalc);
       }
       setBacktestResult(currentBt);
       setEvents(btData.events || []);
 
       let currentEnsemble = calcData.ensemble;
-      if (!currentEnsemble && currentCalc && targetProf) {
-        currentEnsemble = generateMultiAgentEnsemble(targetProf, currentCalc, currentBt?.destinyConsistencyScore ?? null);
+      if (!currentEnsemble && readyCalc && targetProf) {
+        currentEnsemble = generateMultiAgentEnsemble(targetProf, readyCalc, currentBt?.destinyConsistencyScore ?? null);
       }
       setEnsemble(currentEnsemble);
 
@@ -213,11 +229,12 @@ export default function App() {
         setActiveProfileId(target.id);
         const calc = (await pwaProfileStorage.getCalculation(target.id).catch(() => null))
           || (target.birthData ? runFullDestinyCalculation(target.birthData, target.id, 0) : null);
-        setCalculation(calc);
-        if (calc) {
-          const bt = runBacktestAnalysis([], calc);
+        const readyCalc = ensureCalculationWithDossier(target, calc);
+        setCalculation(readyCalc);
+        if (readyCalc) {
+          const bt = runBacktestAnalysis([], readyCalc);
           setBacktestResult(bt);
-          setEnsemble(generateMultiAgentEnsemble(target, calc, bt.destinyConsistencyScore));
+          setEnsemble(generateMultiAgentEnsemble(target, readyCalc, bt.destinyConsistencyScore));
         }
         setShowOnboarding(false);
       } else {
@@ -315,18 +332,19 @@ export default function App() {
       if (!currentCalc && prof?.birthData) {
         currentCalc = runFullDestinyCalculation(prof.birthData, profileId, (btData.events || []).length);
       }
-      setCalculation(currentCalc);
+      const readyCalc = ensureCalculationWithDossier(prof, currentCalc);
+      setCalculation(readyCalc);
 
       let currentBt = calcData.backtest || btData.result;
-      if (!currentBt && currentCalc) {
-        currentBt = runBacktestAnalysis(btData.events || [], currentCalc);
+      if (!currentBt && readyCalc) {
+        currentBt = runBacktestAnalysis(btData.events || [], readyCalc);
       }
       setBacktestResult(currentBt);
       setEvents(btData.events || []);
 
       let currentEnsemble = calcData.ensemble;
-      if (!currentEnsemble && currentCalc && prof) {
-        currentEnsemble = generateMultiAgentEnsemble(prof, currentCalc, currentBt?.destinyConsistencyScore ?? null);
+      if (!currentEnsemble && readyCalc && prof) {
+        currentEnsemble = generateMultiAgentEnsemble(prof, readyCalc, currentBt?.destinyConsistencyScore ?? null);
       }
       setEnsemble(currentEnsemble);
     } catch (e) {
@@ -337,20 +355,22 @@ export default function App() {
   // Recalculate
   const handleRecalculate = async () => {
     if (!activeProfileId) return;
+    const prof = profiles.find((p) => p.id === activeProfileId);
     try {
       const data = await api.recalculate(activeProfileId);
-      setCalculation(data.calculation);
+      const readyCalc = ensureCalculationWithDossier(prof, data.calculation);
+      setCalculation(readyCalc);
       setEnsemble(data.ensemble);
       setBacktestResult(data.backtest);
     } catch (e) {
       console.error('API Error details (handleRecalculate):', e);
       // Fallback deterministic recalculation
-      const prof = profiles.find((p) => p.id === activeProfileId);
       if (prof?.birthData) {
         const newCalc = runFullDestinyCalculation(prof.birthData, activeProfileId, events.length);
-        const newBt = runBacktestAnalysis(events, newCalc);
-        const newEnsemble = generateMultiAgentEnsemble(prof, newCalc, newBt.destinyConsistencyScore);
-        setCalculation(newCalc);
+        const readyCalc = ensureCalculationWithDossier(prof, newCalc);
+        const newBt = runBacktestAnalysis(events, readyCalc || newCalc);
+        const newEnsemble = generateMultiAgentEnsemble(prof, readyCalc || newCalc, newBt.destinyConsistencyScore);
+        setCalculation(readyCalc);
         setBacktestResult(newBt);
         setEnsemble(newEnsemble);
       }
@@ -379,18 +399,19 @@ export default function App() {
         isPrimary: profiles.length === 0
       });
 
+      const readyCalc = ensureCalculationWithDossier(data.profile, data.calculation);
       setProfiles((prev) => [...prev, data.profile]);
       setActiveProfileId(data.profile.id);
-      setCalculation(data.calculation);
+      setCalculation(readyCalc);
       setSyncStatus('synced');
 
       pwaProfileStorage.saveProfile(data.profile).catch(() => {});
-      pwaProfileStorage.saveCalculation(data.profile.id, data.calculation).catch(() => {});
+      pwaProfileStorage.saveCalculation(data.profile.id, readyCalc || data.calculation).catch(() => {});
 
-      const bt = runBacktestAnalysis([], data.calculation);
+      const bt = runBacktestAnalysis([], readyCalc || data.calculation);
       setBacktestResult(bt);
       setEvents([]);
-      setEnsemble(generateMultiAgentEnsemble(data.profile, data.calculation, bt.destinyConsistencyScore));
+      setEnsemble(generateMultiAgentEnsemble(data.profile, readyCalc || data.calculation, bt.destinyConsistencyScore));
       setShowOnboarding(false);
     } catch (e) {
       console.error('API Error details (handleCreateProfile):', e);
@@ -409,21 +430,22 @@ export default function App() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
+      const readyCalc = ensureCalculationWithDossier(newProfile, newCalc);
       setProfiles((prev) => [...prev, newProfile]);
       setActiveProfileId(newProfile.id);
-      setCalculation(newCalc);
+      setCalculation(readyCalc);
       setSyncStatus('local_only');
       setLocalProfileIds((prev) => new Set(prev).add(newProfile.id));
 
       // Persist to PWA local storage immediately
       pwaProfileStorage.saveProfile(newProfile).catch(() => {});
-      pwaProfileStorage.saveCalculation(newProfile.id, newCalc).catch(() => {});
+      pwaProfileStorage.saveCalculation(newProfile.id, readyCalc || newCalc).catch(() => {});
       api.cacheProfiles([...profiles, newProfile]);
 
-      const bt = runBacktestAnalysis([], newCalc);
+      const bt = runBacktestAnalysis([], readyCalc || newCalc);
       setBacktestResult(bt);
       setEvents([]);
-      setEnsemble(generateMultiAgentEnsemble(newProfile, newCalc, bt.destinyConsistencyScore));
+      setEnsemble(generateMultiAgentEnsemble(newProfile, readyCalc || newCalc, bt.destinyConsistencyScore));
       setShowOnboarding(false);
     }
   };
