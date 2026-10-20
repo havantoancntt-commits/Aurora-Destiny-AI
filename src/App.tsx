@@ -41,6 +41,8 @@ import { sacredSound } from './services/soundService';
 import { sacredVoice } from './services/sacredVoiceService';
 import { SacredSealBadge } from './components/SacredSealBadge';
 import { SacredTaijiSpinner } from './components/SacredTaijiSpinner';
+import { useDestinyPushScheduler } from './hooks/useDestinyPushScheduler';
+import { CelestialAlertToast } from './components/CelestialAlertToast';
 
 import { UserProfile, UserPreferences } from './types/user';
 import { CalculationResult, BirthData, BehavioralContext, LanguageCode } from './types/destiny';
@@ -451,6 +453,9 @@ export default function App() {
   };
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId) || profiles[0];
+
+  // Active Multi-Profile & Hourly Push Alert Scheduler
+  useDestinyPushScheduler(profiles, activeProfile || null, calculation);
 
   // Add Historical Event for Backtesting
   const handleAddEvent = async (eventData: Partial<HistoricalEvent>) => {
@@ -1019,10 +1024,15 @@ export default function App() {
       {showRealtimeAlertModal && (
         <RealTimeAlertCenter
           calculation={calculation}
+          profile={activeProfile || null}
+          profiles={profiles}
           language={language}
           onClose={() => setShowRealtimeAlertModal(false)}
         />
       )}
+
+      {/* Floating In-App Celestial Alert Toast Banner */}
+      <CelestialAlertToast onOpenAlertCenter={() => setShowRealtimeAlertModal(true)} />
 
       {/* Legal & Moral Ethics Statement Modal */}
       <LegalEthicsModal

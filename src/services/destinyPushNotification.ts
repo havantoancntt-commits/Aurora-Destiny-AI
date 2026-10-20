@@ -8,6 +8,7 @@ import { CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { calculateRealtimeSnapshot, HourlySlotInsight } from '../engine/realtimeEngine';
 import { sacredSound } from './soundService';
+import { scanMajorEventsForProfiles, MajorDestinyEvent } from '../engine/destinyAlertWatchdog';
 
 export interface CanChiNotificationConfig {
   enabled: boolean;
@@ -18,6 +19,13 @@ export interface CanChiNotificationConfig {
   advanceNoticeMinutes: number; // 0 (đúng giờ) hoặc 10 (trước 10 phút)
   soundEnabled: boolean;
   vibrate: boolean;
+  notifyMultiProfiles: boolean; // Giám sát đa hồ sơ: cảnh báo cho tất cả người thân & đối tác đã lưu
+  notifyMajorClashes: boolean; // Cảnh báo Thiên Khắc Địa Xung & Lục Xung bản mệnh theo ngày
+  notifyQuyNhanLocThan: boolean; // Cảnh báo Giờ/Ngày Quý Nhân & Lộc Thần
+  notifySolarTerms: boolean; // Cảnh báo chuyển giao 24 Tiết Khí thiên văn
+  quietHoursEnabled: boolean; // Chế độ yên lặng ban đêm
+  quietHoursStart: string; // "23:00"
+  quietHoursEnd: string; // "06:00"
 }
 
 export interface CanChiNotificationLog {
@@ -26,11 +34,13 @@ export interface CanChiNotificationLog {
   timeFormatted: string;
   slotBranch: string;
   slotStem: string;
-  type: 'AUSPICIOUS' | 'INAUSPICIOUS' | 'MORNING_BRIEFING' | 'EVENING_REFLECTION' | 'TEST';
+  type: 'AUSPICIOUS' | 'INAUSPICIOUS' | 'MORNING_BRIEFING' | 'EVENING_REFLECTION' | 'TEST' | 'WATCHDOG_EVENT';
   title: string;
   body: string;
   resonanceScore: number;
   zodiacStarName: string;
+  profileName?: string;
+  severity?: string;
 }
 
 export interface UpcomingAlertItem {
@@ -48,6 +58,7 @@ export interface UpcomingAlertItem {
 const CONFIG_STORAGE_KEY = 'aurora_canchi_notification_config';
 const LAST_NOTIFIED_KEY = 'aurora_canchi_last_notified_slot';
 const HISTORY_STORAGE_KEY = 'aurora_canchi_notification_history';
+const WATCHDOG_NOTIFIED_PREFIX = 'aurora_watchdog_notified_';
 
 export const DEFAULT_NOTIFICATION_CONFIG: CanChiNotificationConfig = {
   enabled: true,
@@ -57,7 +68,14 @@ export const DEFAULT_NOTIFICATION_CONFIG: CanChiNotificationConfig = {
   eveningReflection: false,
   advanceNoticeMinutes: 10,
   soundEnabled: true,
-  vibrate: true
+  vibrate: true,
+  notifyMultiProfiles: true,
+  notifyMajorClashes: true,
+  notifyQuyNhanLocThan: true,
+  notifySolarTerms: true,
+  quietHoursEnabled: false,
+  quietHoursStart: '23:00',
+  quietHoursEnd: '06:00'
 };
 
 // 1. Get stored preferences
@@ -460,3 +478,182 @@ export function getUpcomingAlertSchedule(
 
   return items;
 }
+
+// 12. Helper to check if current time is within Quiet Hours
+function isWithinQuietHours(config: CanChiNotificationConfig, now: Date = new Date()): boolean {
+  if (!config.quietHoursEnabled) return false;
+  try {
+    const currentMin = now.getHours() * 60 + now.getMinutes();
+    const [startH, startM] = config.quietHoursStart.split(':').map(Number);
+    const [endH, endM] = config.quietHoursEnd.split(':').map(Number);
+    const startMin = startH * 60 + (startM || 0);
+    const endMin = endH * 60 + (endM || 0);
+
+    if (startMin > endMin) {
+      // Overnight (e.g. 23:00 to 06:00)
+      return currentMin >= startMin || currentMin < endMin;
+    } else {
+      return currentMin >= startMin && currentMin < endMin;
+    }
+  } catch {
+    return false;
+  }
+}
+
+// 13. Multi-profile Watchdog Alert Evaluator (Checks All Profiles for Major Events)
+export async function evaluateAndTriggerWatchdogAlerts(
+  profiles: UserProfile[],
+  calculations: Record<string, CalculationResult | null> = {},
+  forcedTest: boolean = false
+): Promise<{ triggered: boolean; event?: MajorDestinyEvent; message?: string }> {
+  if (!profiles || profiles.length === 0) {
+    return { triggered: false, message: 'Chưa có hồ sơ nào được lưu trong hệ thống' };
+  }
+
+  const config = getNotificationConfig();
+  if (!config.enabled && !forcedTest) {
+    return { triggered: false, message: 'Hệ thống thông báo đẩy đang tắt' };
+  }
+
+  const permission = getNotificationPermission();
+  if (permission !== 'granted' && !forcedTest) {
+    return { triggered: false, message: 'Chưa được cấp quyền thông báo trình duyệt' };
+  }
+
+  const now = new Date();
+  if (!forcedTest && isWithinQuietHours(config, now)) {
+    return { triggered: false, message: 'Đang trong khung giờ tĩnh tâm (Chế độ Không làm phiền)' };
+  }
+
+  // Target profiles: All profiles if notifyMultiProfiles is true, else only primary
+  const targetProfiles = config.notifyMultiProfiles
+    ? profiles
+    : profiles.filter((p) => p.isPrimary || profiles.indexOf(p) === 0);
+
+  // Scan all major celestial events
+  const events = scanMajorEventsForProfiles(targetProfiles, calculations, now);
+  if (events.length === 0) {
+    return { triggered: false, message: 'Không có biến động thiên văn bất thường vào thời điểm này' };
+  }
+
+  // Pick top priority event
+  for (const event of events) {
+    // Filter by user preference toggles
+    if (!forcedTest) {
+      if (
+        (event.eventType === 'THIEN_KHAC_DIA_XUNG' || event.eventType === 'LUC_XUNG_NATAL') &&
+        !config.notifyMajorClashes
+      ) {
+        continue;
+      }
+      if (
+        (event.eventType === 'THIEN_AT_QUY_NHAN' || event.eventType === 'LOC_THAN_TAI_BACH') &&
+        !config.notifyQuyNhanLocThan
+      ) {
+        continue;
+      }
+      if (event.eventType === 'SOLAR_TERM_INGRESS' && !config.notifySolarTerms) {
+        continue;
+      }
+
+      // De-duplicate: check if already notified today
+      const storageKey = `${WATCHDOG_NOTIFIED_PREFIX}${event.id}`;
+      if (typeof window !== 'undefined' && localStorage.getItem(storageKey)) {
+        continue; // Already notified for this exact event today
+      }
+    }
+
+    const isHarmonic = event.severity === 'CRITICAL_POSITIVE' || event.severity === 'HIGH_POSITIVE' || event.severity === 'NEUTRAL_INFO';
+
+    const notificationOptions: NotificationOptions & { vibrate?: number[]; data?: any; renotify?: boolean } = {
+      body: `${event.summary}\n💡 Lời khuyên: ${event.actionableDos[0] || event.detailedAdvice.slice(0, 80)}`,
+      icon: '/og-image.svg',
+      badge: '/og-image.svg',
+      tag: event.id,
+      renotify: true,
+      vibrate: config.vibrate ? (isHarmonic ? [250, 100, 250] : [400, 150, 400, 150, 400]) : undefined,
+      data: {
+        url: '/?tab=daily',
+        eventId: event.id,
+        profileId: event.profileId,
+        eventType: event.eventType
+      }
+    };
+
+    const success = await dispatchPushNotification(
+      event.title,
+      notificationOptions,
+      config.soundEnabled,
+      isHarmonic
+    );
+
+    if (success || forcedTest) {
+      if (typeof window !== 'undefined' && !forcedTest) {
+        localStorage.setItem(`${WATCHDOG_NOTIFIED_PREFIX}${event.id}`, Date.now().toString());
+      }
+
+      recordNotificationLog({
+        slotBranch: event.targetTime,
+        slotStem: event.relationshipTag || 'Bản mệnh',
+        type: 'WATCHDOG_EVENT',
+        title: event.title,
+        body: event.summary,
+        resonanceScore: event.urgency,
+        zodiacStarName: event.eventType,
+        profileName: event.profileName,
+        severity: event.severity
+      });
+
+      // Dispatch in-app celestial alert event for luxury floating HUD
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('aurora:celestial-alert', {
+            detail: {
+              ...event,
+              timestamp: Date.now()
+            }
+          })
+        );
+      }
+
+      return { triggered: true, event, message: `Đã gửi thông báo: ${event.title}` };
+    }
+  }
+
+  return { triggered: false, message: 'Các sự kiện hôm nay đã được thông báo trước đó' };
+}
+
+// 14. Send Multi-Profile Test Push Notification
+export async function sendMultiProfileTestPush(
+  profiles: UserProfile[],
+  calculations: Record<string, CalculationResult | null> = {}
+): Promise<{ success: boolean; message: string; event?: MajorDestinyEvent }> {
+  if (!profiles || profiles.length === 0) {
+    return { success: false, message: 'Vui lòng lập ít nhất một lá số trước khi thử nghiệm' };
+  }
+
+  const perm = await requestNotificationPermission();
+  if (perm !== 'granted') {
+    return {
+      success: false,
+      message: 'Quyền thông báo chưa được cấp phép. Vui lòng bấm "Cho phép" trên trình duyệt.'
+    };
+  }
+
+  const result = await evaluateAndTriggerWatchdogAlerts(profiles, calculations, true);
+  if (result.triggered && result.event) {
+    return {
+      success: true,
+      message: `Đã phát thông báo đẩy thành công cho ${result.event.profileName}: "${result.event.title}"`,
+      event: result.event
+    };
+  } else {
+    // If no specific event was synthesized, fallback to standard slot push test
+    const standardTest = await sendTestNotification(
+      calculations[profiles[0].id] || null,
+      profiles[0]
+    );
+    return standardTest;
+  }
+}
+

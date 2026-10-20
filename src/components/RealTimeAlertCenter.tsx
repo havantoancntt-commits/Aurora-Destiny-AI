@@ -49,6 +49,7 @@ import {
 interface Props {
   calculation: CalculationResult | null;
   profile?: UserProfile | null;
+  profiles?: UserProfile[];
   language: LanguageCode;
   initialMode?: 'radar' | 'notifications';
   onClose: () => void;
@@ -57,6 +58,7 @@ interface Props {
 export const RealTimeAlertCenter: React.FC<Props> = ({
   calculation,
   profile,
+  profiles = [],
   language,
   initialMode = 'radar',
   onClose
@@ -291,6 +293,7 @@ export const RealTimeAlertCenter: React.FC<Props> = ({
               <CanChiNotificationPanel
                 calculation={calculation}
                 profile={profile || null}
+                profiles={profiles}
                 language={language}
                 onClose={onClose}
               />

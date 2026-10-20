@@ -29,7 +29,8 @@ import {
   Download,
   Sun,
   HeartHandshake,
-  HardDrive
+  HardDrive,
+  Bell
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -160,6 +161,21 @@ export const Navbar: React.FC<Props> = ({
                   onOpenAlertCenter={onOpenAlertCenter}
                 />
               </div>
+            )}
+
+            {/* Quick Alert Radar Button (Accessible on Mobile / Tablet) */}
+            {onOpenAlertCenter && (
+              <button
+                id="btn-nav-alert-bell"
+                onClick={onOpenAlertCenter}
+                className="relative lg:hidden flex items-center justify-center p-2 rounded-xl bg-white/[0.04] hover:bg-amber-500/15 border border-white/10 hover:border-amber-400/40 text-slate-300 hover:text-amber-300 transition-all cursor-pointer"
+                title="Trung Tâm Cảnh Báo Vận Mệnh Trọng Yếu & Thông Báo Đẩy"
+                aria-label="Cảnh báo vận mệnh"
+              >
+                <Bell className="w-4 h-4 text-amber-300" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]" />
+              </button>
             )}
 
             {/* Profile Switcher & Info Entry Trigger */}

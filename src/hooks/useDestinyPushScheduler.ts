@@ -1,7 +1,7 @@
-// ==========================================================
-// AURORA DESTINY AI — CAN-CHI PUSH NOTIFICATION SCHEDULER HOOK
-// Automatically monitors and triggers hourly push notifications
-// ==========================================================
+// ==============================================================================
+// AURORA DESTINY AI — CAN-CHI & MULTI-PROFILE PUSH NOTIFICATION SCHEDULER HOOK
+// Automatically monitors and triggers hourly push notifications & watchdog alerts
+// ==============================================================================
 
 import { useEffect, useRef } from 'react';
 import { CalculationResult } from '../types/destiny';
@@ -9,12 +9,14 @@ import { UserProfile } from '../types/user';
 import {
   registerDestinyServiceWorker,
   evaluateAndTriggerHourlyAlert,
+  evaluateAndTriggerWatchdogAlerts,
   getNotificationPermission
 } from '../services/destinyPushNotification';
 
 export function useDestinyPushScheduler(
-  calculation: CalculationResult | null,
-  profile: UserProfile | null
+  profiles: UserProfile[],
+  activeProfile: UserProfile | null,
+  calculation: CalculationResult | null
 ) {
   const isRunningRef = useRef<boolean>(false);
 
@@ -24,7 +26,7 @@ export function useDestinyPushScheduler(
   }, []);
 
   useEffect(() => {
-    if (!calculation || !profile) return;
+    if (!profiles || profiles.length === 0) return;
 
     // 2. Periodic check function
     const checkSchedule = async () => {
@@ -33,9 +35,20 @@ export function useDestinyPushScheduler(
 
       try {
         isRunningRef.current = true;
-        await evaluateAndTriggerHourlyAlert(calculation, profile);
+
+        // A. Check active profile hourly Can-Chi transit
+        if (calculation && activeProfile) {
+          await evaluateAndTriggerHourlyAlert(calculation, activeProfile);
+        }
+
+        // B. Check multi-profile major celestial watchdog alerts
+        const calcsMap: Record<string, CalculationResult | null> = {};
+        if (activeProfile && calculation) {
+          calcsMap[activeProfile.id] = calculation;
+        }
+        await evaluateAndTriggerWatchdogAlerts(profiles, calcsMap);
       } catch (e) {
-        console.error('Error during hourly notification evaluation:', e);
+        console.error('Error during push notification evaluation:', e);
       } finally {
         isRunningRef.current = false;
       }
@@ -64,5 +77,5 @@ export function useDestinyPushScheduler(
       clearInterval(intervalTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [calculation, profile]);
+  }, [profiles, activeProfile, calculation]);
 }
