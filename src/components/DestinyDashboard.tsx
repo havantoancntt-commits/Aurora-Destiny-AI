@@ -448,7 +448,7 @@ export const DestinyDashboard: React.FC<Props> = ({
       {/* ================= KHÔNG GIAN PHÁP BẢO & ÂM THANH THIỀN LINH THIÊNG ================= */}
       <SacredSanctuaryBar
         onOpenOracleModal={onOpenOracleModal}
-        onOpenTalismanModal={onOpenTalismanModal}
+        onOpenTalismanModal={onOpenTalismanModal || (() => {})}
         onOpenCodexModal={() => setShowSacredCodex(!showSacredCodex)}
       />
 

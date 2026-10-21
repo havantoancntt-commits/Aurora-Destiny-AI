@@ -55,6 +55,7 @@ import { runFullDestinyCalculation } from './engine/destinyEngine';
 import { generateMultiAgentEnsemble } from './services/aiSynthesizer';
 import { runBacktestAnalysis } from './engine/backtesting';
 import { buildPersonalizedDestinyDossier } from './engine/personalizationEngine';
+import { STEMS } from './engine/canchi';
 
 function ensureCalculationWithDossier(prof: UserProfile | undefined, calc: CalculationResult | null): CalculationResult | null {
   if (!calc || !prof) return calc;
@@ -1133,7 +1134,7 @@ export default function App() {
       <SacredOracleModal
         isOpen={showOracleModal}
         onClose={() => setShowOracleModal(false)}
-        dayMasterElement={calculation?.bazi?.dayMaster?.element}
+        dayMasterElement={calculation?.bazi?.dayMaster ? STEMS[calculation.bazi.dayMaster]?.element : undefined}
         userName={activeProfile?.name || 'Đương Số'}
       />
 
