@@ -219,6 +219,38 @@ class SacredSoundEngine {
     }
   }
 
+  // Bamboo Oracle Sticks Shaking (Âm Thanh Lắc Thẻ Xâm Tre Linh Thiêng)
+  public playBambooShaking() {
+    if (this.isMuted) return;
+    const ctx = this.initContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      for (let i = 0; i < 5; i++) {
+        const t = now + i * 0.055 + Math.random() * 0.02;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(680 + Math.random() * 320, t);
+        osc.frequency.exponentialRampToValueAtTime(320, t + 0.035);
+
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(0.065, t + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(t);
+        osc.stop(t + 0.04);
+      }
+    } catch {
+      // Audio fallback
+    }
+  }
+
   // Solfeggio 432Hz / 528Hz Ambient Drone (Sóng Thiền Vũ Trụ Dài Lắng Đọng)
   public startAmbient(mode: '432hz' | '528hz' | 'zen' = '432hz') {
     if (this.isMuted) return;

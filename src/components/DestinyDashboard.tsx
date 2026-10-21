@@ -53,6 +53,10 @@ import { sacredSound } from '../services/soundService';
 import { SacredSealBadge } from './SacredSealBadge';
 import { DailyGoldenCompassCard } from './DailyGoldenCompassCard';
 import { TermExplainerTooltip } from './TermExplainerTooltip';
+import { SacredCosmicCipher3D } from './SacredCosmicCipher3D';
+import { SacredVoiceGuideWidget } from './SacredVoiceGuideWidget';
+import { SacredSanctuaryBar } from './SacredSanctuaryBar';
+import { SacredMandalaAura } from './SacredMandalaAura';
 
 interface Props {
   profile: UserProfile;
@@ -125,6 +129,7 @@ export const DestinyDashboard: React.FC<Props> = ({
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [voiceState, setVoiceState] = useState(sacredVoice.getState());
   const [selectedEnergyMonth, setSelectedEnergyMonth] = useState<{ year: number; month: number } | null>(null);
+  const [showSacredCodex, setShowSacredCodex] = useState<boolean>(false);
 
   useEffect(() => {
     const unsub = sacredVoice.subscribe(setVoiceState);
@@ -439,6 +444,66 @@ export const DestinyDashboard: React.FC<Props> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* ================= KHÔNG GIAN PHÁP BẢO & ÂM THANH THIỀN LINH THIÊNG ================= */}
+      <SacredSanctuaryBar
+        onOpenOracleModal={onOpenOracleModal}
+        onOpenTalismanModal={onOpenTalismanModal}
+        onOpenCodexModal={() => setShowSacredCodex(!showSacredCodex)}
+      />
+
+      {/* ================= CHIÊM BÁI BÍ ĐIỂN THIÊN CƠ 3D & KHẨU QUYẾT TRUYỀN CẢM ================= */}
+      <div className="rounded-3xl bg-gradient-to-b from-[#141026]/95 via-[#0e0c1c]/95 to-[#070611]/95 border border-amber-500/40 p-4 sm:p-5 shadow-[0_10px_35px_rgba(0,0,0,0.5)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2.5">
+            <SacredSealBadge text="BẢO THƯ" subtext="3D KHAI TÂM" size="sm" />
+            <div>
+              <h3 className="text-sm sm:text-base font-serif font-bold text-white flex items-center gap-2 flex-wrap">
+                <span>Bảo Điển Thiên Cơ 3D • Bản Mệnh {profile.name}</span>
+                <span className="text-xs font-mono font-normal text-amber-300">({bazi.yearPillar.naYin || dm.element})</span>
+              </h3>
+              <p className="text-xs text-slate-300">
+                Xoay lật góc nhìn vật lý 3D, chiêm bái cuốn cổ thư hoàng gia nghìn năm giải mã 12 Cung và Tứ Trụ Bát Tự.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              sacredSound.playSacredTap(528);
+              setShowSacredCodex(!showSacredCodex);
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 text-amber-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-amber-300" />
+            <span>{showSacredCodex ? 'Thu Gọn Cổ Thư' : 'Chiêm Bái Cổ Thư 3D'}</span>
+          </button>
+        </div>
+
+        {/* Embedded Sacred Voice Guide Widget */}
+        <SacredVoiceGuideWidget currentField={selectedPalace.nameVi} className="w-full" />
+
+        {/* 3D Sacred Codex when expanded */}
+        {showSacredCodex && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="pt-2 pb-4 flex flex-col items-center"
+          >
+            <SacredCosmicCipher3D
+              onActivate={() => {
+                sacredSound.playTempleGong(108);
+                onOpenTalismanModal?.();
+              }}
+            />
+            <p className="text-[11px] text-slate-400 font-mono mt-2 text-center">
+              ✦ Chạm vào Cổ Thư 3D để thỉnh Pháp Bảo Kim Giáp &amp; Bia Vàng Công Đức ✦
+            </p>
+          </motion.div>
+        )}
+      </div>
 
       {/* DÀNH CHO BÁC/CÔ CHÚ: TRỢ LÝ HƯỚNG DẪN LẬP LÁ SỐ TỪNG BƯỚC (A - Z) */}
       {onOpenSeniorGuide && (
@@ -1022,9 +1087,14 @@ export const DestinyDashboard: React.FC<Props> = ({
               })}
 
               {/* TRUNG CUNG (The Heart of the Celestial Board - 2x2 merged central matrix) */}
-              <div className="col-start-2 col-span-2 row-start-2 row-span-2 rounded-2xl bg-gradient-to-b from-black/80 via-purple-950/20 to-black/90 border border-white/15 p-4 sm:p-5 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+              <div className="relative overflow-hidden col-start-2 col-span-2 row-start-2 row-span-2 rounded-2xl bg-gradient-to-b from-black/80 via-purple-950/20 to-black/90 border border-white/15 p-4 sm:p-5 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+                {/* Sacred Mandala Aura Breathing Light in Heart of Board */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none -z-0">
+                  <SacredMandalaAura size={240} opacity={0.25} />
+                </div>
+
                 {/* Header of Trung Cung */}
-                <div className="text-center space-y-1 border-b border-white/10 pb-3">
+                <div className="relative z-10 text-center space-y-1 border-b border-white/10 pb-3">
                   <div className="text-[10px] uppercase tracking-widest text-amber-300 font-semibold flex items-center justify-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                     <span>THIÊN BÀN TỬ VI ĐẨU SỐ • BẢN MỆNH CHÍNH TÔNG</span>

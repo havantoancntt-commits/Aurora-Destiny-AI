@@ -36,6 +36,8 @@ import { CommunitySocialModal } from './components/CommunitySocialModal';
 import { PWAOfflineIndicator } from './components/PWAOfflineIndicator';
 import { PWAProfileManagerModal } from './components/PWAProfileManagerModal';
 import { AstrologyGlossaryModal } from './components/AstrologyGlossaryModal';
+import { SacredOracleModal } from './components/SacredOracleModal';
+import { SacredParticles } from './components/SacredParticles';
 import { pwaProfileStorage } from './services/pwaProfileStorage';
 import { sacredSound } from './services/soundService';
 import { sacredVoice } from './services/sacredVoiceService';
@@ -96,6 +98,7 @@ export default function App() {
   const [showSeniorGuideModal, setShowSeniorGuideModal] = useState<boolean>(false);
   const [showPwaProfileModal, setShowPwaProfileModal] = useState<boolean>(false);
   const [showGlossaryModal, setShowGlossaryModal] = useState<boolean>(false);
+  const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
 
   // App Core State
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
@@ -572,6 +575,9 @@ export default function App() {
       {/* 0. Celestial Animated Particles & Constellation Engine */}
       <CelestialBackground />
 
+      {/* 0.1 Sacred Gold Stardust & Cosmic Spiritual Particles (Hạt Kim Sa Bát Nhã) */}
+      <SacredParticles density="subtle" className="fixed inset-0 pointer-events-none z-0 opacity-40" />
+
       {/* Immersive UI Ambient Mesh Glow Orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-purple-900/15 blur-[140px] rounded-full animate-pulse" />
@@ -579,8 +585,6 @@ export default function App() {
         <div className="absolute top-[25%] right-[5%] w-[35%] h-[35%] bg-blue-900/10 blur-[120px] rounded-full" />
         <div className="absolute inset-0 bg-immersive-radial opacity-25 pointer-events-none" />
       </div>
-
-      {/* 2. Top Header Navigation (Clean, unobstructed professional top bar) */}
 
       {/* 2. Top Header Navigation */}
       <div className="relative z-30">
@@ -599,6 +603,7 @@ export default function App() {
           onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
           onOpenInternationalModal={() => setShowInternationalModal(true)}
           onOpenTalismanModal={() => setShowTalismanModal(true)}
+          onOpenOracleModal={() => setShowOracleModal(true)}
           onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
           onOpenCommunityModal={() => setShowCommunityModal(true)}
           onNavigateTab={setActiveTab}
@@ -868,6 +873,7 @@ export default function App() {
                   onOpenShareCardModal={() => setShowShareCardModal(true)}
                   onOpenAlertCenter={() => setShowRealtimeAlertModal(true)}
                   onOpenTalismanModal={() => setShowTalismanModal(true)}
+                  onOpenOracleModal={() => setShowOracleModal(true)}
                   onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
                   onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
                   onOpenPwaProfileManager={() => setShowPwaProfileModal(true)}
@@ -1121,6 +1127,14 @@ export default function App() {
       <AstrologyGlossaryModal
         isOpen={showGlossaryModal}
         onClose={() => setShowGlossaryModal(false)}
+      />
+
+      {/* Đài Gieo Quẻ Bát Quái • Thỉnh Quẻ Linh Ứng Đầu Ngày (Sacred Oracle Divination) */}
+      <SacredOracleModal
+        isOpen={showOracleModal}
+        onClose={() => setShowOracleModal(false)}
+        dayMasterElement={calculation?.bazi?.dayMaster?.element}
+        userName={activeProfile?.name || 'Đương Số'}
       />
 
       {/* PWA Enterprise Connectivity & Update Status Floating Toast */}
