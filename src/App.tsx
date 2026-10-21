@@ -896,6 +896,7 @@ export default function App() {
                   calculation={calculation}
                   allProfiles={profiles}
                   language={language}
+                  onOpenNewProfileModal={() => setShowOnboarding(true)}
                 />
               )}
 

@@ -71,10 +71,10 @@ export const Top3DTabBar: React.FC<Props> = ({
     {
       key: 'compatibility',
       labelKey: 'compatibility',
-      enLabel: 'Ma Trận Tương Hợp 360°',
+      enLabel: 'Mạng Lưới Quý Nhân & Hợp Tác',
       icon: HeartHandshake,
-      accentColor: 'from-rose-500 to-pink-500',
-      badge: 'Dụng Thần & Tứ Hóa'
+      accentColor: 'from-amber-500 to-rose-500',
+      badge: 'Mạng Lưới Quý Nhân'
     },
     {
       key: 'remedies',

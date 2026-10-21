@@ -18,7 +18,8 @@ import {
   ArrowRight,
   PlusCircle,
   HelpCircle,
-  AlertCircle
+  AlertCircle,
+  Crown
 } from 'lucide-react';
 import {
   CalculationResult,
@@ -33,6 +34,7 @@ import {
 } from '../engine/compatibility';
 import { ExecutiveSynastryStudio } from './ExecutiveSynastryStudio';
 import { SynergyMatrix360View } from './SynergyMatrix360View';
+import { CelestialKarmicNetworkView } from './CelestialKarmicNetworkView';
 import { soundEngine } from '../services/soundEffects';
 
 interface Props {
@@ -40,15 +42,19 @@ interface Props {
   calculation: CalculationResult;
   allProfiles: UserProfile[];
   language: LanguageCode;
+  onOpenNewProfileModal?: () => void;
+  cachedCalculations?: Record<string, CalculationResult | null>;
 }
 
 export const CompatibilityStudio: React.FC<Props> = ({
   activeProfile,
   calculation,
   allProfiles,
-  language
+  language,
+  onOpenNewProfileModal,
+  cachedCalculations
 }) => {
-  const [studioType, setStudioType] = useState<'matrix360' | 'executive' | 'personal'>('matrix360');
+  const [studioType, setStudioType] = useState<'network' | 'matrix360' | 'executive' | 'personal'>('network');
 
   // Other profiles excluding activeProfile
   const otherProfiles = useMemo(
@@ -174,6 +180,21 @@ export const CompatibilityStudio: React.FC<Props> = ({
           <button
             onClick={() => {
               soundEngine.playRadarTick();
+              setStudioType('network');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
+              studioType === 'network'
+                ? 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 font-black shadow-[0_0_20px_rgba(245,158,11,0.5)] border border-amber-300'
+                : 'text-amber-300 hover:text-white hover:bg-amber-500/10 border border-amber-500/25'
+            }`}
+          >
+            <Crown className="w-3.5 h-3.5" />
+            <span>Mạng Lưới Quý Nhân (Karmic Radar)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundEngine.playRadarTick();
               setStudioType('matrix360');
             }}
             className={`px-4 py-2 rounded-xl text-xs font-medium font-mono flex items-center gap-2 transition-all cursor-pointer ${
@@ -218,7 +239,7 @@ export const CompatibilityStudio: React.FC<Props> = ({
         </div>
       </div>
 
-      {studioType !== 'matrix360' && (
+      {studioType !== 'matrix360' && studioType !== 'network' && (
         <>
           {/* 1. Header Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#120f24] via-[#0d1127] to-[#070a18] p-6 border border-rose-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
@@ -390,7 +411,23 @@ export const CompatibilityStudio: React.FC<Props> = ({
       </>
     )}
 
-      {studioType === 'matrix360' ? (
+      {studioType === 'network' ? (
+        <motion.div
+          key="network-view"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <CelestialKarmicNetworkView
+            activeProfile={activeProfile}
+            calculation={calculation}
+            allProfiles={allProfiles}
+            language={language}
+            onOpenNewProfileModal={onOpenNewProfileModal}
+            cachedCalculations={cachedCalculations}
+          />
+        </motion.div>
+      ) : studioType === 'matrix360' ? (
         <motion.div
           key="matrix360-view"
           initial={{ opacity: 0, y: 10 }}
