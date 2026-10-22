@@ -465,15 +465,35 @@ class ApiClient {
   }
 
   public async deleteProfile(profileId: string): Promise<boolean> {
-    const res = await this.fetchWithAuth(`/api/profiles/${profileId}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (data.success) {
-      pwaProfileStorage.deleteProfile(profileId).catch(() => {});
+    try {
+      const res = await this.fetchWithAuth(`/api/profiles/${profileId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok && res.status !== 404) {
+        console.warn(`[ApiClient] Server delete returned HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn('[ApiClient] Server delete request deferred or offline:', err);
     }
-    return data.success === true;
+
+    // Always definitively purge from local memory and client profile cache
+    const currentCached = this.getCachedProfiles();
+    const remaining = currentCached.filter((p) => p.id !== profileId);
+    this.cacheProfiles(remaining);
+
+    // Deep offline storage purge (IndexedDB and storage keys)
+    await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
+
+    // Clean any session or local storage references
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`aurora_calc_${profileId}`);
+        localStorage.removeItem(`aurora_ensemble_${profileId}`);
+        sessionStorage.removeItem(`aurora_calc_${profileId}`);
+      }
+    } catch {}
+
+    return true;
   }
 
   // Calculations & AI Ensemble

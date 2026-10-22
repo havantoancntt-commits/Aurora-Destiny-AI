@@ -208,16 +208,39 @@ class PwaProfileStorageService {
    * Deletes a profile from offline storage
    */
   public async deleteProfile(profileId: string): Promise<void> {
-    // 1. Remove from localStorage
+    // 1. Remove from localStorage across all cache keys
     try {
-      const local = this.getLocalStorageProfiles().filter((p) => p.id !== profileId);
       const storage = this.getStorage();
       if (storage) {
+        // Standard PWA cache key
+        const local = this.getLocalStorageProfiles().filter((p) => p.id !== profileId);
         storage.setItem('aurora_cached_profiles', JSON.stringify({
           version: 1,
           timestamp: Date.now(),
           profiles: local
         }));
+
+        // Also sweep any aurora_cached_profiles_* or calculation keys
+        for (let i = 0; i < storage.length; i++) {
+          const key = storage.key(i);
+          if (key && (key.startsWith('aurora_cached_profiles') || key.startsWith('aurora_profile_') || key.includes(profileId))) {
+            try {
+              const raw = storage.getItem(key);
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && Array.isArray(parsed.profiles)) {
+                  parsed.profiles = parsed.profiles.filter((p: any) => p.id !== profileId);
+                  storage.setItem(key, JSON.stringify(parsed));
+                } else if (Array.isArray(parsed)) {
+                  const filtered = parsed.filter((p: any) => p.id !== profileId);
+                  storage.setItem(key, JSON.stringify(filtered));
+                } else if (key.includes(profileId)) {
+                  storage.removeItem(key);
+                }
+              }
+            } catch {}
+          }
+        }
       }
     } catch {}
 

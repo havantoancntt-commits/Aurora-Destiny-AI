@@ -1118,7 +1118,14 @@ export default function App() {
         onOpenNewProfileModal={() => setShowOnboarding(true)}
         onProfilesUpdated={(updated) => {
           setProfiles(updated);
-          if (activeProfileId && !updated.some((p) => p.id === activeProfileId) && updated.length > 0) {
+          if (updated.length === 0) {
+            setActiveProfileId('');
+            setCalculation(null);
+            setEnsemble(null);
+            setBacktestResult(null);
+            setEvents([]);
+            setShowOnboarding(true);
+          } else if (activeProfileId && !updated.some((p) => p.id === activeProfileId)) {
             handleSelectProfile(updated[0].id);
           }
         }}
