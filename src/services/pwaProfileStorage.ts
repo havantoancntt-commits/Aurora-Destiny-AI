@@ -91,6 +91,52 @@ class PwaProfileStorageService {
   }
 
   // ==========================================
+  // TOMBSTONE & PERMANENT PURGE REGISTRY
+  // ==========================================
+  private readonly TOMBSTONE_KEY = 'aurora_deleted_profile_ids';
+
+  /**
+   * Retrieves set of decisively deleted profile IDs to prevent resurrection
+   */
+  public getDeletedIds(): Set<string> {
+    try {
+      const storage = this.getStorage();
+      if (!storage) return new Set();
+      const raw = storage.getItem(this.TOMBSTONE_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          return new Set(arr.map(String));
+        }
+      }
+    } catch {}
+    return new Set();
+  }
+
+  /**
+   * Records a deleted profile ID permanently so no sync or cache can revive it
+   */
+  public addDeletedId(profileId: string): void {
+    if (!profileId) return;
+    try {
+      const storage = this.getStorage();
+      if (storage) {
+        const current = this.getDeletedIds();
+        current.add(profileId);
+        storage.setItem(this.TOMBSTONE_KEY, JSON.stringify(Array.from(current)));
+      }
+    } catch {}
+  }
+
+  /**
+   * Checks whether a profile ID has been marked as permanently deleted
+   */
+  public isDeleted(profileId: string): boolean {
+    if (!profileId) return false;
+    return this.getDeletedIds().has(profileId);
+  }
+
+  // ==========================================
   // PROFILE OPERATIONS
   // ==========================================
 
@@ -99,10 +145,14 @@ class PwaProfileStorageService {
    */
   public async saveProfile(profile: UserProfile): Promise<void> {
     if (!profile || !profile.id) return;
+    if (this.isDeleted(profile.id)) {
+      console.warn(`[PwaStorage] Rejecting save of tombstoned profile: ${profile.id}`);
+      return;
+    }
 
     // 1. Always update localStorage mirror for instant synchronous recovery
     try {
-      const localProfiles = this.getLocalStorageProfiles();
+      const localProfiles = this.getLocalStorageProfiles().filter((p) => !this.isDeleted(p.id));
       const existingIdx = localProfiles.findIndex((p) => p.id === profile.id);
       if (existingIdx >= 0) {
         localProfiles[existingIdx] = profile;
@@ -142,6 +192,8 @@ class PwaProfileStorageService {
    */
   public async saveAllProfiles(profiles: UserProfile[]): Promise<void> {
     if (!Array.isArray(profiles)) return;
+    const deleted = this.getDeletedIds();
+    const cleanList = profiles.filter((p) => p && p.id && !deleted.has(p.id));
 
     // LocalStorage sync
     try {
@@ -150,7 +202,7 @@ class PwaProfileStorageService {
         storage.setItem('aurora_cached_profiles', JSON.stringify({
           version: 1,
           timestamp: Date.now(),
-          profiles
+          profiles: cleanList
         }));
       }
     } catch (e) {
@@ -163,7 +215,9 @@ class PwaProfileStorageService {
       try {
         const tx = db.transaction(STORE_PROFILES, 'readwrite');
         const store = tx.objectStore(STORE_PROFILES);
-        for (const p of profiles) {
+        // Clear old store contents and write current clean list to avoid stale orphans
+        store.clear();
+        for (const p of cleanList) {
           store.put(p);
         }
         await new Promise<void>((res, rej) => {
@@ -178,8 +232,10 @@ class PwaProfileStorageService {
 
   /**
    * Retrieves all saved profiles from storage
+   * Respects empty state (does NOT resurrect deleted profiles from localStorage)
    */
   public async getProfiles(): Promise<UserProfile[]> {
+    const deletedIds = this.getDeletedIds();
     const db = await this.getDb();
     if (db) {
       try {
@@ -190,68 +246,98 @@ class PwaProfileStorageService {
           req.onsuccess = () => res(req.result || []);
           req.onerror = () => rej(req.error);
         });
-        if (profiles.length > 0) {
-          // Sort pinned first, then by updatedAt desc
-          return this.sortProfiles(profiles);
-        }
+
+        // IndexedDB successfully executed: filter out any tombstoned profiles
+        const filtered = (profiles || []).filter((p) => p && p.id && !deletedIds.has(p.id));
+        return this.sortProfiles(filtered);
       } catch (e) {
-        console.warn('[PwaStorage] IndexedDB getProfiles error:', e);
+        console.warn('[PwaStorage] IndexedDB getProfiles error, falling back to localStorage:', e);
       }
     }
 
-    // Fallback to localStorage
-    const local = this.getLocalStorageProfiles();
+    // Fallback to localStorage ONLY if IndexedDB failed or is completely unavailable
+    const local = this.getLocalStorageProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
     return this.sortProfiles(local);
   }
 
   /**
-   * Deletes a profile from offline storage
+   * Deletes a profile from offline storage definitively
    */
   public async deleteProfile(profileId: string): Promise<void> {
-    // 1. Remove from localStorage across all cache keys
+    if (!profileId) return;
+
+    // 1. Permanently register in tombstone blacklist
+    this.addDeletedId(profileId);
+
+    // 2. Comprehensive localStorage & sessionStorage sweep (Snapshot-based to avoid index shift)
     try {
       const storage = this.getStorage();
       if (storage) {
-        // Standard PWA cache key
-        const local = this.getLocalStorageProfiles().filter((p) => p.id !== profileId);
+        // Standard PWA mirror update
+        const local = this.getLocalStorageProfiles().filter((p) => p && p.id !== profileId && !this.isDeleted(p.id));
         storage.setItem('aurora_cached_profiles', JSON.stringify({
           version: 1,
           timestamp: Date.now(),
           profiles: local
         }));
 
-        // Also sweep any aurora_cached_profiles_* or calculation keys
+        // Snapshot all existing keys first
+        const allKeys: string[] = [];
         for (let i = 0; i < storage.length; i++) {
-          const key = storage.key(i);
-          if (key && (key.startsWith('aurora_cached_profiles') || key.startsWith('aurora_profile_') || key.includes(profileId))) {
+          const k = storage.key(i);
+          if (k) allKeys.push(k);
+        }
+
+        // Deep-clean every key referencing profileId or profile lists
+        for (const key of allKeys) {
+          if (key === 'aurora_cached_profiles' || key.startsWith('aurora_cached_profiles')) {
             try {
               const raw = storage.getItem(key);
               if (raw) {
                 const parsed = JSON.parse(raw);
                 if (parsed && Array.isArray(parsed.profiles)) {
-                  parsed.profiles = parsed.profiles.filter((p: any) => p.id !== profileId);
+                  parsed.profiles = parsed.profiles.filter((p: any) => p && p.id !== profileId && !this.isDeleted(p.id));
                   storage.setItem(key, JSON.stringify(parsed));
                 } else if (Array.isArray(parsed)) {
-                  const filtered = parsed.filter((p: any) => p.id !== profileId);
+                  const filtered = parsed.filter((p: any) => p && p.id !== profileId && !this.isDeleted(p.id));
                   storage.setItem(key, JSON.stringify(filtered));
-                } else if (key.includes(profileId)) {
-                  storage.removeItem(key);
                 }
               }
             } catch {}
+          } else if (key.includes(profileId)) {
+            storage.removeItem(key);
           }
         }
       }
-    } catch {}
 
-    // 2. Remove from IndexedDB
+      // Sweep sessionStorage
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const sessKeys: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k) sessKeys.push(k);
+        }
+        for (const k of sessKeys) {
+          if (k.includes(profileId)) sessionStorage.removeItem(k);
+        }
+      }
+    } catch (e) {
+      console.warn('[PwaStorage] LocalStorage profile removal error:', e);
+    }
+
+    // 3. Remove definitively from all IndexedDB stores
     const db = await this.getDb();
     if (db) {
       try {
-        const tx = db.transaction([STORE_PROFILES, STORE_CALCULATIONS, STORE_ENSEMBLES], 'readwrite');
+        const tx = db.transaction([STORE_PROFILES, STORE_CALCULATIONS, STORE_ENSEMBLES, STORE_SYNC_QUEUE], 'readwrite');
         tx.objectStore(STORE_PROFILES).delete(profileId);
         tx.objectStore(STORE_CALCULATIONS).delete(profileId);
         tx.objectStore(STORE_ENSEMBLES).delete(profileId);
+        tx.objectStore(STORE_SYNC_QUEUE).delete(profileId);
+        await new Promise<void>((res, rej) => {
+          tx.oncomplete = () => res();
+          tx.onerror = () => rej(tx.error);
+        });
       } catch (e) {
         console.warn('[PwaStorage] IndexedDB deleteProfile error:', e);
       }

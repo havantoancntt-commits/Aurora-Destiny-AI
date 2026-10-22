@@ -142,4 +142,28 @@ test('🗑️ Profile Deletion Integrity & Cache Purge Suite', async (t) => {
     const apiCached = api.getCachedProfiles();
     assert.strictEqual(apiCached.length, 0, 'API cache must be empty');
   });
+
+  await t.test('5. Tombstone prevents resurrection when exiting/re-entering or encountering stale cache', async () => {
+    assert.strictEqual(pwaProfileStorage.isDeleted(sampleProfile1.id), true, 'sampleProfile1 must be recorded in tombstone');
+    assert.strictEqual(pwaProfileStorage.isDeleted(sampleProfile2.id), true, 'sampleProfile2 must be recorded in tombstone');
+
+    // Attempt to illegally re-save deleted profile
+    await pwaProfileStorage.saveProfile(sampleProfile1);
+    const afterAttempt = await pwaProfileStorage.getProfiles();
+    assert.strictEqual(afterAttempt.length, 0, 'Tombstoned profile must be rejected by saveProfile');
+
+    // Attempt to inject via raw localStorage cache
+    const storage = (globalThis as any).localStorage;
+    storage.setItem('aurora_cached_profiles', JSON.stringify({
+      version: 1,
+      profiles: [sampleProfile1]
+    }));
+
+    // getProfiles and getCachedProfiles must still filter out tombstoned profile
+    const pwaProfiles = await pwaProfileStorage.getProfiles();
+    assert.strictEqual(pwaProfiles.length, 0, 'getProfiles must filter out tombstoned profile from stale cache');
+
+    const cachedApi = api.getCachedProfiles();
+    assert.strictEqual(cachedApi.length, 0, 'api.getCachedProfiles must filter out tombstoned profile');
+  });
 });

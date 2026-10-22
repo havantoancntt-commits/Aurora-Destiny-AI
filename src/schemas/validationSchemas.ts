@@ -21,10 +21,19 @@ export const BirthDataSchema = z.object({
   birthCountry: z.string().trim().min(1, 'Quốc gia không được để trống').max(100),
   timezoneOffset: z.number().min(-12, 'Múi giờ hợp lệ từ -12 đến +14').max(14, 'Múi giờ hợp lệ từ -12 đến +14'),
   timezoneName: z.string().trim().min(1).max(100),
-  gender: z.enum(['Male', 'Female', 'Other', 'PreferNotToSay']),
+  gender: z.union([
+    z.enum(['Male', 'Female', 'Other', 'PreferNotToSay']),
+    z.enum(['male', 'female', 'other', 'prefer_not_to_say', 'preferNotToSay'])
+  ]).transform(v => {
+    const lower = v.toLowerCase();
+    if (lower === 'male') return 'Male';
+    if (lower === 'female') return 'Female';
+    if (lower === 'other') return 'Other';
+    return 'PreferNotToSay';
+  }),
   calendarSystem: z.enum(['solar', 'lunar']),
   isLateRat: z.boolean().optional().default(false),
-  timeConvention: z.enum(['civil', 'trueSolar']).optional().default('civil'),
+  timeConvention: z.enum(['civil', 'trueSolar', 'standard']).optional().default('civil').transform(v => v === 'standard' ? 'civil' : v),
   ziweiYearConvention: z.enum(['solarLapXuan', 'lunarNewYear']).optional().default('solarLapXuan'),
   ziweiLeapMonthConvention: z.enum(['midMonthSplit', 'keepMonth']).optional().default('midMonthSplit'),
   longitude: z.number().min(-180).max(180).optional(),

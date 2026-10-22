@@ -335,6 +335,7 @@ class ApiClient {
   public getCachedProfiles(): UserProfile[] {
     try {
       if (typeof window !== 'undefined') {
+        const deletedIds = pwaProfileStorage.getDeletedIds();
         const key = this.getProfileCacheKey();
         const raw = localStorage.getItem(key);
         if (raw) {
@@ -346,9 +347,9 @@ class ApiClient {
                 // Cross-user contamination prevented: do not return another user's profiles
                 return [];
               }
-              return parsed.profiles;
+              return (parsed.profiles as UserProfile[]).filter((p) => p && p.id && !deletedIds.has(p.id));
             } else if (Array.isArray(parsed)) {
-              return parsed;
+              return (parsed as UserProfile[]).filter((p) => p && p.id && !deletedIds.has(p.id));
             }
           }
         }
@@ -360,15 +361,17 @@ class ApiClient {
   public cacheProfiles(profiles: UserProfile[]): void {
     try {
       if (typeof window !== 'undefined' && Array.isArray(profiles)) {
+        const deletedIds = pwaProfileStorage.getDeletedIds();
+        const cleanProfiles = profiles.filter((p) => p && p.id && !deletedIds.has(p.id));
         const key = this.getProfileCacheKey();
         const payload = {
           version: 1,
           userId: this.currentUserId,
           timestamp: Date.now(),
-          profiles
+          profiles: cleanProfiles
         };
         localStorage.setItem(key, JSON.stringify(payload));
-        pwaProfileStorage.saveAllProfiles(profiles).catch(() => {});
+        pwaProfileStorage.saveAllProfiles(cleanProfiles).catch(() => {});
       }
     } catch {}
   }
@@ -389,9 +392,13 @@ class ApiClient {
         if (this.currentUserId) {
           localStorage.removeItem(`aurora_cached_profiles_${this.currentUserId}`);
         }
+        const allKeys: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && k.startsWith('aurora_cached_profiles')) {
+          if (k) allKeys.push(k);
+        }
+        for (const k of allKeys) {
+          if (k.startsWith('aurora_cached_profiles')) {
             localStorage.removeItem(k);
           }
         }
@@ -401,23 +408,25 @@ class ApiClient {
 
   // Profile operations
   public async getProfiles(): Promise<UserProfile[]> {
+    const deletedIds = pwaProfileStorage.getDeletedIds();
     try {
       const res = await this.fetchWithAuth('/api/profiles');
       if (!res.ok) {
         console.warn(`[ApiClient] Server returned HTTP ${res.status} for getProfiles, using local cache.`);
-        const local = this.getCachedProfiles();
+        const local = this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
         if (local.length > 0) return local;
         return await pwaProfileStorage.getProfiles().catch(() => []);
       }
       const data = await res.json();
       if (Array.isArray(data)) {
-        this.cacheProfiles(data);
-        return data;
+        const cleanData = data.filter((p) => p && p.id && !deletedIds.has(p.id));
+        this.cacheProfiles(cleanData);
+        return cleanData;
       }
-      return this.getCachedProfiles();
+      return this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
     } catch (err: any) {
       console.warn('[ApiClient] Failed to fetch profiles from network, using local cache:', err.message);
-      const local = this.getCachedProfiles();
+      const local = this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
       if (local.length > 0) return local;
       return await pwaProfileStorage.getProfiles().catch(() => []);
     }
@@ -465,6 +474,12 @@ class ApiClient {
   }
 
   public async deleteProfile(profileId: string): Promise<boolean> {
+    if (!profileId) return true;
+
+    // 1. Immediately register tombstone and purge offline storage first (Zero resurrection window)
+    await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
+
+    // 2. Transmit DELETE to server with credentials
     try {
       const res = await this.fetchWithAuth(`/api/profiles/${profileId}`, {
         method: 'DELETE'
@@ -476,20 +491,19 @@ class ApiClient {
       console.warn('[ApiClient] Server delete request deferred or offline:', err);
     }
 
-    // Always definitively purge from local memory and client profile cache
+    // 3. Purge from local memory and client profile cache across all profile keys
     const currentCached = this.getCachedProfiles();
-    const remaining = currentCached.filter((p) => p.id !== profileId);
+    const remaining = currentCached.filter((p) => p && p.id !== profileId && !pwaProfileStorage.isDeleted(p.id));
     this.cacheProfiles(remaining);
 
-    // Deep offline storage purge (IndexedDB and storage keys)
-    await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
-
-    // Clean any session or local storage references
+    // 4. Clean any calculation or ensemble keys
     try {
       if (typeof window !== 'undefined') {
         localStorage.removeItem(`aurora_calc_${profileId}`);
         localStorage.removeItem(`aurora_ensemble_${profileId}`);
+        localStorage.removeItem(`aurora_profile_${profileId}`);
         sessionStorage.removeItem(`aurora_calc_${profileId}`);
+        sessionStorage.removeItem(`aurora_ensemble_${profileId}`);
       }
     } catch {}
 

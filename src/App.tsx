@@ -131,7 +131,10 @@ export default function App() {
       setLoadError(null);
 
       // Pre-flight: Immediately check PWA local storage for instant zero-delay UX
-      const pwaCached = await pwaProfileStorage.getProfiles().catch(() => []);
+      const deletedIds = pwaProfileStorage.getDeletedIds();
+      const rawPwaCached = await pwaProfileStorage.getProfiles().catch(() => []);
+      const pwaCached = (rawPwaCached || []).filter((p) => p && p.id && !deletedIds.has(p.id));
+
       if (pwaCached.length > 0) {
         setProfiles(pwaCached);
         const initialId = pwaCached[0].id;
@@ -152,21 +155,24 @@ export default function App() {
           setBacktestResult(bt);
           setEnsemble(generateMultiAgentEnsemble(pwaCached[0], readyCalc || calc, bt.destinyConsistencyScore));
         }
+      } else {
+        setProfiles([]);
       }
 
       await api.ensureSession().catch(() => false);
 
-      // Fetch profiles with explicit error propagation
+      // Fetch profiles with explicit error propagation and tombstone enforcement
       let loadedProfiles: UserProfile[] = [];
       try {
-        loadedProfiles = await api.getProfiles();
+        const rawServer = await api.getProfiles();
+        loadedProfiles = (rawServer || []).filter((p) => p && p.id && !deletedIds.has(p.id));
         setProfiles(loadedProfiles);
         setSyncStatus('synced');
       } catch (profErr: any) {
         console.warn('Notice: Server profile sync deferred, checking local offline profiles:', profErr);
-        loadedProfiles = api.getCachedProfiles();
+        loadedProfiles = api.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
         if (loadedProfiles.length === 0) {
-          loadedProfiles = await pwaProfileStorage.getProfiles().catch(() => []);
+          loadedProfiles = (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !deletedIds.has(p.id));
         }
         setProfiles(loadedProfiles);
         setSyncStatus(loadedProfiles.length > 0 ? 'local_only' : 'synced');
@@ -259,16 +265,19 @@ export default function App() {
 
   // Retry synchronizing local-only profiles to server
   const handleRetrySync = async () => {
-    if (localProfileIds.size === 0) {
+    const deletedIds = pwaProfileStorage.getDeletedIds();
+    const idsToSync = Array.from(localProfileIds).filter((id) => !deletedIds.has(id));
+    if (idsToSync.length === 0) {
+      setLocalProfileIds(new Set());
       setSyncStatus('synced');
       return;
     }
     setSyncStatus('syncing');
     try {
       await api.ensureSession();
-      const idsToSync = Array.from(localProfileIds);
       for (const localId of idsToSync) {
-        const localProf = profiles.find((p) => p.id === localId);
+        if (deletedIds.has(localId)) continue;
+        const localProf = profiles.find((p) => p.id === localId && !deletedIds.has(p.id));
         if (!localProf) continue;
         const res = await api.createProfile({
           name: localProf.name,

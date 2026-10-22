@@ -1020,10 +1020,12 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     const profile = this.state.profiles[profileId];
     if (!profile) return false;
     
-    // Ownership check: only owner or super-admin can delete
+    // Ownership check: only owner, super-admin, or guest owner can delete
     if (profile.userId !== userId) {
       const user = this.getUserSync(userId);
-      if (!user || user.role !== 'SUPER_ADMIN') {
+      const isGuestProfile = profile.userId === 'usr_guest' || profile.userId.startsWith('usr_guest_');
+      const isGuestUser = user?.role === 'GUEST' || userId.startsWith('usr_guest_') || userId === 'usr_guest';
+      if (!user || (user.role !== 'SUPER_ADMIN' && !(isGuestProfile && isGuestUser))) {
         return false;
       }
     }

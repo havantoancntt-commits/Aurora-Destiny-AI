@@ -869,6 +869,13 @@ export async function verifyProfileOwnershipAsync(req: Request, res: Response, p
       return profile;
     }
 
+    // Guest flexibility: allow guest users to manage guest-originated profiles
+    const isGuestProfile = profile.userId === 'usr_guest' || profile.userId.startsWith('usr_guest_');
+    const isGuestRequester = req.user.role === 'GUEST' || req.user.id.startsWith('usr_guest_') || req.user.id === 'usr_guest';
+    if (isGuestProfile && isGuestRequester) {
+      return profile;
+    }
+
     await repository.logAudit({
       userId: req.user.id,
       action: 'CROSS_USER_PROFILE_ACCESS_BLOCKED',
@@ -939,6 +946,12 @@ export function verifyProfileOwnership(req: Request, res: Response, profileId: s
           requestId: req.requestId
         });
       }
+      return profile;
+    }
+
+    const isGuestProfile = profile.userId === 'usr_guest' || profile.userId.startsWith('usr_guest_');
+    const isGuestRequester = req.user.role === 'GUEST' || req.user.id.startsWith('usr_guest_') || req.user.id === 'usr_guest';
+    if (isGuestProfile && isGuestRequester) {
       return profile;
     }
 
