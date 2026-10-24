@@ -131,9 +131,8 @@ export default function App() {
       setLoadError(null);
 
       // Pre-flight: Immediately check PWA local storage for instant zero-delay UX
-      const deletedIds = pwaProfileStorage.getDeletedIds();
       const rawPwaCached = await pwaProfileStorage.getProfiles().catch(() => []);
-      const pwaCached = (rawPwaCached || []).filter((p) => p && p.id && !deletedIds.has(p.id));
+      const pwaCached = (rawPwaCached || []).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
 
       if (pwaCached.length > 0) {
         setProfiles(pwaCached);
@@ -165,14 +164,14 @@ export default function App() {
       let loadedProfiles: UserProfile[] = [];
       try {
         const rawServer = await api.getProfiles();
-        loadedProfiles = (rawServer || []).filter((p) => p && p.id && !deletedIds.has(p.id));
+        loadedProfiles = (rawServer || []).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
         setProfiles(loadedProfiles);
         setSyncStatus('synced');
       } catch (profErr: any) {
         console.warn('Notice: Server profile sync deferred, checking local offline profiles:', profErr);
-        loadedProfiles = api.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
+        loadedProfiles = api.getCachedProfiles().filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
         if (loadedProfiles.length === 0) {
-          loadedProfiles = (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !deletedIds.has(p.id));
+          loadedProfiles = (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
         }
         setProfiles(loadedProfiles);
         setSyncStatus(loadedProfiles.length > 0 ? 'local_only' : 'synced');
@@ -586,14 +585,14 @@ export default function App() {
     try {
       sacredSound.playSacredTap(432);
 
+      const targetProf = profiles.find((p) => p.id === profileId);
+
       // 1. Dual purge: Server database + local IndexedDB & LocalStorage
-      await api.deleteProfile(profileId);
-      await pwaProfileStorage.deleteProfile(profileId);
+      await api.deleteProfile(targetProf || profileId);
+      await pwaProfileStorage.deleteProfile(targetProf || profileId);
 
       // 2. Immediate local state update with tombstone filtering
-      const deletedIds = pwaProfileStorage.getDeletedIds();
-      deletedIds.add(profileId);
-      const remaining = profiles.filter((p) => p && p.id !== profileId && !deletedIds.has(p.id));
+      const remaining = profiles.filter((p) => p && p.id !== profileId && !pwaProfileStorage.isDeleted(p));
       setProfiles(remaining);
 
       // 3. Switch active profile or gracefully reset to onboarding
@@ -609,10 +608,10 @@ export default function App() {
       }
     } catch (err) {
       console.error('Delete profile error:', err);
+      const targetProf = profiles.find((p) => p.id === profileId);
       pwaProfileStorage.addDeletedId(profileId);
-      await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
-      const deletedIds = pwaProfileStorage.getDeletedIds();
-      const remaining = profiles.filter((p) => p && p.id !== profileId && !deletedIds.has(p.id));
+      await pwaProfileStorage.deleteProfile(targetProf || profileId).catch(() => {});
+      const remaining = profiles.filter((p) => p && p.id !== profileId && !pwaProfileStorage.isDeleted(p));
       setProfiles(remaining);
       if (remaining.length === 0) {
         setActiveProfileId('');

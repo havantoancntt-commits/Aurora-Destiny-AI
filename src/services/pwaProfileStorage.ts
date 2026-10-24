@@ -35,6 +35,12 @@ export interface PwaBackupPayload {
   calculations?: Record<string, CalculationResult>;
 }
 
+export function normalizeProfileSignature(name: string, birthData: any): string {
+  if (!name || !birthData) return '';
+  const cleanName = name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return `${cleanName}_${birthData.solarDay}_${birthData.solarMonth}_${birthData.solarYear}_${birthData.solarHour}_${birthData.solarMinute}`;
+}
+
 class PwaProfileStorageService {
   private dbPromise: Promise<IDBDatabase | null> | null = null;
   private isIndexedDbAvailable = false;
@@ -94,30 +100,56 @@ class PwaProfileStorageService {
   // TOMBSTONE & PERMANENT PURGE REGISTRY
   // ==========================================
   private readonly TOMBSTONE_KEY = 'aurora_deleted_profile_ids';
+  private readonly TOMBSTONE_SIGS_KEY = 'aurora_deleted_profile_signatures';
+  private memoryDeletedIds = new Set<string>();
+  private memoryDeletedSigs = new Set<string>();
 
   /**
-   * Retrieves set of decisively deleted profile IDs to prevent resurrection
+   * Retrieves set of decisively deleted profile IDs
    */
   public getDeletedIds(): Set<string> {
+    const combined = new Set<string>(this.memoryDeletedIds);
     try {
       const storage = this.getStorage();
-      if (!storage) return new Set();
-      const raw = storage.getItem(this.TOMBSTONE_KEY);
-      if (raw) {
-        const arr = JSON.parse(raw);
-        if (Array.isArray(arr)) {
-          return new Set(arr.map(String));
+      if (storage) {
+        const raw = storage.getItem(this.TOMBSTONE_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            for (const id of arr) combined.add(String(id));
+          }
         }
       }
     } catch {}
-    return new Set();
+    return combined;
   }
 
   /**
-   * Records a deleted profile ID permanently so no sync or cache can revive it
+   * Retrieves set of decisively deleted profile signatures (name + birth data)
+   */
+  public getDeletedSignatures(): Set<string> {
+    const combined = new Set<string>(this.memoryDeletedSigs);
+    try {
+      const storage = this.getStorage();
+      if (storage) {
+        const raw = storage.getItem(this.TOMBSTONE_SIGS_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) {
+            for (const sig of arr) combined.add(String(sig));
+          }
+        }
+      }
+    } catch {}
+    return combined;
+  }
+
+  /**
+   * Records a deleted profile ID permanently
    */
   public addDeletedId(profileId: string): void {
     if (!profileId) return;
+    this.memoryDeletedIds.add(profileId);
     try {
       const storage = this.getStorage();
       if (storage) {
@@ -129,11 +161,47 @@ class PwaProfileStorageService {
   }
 
   /**
-   * Checks whether a profile ID has been marked as permanently deleted
+   * Records a deleted profile by ID and birth signature
    */
-  public isDeleted(profileId: string): boolean {
-    if (!profileId) return false;
-    return this.getDeletedIds().has(profileId);
+  public recordDeletedProfile(profile: { id: string; name?: string; birthData?: any }): void {
+    if (!profile) return;
+    if (profile.id) {
+      this.addDeletedId(profile.id);
+    }
+    if (profile.name && profile.birthData) {
+      const sig = normalizeProfileSignature(profile.name, profile.birthData);
+      if (sig) {
+        this.memoryDeletedSigs.add(sig);
+        try {
+          const storage = this.getStorage();
+          if (storage) {
+            const current = this.getDeletedSignatures();
+            current.add(sig);
+            storage.setItem(this.TOMBSTONE_SIGS_KEY, JSON.stringify(Array.from(current)));
+          }
+        } catch {}
+      }
+    }
+  }
+
+  /**
+   * Checks whether a profile ID or profile object has been marked as permanently deleted
+   */
+  public isDeleted(target: string | UserProfile | any): boolean {
+    if (!target) return false;
+    if (typeof target === 'string') {
+      return this.getDeletedIds().has(target);
+    }
+    if (target.id && this.getDeletedIds().has(target.id)) {
+      return true;
+    }
+    if (target.name && target.birthData) {
+      const sig = normalizeProfileSignature(target.name, target.birthData);
+      if (sig && this.getDeletedSignatures().has(sig)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // ==========================================
@@ -235,7 +303,6 @@ class PwaProfileStorageService {
    * Respects empty state (does NOT resurrect deleted profiles from localStorage)
    */
   public async getProfiles(): Promise<UserProfile[]> {
-    const deletedIds = this.getDeletedIds();
     const db = await this.getDb();
     if (db) {
       try {
@@ -248,7 +315,7 @@ class PwaProfileStorageService {
         });
 
         // IndexedDB successfully executed: filter out any tombstoned profiles
-        const filtered = (profiles || []).filter((p) => p && p.id && !deletedIds.has(p.id));
+        const filtered = (profiles || []).filter((p) => p && p.id && !this.isDeleted(p));
         return this.sortProfiles(filtered);
       } catch (e) {
         console.warn('[PwaStorage] IndexedDB getProfiles error, falling back to localStorage:', e);
@@ -256,25 +323,36 @@ class PwaProfileStorageService {
     }
 
     // Fallback to localStorage ONLY if IndexedDB failed or is completely unavailable
-    const local = this.getLocalStorageProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
+    const local = this.getLocalStorageProfiles().filter((p) => p && p.id && !this.isDeleted(p));
     return this.sortProfiles(local);
   }
 
   /**
    * Deletes a profile from offline storage definitively
    */
-  public async deleteProfile(profileId: string): Promise<void> {
+  public async deleteProfile(target: string | { id: string; name?: string; birthData?: any }): Promise<void> {
+    const profileId = typeof target === 'string' ? target : target?.id;
     if (!profileId) return;
 
-    // 1. Permanently register in tombstone blacklist
-    this.addDeletedId(profileId);
+    // 1. Permanently register in tombstone blacklist (both ID and signature)
+    if (typeof target === 'object' && target.name && target.birthData) {
+      this.recordDeletedProfile(target);
+    } else {
+      this.addDeletedId(profileId);
+      try {
+        const existing = this.getLocalStorageProfiles().find((p) => p && p.id === profileId);
+        if (existing) {
+          this.recordDeletedProfile(existing);
+        }
+      } catch {}
+    }
 
     // 2. Comprehensive localStorage & sessionStorage sweep (Snapshot-based to avoid index shift)
     try {
       const storage = this.getStorage();
       if (storage) {
         // Standard PWA mirror update
-        const local = this.getLocalStorageProfiles().filter((p) => p && p.id !== profileId && !this.isDeleted(p.id));
+        const local = this.getLocalStorageProfiles().filter((p) => p && p.id !== profileId && !this.isDeleted(p));
         storage.setItem('aurora_cached_profiles', JSON.stringify({
           version: 1,
           timestamp: Date.now(),
@@ -296,10 +374,10 @@ class PwaProfileStorageService {
               if (raw) {
                 const parsed = JSON.parse(raw);
                 if (parsed && Array.isArray(parsed.profiles)) {
-                  parsed.profiles = parsed.profiles.filter((p: any) => p && p.id !== profileId && !this.isDeleted(p.id));
+                  parsed.profiles = parsed.profiles.filter((p: any) => p && p.id !== profileId && !this.isDeleted(p));
                   storage.setItem(key, JSON.stringify(parsed));
                 } else if (Array.isArray(parsed)) {
-                  const filtered = parsed.filter((p: any) => p && p.id !== profileId && !this.isDeleted(p.id));
+                  const filtered = parsed.filter((p: any) => p && p.id !== profileId && !this.isDeleted(p));
                   storage.setItem(key, JSON.stringify(filtered));
                 }
               }

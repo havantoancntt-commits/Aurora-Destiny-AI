@@ -55,18 +55,6 @@ class ApiClient {
   }
 
   public setToken(token: string | null) {
-    if (this.isProductionAuthMode()) {
-      // In production browser mode, authentication strictly uses HttpOnly SameSite cookies
-      this.token = null;
-      try {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('aurora_session_token');
-          sessionStorage.removeItem('aurora_session_token');
-        }
-      } catch {}
-      return;
-    }
-
     this.token = token;
     try {
       if (typeof window !== 'undefined') {
@@ -179,11 +167,8 @@ class ApiClient {
             this.setCurrentUser(data.user);
           }
           const receivedToken = data?.token || data?.accessToken;
-          if (receivedToken && isSandbox) {
+          if (receivedToken) {
             this.setToken(receivedToken);
-          } else if (data?.sessionMode === 'cookie') {
-            // Pure BROWSER_PRODUCTION_AUTH: relies strictly on HttpOnly Secure cookies
-            this.setToken(null);
           }
           this.sessionInitialized = true;
           return true;
@@ -408,33 +393,32 @@ class ApiClient {
 
   // Profile operations
   public async getProfiles(): Promise<UserProfile[]> {
-    const deletedIds = pwaProfileStorage.getDeletedIds();
     try {
       const res = await this.fetchWithAuth('/api/profiles');
       if (!res.ok) {
         console.warn(`[ApiClient] Server returned HTTP ${res.status} for getProfiles, using local cache.`);
-        const local = this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
+        const local = this.getCachedProfiles().filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
         if (local.length > 0) return local;
-        return (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !deletedIds.has(p.id));
+        return (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
       }
       const data = await res.json();
       if (Array.isArray(data)) {
-        const cleanData = data.filter((p) => p && p.id && !deletedIds.has(p.id));
+        const cleanData = data.filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
         // If server still returned any tombstoned profiles, dispatch background purge to server
         for (const p of data) {
-          if (p && p.id && deletedIds.has(p.id)) {
+          if (p && p.id && pwaProfileStorage.isDeleted(p)) {
             this.fetchWithAuth(`/api/profiles/${p.id}`, { method: 'DELETE' }).catch(() => {});
           }
         }
         this.cacheProfiles(cleanData);
         return cleanData;
       }
-      return this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
+      return this.getCachedProfiles().filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
     } catch (err: any) {
       console.warn('[ApiClient] Failed to fetch profiles from network, using local cache:', err.message);
-      const local = this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
+      const local = this.getCachedProfiles().filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
       if (local.length > 0) return local;
-      return (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !deletedIds.has(p.id));
+      return (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
     }
   }
 
@@ -479,12 +463,17 @@ class ApiClient {
     return updated;
   }
 
-  public async deleteProfile(profileId: string): Promise<boolean> {
+  public async deleteProfile(target: string | { id: string; name?: string; birthData?: any }): Promise<boolean> {
+    const profileId = typeof target === 'string' ? target : target?.id;
     if (!profileId) return true;
 
-    // 1. Immediately register tombstone and purge offline storage first (Zero resurrection window)
-    pwaProfileStorage.addDeletedId(profileId);
-    await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
+    // 1. Immediately register tombstone (ID and signature) and purge offline storage first
+    if (typeof target === 'object') {
+      pwaProfileStorage.recordDeletedProfile(target);
+    } else {
+      pwaProfileStorage.addDeletedId(profileId);
+    }
+    await pwaProfileStorage.deleteProfile(target).catch(() => {});
 
     // 2. Transmit DELETE to server with credentials
     try {
@@ -500,7 +489,7 @@ class ApiClient {
 
     // 3. Purge from local memory and client profile cache across all profile keys
     const currentCached = this.getCachedProfiles();
-    const remaining = currentCached.filter((p) => p && p.id !== profileId && !pwaProfileStorage.isDeleted(p.id));
+    const remaining = currentCached.filter((p) => p && p.id !== profileId && !pwaProfileStorage.isDeleted(p));
     this.cacheProfiles(remaining);
 
     // 4. Clean any calculation or ensemble keys

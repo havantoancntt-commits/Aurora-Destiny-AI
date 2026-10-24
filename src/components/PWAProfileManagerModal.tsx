@@ -172,11 +172,11 @@ export const PWAProfileManagerModal: React.FC<Props> = ({
       const deletedProf = profiles.find((p) => p.id === profileId);
 
       // 1. Decisive dual-tier removal: Server database + local IndexedDB/localStorage
-      await api.deleteProfile(profileId);
-      await pwaProfileStorage.deleteProfile(profileId);
+      await api.deleteProfile(deletedProf || profileId);
+      await pwaProfileStorage.deleteProfile(deletedProf || profileId);
 
       // 2. Immediate state updates across modal and parent app
-      const updated = profiles.filter((p) => p.id !== profileId);
+      const updated = profiles.filter((p) => p.id !== profileId && !pwaProfileStorage.isDeleted(p));
       onProfilesUpdated(updated);
       setDeleteConfirmId(null);
       setProfileToDelete(null);
@@ -195,8 +195,9 @@ export const PWAProfileManagerModal: React.FC<Props> = ({
     } catch (err) {
       console.error('Failed to delete profile:', err);
       // Fallback offline deletion ensuring local state is always cleanly updated
-      await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
-      const updated = profiles.filter((p) => p.id !== profileId);
+      const deletedProf = profiles.find((p) => p.id === profileId);
+      await pwaProfileStorage.deleteProfile(deletedProf || profileId).catch(() => {});
+      const updated = profiles.filter((p) => p.id !== profileId && !pwaProfileStorage.isDeleted(p));
       onProfilesUpdated(updated);
       setDeleteConfirmId(null);
       setProfileToDelete(null);

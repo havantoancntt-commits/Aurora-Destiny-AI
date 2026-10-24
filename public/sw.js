@@ -4,7 +4,7 @@
 // Curated by Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo
 // ==========================================================
 
-const CACHE_VERSION = 'v3.1.0-tinhhoa';
+const CACHE_VERSION = 'v3.2.0-purge-guaranteed';
 const STATIC_CACHE_NAME = `aurora-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `aurora-dynamic-${CACHE_VERSION}`;
 
