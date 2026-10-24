@@ -415,11 +415,17 @@ class ApiClient {
         console.warn(`[ApiClient] Server returned HTTP ${res.status} for getProfiles, using local cache.`);
         const local = this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
         if (local.length > 0) return local;
-        return await pwaProfileStorage.getProfiles().catch(() => []);
+        return (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !deletedIds.has(p.id));
       }
       const data = await res.json();
       if (Array.isArray(data)) {
         const cleanData = data.filter((p) => p && p.id && !deletedIds.has(p.id));
+        // If server still returned any tombstoned profiles, dispatch background purge to server
+        for (const p of data) {
+          if (p && p.id && deletedIds.has(p.id)) {
+            this.fetchWithAuth(`/api/profiles/${p.id}`, { method: 'DELETE' }).catch(() => {});
+          }
+        }
         this.cacheProfiles(cleanData);
         return cleanData;
       }
@@ -428,7 +434,7 @@ class ApiClient {
       console.warn('[ApiClient] Failed to fetch profiles from network, using local cache:', err.message);
       const local = this.getCachedProfiles().filter((p) => p && p.id && !deletedIds.has(p.id));
       if (local.length > 0) return local;
-      return await pwaProfileStorage.getProfiles().catch(() => []);
+      return (await pwaProfileStorage.getProfiles().catch(() => [])).filter((p) => p && p.id && !deletedIds.has(p.id));
     }
   }
 
@@ -477,6 +483,7 @@ class ApiClient {
     if (!profileId) return true;
 
     // 1. Immediately register tombstone and purge offline storage first (Zero resurrection window)
+    pwaProfileStorage.addDeletedId(profileId);
     await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
 
     // 2. Transmit DELETE to server with credentials

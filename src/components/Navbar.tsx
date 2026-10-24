@@ -30,7 +30,8 @@ import {
   Sun,
   HeartHandshake,
   HardDrive,
-  Bell
+  Bell,
+  Trash2
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, t } from '../i18n/translations';
 import { LanguageCode, CalculationResult } from '../types/destiny';
@@ -62,6 +63,7 @@ interface Props {
   onOpenSeniorGuide?: () => void;
   onOpenPwaProfileManager?: () => void;
   onOpenGlossaryModal?: () => void;
+  onDeleteProfile?: (id: string) => Promise<void>;
 }
 
 export const Navbar: React.FC<Props> = ({
@@ -85,13 +87,16 @@ export const Navbar: React.FC<Props> = ({
   onNavigateTab,
   onOpenSeniorGuide,
   onOpenPwaProfileManager,
-  onOpenGlossaryModal
+  onOpenGlossaryModal,
+  onDeleteProfile
 }) => {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showPWAModal, setShowPWAModal] = useState(false);
   const [isMuted, setIsMuted] = useState(sacredSound.getIsMuted());
+  const [profileIdToDelete, setProfileIdToDelete] = useState<string | null>(null);
+  const [isDeletingProfileId, setIsDeletingProfileId] = useState<string | null>(null);
 
   const handleToggleAudio = () => {
     const muted = sacredSound.toggleMute();
@@ -253,23 +258,70 @@ export const Navbar: React.FC<Props> = ({
 
                   {/* List of Existing Profiles */}
                   {profiles.length > 0 && (
-                    <div className="space-y-1 mt-1 max-h-48 overflow-y-auto pr-1">
+                    <div className="space-y-1.5 mt-1 max-h-56 overflow-y-auto pr-1">
                       {profiles.map((prof) => {
                         const isCurrent = prof.id === activeProfileId;
+                        const isConfirmingDelete = profileIdToDelete === prof.id;
+
+                        if (isConfirmingDelete) {
+                          return (
+                            <div
+                              key={prof.id}
+                              className="p-2 rounded-xl bg-red-950/60 border border-red-500/40 text-xs flex items-center justify-between gap-2 animate-in fade-in"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="truncate text-[11px] text-red-200">
+                                Xác nhận xóa <strong className="text-white font-medium">{prof.name}</strong>?
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={isDeletingProfileId === prof.id}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (onDeleteProfile) {
+                                      setIsDeletingProfileId(prof.id);
+                                      try {
+                                        await onDeleteProfile(prof.id);
+                                      } finally {
+                                        setIsDeletingProfileId(null);
+                                        setProfileIdToDelete(null);
+                                      }
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                                >
+                                  {isDeletingProfileId === prof.id ? 'Đang xóa...' : 'Xóa'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setProfileIdToDelete(null);
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-[10px] transition-colors cursor-pointer"
+                                >
+                                  Hủy
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
                         return (
-                          <button
+                          <div
                             key={prof.id}
                             onClick={() => {
                               onSelectProfile(prof.id);
                               setShowProfileMenu(false);
                             }}
-                            className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-all cursor-pointer ${
+                            className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-all cursor-pointer group ${
                               isCurrent
                                 ? 'bg-white/10 border border-teal-400/40 text-teal-200 font-medium'
                                 : 'text-slate-300 hover:bg-white/5 hover:text-white border border-transparent'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 truncate">
+                            <div className="flex items-center gap-2.5 truncate min-w-0">
                               <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
                                 isCurrent ? 'bg-teal-500/20 text-teal-300' : 'bg-white/10 text-slate-400'
                               }`}>
@@ -282,12 +334,28 @@ export const Navbar: React.FC<Props> = ({
                                 </div>
                               </div>
                             </div>
-                            {isCurrent && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-teal-400/20 text-teal-300 font-bold shrink-0 ml-1">
-                                Đang Xem
-                              </span>
-                            )}
-                          </button>
+
+                            <div className="flex items-center gap-1 shrink-0 ml-1.5">
+                              {isCurrent && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-teal-400/20 text-teal-300 font-bold shrink-0">
+                                  Đang Xem
+                                </span>
+                              )}
+                              {onDeleteProfile && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setProfileIdToDelete(prof.id);
+                                  }}
+                                  className="p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
+                                  title={`Xóa lá số ${prof.name}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>

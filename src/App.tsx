@@ -580,6 +580,53 @@ export default function App() {
     }
   };
 
+  // Decisive Profile Deletion (Zero-Resurrection Dual Purge)
+  const handleDeleteProfile = async (profileId: string) => {
+    if (!profileId) return;
+    try {
+      sacredSound.playSacredTap(432);
+
+      // 1. Dual purge: Server database + local IndexedDB & LocalStorage
+      await api.deleteProfile(profileId);
+      await pwaProfileStorage.deleteProfile(profileId);
+
+      // 2. Immediate local state update with tombstone filtering
+      const deletedIds = pwaProfileStorage.getDeletedIds();
+      deletedIds.add(profileId);
+      const remaining = profiles.filter((p) => p && p.id !== profileId && !deletedIds.has(p.id));
+      setProfiles(remaining);
+
+      // 3. Switch active profile or gracefully reset to onboarding
+      if (remaining.length === 0) {
+        setActiveProfileId('');
+        setCalculation(null);
+        setEnsemble(null);
+        setBacktestResult(null);
+        setEvents([]);
+        setShowOnboarding(true);
+      } else if (activeProfileId === profileId) {
+        handleSelectProfile(remaining[0].id);
+      }
+    } catch (err) {
+      console.error('Delete profile error:', err);
+      pwaProfileStorage.addDeletedId(profileId);
+      await pwaProfileStorage.deleteProfile(profileId).catch(() => {});
+      const deletedIds = pwaProfileStorage.getDeletedIds();
+      const remaining = profiles.filter((p) => p && p.id !== profileId && !deletedIds.has(p.id));
+      setProfiles(remaining);
+      if (remaining.length === 0) {
+        setActiveProfileId('');
+        setCalculation(null);
+        setEnsemble(null);
+        setBacktestResult(null);
+        setEvents([]);
+        setShowOnboarding(true);
+      } else if (activeProfileId === profileId) {
+        handleSelectProfile(remaining[0].id);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#050508] text-slate-200 font-sans selection:bg-purple-500/30 selection:text-teal-200 relative overflow-hidden flex flex-col">
       {/* 0. Celestial Animated Particles & Constellation Engine */}
@@ -620,6 +667,7 @@ export default function App() {
           onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
           onOpenPwaProfileManager={() => setShowPwaProfileModal(true)}
           onOpenGlossaryModal={() => setShowGlossaryModal(true)}
+          onDeleteProfile={handleDeleteProfile}
         />
       </div>
 
@@ -1126,16 +1174,18 @@ export default function App() {
         onSelectProfile={handleSelectProfile}
         onOpenNewProfileModal={() => setShowOnboarding(true)}
         onProfilesUpdated={(updated) => {
-          setProfiles(updated);
-          if (updated.length === 0) {
+          const deletedIds = pwaProfileStorage.getDeletedIds();
+          const cleanUpdated = (updated || []).filter((p) => p && p.id && !deletedIds.has(p.id));
+          setProfiles(cleanUpdated);
+          if (cleanUpdated.length === 0) {
             setActiveProfileId('');
             setCalculation(null);
             setEnsemble(null);
             setBacktestResult(null);
             setEvents([]);
             setShowOnboarding(true);
-          } else if (activeProfileId && !updated.some((p) => p.id === activeProfileId)) {
-            handleSelectProfile(updated[0].id);
+          } else if (activeProfileId && !cleanUpdated.some((p) => p.id === activeProfileId)) {
+            handleSelectProfile(cleanUpdated[0].id);
           }
         }}
       />

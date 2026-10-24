@@ -1161,11 +1161,23 @@ app.put('/api/profiles/:id', requireAuth, async (req, res, next) => {
 
 app.delete('/api/profiles/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
+  const existingProfile = await repository.getProfile(id);
+  if (!existingProfile) {
+    // If already deleted or doesn't exist, ensure server records tombstone and return success idempotently
+    if ((repository as any).markProfileDeletedSync) {
+      (repository as any).markProfileDeletedSync(id);
+    }
+    return res.json({ success: true, profileId: id, alreadyDeleted: true });
+  }
+
   const profile = await verifyProfileOwnershipAsync(req, res, id);
   if (!profile) return;
 
   const deleted = await repository.deleteProfile(id, req.user!.id);
   if (deleted) {
+    if ((repository as any).markProfileDeletedSync) {
+      (repository as any).markProfileDeletedSync(id);
+    }
     await repository.logAudit({
       userId: req.user!.id,
       action: 'PROFILE_DELETED_CASCADE',

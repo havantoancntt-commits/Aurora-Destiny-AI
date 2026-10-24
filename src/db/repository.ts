@@ -191,6 +191,7 @@ interface StoredDatabaseState {
   featureFlags: Record<string, FeatureFlag>;
   patrons?: Record<string, PatronEntity>;
   webhookEvents?: Record<string, WebhookEventRecord>;
+  deletedProfileIds?: Record<string, number>;
   _checksum?: string;
 }
 
@@ -268,10 +269,19 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
           }
         }
 
+        const deletedProfileIds = parsed.deletedProfileIds || {};
+        const profiles = parsed.profiles || {};
+        for (const pId of Object.keys(deletedProfileIds)) {
+          if (profiles[pId]) {
+            console.log(`🧹 [Data Sanitization] Purging tombstoned profile ${pId} on load`);
+            delete profiles[pId];
+          }
+        }
+
         return {
           users: parsed.users || {},
           preferences: parsed.preferences || {},
-          profiles: parsed.profiles || {},
+          profiles,
           calculations: parsed.calculations || {},
           historicalEvents: parsed.historicalEvents || {},
           backtestResults: parsed.backtestResults || {},
@@ -281,7 +291,8 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
           auditLogs: parsed.auditLogs || [],
           featureFlags: parsed.featureFlags || this.defaultFeatureFlags(),
           patrons: parsed.patrons || {},
-          webhookEvents: parsed.webhookEvents || {}
+          webhookEvents: parsed.webhookEvents || {},
+          deletedProfileIds
         };
       } catch (e) {
         console.error('Failed to parse primary database file. Attempting backup restore:', e);
@@ -290,10 +301,17 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
             const backupRaw = fs.readFileSync(this.backupPath, 'utf-8');
             const backupParsed = JSON.parse(backupRaw);
             console.log('✅ Successfully restored database state from backup snapshot.');
+            const backupDeletedIds = backupParsed.deletedProfileIds || {};
+            const backupProfiles = backupParsed.profiles || {};
+            for (const pId of Object.keys(backupDeletedIds)) {
+              if (backupProfiles[pId]) {
+                delete backupProfiles[pId];
+              }
+            }
             return {
               users: backupParsed.users || {},
               preferences: backupParsed.preferences || {},
-              profiles: backupParsed.profiles || {},
+              profiles: backupProfiles,
               calculations: backupParsed.calculations || {},
               historicalEvents: backupParsed.historicalEvents || {},
               backtestResults: backupParsed.backtestResults || {},
@@ -303,7 +321,8 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
               auditLogs: backupParsed.auditLogs || [],
               featureFlags: backupParsed.featureFlags || this.defaultFeatureFlags(),
               patrons: backupParsed.patrons || {},
-              webhookEvents: backupParsed.webhookEvents || {}
+              webhookEvents: backupParsed.webhookEvents || {},
+              deletedProfileIds: backupDeletedIds
             };
           } catch (backupErr) {
             console.error('Backup restoration also failed:', backupErr);
@@ -326,7 +345,8 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
       auditLogs: [],
       featureFlags: this.defaultFeatureFlags(),
       patrons: {},
-      webhookEvents: {}
+      webhookEvents: {},
+      deletedProfileIds: {}
     };
   }
 
@@ -411,6 +431,14 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     this.saveDebounceTimer = setTimeout(() => {
       this.persistSync();
     }, 100);
+  }
+
+  public flushSync(): void {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+      this.saveDebounceTimer = null;
+    }
+    this.persistSync();
   }
 
   // ----------------------------------------------------
@@ -967,13 +995,17 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.getProfilesSync(userId);
   }
   getProfilesSync(userId: string): UserProfile[] {
-    return Object.values(this.state.profiles).filter(p => p.userId === userId);
+    const deletedIds = this.state.deletedProfileIds || {};
+    return Object.values(this.state.profiles).filter(p => p.userId === userId && !deletedIds[p.id]);
   }
 
   async getProfile(profileId: string): Promise<UserProfile | null> {
     return this.getProfileSync(profileId);
   }
   getProfileSync(profileId: string): UserProfile | null {
+    if (this.state.deletedProfileIds && this.state.deletedProfileIds[profileId]) {
+      return null;
+    }
     return this.state.profiles[profileId] || null;
   }
 
@@ -981,6 +1013,12 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.saveProfileSync(profile);
   }
   saveProfileSync(profile: UserProfile): UserProfile {
+    // If profile was permanently deleted, reject save to prevent resurrection
+    if (this.state.deletedProfileIds && this.state.deletedProfileIds[profile.id]) {
+      console.warn(`[Repository] Rejecting resurrect save for deleted profile ${profile.id}`);
+      throw new Error(`Profile ${profile.id} has been permanently deleted and cannot be saved.`);
+    }
+
     // Foreign Key check: userId must exist in users
     if (!this.state.users[profile.userId]) {
       throw new Error(`Foreign key constraint failed: User '${profile.userId}' does not exist.`);
@@ -1017,8 +1055,16 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     return this.deleteProfileSync(profileId, userId);
   }
   deleteProfileSync(profileId: string, userId: string): boolean {
+    if (!this.state.deletedProfileIds) {
+      this.state.deletedProfileIds = {};
+    }
+    this.state.deletedProfileIds[profileId] = Date.now();
+
     const profile = this.state.profiles[profileId];
-    if (!profile) return false;
+    if (!profile) {
+      this.schedulePersist();
+      return true;
+    }
     
     // Ownership check: only owner, super-admin, or guest owner can delete
     if (profile.userId !== userId) {
@@ -1056,6 +1102,18 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
 
     this.schedulePersist();
     return true;
+  }
+
+  markProfileDeletedSync(profileId: string): void {
+    if (!profileId) return;
+    if (!this.state.deletedProfileIds) {
+      this.state.deletedProfileIds = {};
+    }
+    this.state.deletedProfileIds[profileId] = Date.now();
+    if (this.state.profiles[profileId]) {
+      delete this.state.profiles[profileId];
+    }
+    this.schedulePersist();
   }
 
   // ----------------------------------------------------

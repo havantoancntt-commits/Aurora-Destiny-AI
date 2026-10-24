@@ -676,7 +676,19 @@ export class PostgresDatabaseRepository implements IAsyncDatabaseRepository {
   }
 
   async deleteProfile(profileId: string, userId: string): Promise<boolean> {
-    const res = await this.query('DELETE FROM profiles WHERE id = $1 AND user_id = $2', [profileId, userId]);
+    const prof = await this.getProfile(profileId);
+    if (!prof) return true; // Already deleted idempotently
+
+    const isOwner = prof.userId === userId;
+    const isGuestProfile = prof.userId === 'usr_guest' || prof.userId.startsWith('usr_guest_');
+    const isGuestRequester = userId === 'usr_guest' || userId.startsWith('usr_guest_');
+    if (!isOwner && !(isGuestProfile && isGuestRequester)) {
+      const userRes = await this.query('SELECT role FROM users WHERE id = $1', [userId]);
+      if (userRes.rows[0]?.role !== 'SUPER_ADMIN') {
+        return false;
+      }
+    }
+    const res = await this.query('DELETE FROM profiles WHERE id = $1', [profileId]);
     return (res.rowCount || 0) > 0;
   }
 

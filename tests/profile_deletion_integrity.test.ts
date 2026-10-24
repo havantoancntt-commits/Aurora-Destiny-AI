@@ -166,4 +166,72 @@ test('🗑️ Profile Deletion Integrity & Cache Purge Suite', async (t) => {
     const cachedApi = api.getCachedProfiles();
     assert.strictEqual(cachedApi.length, 0, 'api.getCachedProfiles must filter out tombstoned profile');
   });
+
+  await t.test('6. Server repository records tombstone and prevents resurrection across restarts', async () => {
+    const { PersistentDatabaseRepository } = await import('../src/db/repository.js');
+    const fs = await import('fs');
+    const path = await import('path');
+    const testDir = path.join('/tmp', `aurora_test_tombstone_${Date.now()}`);
+    fs.mkdirSync(testDir, { recursive: true });
+
+    const serverRepo = new PersistentDatabaseRepository(testDir);
+    const testUser = {
+      id: 'usr_tombstone_test',
+      email: 'tombstone@test.local',
+      fullName: 'Test User',
+      role: 'GUEST' as const,
+      subscriptionTier: 'Free' as const,
+      language: 'vi' as const,
+      emailVerified: false,
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
+      profilesCount: 0
+    };
+    await serverRepo.saveUser(testUser);
+
+    const testProfile = {
+      ...sampleProfile1,
+      id: 'prof_server_tombstone_1',
+      userId: testUser.id
+    };
+    await serverRepo.saveProfile(testProfile);
+
+    // Verify it exists initially
+    const initialProfiles = await serverRepo.getProfiles(testUser.id);
+    assert.strictEqual(initialProfiles.length, 1);
+    assert.strictEqual(initialProfiles[0].id, testProfile.id);
+
+    // Delete it on server
+    const deleted = await serverRepo.deleteProfile(testProfile.id, testUser.id);
+    assert.strictEqual(deleted, true, 'Server deleteProfile must return true');
+
+    // Verify it is gone
+    const remainingServer = await serverRepo.getProfiles(testUser.id);
+    assert.strictEqual(remainingServer.length, 0, 'Server getProfiles must not return deleted profile');
+
+    const singleFetch = await serverRepo.getProfile(testProfile.id);
+    assert.strictEqual(singleFetch, null, 'Server getProfile must return null for deleted profile');
+
+    // Verify resurrection save is rejected
+    let threw = false;
+    try {
+      await serverRepo.saveProfile(testProfile);
+    } catch {
+      threw = true;
+    }
+    assert.strictEqual(threw, true, 'Server saveProfile must reject resurrecting deleted profile');
+
+    // Simulate server restart by creating new repository instance on same storage directory
+    const restartedRepo = new PersistentDatabaseRepository(testDir);
+    const postRestartProfiles = await restartedRepo.getProfiles(testUser.id);
+    assert.strictEqual(postRestartProfiles.length, 0, 'Deleted profile must NEVER reappear after server restart');
+
+    const postRestartSingle = await restartedRepo.getProfile(testProfile.id);
+    assert.strictEqual(postRestartSingle, null, 'Single fetch after restart must also be null');
+
+    // Clean up test repos and dir
+    await serverRepo.close();
+    await restartedRepo.close();
+    fs.rmSync(testDir, { recursive: true, force: true });
+  });
 });
