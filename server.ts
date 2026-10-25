@@ -1161,35 +1161,45 @@ app.put('/api/profiles/:id', requireAuth, async (req, res, next) => {
 
 app.delete('/api/profiles/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
+  const signature = (
+    req.headers['x-profile-signature'] ||
+    (req.body && (req.body as any).signature)
+  ) as string | undefined;
+
   const existingProfile = await repository.getProfile(id);
   if (!existingProfile) {
     // If already deleted or doesn't exist, ensure server records tombstone and return success idempotently
     if ((repository as any).markProfileDeletedSync) {
-      (repository as any).markProfileDeletedSync(id);
+      (repository as any).markProfileDeletedSync(id, signature);
     }
     return res.json({ success: true, profileId: id, alreadyDeleted: true });
   }
 
-  const profile = await verifyProfileOwnershipAsync(req, res, id);
-  if (!profile) return;
+  // Authorization: Owner, Super Admin, or Guest requester deleting guest/offline-originated profile
+  const isGuestProfile = existingProfile.userId === 'usr_guest' || existingProfile.userId.startsWith('usr_guest_');
+  const isGuestRequester = req.user!.role === 'GUEST' || req.user!.id.startsWith('usr_guest_') || req.user!.id === 'usr_guest';
+  const isOwner = existingProfile.userId === req.user!.id;
+  const isSuperAdmin = req.user!.role === 'SUPER_ADMIN';
 
-  const deleted = await repository.deleteProfile(id, req.user!.id);
-  if (deleted) {
-    if ((repository as any).markProfileDeletedSync) {
-      (repository as any).markProfileDeletedSync(id);
-    }
-    await repository.logAudit({
-      userId: req.user!.id,
-      action: 'PROFILE_DELETED_CASCADE',
-      resource: 'profile',
-      resourceId: id,
-      status: 'SUCCESS',
-      requestId: req.requestId
-    });
-    res.json({ success: true, profileId: id });
-  } else {
-    res.status(500).json({ error: { code: 'DELETE_FAILED', message: 'Không thể xóa hồ sơ' } });
+  if (!isOwner && !isSuperAdmin && !(isGuestProfile && isGuestRequester)) {
+    const verified = await verifyProfileOwnershipAsync(req, res, id);
+    if (!verified) return;
   }
+
+  const deleted = await (repository as any).deleteProfileSync(id, req.user!.id, signature);
+  if ((repository as any).markProfileDeletedSync) {
+    (repository as any).markProfileDeletedSync(id, signature);
+  }
+
+  await repository.logAudit({
+    userId: req.user!.id,
+    action: 'PROFILE_DELETED_CASCADE',
+    resource: 'profile',
+    resourceId: id,
+    status: 'SUCCESS',
+    requestId: req.requestId
+  });
+  res.json({ success: true, profileId: id });
 });
 
 // ----------------------------------------------------

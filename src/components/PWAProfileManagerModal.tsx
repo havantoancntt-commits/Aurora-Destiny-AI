@@ -164,12 +164,13 @@ export const PWAProfileManagerModal: React.FC<Props> = ({
   };
 
   // Handle Delete Profile Decisively (Xóa Dứt Điểm Máy Chủ & Thiết Bị)
-  const handleDeleteProfile = async (profileId: string) => {
+  const handleDeleteProfile = async (targetOrId: string | UserProfile) => {
+    const profileId = typeof targetOrId === 'string' ? targetOrId : targetOrId.id;
+    const deletedProf = typeof targetOrId === 'object' ? targetOrId : profiles.find((p) => p.id === profileId);
+
     try {
       setIsDeleting(true);
       sacredSound.playSacredTap(432);
-
-      const deletedProf = profiles.find((p) => p.id === profileId);
 
       // 1. Decisive dual-tier removal: Server database + local IndexedDB/localStorage
       await api.deleteProfile(deletedProf || profileId);
@@ -195,7 +196,6 @@ export const PWAProfileManagerModal: React.FC<Props> = ({
     } catch (err) {
       console.error('Failed to delete profile:', err);
       // Fallback offline deletion ensuring local state is always cleanly updated
-      const deletedProf = profiles.find((p) => p.id === profileId);
       await pwaProfileStorage.deleteProfile(deletedProf || profileId).catch(() => {});
       const updated = profiles.filter((p) => p.id !== profileId && !pwaProfileStorage.isDeleted(p));
       onProfilesUpdated(updated);
@@ -745,7 +745,7 @@ export const PWAProfileManagerModal: React.FC<Props> = ({
                   <button
                     type="button"
                     disabled={isDeleting}
-                    onClick={() => handleDeleteProfile(profileToDelete.id)}
+                    onClick={() => handleDeleteProfile(profileToDelete)}
                     className="w-1/2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(244,63,94,0.5)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     <Trash2 className={`w-3.5 h-3.5 ${isDeleting ? 'animate-spin' : ''}`} />

@@ -4,7 +4,7 @@
 // Curated by Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo
 // ==========================================================
 
-const CACHE_VERSION = 'v3.2.0-purge-guaranteed';
+const CACHE_VERSION = 'v3.3.0-zero-resurrection';
 const STATIC_CACHE_NAME = `aurora-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE_NAME = `aurora-dynamic-${CACHE_VERSION}`;
 
@@ -94,7 +94,33 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // C. STATIC ASSETS & FONTS (Google Fonts, Images, CSS, JS): Stale-While-Revalidate / Cache-First
+  // C. SCRIPT & STYLE ASSETS (Vite hashed bundles, JS, CSS): Network-First with Cache Fallback
+  if (
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.startsWith('/assets/')
+  ) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(STATIC_CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          throw new Error('Offline asset unavailable');
+        })
+    );
+    return;
+  }
+
+  // D. STATIC MEDIA & FONTS (Google Fonts, Images): Stale-While-Revalidate / Cache-First
   if (
     url.origin === self.location.origin ||
     url.hostname.includes('fonts.googleapis.com') ||

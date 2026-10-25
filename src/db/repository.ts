@@ -192,7 +192,23 @@ interface StoredDatabaseState {
   patrons?: Record<string, PatronEntity>;
   webhookEvents?: Record<string, WebhookEventRecord>;
   deletedProfileIds?: Record<string, number>;
+  deletedProfileSignatures?: Record<string, number>;
   _checksum?: string;
+}
+
+export function normalizeProfileSignature(name: string, birthData: any): string {
+  if (!name || !birthData) return '';
+  const cleanName = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd');
+  const day = birthData.solarDay ?? birthData.lunarDay ?? '';
+  const month = birthData.solarMonth ?? birthData.lunarMonth ?? '';
+  const year = birthData.solarYear ?? birthData.lunarYear ?? '';
+  return `${cleanName}_${day}_${month}_${year}`;
 }
 
 /**
@@ -270,11 +286,21 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
         }
 
         const deletedProfileIds = parsed.deletedProfileIds || {};
+        const deletedProfileSignatures = parsed.deletedProfileSignatures || {};
         const profiles = parsed.profiles || {};
         for (const pId of Object.keys(deletedProfileIds)) {
           if (profiles[pId]) {
-            console.log(`🧹 [Data Sanitization] Purging tombstoned profile ${pId} on load`);
+            console.log(`🧹 [Data Sanitization] Purging tombstoned profile ID ${pId} on load`);
             delete profiles[pId];
+          }
+        }
+        for (const [pId, prof] of Object.entries(profiles)) {
+          if (prof && (prof as any).name && (prof as any).birthData) {
+            const sig = normalizeProfileSignature((prof as any).name, (prof as any).birthData);
+            if (sig && deletedProfileSignatures[sig]) {
+              console.log(`🧹 [Data Sanitization] Purging signature-tombstoned profile ${pId} (${(prof as any).name}) on load`);
+              delete profiles[pId];
+            }
           }
         }
 
@@ -292,7 +318,8 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
           featureFlags: parsed.featureFlags || this.defaultFeatureFlags(),
           patrons: parsed.patrons || {},
           webhookEvents: parsed.webhookEvents || {},
-          deletedProfileIds
+          deletedProfileIds,
+          deletedProfileSignatures
         };
       } catch (e) {
         console.error('Failed to parse primary database file. Attempting backup restore:', e);
@@ -302,10 +329,19 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
             const backupParsed = JSON.parse(backupRaw);
             console.log('✅ Successfully restored database state from backup snapshot.');
             const backupDeletedIds = backupParsed.deletedProfileIds || {};
+            const backupDeletedSigs = backupParsed.deletedProfileSignatures || {};
             const backupProfiles = backupParsed.profiles || {};
             for (const pId of Object.keys(backupDeletedIds)) {
               if (backupProfiles[pId]) {
                 delete backupProfiles[pId];
+              }
+            }
+            for (const [pId, prof] of Object.entries(backupProfiles)) {
+              if (prof && (prof as any).name && (prof as any).birthData) {
+                const sig = normalizeProfileSignature((prof as any).name, (prof as any).birthData);
+                if (sig && backupDeletedSigs[sig]) {
+                  delete backupProfiles[pId];
+                }
               }
             }
             return {
@@ -322,7 +358,8 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
               featureFlags: backupParsed.featureFlags || this.defaultFeatureFlags(),
               patrons: backupParsed.patrons || {},
               webhookEvents: backupParsed.webhookEvents || {},
-              deletedProfileIds: backupDeletedIds
+              deletedProfileIds: backupDeletedIds,
+              deletedProfileSignatures: backupDeletedSigs
             };
           } catch (backupErr) {
             console.error('Backup restoration also failed:', backupErr);
@@ -346,7 +383,8 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
       featureFlags: this.defaultFeatureFlags(),
       patrons: {},
       webhookEvents: {},
-      deletedProfileIds: {}
+      deletedProfileIds: {},
+      deletedProfileSignatures: {}
     };
   }
 
@@ -996,7 +1034,16 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   }
   getProfilesSync(userId: string): UserProfile[] {
     const deletedIds = this.state.deletedProfileIds || {};
-    return Object.values(this.state.profiles).filter(p => p.userId === userId && !deletedIds[p.id]);
+    const deletedSigs = this.state.deletedProfileSignatures || {};
+    return Object.values(this.state.profiles).filter(p => {
+      if (p.userId !== userId) return false;
+      if (deletedIds[p.id]) return false;
+      if (p.name && p.birthData) {
+        const sig = normalizeProfileSignature(p.name, p.birthData);
+        if (sig && deletedSigs[sig]) return false;
+      }
+      return true;
+    });
   }
 
   async getProfile(profileId: string): Promise<UserProfile | null> {
@@ -1006,7 +1053,15 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     if (this.state.deletedProfileIds && this.state.deletedProfileIds[profileId]) {
       return null;
     }
-    return this.state.profiles[profileId] || null;
+    const profile = this.state.profiles[profileId];
+    if (!profile) return null;
+    if (profile.name && profile.birthData && this.state.deletedProfileSignatures) {
+      const sig = normalizeProfileSignature(profile.name, profile.birthData);
+      if (sig && this.state.deletedProfileSignatures[sig]) {
+        return null;
+      }
+    }
+    return profile;
   }
 
   async saveProfile(profile: UserProfile): Promise<UserProfile> {
@@ -1017,6 +1072,14 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     if (this.state.deletedProfileIds && this.state.deletedProfileIds[profile.id]) {
       console.warn(`[Repository] Rejecting resurrect save for deleted profile ${profile.id}`);
       throw new Error(`Profile ${profile.id} has been permanently deleted and cannot be saved.`);
+    }
+
+    if (profile.name && profile.birthData && this.state.deletedProfileSignatures) {
+      const sig = normalizeProfileSignature(profile.name, profile.birthData);
+      if (sig && this.state.deletedProfileSignatures[sig]) {
+        console.warn(`[Repository] Rejecting resurrect save for signature-tombstoned profile: ${sig}`);
+        throw new Error(`Profile with signature '${sig}' has been permanently deleted.`);
+      }
     }
 
     // Foreign Key check: userId must exist in users
@@ -1051,32 +1114,41 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
   }
 
   // CASCADE DELETE: Removing a profile cascades to calculations, events, backtests, messages
-  async deleteProfile(profileId: string, userId: string): Promise<boolean> {
-    return this.deleteProfileSync(profileId, userId);
+  async deleteProfile(profileId: string, userId: string, signature?: string): Promise<boolean> {
+    return this.deleteProfileSync(profileId, userId, signature);
   }
-  deleteProfileSync(profileId: string, userId: string): boolean {
+  deleteProfileSync(profileId: string, userId: string, signature?: string): boolean {
     if (!this.state.deletedProfileIds) {
       this.state.deletedProfileIds = {};
     }
     this.state.deletedProfileIds[profileId] = Date.now();
 
-    const profile = this.state.profiles[profileId];
-    if (!profile) {
-      this.schedulePersist();
-      return true;
+    if (!this.state.deletedProfileSignatures) {
+      this.state.deletedProfileSignatures = {};
     }
-    
-    // Ownership check: only owner, super-admin, or guest owner can delete
-    if (profile.userId !== userId) {
-      const user = this.getUserSync(userId);
-      const isGuestProfile = profile.userId === 'usr_guest' || profile.userId.startsWith('usr_guest_');
-      const isGuestUser = user?.role === 'GUEST' || userId.startsWith('usr_guest_') || userId === 'usr_guest';
-      if (!user || (user.role !== 'SUPER_ADMIN' && !(isGuestProfile && isGuestUser))) {
-        return false;
+    if (signature) {
+      this.state.deletedProfileSignatures[signature] = Date.now();
+    }
+
+    const profile = this.state.profiles[profileId];
+    if (profile && profile.name && profile.birthData) {
+      const sig = normalizeProfileSignature(profile.name, profile.birthData);
+      if (sig) {
+        this.state.deletedProfileSignatures[sig] = Date.now();
       }
     }
 
     delete this.state.profiles[profileId];
+
+    // Cascade delete any remaining ghost profiles matching this signature
+    for (const [otherId, otherProf] of Object.entries(this.state.profiles)) {
+      if (otherProf && otherProf.name && otherProf.birthData) {
+        const otherSig = normalizeProfileSignature(otherProf.name, otherProf.birthData);
+        if (otherSig && this.state.deletedProfileSignatures && this.state.deletedProfileSignatures[otherSig]) {
+          delete this.state.profiles[otherId];
+        }
+      }
+    }
 
     // Cascade 1: Delete all calculations for this profile
     for (const [calcId, calc] of Object.entries(this.state.calculations)) {
@@ -1094,26 +1166,50 @@ export class PersistentDatabaseRepository implements IAsyncDatabaseRepository, I
     // Cascade 4: Delete chat messages
     delete this.state.chatMessages[profileId];
 
-    // Update user profile count
-    const remaining = this.getProfilesSync(profile.userId);
-    if (this.state.users[profile.userId]) {
+    // Update user profile count if user exists
+    if (profile && this.state.users[profile.userId]) {
+      const remaining = this.getProfilesSync(profile.userId);
       this.state.users[profile.userId].profilesCount = remaining.length;
     }
 
     this.schedulePersist();
+    this.flushSync();
     return true;
   }
 
-  markProfileDeletedSync(profileId: string): void {
+  markProfileDeletedSync(profileId: string, signature?: string): void {
     if (!profileId) return;
     if (!this.state.deletedProfileIds) {
       this.state.deletedProfileIds = {};
     }
     this.state.deletedProfileIds[profileId] = Date.now();
-    if (this.state.profiles[profileId]) {
-      delete this.state.profiles[profileId];
+    if (signature) {
+      if (!this.state.deletedProfileSignatures) {
+        this.state.deletedProfileSignatures = {};
+      }
+      this.state.deletedProfileSignatures[signature] = Date.now();
+    }
+    const profile = this.state.profiles[profileId];
+    if (profile && profile.name && profile.birthData) {
+      const sig = normalizeProfileSignature(profile.name, profile.birthData);
+      if (sig) {
+        if (!this.state.deletedProfileSignatures) {
+          this.state.deletedProfileSignatures = {};
+        }
+        this.state.deletedProfileSignatures[sig] = Date.now();
+      }
+    }
+    delete this.state.profiles[profileId];
+    for (const [otherId, otherProf] of Object.entries(this.state.profiles)) {
+      if (otherProf && otherProf.name && otherProf.birthData) {
+        const otherSig = normalizeProfileSignature(otherProf.name, otherProf.birthData);
+        if (otherSig && this.state.deletedProfileSignatures && this.state.deletedProfileSignatures[otherSig]) {
+          delete this.state.profiles[otherId];
+        }
+      }
     }
     this.schedulePersist();
+    this.flushSync();
   }
 
   // ----------------------------------------------------

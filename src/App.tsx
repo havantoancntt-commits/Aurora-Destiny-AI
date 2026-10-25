@@ -233,7 +233,8 @@ export default function App() {
       // Explicitly mark offline mode
       setSyncStatus('local_only');
       // Offline fallback: try to recover from PWA storage without wiping user data
-      const pwaRecovered = await pwaProfileStorage.getProfiles().catch(() => []);
+      const rawRecovered = await pwaProfileStorage.getProfiles().catch(() => []);
+      const pwaRecovered = (rawRecovered || []).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
       if (pwaRecovered.length > 0) {
         setProfiles(pwaRecovered);
         const target = pwaRecovered[0];
@@ -1173,8 +1174,7 @@ export default function App() {
         onSelectProfile={handleSelectProfile}
         onOpenNewProfileModal={() => setShowOnboarding(true)}
         onProfilesUpdated={(updated) => {
-          const deletedIds = pwaProfileStorage.getDeletedIds();
-          const cleanUpdated = (updated || []).filter((p) => p && p.id && !deletedIds.has(p.id));
+          const cleanUpdated = (updated || []).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
           setProfiles(cleanUpdated);
           if (cleanUpdated.length === 0) {
             setActiveProfileId('');

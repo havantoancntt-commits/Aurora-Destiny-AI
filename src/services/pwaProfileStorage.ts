@@ -37,8 +37,17 @@ export interface PwaBackupPayload {
 
 export function normalizeProfileSignature(name: string, birthData: any): string {
   if (!name || !birthData) return '';
-  const cleanName = name.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  return `${cleanName}_${birthData.solarDay}_${birthData.solarMonth}_${birthData.solarYear}_${birthData.solarHour}_${birthData.solarMinute}`;
+  const cleanName = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd');
+  const day = birthData.solarDay ?? birthData.lunarDay ?? '';
+  const month = birthData.solarMonth ?? birthData.lunarMonth ?? '';
+  const year = birthData.solarYear ?? birthData.lunarYear ?? '';
+  return `${cleanName}_${day}_${month}_${year}`;
 }
 
 class PwaProfileStorageService {
@@ -408,10 +417,22 @@ class PwaProfileStorageService {
     if (db) {
       try {
         const tx = db.transaction([STORE_PROFILES, STORE_CALCULATIONS, STORE_ENSEMBLES, STORE_SYNC_QUEUE], 'readwrite');
-        tx.objectStore(STORE_PROFILES).delete(profileId);
+        const profileStore = tx.objectStore(STORE_PROFILES);
+        profileStore.delete(profileId);
         tx.objectStore(STORE_CALCULATIONS).delete(profileId);
         tx.objectStore(STORE_ENSEMBLES).delete(profileId);
         tx.objectStore(STORE_SYNC_QUEUE).delete(profileId);
+
+        // Also sweep any ghost profiles matching tombstones in IndexedDB
+        const allReq = profileStore.getAll();
+        allReq.onsuccess = () => {
+          for (const p of (allReq.result || [])) {
+            if (p && (p.id === profileId || this.isDeleted(p))) {
+              profileStore.delete(p.id);
+            }
+          }
+        };
+
         await new Promise<void>((res, rej) => {
           tx.oncomplete = () => res();
           tx.onerror = () => rej(tx.error);

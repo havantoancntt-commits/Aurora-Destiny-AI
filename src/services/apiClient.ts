@@ -8,7 +8,7 @@ import { UserProfile, UserPreferences, UserAccount } from '../types/user';
 import { CalculationResult, BirthData, BehavioralContext } from '../types/destiny';
 import { HistoricalEvent, BacktestResult } from '../types/backtest';
 import { MultiAgentEnsemble, ChatMessage, ScenarioAnalysisResult, DailyDestiny } from '../types/ai';
-import { pwaProfileStorage } from './pwaProfileStorage';
+import { pwaProfileStorage, normalizeProfileSignature } from './pwaProfileStorage';
 
 class ApiClient {
   private sessionInitialized = false;
@@ -17,20 +17,10 @@ class ApiClient {
   private currentUserId: string | null = null;
 
   constructor() {
-    if (this.isProductionAuthMode()) {
+    try {
+      this.token = typeof window !== 'undefined' ? localStorage.getItem('aurora_session_token') : null;
+    } catch {
       this.token = null;
-      try {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('aurora_session_token');
-          sessionStorage.removeItem('aurora_session_token');
-        }
-      } catch {}
-    } else {
-      try {
-        this.token = typeof window !== 'undefined' ? localStorage.getItem('aurora_session_token') : null;
-      } catch {
-        this.token = null;
-      }
     }
   }
 
@@ -320,7 +310,6 @@ class ApiClient {
   public getCachedProfiles(): UserProfile[] {
     try {
       if (typeof window !== 'undefined') {
-        const deletedIds = pwaProfileStorage.getDeletedIds();
         const key = this.getProfileCacheKey();
         const raw = localStorage.getItem(key);
         if (raw) {
@@ -332,9 +321,9 @@ class ApiClient {
                 // Cross-user contamination prevented: do not return another user's profiles
                 return [];
               }
-              return (parsed.profiles as UserProfile[]).filter((p) => p && p.id && !deletedIds.has(p.id));
+              return (parsed.profiles as UserProfile[]).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
             } else if (Array.isArray(parsed)) {
-              return (parsed as UserProfile[]).filter((p) => p && p.id && !deletedIds.has(p.id));
+              return (parsed as UserProfile[]).filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
             }
           }
         }
@@ -346,8 +335,7 @@ class ApiClient {
   public cacheProfiles(profiles: UserProfile[]): void {
     try {
       if (typeof window !== 'undefined' && Array.isArray(profiles)) {
-        const deletedIds = pwaProfileStorage.getDeletedIds();
-        const cleanProfiles = profiles.filter((p) => p && p.id && !deletedIds.has(p.id));
+        const cleanProfiles = profiles.filter((p) => p && p.id && !pwaProfileStorage.isDeleted(p));
         const key = this.getProfileCacheKey();
         const payload = {
           version: 1,
@@ -477,8 +465,14 @@ class ApiClient {
 
     // 2. Transmit DELETE to server with credentials
     try {
+      const headers: Record<string, string> = {};
+      if (typeof target === 'object' && target.name && target.birthData) {
+        const sig = normalizeProfileSignature(target.name, target.birthData);
+        if (sig) headers['x-profile-signature'] = sig;
+      }
       const res = await this.fetchWithAuth(`/api/profiles/${profileId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers
       });
       if (!res.ok && res.status !== 404) {
         console.warn(`[ApiClient] Server delete returned HTTP ${res.status}`);
