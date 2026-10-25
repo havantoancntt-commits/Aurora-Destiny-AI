@@ -45,11 +45,14 @@ import {
   requestNotificationPermission,
   sendTestNotification,
   sendMultiProfileTestPush,
+  send12hTrueSolarTestPush,
+  getNext12hTrueSolarMilestones,
   getUpcomingAlertSchedule,
   getNotificationHistory,
   clearNotificationHistory,
   CanChiNotificationLog,
-  UpcomingAlertItem
+  UpcomingAlertItem,
+  TrueSolarMilestonesInfo
 } from '../services/destinyPushNotification';
 import {
   scanMajorEventsForProfiles,
@@ -78,6 +81,11 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
   );
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [isTesting12h, setIsTesting12h] = useState<boolean>(false);
+  const [test12hResult, setTest12hResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [milestonesInfo, setMilestonesInfo] = useState<TrueSolarMilestonesInfo | null>(() =>
+    getNext12hTrueSolarMilestones(calculation, profile)
+  );
   const [activeTab, setActiveTab] = useState<'watchdog' | 'settings' | 'schedule' | 'history'>('watchdog');
   const [schedule, setSchedule] = useState<UpcomingAlertItem[]>([]);
   const [history, setHistory] = useState<CanChiNotificationLog[]>([]);
@@ -86,10 +94,11 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
 
   const allActiveProfiles = profiles.length > 0 ? profiles : (profile ? [profile] : []);
 
-  // Load schedule, watchdog events and history
+  // Load schedule, watchdog events, 12h milestones, and history
   const refreshData = () => {
     if (calculation && profile) {
       setSchedule(getUpcomingAlertSchedule(calculation, profile));
+      setMilestonesInfo(getNext12hTrueSolarMilestones(calculation, profile));
     }
     setHistory(getNotificationHistory());
 
@@ -106,6 +115,7 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
   useEffect(() => {
     refreshData();
     setPermission(getNotificationPermission());
+    setMilestonesInfo(getNext12hTrueSolarMilestones(calculation, profile));
   }, [calculation, profile, profiles, config]);
 
   // Request permission
@@ -150,6 +160,27 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
       });
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  // Test 12-hour True Solar Time Shift notification button
+  const handleSend12hTest = async () => {
+    setIsTesting12h(true);
+    setTest12hResult(null);
+
+    try {
+      sacredSound.playCelestialChime(639);
+      const res = await send12hTrueSolarTestPush(calculation, profile);
+      setTest12hResult(res);
+      setPermission(getNotificationPermission());
+      refreshData();
+    } catch (e: any) {
+      setTest12hResult({
+        success: false,
+        message: e?.message || 'Có lỗi xảy ra khi gửi thông báo chuyển vận 12h'
+      });
+    } finally {
+      setIsTesting12h(false);
     }
   };
 
@@ -200,7 +231,7 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0 flex-wrap">
             {permission !== 'granted' ? (
               <button
                 onClick={handleRequestPermission}
@@ -209,38 +240,52 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
                 Cấp Quyền Đẩy Ngay
               </button>
             ) : (
-              <button
-                onClick={handleSendTest}
-                disabled={isTesting}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-teal-500/20 hover:from-amber-500/30 hover:to-teal-500/30 text-amber-300 border border-amber-500/40 text-xs font-mono flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:opacity-50 shadow-md"
-                title="Phát thông báo đẩy thử nghiệm cho hồ sơ bản mệnh"
-              >
-                <Send className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
-                <span>{isTesting ? 'Đang gửi...' : 'Phát Thử Thông Báo Đẩy'}</span>
-              </button>
+              <>
+                <button
+                  onClick={handleSendTest}
+                  disabled={isTesting}
+                  className="px-3 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-amber-300 border border-amber-500/30 text-xs font-mono flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                  title="Phát thông báo đẩy thử nghiệm cho hồ sơ bản mệnh"
+                >
+                  <Send className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
+                  <span>{isTesting ? 'Đang gửi...' : 'Thử Can-Chi'}</span>
+                </button>
+                <button
+                  onClick={handleSend12hTest}
+                  disabled={isTesting12h}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-teal-500/20 hover:from-amber-500/30 hover:to-teal-500/30 text-amber-200 border border-amber-500/50 text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:opacity-50 shadow-md"
+                  title="Phát thử thông báo chuyển vận 12 giờ theo Giờ Sinh Chân Mặt Trời"
+                >
+                  <Sun className={`w-3.5 h-3.5 text-amber-400 ${isTesting12h ? 'animate-spin' : ''}`} />
+                  <span>{isTesting12h ? 'Đang gửi...' : 'Thử Chuyển Vận 12h'}</span>
+                </button>
+              </>
             )}
           </div>
         </div>
 
         {/* Test Result Feedback */}
-        {testResult && (
+        {(testResult || test12hResult) && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 border ${
-              testResult.success
+              (testResult?.success || test12hResult?.success)
                 ? 'bg-emerald-950/60 text-emerald-200 border-emerald-500/40'
                 : 'bg-rose-950/60 text-rose-200 border-rose-500/40'
             }`}
           >
-            {testResult.success ? (
+            {(testResult?.success || test12hResult?.success) ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             ) : (
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
             )}
-            <span className="flex-1 font-medium">{testResult.message}</span>
+            <span className="flex-1 font-medium">{testResult?.message || test12hResult?.message}</span>
             <button
-              onClick={() => setTestResult(null)}
+              onClick={() => {
+                setTestResult(null);
+                setTest12hResult(null);
+              }}
               className="text-slate-400 hover:text-white text-xs px-1"
             >
               ✕
@@ -621,6 +666,102 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
               </label>
             </div>
 
+            {/* 12-Hour True Solar Time Shift Notification Feature Card */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-950/35 via-slate-950/80 to-purple-950/35 border border-amber-500/35 space-y-3.5 shadow-xl relative overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      <Sun className="w-4 h-4 text-amber-400" />
+                    </span>
+                    <h4 className="text-sm font-bold text-white font-cinzel">
+                      Cảnh Báo Chuyển Vận 12 Giờ Theo Giờ Sinh Chân Mặt Trời
+                    </h4>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      Chu Kỳ 12h Diệu Dụng
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                    Hệ thống tự động kích hoạt thông báo đẩy Web Push định kỳ 12 giờ một lần bám sát trục nhật quỹ chân mặt trời của bản mệnh (mốc sinh thực sau khi bù kinh độ địa lý & phương trình EOT, cùng mốc đối cực nghịch chuyển 12 giờ sau). Tổng hợp thời cơ Đại Vận 10 năm, Tiết Khí thiên văn, Dụng Thần và các khung giờ cát khánh trong 12 giờ kế tiếp.
+                  </p>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                  <input
+                    type="checkbox"
+                    checked={config.notify12hTrueSolarShift}
+                    onChange={(e) => updateField('notify12hTrueSolarShift', e.target.checked)}
+                    disabled={!config.enabled}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500 disabled:opacity-40"></div>
+                </label>
+              </div>
+
+              {/* Milestone Details */}
+              {milestonesInfo ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-white/10 text-xs">
+                  <div className="p-3 rounded-xl bg-black/40 border border-amber-500/20 flex flex-col justify-between">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase">Mốc 1: Bình Minh Bản Mệnh</span>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <Sun className="w-4 h-4 text-amber-400" />
+                      <span className="text-base font-bold text-amber-300 font-mono">
+                        {milestonesInfo.milestone1TimeStr}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1">Giờ sinh chân mặt trời (Dương thăng)</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/40 border border-purple-500/20 flex flex-col justify-between">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase">Mốc 2: Tịch Chiếu Đối Cực</span>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <Moon className="w-4 h-4 text-purple-400" />
+                      <span className="text-base font-bold text-purple-300 font-mono">
+                        {milestonesInfo.milestone2TimeStr}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1">Đối xứng kinh tuyến 12h (Âm quy)</span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/10 to-teal-500/10 border border-teal-500/30 flex flex-col justify-between">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase">Mốc Chuyển Vận Tiếp Theo</span>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <Clock className="w-4 h-4 text-teal-400" />
+                      <span className="text-base font-bold text-teal-300 font-mono">
+                        {milestonesInfo.timeRemainingFormatted}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1">
+                      {milestonesInfo.nextPhase === 1 ? 'Đang đón Mốc 1 (Bản Mệnh)' : 'Đang đón Mốc 2 (Đối Cực)'}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-black/30 border border-white/10 text-xs text-slate-400">
+                  Chọn hoặc lập lá số để kích hoạt tính toán mốc giờ sinh chân mặt trời chính xác.
+                </div>
+              )}
+
+              {/* Action row with test button */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-white/5">
+                <span className="text-[11px] font-mono text-slate-400">
+                  Trạng thái: {config.notify12hTrueSolarShift && config.enabled ? (
+                    <strong className="text-emerald-400">Sẵn sàng đẩy định kỳ mỗi 12 giờ</strong>
+                  ) : (
+                    <span className="text-slate-500">Đang tạm ngưng</span>
+                  )}
+                </span>
+                <button
+                  onClick={handleSend12hTest}
+                  disabled={isTesting12h || !config.enabled}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-mono font-medium flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer disabled:opacity-40 self-end sm:self-auto"
+                >
+                  <Send className={`w-3 h-3 ${isTesting12h ? 'animate-spin' : ''}`} />
+                  <span>{isTesting12h ? 'Đang gửi...' : 'Phát Thử Thông Báo 12h'}</span>
+                </button>
+              </div>
+            </div>
+
             {/* Individual Notification Triggers */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {/* Multi-Profile Watchdog Switch */}
@@ -810,17 +951,26 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
             ) : (
               <div className="space-y-2 max-h-[420px] overflow-y-auto custom-scrollbar p-0.5">
                 {history.map((log) => {
-                  const isAuspicious = log.type === 'AUSPICIOUS' || log.severity === 'CRITICAL_POSITIVE' || log.severity === 'HIGH_POSITIVE';
-                  const isClash = log.type === 'INAUSPICIOUS' || log.severity === 'HIGH_DANGER' || log.severity === 'CAUTION_WARNING';
+                  const isSolar12h = log.type === 'SOLAR_12H_SHIFT';
+                  const isAuspicious = !isSolar12h && (log.type === 'AUSPICIOUS' || log.severity === 'CRITICAL_POSITIVE' || log.severity === 'HIGH_POSITIVE');
+                  const isClash = !isSolar12h && (log.type === 'INAUSPICIOUS' || log.severity === 'HIGH_DANGER' || log.severity === 'CAUTION_WARNING');
 
                   return (
                     <div
                       key={log.id}
-                      className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1"
+                      className={`p-3 rounded-xl border space-y-1 transition-all ${
+                        isSolar12h
+                          ? 'bg-amber-950/20 border-amber-500/30'
+                          : 'bg-white/[0.03] border-white/10'
+                      }`}
                     >
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5">
-                          {isAuspicious ? (
+                          {isSolar12h ? (
+                            <span className="p-1 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/40">
+                              <Sun className="w-3.5 h-3.5 text-amber-400" />
+                            </span>
+                          ) : isAuspicious ? (
                             <span className="p-1 rounded-lg bg-amber-500/20 text-amber-300">
                               <Sparkles className="w-3.5 h-3.5" />
                             </span>

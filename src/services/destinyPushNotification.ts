@@ -9,6 +9,9 @@ import { UserProfile } from '../types/user';
 import { calculateRealtimeSnapshot, HourlySlotInsight } from '../engine/realtimeEngine';
 import { sacredSound } from './soundService';
 import { scanMajorEventsForProfiles, MajorDestinyEvent } from '../engine/destinyAlertWatchdog';
+import { resolveEffectiveBirthTime } from '../engine/temporalCorrection';
+import { getSolarTerm } from '../engine/lunarSolar';
+import { STEMS, BRANCHES } from '../engine/canchi';
 
 export interface CanChiNotificationConfig {
   enabled: boolean;
@@ -23,6 +26,7 @@ export interface CanChiNotificationConfig {
   notifyMajorClashes: boolean; // Cảnh báo Thiên Khắc Địa Xung & Lục Xung bản mệnh theo ngày
   notifyQuyNhanLocThan: boolean; // Cảnh báo Giờ/Ngày Quý Nhân & Lộc Thần
   notifySolarTerms: boolean; // Cảnh báo chuyển giao 24 Tiết Khí thiên văn
+  notify12hTrueSolarShift: boolean; // Cảnh báo chuyển vận định kỳ 12 giờ một lần theo giờ sinh chân mặt trời
   quietHoursEnabled: boolean; // Chế độ yên lặng ban đêm
   quietHoursStart: string; // "23:00"
   quietHoursEnd: string; // "06:00"
@@ -34,7 +38,7 @@ export interface CanChiNotificationLog {
   timeFormatted: string;
   slotBranch: string;
   slotStem: string;
-  type: 'AUSPICIOUS' | 'INAUSPICIOUS' | 'MORNING_BRIEFING' | 'EVENING_REFLECTION' | 'TEST' | 'WATCHDOG_EVENT';
+  type: 'AUSPICIOUS' | 'INAUSPICIOUS' | 'MORNING_BRIEFING' | 'EVENING_REFLECTION' | 'TEST' | 'WATCHDOG_EVENT' | 'SOLAR_12H_SHIFT';
   title: string;
   body: string;
   resonanceScore: number;
@@ -59,6 +63,7 @@ const CONFIG_STORAGE_KEY = 'aurora_canchi_notification_config';
 const LAST_NOTIFIED_KEY = 'aurora_canchi_last_notified_slot';
 const HISTORY_STORAGE_KEY = 'aurora_canchi_notification_history';
 const WATCHDOG_NOTIFIED_PREFIX = 'aurora_watchdog_notified_';
+const LAST_12H_SOLAR_NOTIFIED_PREFIX = 'aurora_12h_solar_last_notified_';
 
 export const DEFAULT_NOTIFICATION_CONFIG: CanChiNotificationConfig = {
   enabled: true,
@@ -73,6 +78,7 @@ export const DEFAULT_NOTIFICATION_CONFIG: CanChiNotificationConfig = {
   notifyMajorClashes: true,
   notifyQuyNhanLocThan: true,
   notifySolarTerms: true,
+  notify12hTrueSolarShift: true,
   quietHoursEnabled: false,
   quietHoursStart: '23:00',
   quietHoursEnd: '06:00'
@@ -654,6 +660,358 @@ export async function sendMultiProfileTestPush(
       profiles[0]
     );
     return standardTest;
+  }
+}
+
+// ==============================================================================
+// 15. CALCULATE NEXT 12-HOUR TRUE SOLAR MILESTONES
+// ==============================================================================
+export interface TrueSolarMilestonesInfo {
+  trueSolarBirthTimeStr: string;
+  milestone1TimeStr: string;
+  milestone2TimeStr: string;
+  nextMilestoneDate: Date;
+  nextPhase: 1 | 2;
+  minutesUntilNext: number;
+  timeRemainingFormatted: string;
+}
+
+export function getNext12hTrueSolarMilestones(
+  calculation: CalculationResult | null,
+  profile: UserProfile | null,
+  now: Date = new Date()
+): TrueSolarMilestonesInfo | null {
+  if (!profile) return null;
+  const eff = calculation?.effectiveBirthTime || resolveEffectiveBirthTime(profile.birthData);
+  const birthH = eff.effectiveHour;
+  const birthM = eff.effectiveMinute;
+
+  const m1TotalMin = birthH * 60 + birthM;
+  const m2TotalMin = (m1TotalMin + 720) % 1440;
+
+  const m1H = Math.floor(m1TotalMin / 60);
+  const m1M = m1TotalMin % 60;
+  const m2H = Math.floor(m2TotalMin / 60);
+  const m2M = m2TotalMin % 60;
+
+  const milestone1TimeStr = `${m1H.toString().padStart(2, '0')}:${m1M.toString().padStart(2, '0')}`;
+  const milestone2TimeStr = `${m2H.toString().padStart(2, '0')}:${m2M.toString().padStart(2, '0')}`;
+
+  // Candidate dates for m1 and m2
+  const candidate1 = new Date(now);
+  candidate1.setHours(m1H, m1M, 0, 0);
+  if (candidate1.getTime() <= now.getTime()) {
+    candidate1.setDate(candidate1.getDate() + 1);
+  }
+
+  const candidate2 = new Date(now);
+  candidate2.setHours(m2H, m2M, 0, 0);
+  if (candidate2.getTime() <= now.getTime()) {
+    candidate2.setDate(candidate2.getDate() + 1);
+  }
+
+  const nextDate = candidate1.getTime() < candidate2.getTime() ? candidate1 : candidate2;
+  const nextPhase: 1 | 2 = candidate1.getTime() < candidate2.getTime() ? 1 : 2;
+
+  const diffMs = nextDate.getTime() - now.getTime();
+  const diffTotalMin = Math.max(0, Math.round(diffMs / 60000));
+  const diffH = Math.floor(diffTotalMin / 60);
+  const diffM = diffTotalMin % 60;
+
+  const timeRemainingFormatted = diffH > 0
+    ? `${diffH} giờ ${diffM.toString().padStart(2, '0')} phút`
+    : `${diffM} phút`;
+
+  return {
+    trueSolarBirthTimeStr: milestone1TimeStr,
+    milestone1TimeStr,
+    milestone2TimeStr,
+    nextMilestoneDate: nextDate,
+    nextPhase,
+    minutesUntilNext: diffTotalMin,
+    timeRemainingFormatted
+  };
+}
+
+// ==============================================================================
+// 16. BUILD RICH ASTROLOGICAL CONTENT FOR 12-HOUR TRUE SOLAR TIME SHIFT
+// ==============================================================================
+export function build12hTrueSolarShiftContent(
+  calculation: CalculationResult,
+  profile: UserProfile,
+  phase: 1 | 2,
+  now: Date = new Date()
+): { title: string; body: string; summary: string; isHarmonic: boolean } {
+  const eff = calculation.effectiveBirthTime || resolveEffectiveBirthTime(profile.birthData);
+  const birthH = eff.effectiveHour;
+  const birthM = eff.effectiveMinute;
+  const m1TotalMin = birthH * 60 + birthM;
+  const m2TotalMin = (m1TotalMin + 720) % 1440;
+
+  const phaseH = phase === 1 ? Math.floor(m1TotalMin / 60) : Math.floor(m2TotalMin / 60);
+  const phaseM = phase === 1 ? (m1TotalMin % 60) : (m2TotalMin % 60);
+  const phaseTimeStr = `${phaseH.toString().padStart(2, '0')}:${phaseM.toString().padStart(2, '0')}`;
+
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const timezoneOffset = profile.birthData.timezoneOffset !== undefined ? profile.birthData.timezoneOffset : 7;
+  const solarTerm = getSolarTerm(currentYear, currentMonth, currentDay, timezoneOffset, now.getHours(), now.getMinutes());
+
+  const snapshot = calculateRealtimeSnapshot(calculation, now);
+  const currentSlot = snapshot.currentSlot;
+
+  // Decade Cycle (Đại Vận) Shift Status
+  let decadeStatus = '';
+  const currentDecade = calculation.decades?.find((d) => currentYear >= d.startYear && currentYear <= d.endYear);
+  if (currentDecade) {
+    const stemName = STEMS[currentDecade.stem]?.nameVi || currentDecade.stem;
+    const branchName = BRANCHES[currentDecade.branch]?.nameVi || currentDecade.branch;
+    const decadeCanChi = `${stemName} ${branchName}`;
+    const palaceMap: Record<string, string> = {
+      life: 'Mệnh',
+      siblings: 'Huynh Đệ',
+      spouse: 'Phu Thê',
+      children: 'Tử Tức',
+      wealth: 'Tài Bạch',
+      health: 'Tật Ách',
+      travel: 'Thiên Di',
+      friends: 'Nô Bộc',
+      career: 'Quan Lộc',
+      property: 'Điền Trạch',
+      karma: 'Phúc Đức',
+      parents: 'Phụ Mẫu'
+    };
+    const palaceNameVi = palaceMap[currentDecade.focalPalace] || 'Mệnh';
+    const yearsLeft = currentDecade.endYear - currentYear + 1;
+    if (yearsLeft <= 2) {
+      decadeStatus = `Đang ở giai đoạn chuyển vận cuối Đại Vận ${decadeCanChi} (${yearsLeft} năm nữa chuyển sang Đại Vận mới)`;
+    } else {
+      decadeStatus = `Đại Vận ${decadeCanChi} (${currentDecade.startAge}-${currentDecade.endAge} tuổi, Cung ${palaceNameVi})`;
+    }
+  }
+
+  // Next 12 Hours Auspicious Slots
+  const favorableSlots = snapshot.hourlySlots.filter(
+    (s) => s.alertLevel === 'GOLDEN_WINDOW' || s.luckCategory === 'DAI_CAT' || s.luckCategory === 'TIEU_CAT'
+  );
+  const goldenStr = favorableSlots.length > 0
+    ? favorableSlots.slice(0, 3).map((s) => `${s.branchNameVi} (${s.timeRangeStr})`).join(', ')
+    : 'Bình hòa, nên giữ định tâm';
+
+  // Favorable Elements (Dụng Thần)
+  const favElements = calculation.bazi?.favorableElements?.join(', ') || 'Cân bằng ngũ hành';
+
+  const phaseLabel = phase === 1 ? 'Giờ Sinh Chân Mặt Trời' : 'Trục Đối Xung Âm Dương (12h)';
+  const title = phase === 1
+    ? `🔔 [12H CHÂN MẶT TRỜI] Chuyển Vận Bản Mệnh • ${profile.name} [${phaseTimeStr}]`
+    : `🔔 [12H ĐỐI CỰC] Chuyển Vận Trục Đối Xung • ${profile.name} [${phaseTimeStr}]`;
+
+  const body =
+    `☀️ Thời khắc ${phaseLabel} | Canh giờ: ${currentSlot.stemNameVi} ${currentSlot.branchNameVi} (Tiết ${solarTerm})\n` +
+    `🌀 ${decadeStatus ? decadeStatus + '\n' : ''}` +
+    `⭐ 12h tới: Giờ cát [${goldenStr}]. Dụng thần bổ trợ: [${favElements}].\n` +
+    `💡 Lời khuyên: Giữ tâm sáng định tĩnh, khởi sự vào giờ hoàng đạo để chiêu cát tị hung.`;
+
+  const summary = `Cảnh báo chuyển vận định kỳ 12 giờ theo giờ sinh chân mặt trời (${phaseTimeStr}) cho hồ sơ ${profile.name}.`;
+
+  const isHarmonic = currentSlot.alertLevel !== 'CLASH_ANOMALY';
+
+  return { title, body, summary, isHarmonic };
+}
+
+// ==============================================================================
+// 17. EVALUATE AND TRIGGER 12-HOUR TRUE SOLAR TIME SHIFT PUSH ALERT
+// ==============================================================================
+export async function evaluateAndTrigger12hTrueSolarShiftAlert(
+  calculation: CalculationResult | null,
+  profile: UserProfile | null,
+  forcedTest: boolean = false
+): Promise<{ triggered: boolean; title?: string; body?: string; message?: string }> {
+  if (!calculation || !profile) {
+    return { triggered: false, message: 'Chưa có thông tin hồ sơ hoặc lá số để phân tích' };
+  }
+
+  const config = getNotificationConfig();
+  if (!config.enabled && !forcedTest) {
+    return { triggered: false, message: 'Hệ thống thông báo đẩy đang tắt trong cài đặt' };
+  }
+
+  if (!config.notify12hTrueSolarShift && !forcedTest) {
+    return { triggered: false, message: 'Thông báo chuyển vận 12h theo giờ sinh chân mặt trời đang tắt' };
+  }
+
+  const permission = getNotificationPermission();
+  if (permission !== 'granted' && !forcedTest) {
+    return { triggered: false, message: 'Chưa được cấp quyền thông báo trình duyệt' };
+  }
+
+  const now = new Date();
+  if (!forcedTest && isWithinQuietHours(config, now)) {
+    return { triggered: false, message: 'Đang trong khung giờ tĩnh tâm (Không làm phiền)' };
+  }
+
+  const eff = calculation.effectiveBirthTime || resolveEffectiveBirthTime(profile.birthData);
+  const birthH = eff.effectiveHour;
+  const birthM = eff.effectiveMinute;
+
+  const m1TotalMin = birthH * 60 + birthM;
+  const m2TotalMin = (m1TotalMin + 720) % 1440;
+
+  const currentTotalMin = now.getHours() * 60 + now.getMinutes();
+
+  // Calculate circular distance (0-720 min)
+  let diff1 = Math.abs(currentTotalMin - m1TotalMin);
+  if (diff1 > 720) diff1 = 1440 - diff1;
+
+  let diff2 = Math.abs(currentTotalMin - m2TotalMin);
+  if (diff2 > 720) diff2 = 1440 - diff2;
+
+  const phase: 1 | 2 = diff1 <= diff2 ? 1 : 2;
+  const minDiff = Math.min(diff1, diff2);
+
+  // Check if we are within the +/- 25 minute window, OR if >= 11.5 hours elapsed since last alert
+  const storageKey = `${LAST_12H_SOLAR_NOTIFIED_PREFIX}${profile.id}`;
+  let lastSentTime = 0;
+  let lastCycleTag = '';
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        lastSentTime = parsed.timestamp || 0;
+        lastCycleTag = parsed.cycleTag || '';
+      }
+    } catch {}
+  }
+
+  const hoursSinceLast = (now.getTime() - lastSentTime) / (3600 * 1000);
+  const dateStr = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  const currentCycleTag = `${dateStr}_phase${phase}`;
+
+  let shouldTrigger = forcedTest;
+
+  if (!forcedTest) {
+    const isInsideWindow = minDiff <= 25;
+    const isDueByTime = hoursSinceLast >= 11.5;
+
+    if ((isInsideWindow || isDueByTime) && lastCycleTag !== currentCycleTag) {
+      shouldTrigger = true;
+    }
+  }
+
+  if (!shouldTrigger) {
+    return {
+      triggered: false,
+      message: `Chưa tới mốc 12 giờ chân mặt trời tiếp theo (còn khoảng ${minDiff} phút hoặc đã gửi trong chu kỳ này)`
+    };
+  }
+
+  const { title, body, summary, isHarmonic } = build12hTrueSolarShiftContent(calculation, profile, phase, now);
+
+  const notificationOptions: NotificationOptions & { vibrate?: number[]; data?: any; renotify?: boolean } = {
+    body,
+    icon: '/og-image.svg',
+    badge: '/og-image.svg',
+    tag: `aurora-12h-solar-${profile.id}-${currentCycleTag}`,
+    renotify: true,
+    vibrate: config.vibrate ? [250, 100, 200, 100, 250, 100, 400] : undefined,
+    data: {
+      url: '/?tab=daily&source=12h_solar_push',
+      profileId: profile.id,
+      phase,
+      type: 'SOLAR_12H_SHIFT',
+      timestamp: Date.now()
+    }
+  };
+
+  const dispatched = await dispatchPushNotification(
+    title,
+    notificationOptions,
+    config.soundEnabled,
+    isHarmonic
+  );
+
+  if (dispatched) {
+    if (typeof window !== 'undefined' && !forcedTest) {
+      try {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            timestamp: Date.now(),
+            cycleTag: currentCycleTag,
+            phase
+          })
+        );
+      } catch {}
+    }
+
+    recordNotificationLog({
+      slotBranch: phase === 1 ? 'Giờ Sinh' : 'Đối Xung 12h',
+      slotStem: 'Chân Mặt Trời',
+      type: 'SOLAR_12H_SHIFT',
+      title,
+      body,
+      resonanceScore: 98,
+      zodiacStarName: '12h_True_Solar_Shift',
+      profileName: profile.name,
+      severity: isHarmonic ? 'HIGH_POSITIVE' : 'CAUTION_WARNING'
+    });
+
+    // In-app celestial alert event for floating banner
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('aurora:celestial-alert', {
+          detail: {
+            id: `12h_solar_${profile.id}_${Date.now()}`,
+            profileId: profile.id,
+            profileName: profile.name,
+            eventType: 'SOLAR_TERM_INGRESS',
+            severity: isHarmonic ? 'HIGH_POSITIVE' : 'CAUTION_WARNING',
+            title,
+            summary,
+            timestamp: Date.now()
+          }
+        })
+      );
+    }
+
+    return { triggered: true, title, body };
+  }
+
+  return { triggered: false, message: 'Trình duyệt không thể kích hoạt thông báo đẩy' };
+}
+
+// ==============================================================================
+// 18. SEND 12-HOUR TRUE SOLAR TEST PUSH NOTIFICATION
+// ==============================================================================
+export async function send12hTrueSolarTestPush(
+  calculation: CalculationResult | null,
+  profile: UserProfile | null
+): Promise<{ success: boolean; message: string }> {
+  if (!calculation || !profile) {
+    return { success: false, message: 'Vui lòng chọn hoặc lập lá số trước khi thử nghiệm' };
+  }
+
+  const perm = await requestNotificationPermission();
+  if (perm !== 'granted') {
+    return {
+      success: false,
+      message: 'Quyền thông báo chưa được cấp phép. Vui lòng bấm "Cho phép" trên trình duyệt.'
+    };
+  }
+
+  const result = await evaluateAndTrigger12hTrueSolarShiftAlert(calculation, profile, true);
+  if (result.triggered) {
+    return {
+      success: true,
+      message: `Đã phát thông báo đẩy chuyển vận 12h: "${result.title}"`
+    };
+  } else {
+    return {
+      success: false,
+      message: result.message || 'Không thể kích hoạt thông báo đẩy'
+    };
   }
 }
 
