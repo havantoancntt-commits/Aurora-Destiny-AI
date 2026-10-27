@@ -16,11 +16,13 @@ import {
   Bell,
   Music,
   Flame,
+  Sun,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
 import { sacredSound } from '../services/soundService';
 import { sacredVoice } from '../services/sacredVoiceService';
+import { wakeLockService } from '../services/wakeLockService';
 import { SacredSealBadge } from './SacredSealBadge';
 import { SacredTaijiSpinner } from './SacredTaijiSpinner';
 
@@ -43,6 +45,21 @@ export const SacredSanctuaryBar: React.FC<Props> = ({
   const [gongActive, setGongActive] = useState(false);
   const [bowlActive, setBowlActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const [isWakeLocked, setIsWakeLocked] = useState<boolean>(() => wakeLockService.isActive());
+
+  useEffect(() => {
+    return wakeLockService.subscribe((active) => {
+      setIsWakeLocked(active);
+    });
+  }, []);
+
+  const handleToggleWakeLock = async () => {
+    const next = await wakeLockService.toggle();
+    if (next) {
+      sacredSound.playSacredTap(528);
+    }
+  };
 
   const handleStrikeBowl = () => {
     setBowlActive(true);
@@ -167,6 +184,23 @@ export const SacredSanctuaryBar: React.FC<Props> = ({
             <Crown className="w-3.5 h-3.5 text-purple-300" />
             <span>Thẻ Kim Giáp 3D</span>
           </button>
+
+          {/* 6. Screen Wake Lock (Giữ Sáng Màn Hình Khi Thiền) */}
+          {wakeLockService.isSupported() && (
+            <button
+              type="button"
+              onClick={handleToggleWakeLock}
+              className={`px-3 py-2 rounded-xl border text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                isWakeLocked
+                  ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)]'
+                  : 'bg-white/[0.05] hover:bg-white/[0.1] border-white/20 text-slate-300'
+              }`}
+              title="Giữ sáng màn hình thiết bị khi thiền định hoặc quan sát thiên bàn"
+            >
+              <Sun className={`w-3.5 h-3.5 ${isWakeLocked ? 'text-slate-950 animate-spin' : 'text-slate-400'}`} />
+              <span>{isWakeLocked ? 'Đang Giữ Sáng' : 'Giữ Sáng'}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -180,6 +180,9 @@ export async function dispatchPushNotification(
           vibrate: (options as any).vibrate || [200, 100, 200],
           ...options
         } as any);
+        if (typeof navigator !== 'undefined' && 'setAppBadge' in navigator) {
+          (navigator as any).setAppBadge().catch(() => {});
+        }
         return true;
       }
     } catch {
@@ -195,6 +198,9 @@ export async function dispatchPushNotification(
         badge: '/og-image.svg',
         ...options
       });
+      if (typeof navigator !== 'undefined' && 'setAppBadge' in navigator) {
+        (navigator as any).setAppBadge().catch(() => {});
+      }
       return true;
     } catch (e) {
       console.warn('Window Notification error:', e);
@@ -202,6 +208,19 @@ export async function dispatchPushNotification(
   }
 
   return false;
+}
+
+// Modern Web App Badging API controls
+export function setBadge(count?: number): void {
+  if (typeof navigator !== 'undefined' && 'setAppBadge' in navigator) {
+    (navigator as any).setAppBadge(count).catch(() => {});
+  }
+}
+
+export function clearBadge(): void {
+  if (typeof navigator !== 'undefined' && 'clearAppBadge' in navigator) {
+    (navigator as any).clearAppBadge().catch(() => {});
+  }
 }
 
 // 7. Append log to notification history

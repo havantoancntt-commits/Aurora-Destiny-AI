@@ -250,7 +250,7 @@ export const SacredOracleModal: React.FC<Props> = ({
     }, 950);
   };
 
-  const handleCopyPoem = () => {
+  const handleSharePoem = async () => {
     if (!currentHexagram) return;
     const text = `【QUẺ LINH ỨNG: ${currentHexagram.name} - ${currentHexagram.rank}】\n` +
       `Thơ Khai Mệnh:\n${currentHexagram.poem.join('\n')}\n\n` +
@@ -258,6 +258,20 @@ export const SacredOracleModal: React.FC<Props> = ({
       `Phương Vị Cát: ${currentHexagram.luckyDirection} | Giờ Vàng: ${currentHexagram.favorableHours}\n` +
       `Hóa Giải: ${currentHexagram.spiritualRemedy}\n` +
       `— Kênh Huyền Phong Phật Đạo • Aurora Destiny AI`;
+
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
+      try {
+        await (navigator as any).share({
+          title: `Quẻ Linh Ứng: ${currentHexagram.name}`,
+          text: text,
+          url: typeof window !== 'undefined' ? window.location.origin : undefined
+        });
+        sacredSound.playSacredTap(640);
+        return;
+      } catch (e: any) {
+        if (e.name === 'AbortError') return;
+      }
+    }
 
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -448,9 +462,9 @@ export const SacredOracleModal: React.FC<Props> = ({
 
                 <button
                   type="button"
-                  onClick={handleCopyPoem}
+                  onClick={handleSharePoem}
                   className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-medium text-slate-200 flex items-center gap-1.5 cursor-pointer transition-all"
-                  title="Sao chép lời thơ khai tâm"
+                  title="Chia sẻ quẻ hoặc sao chép lời thơ khai tâm"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-teal-400" /> : <Share2 className="w-3.5 h-3.5" />}
                   <span>{copied ? 'Đã Chép' : 'Chia Sẻ'}</span>

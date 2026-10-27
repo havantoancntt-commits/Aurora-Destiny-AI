@@ -609,6 +609,84 @@ class ApiClient {
     return res.json();
   }
 
+  // Real-Time Token Streaming AI Chat
+  public async streamChatMessage(
+    profileId: string,
+    message: string,
+    callbacks?: {
+      onChunk?: (chunk: string) => void;
+      onComplete?: (message: ChatMessage) => void;
+      onError?: (error: Error) => void;
+    },
+    signal?: AbortSignal
+  ): Promise<ChatMessage> {
+    try {
+      const res = await this.fetchWithAuth('/api/ai/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId, message }),
+        signal
+      });
+
+      if (!res.ok || !res.body) {
+        // Fallback to standard request
+        const fallbackMsg = await this.sendChatMessage(profileId, message);
+        if (callbacks?.onChunk) callbacks.onChunk(fallbackMsg.content);
+        if (callbacks?.onComplete) callbacks.onComplete(fallbackMsg);
+        return fallbackMsg;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let finalAssistantMsg: ChatMessage | null = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith('data:')) continue;
+          const jsonStr = trimmed.slice(5).trim();
+          if (!jsonStr) continue;
+
+          try {
+            const data = JSON.parse(jsonStr);
+            if (data.chunk && callbacks?.onChunk) {
+              callbacks.onChunk(data.chunk);
+            }
+            if (data.done && data.assistantMsg) {
+              finalAssistantMsg = data.assistantMsg;
+            }
+          } catch {}
+        }
+      }
+
+      if (finalAssistantMsg) {
+        if (callbacks?.onComplete) callbacks.onComplete(finalAssistantMsg);
+        return finalAssistantMsg;
+      }
+
+      // If finished without explicit message payload, build default
+      const completedMsg: ChatMessage = {
+        id: `msg_a_${Date.now()}`,
+        sender: 'assistant',
+        content: 'Hoàn tất luận giải.',
+        timestamp: new Date().toISOString()
+      };
+      if (callbacks?.onComplete) callbacks.onComplete(completedMsg);
+      return completedMsg;
+    } catch (err: any) {
+      if (callbacks?.onError) callbacks.onError(err);
+      throw err;
+    }
+  }
+
   // Preferences & User
   public async updatePreferences(prefs: Partial<UserPreferences>): Promise<UserPreferences> {
     const res = await this.fetchWithAuth('/api/user/preferences', {

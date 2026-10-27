@@ -180,12 +180,18 @@ self.addEventListener('push', (event) => {
     ]
   };
 
+  if (self.navigator && 'setAppBadge' in self.navigator) {
+    self.navigator.setAppBadge().catch(() => {});
+  }
   event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
 // 6. NOTIFICATION CLICK HANDLER
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  if (self.navigator && 'clearAppBadge' in self.navigator) {
+    self.navigator.clearAppBadge().catch(() => {});
+  }
 
   if (event.action === 'dismiss') {
     return;

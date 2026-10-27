@@ -73,7 +73,7 @@ import { getDefaultAnalysisYear } from './src/engine/canonicalInput';
 import { runBacktestAnalysis } from './src/engine/backtesting';
 import { evaluateWhatIfScenario } from './src/engine/scenarios';
 import { generateMultiAgentEnsemble, computeDailyDestiny } from './src/services/aiSynthesizer';
-import { generateDestinyChatResponse, isCircuitBreakerOpen } from './src/services/geminiService';
+import { generateDestinyChatResponse, streamDestinyChatResponse, isCircuitBreakerOpen } from './src/services/geminiService';
 import { DestinyAiPipeline } from './src/services/aiPipeline';
 import { UserProfile, UserAccount } from './src/types/user';
 import { enterpriseSecurityFirewall, getSecurityAnalytics } from './src/server/securityFirewall';
@@ -1500,6 +1500,102 @@ app.post('/api/ai/chat', requireAuth, aiChatRateLimiter, async (req, res, next) 
     res.json(assistantMsg);
   } catch (err) {
     next(err);
+  }
+});
+
+// Real-Time Token Streaming AI Chat Assistant (SSE)
+app.post('/api/ai/chat/stream', requireAuth, aiChatRateLimiter, async (req, res, next) => {
+  try {
+    const validated = AiChatSchema.parse(req.body);
+    const profile = await verifyProfileOwnershipAsync(req, res, validated.profileId);
+    if (!profile) return;
+
+    let calc = await repository.getLatestCalculationForProfile(validated.profileId);
+    if (!calc) {
+      calc = runFullDestinyCalculation(profile.birthData, profile.id, 0);
+      await repository.saveCalculation(calc);
+    }
+
+    let bt = await repository.getBacktestResult(validated.profileId);
+    if (!bt) {
+      bt = runBacktestAnalysis([], calc);
+      await repository.saveBacktestResult(bt);
+    }
+
+    const targetYear = validated.analysisYear || calc.analysisYear || getDefaultAnalysisYear(profile.birthData.timezoneOffset);
+
+    // Save user message
+    const userMsg = {
+      id: `msg_u_${Date.now()}`,
+      sender: 'user' as const,
+      content: validated.message,
+      timestamp: new Date().toISOString()
+    };
+    await repository.addChatMessage(validated.profileId, userMsg);
+
+    // Set Server-Sent Events headers
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (res.flushHeaders) res.flushHeaders();
+
+    const result = await streamDestinyChatResponse(
+      validated.message,
+      profile,
+      calc,
+      bt,
+      { analysisYear: targetYear },
+      (chunkText) => {
+        res.write(`data: ${JSON.stringify({ chunk: chunkText, done: false })}\n\n`);
+      }
+    );
+
+    const hasApiKey = Boolean(process.env.GEMINI_API_KEY);
+    const aiStatus: 'AI_SUCCESS' | 'AI_FALLBACK' | 'AI_DEGRADED' | 'AI_UNAVAILABLE' = !hasApiKey
+      ? 'AI_UNAVAILABLE'
+      : result.isFallback
+        ? 'AI_FALLBACK'
+        : 'AI_SUCCESS';
+
+    const currentTransit = calc.annualTransits.find(t => t.year === targetYear) || calc.annualTransits[0];
+
+    const assistantMsg = {
+      id: `msg_a_${Date.now()}`,
+      sender: 'assistant' as const,
+      content: result.content,
+      timestamp: new Date().toISOString(),
+      confidenceScore: result.confidenceScore,
+      aiStatus,
+      isFallback: result.isFallback,
+      suggestedQuestions: [
+        `Giai đoạn nào trong năm ${targetYear} có sóng năng lượng thuận lợi nhất?`,
+        `Làm thế nào để ứng dụng Dụng Thần ${calc.bazi.favorableElements.join('/')} vào quản trị tài chính?`,
+        'Điểm mù lớn nhất cần phòng tránh trong các quyết định lớn là gì?'
+      ],
+      groundedFacts: [
+        `Bát Tự: Nhật Chủ ${calc.bazi.dayMaster} (${calc.bazi.dayMasterStrength}) - Cách Cục: ${calc.bazi.structureType}`,
+        `Dụng Thần: ${calc.bazi.favorableElements.join(', ')} | Kỵ Thần: ${calc.bazi.unfavorableElements.join(', ')}`,
+        `Tử Vi: Cung Mệnh tại ${calc.ziwei.palaces.life?.branch} - Cục: ${calc.ziwei.elementBureau}`,
+        `Lưu Niên ${targetYear}: ` + (
+          currentTransit
+            ? `Sóng cơ hội ${currentTransit.opportunityWave ?? 0}% - Sóng thận trọng ${currentTransit.cautionWave ?? 0}%`
+            : 'Chưa đủ dữ liệu sóng Lưu Niên'
+        ),
+        `Chỉ số Tương Hợp Lịch Sử: ${bt.destinyConsistencyScore}/100`
+      ]
+    };
+
+    await repository.addChatMessage(validated.profileId, assistantMsg);
+    res.write(`data: ${JSON.stringify({ done: true, assistantMsg })}\n\n`);
+    res.end();
+  } catch (err: any) {
+    if (!res.headersSent) {
+      next(err);
+    } else {
+      res.write(`data: ${JSON.stringify({ done: true, error: err?.message || 'Lỗi truyền dữ liệu stream' })}\n\n`);
+      res.end();
+    }
   }
 });
 

@@ -23,6 +23,7 @@ import { CalculationResult } from '../types/destiny';
 import { UserProfile } from '../types/user';
 import { MultiAgentEnsemble } from '../types/ai';
 import { STEMS, BRANCHES, ELEMENT_RELATIONS } from '../engine/canchi';
+import html2canvas from 'html2canvas';
 
 interface Props {
   profile: UserProfile;
@@ -67,11 +68,68 @@ Khám phá tại: ${shareUrl}`;
     setTimeout(() => setCopiedText(false), 2000);
   };
 
-  const handleDownloadCard = () => {
+  const handleShareOrDownload = async () => {
+    if (!cardRef.current || downloading) return;
     setDownloading(true);
-    // Print/Save focused snapshot
-    window.print();
-    setTimeout(() => setDownloading(false), 1000);
+
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2,
+        backgroundColor: '#04060a',
+        useCORS: true,
+        logging: false
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          setDownloading(false);
+          return;
+        }
+
+        const safeFileName = `aurora_destiny_${profile.name.replace(/\s+/g, '_')}_${codexId}.png`;
+        const imageFile = new File([blob], safeFileName, { type: 'image/png' });
+
+        // Native Web Share API with image file payload
+        if (
+          typeof navigator !== 'undefined' &&
+          'canShare' in navigator &&
+          (navigator as any).canShare({ files: [imageFile] })
+        ) {
+          try {
+            await (navigator as any).share({
+              files: [imageFile],
+              title: `✨ Thẻ Khám Phá Năng Lượng Bản Mệnh • ${profile.name}`,
+              text: shareSummaryText,
+              url: shareUrl
+            });
+            setDownloading(false);
+            return;
+          } catch (shareErr: any) {
+            if (shareErr.name === 'AbortError') {
+              setDownloading(false);
+              return;
+            }
+            console.warn('Native share failed, downloading PNG file instead:', shareErr);
+          }
+        }
+
+        // Direct high-res PNG download fallback
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = safeFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
+        setDownloading(false);
+      }, 'image/png', 0.95);
+    } catch (err) {
+      console.error('Error generating share card canvas:', err);
+      // Ultimate graceful fallback
+      window.print();
+      setDownloading(false);
+    }
   };
 
   return (
@@ -197,12 +255,12 @@ Khám phá tại: ${shareUrl}`;
             </button>
 
             <button
-              onClick={handleDownloadCard}
+              onClick={handleShareOrDownload}
               disabled={downloading}
-              className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-xs text-black font-bold transition-all shadow-md cursor-pointer"
+              className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-xs text-black font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              <span>In / Lưu Thẻ Ảnh</span>
+              <Share2 className={`w-4 h-4 ${downloading ? 'animate-spin' : ''}`} />
+              <span>{downloading ? 'Đang Xử Lý...' : 'Chia Sẻ / Lưu Ảnh PNG'}</span>
             </button>
           </div>
         </div>

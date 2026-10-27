@@ -52,7 +52,8 @@ import {
   clearNotificationHistory,
   CanChiNotificationLog,
   UpcomingAlertItem,
-  TrueSolarMilestonesInfo
+  TrueSolarMilestonesInfo,
+  clearBadge
 } from '../services/destinyPushNotification';
 import {
   scanMajorEventsForProfiles,
@@ -116,6 +117,7 @@ export const CanChiNotificationPanel: React.FC<Props> = ({
     refreshData();
     setPermission(getNotificationPermission());
     setMilestonesInfo(getNext12hTrueSolarMilestones(calculation, profile));
+    clearBadge();
   }, [calculation, profile, profiles, config]);
 
   // Request permission

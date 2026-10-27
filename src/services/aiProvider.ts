@@ -121,8 +121,9 @@ export class GeminiProvider implements AIProvider {
       `Yêu cầu: Văn phong triết lý, nhân văn, khách quan, tôn trọng ý chí tự do (Free Will). Tuyệt đối không phán đoán mang tính mê tín đoan định hoặc y tế/đỏ đen.`;
 
     try {
+      const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
       const response = await gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: modelName,
         contents: prompt,
         config: {
           temperature: 0.3,

@@ -228,10 +228,11 @@ HƯỚNG DẪN TRẢ LỜI:
 [CÂU HỎI NGƯỜI DÙNG CẦN TƯ VẤN]
 ${userMessage.trim()}`;
 
+      const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
       const response = await retryWithBackoff(async () => {
         return await executeWithTimeout(async () => {
           return await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: modelName,
             contents: userContent,
             config: {
               systemInstruction: systemInstruction,
@@ -318,3 +319,82 @@ ${userMessage.trim()}`;
     isFallback: true
   };
 }
+
+// ==============================================================================
+// STREAMING DESTINY CHAT (REAL-TIME SSE TOKEN GENERATION)
+// ==============================================================================
+export async function streamDestinyChatResponse(
+  userMessage: string,
+  profile: UserProfile,
+  calc: CalculationResult,
+  backtest: BacktestResult,
+  options?: { analysisYear?: number },
+  onChunk?: (chunkText: string) => void
+): Promise<{ content: string; confidenceScore: number; isFallback: boolean }> {
+  const isExternalAllowed = (process.env.ENABLE_EXTERNAL_AI === 'true' || process.env.ALLOW_EXTERNAL_AI === 'true') && Boolean(process.env.GEMINI_API_KEY);
+  const ai = isExternalAllowed ? getGemini() : null;
+
+  if (ai && !isCircuitBreakerOpen()) {
+    try {
+      const baziPillars = `Tứ Trụ: Năm [${STEMS[calc.bazi.yearPillar.stem].nameVi} ${BRANCHES[calc.bazi.yearPillar.branch].nameVi}], ` +
+        `Tháng [${STEMS[calc.bazi.monthPillar.stem].nameVi} ${BRANCHES[calc.bazi.monthPillar.branch].nameVi}], ` +
+        `Ngày [${STEMS[calc.bazi.dayPillar.stem].nameVi} ${BRANCHES[calc.bazi.dayPillar.branch].nameVi} - Nhật Chủ ${STEMS[calc.bazi.dayMaster].nameVi}], ` +
+        `Giờ [${STEMS[calc.bazi.hourPillar.stem].nameVi} ${BRANCHES[calc.bazi.hourPillar.branch].nameVi}]`;
+
+      const analysisYear = options?.analysisYear || calc.analysisYear || getDefaultAnalysisYear(calc.canonicalInput?.timezoneOffset || 7);
+      const currentTransit = calc.annualTransits.find(t => t.year === analysisYear) || calc.annualTransits[0];
+      const transitDetails = currentTransit ? `Lưu Niên ${analysisYear}: Cơ hội ${currentTransit.opportunityWave}%, Thận trọng ${currentTransit.cautionWave}%` : `Lưu Niên ${analysisYear}`;
+
+      const systemInstruction = `Bạn là Master Destiny AI của "Aurora Destiny AI" (Huyền Phong Phật Đạo).
+Luận giải Bát Tự & Tử Vi Đẩu Số dựa trên dữ liệu tính toán đã cung cấp.
+Văn phong trang nhã, khách quan, tôn trọng quyền tự chủ (Free Will), không mê tín đoan định hoặc y tế/cờ bạc.`;
+
+      const prompt = `[LÁ SỐ BẢN MỆNH: ${profile.name}]
+${baziPillars}
+Dụng Thần: ${calc.bazi.favorableElements.join(', ')}. Cách Cục: ${calc.bazi.structureType}.
+Tử Vi: Mệnh tại ${calc.ziwei.palaces.life?.branch}, Cục: ${calc.ziwei.elementBureau}.
+${transitDetails}.
+
+[CÂU HỎI]: ${userMessage.trim()}`;
+
+      const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+      const stream = await ai.models.generateContentStream({
+        model: modelName,
+        contents: prompt,
+        config: {
+          systemInstruction,
+          temperature: 0.3
+        }
+      });
+
+      let accumulated = '';
+      for await (const chunk of stream) {
+        const chunkText = chunk.text || '';
+        if (chunkText) {
+          accumulated += chunkText;
+          if (onChunk) onChunk(chunkText);
+        }
+      }
+
+      if (accumulated.trim()) {
+        recordSuccess();
+        return {
+          content: accumulated.trim(),
+          confidenceScore: calc.confidence.consistencyScore,
+          isFallback: false
+        };
+      }
+    } catch (err: any) {
+      console.warn('[Stream Destiny Chat] Streaming call interrupted or failed, falling back:', err?.message || err);
+      recordFailure(isQuotaError(err));
+    }
+  }
+
+  // Fallback to deterministic grounded generator
+  const fallbackResult = await generateDestinyChatResponse(userMessage, profile, calc, backtest, options);
+  if (onChunk && fallbackResult.content) {
+    onChunk(fallbackResult.content);
+  }
+  return fallbackResult;
+}
+
