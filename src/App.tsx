@@ -99,6 +99,7 @@ export default function App() {
   const [showSeniorGuideModal, setShowSeniorGuideModal] = useState<boolean>(false);
   const [showPwaProfileModal, setShowPwaProfileModal] = useState<boolean>(false);
   const [showGlossaryModal, setShowGlossaryModal] = useState<boolean>(false);
+  const [selectedGlossaryTermId, setSelectedGlossaryTermId] = useState<string | undefined>();
   const [showOracleModal, setShowOracleModal] = useState<boolean>(false);
 
   // App Core State
@@ -1016,7 +1017,10 @@ export default function App() {
         onOpenLegalModal={() => setShowLegalModal(true)}
         onOpenSponsorshipModal={() => setShowSponsorshipModal(true)}
         onOpenCommunityModal={() => setShowCommunityModal(true)}
-        onOpenGlossaryModal={() => setShowGlossaryModal(true)}
+        onOpenGlossaryModal={(termId?: string) => {
+          setSelectedGlossaryTermId(termId);
+          setShowGlossaryModal(true);
+        }}
         hasFloatingDock={Boolean(activeProfile && calculation && ensemble)}
       />
 
@@ -1192,7 +1196,11 @@ export default function App() {
       {/* Cẩm Nang & Từ Điển Giải Mã Thuật Ngữ Huyền Học Tinh Hoa */}
       <AstrologyGlossaryModal
         isOpen={showGlossaryModal}
-        onClose={() => setShowGlossaryModal(false)}
+        initialTermId={selectedGlossaryTermId}
+        onClose={() => {
+          setShowGlossaryModal(false);
+          setSelectedGlossaryTermId(undefined);
+        }}
       />
 
       {/* Đài Gieo Quẻ Bát Quái • Thỉnh Quẻ Linh Ứng Đầu Ngày (Sacred Oracle Divination) */}

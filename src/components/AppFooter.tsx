@@ -40,7 +40,7 @@ interface Props {
   onOpenTalismanModal?: () => void;
   onOpenLegalModal?: () => void;
   onOpenCommunityModal?: () => void;
-  onOpenGlossaryModal?: () => void;
+  onOpenGlossaryModal?: (termId?: string) => void;
   hasFloatingDock?: boolean;
 }
 
@@ -325,6 +325,82 @@ export const AppFooter: React.FC<Props> = ({
           </button>
         </div>
 
+        {/* ========================================================== */}
+        {/* 🌟 EXECUTIVE CELESTIAL KNOWLEDGE PORTAL SPOTLIGHT BANNER   */}
+        {/* Dedicated Spotlight for "Cẩm Nang Giải Mã"                 */}
+        {/* ========================================================== */}
+        {onOpenGlossaryModal && (
+          <div className="relative mb-8 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-amber-950/30 via-[#101322]/85 to-purple-950/30 border border-amber-500/35 shadow-[0_10px_35px_rgba(0,0,0,0.6)] overflow-hidden">
+            {/* Ambient Shimmer Bar */}
+            <div className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/70 via-teal-400/50 to-transparent pointer-events-none" />
+
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+              {/* Left Column: Heading & Context */}
+              <div className="space-y-2 max-w-2xl">
+                <div className="flex flex-wrap items-center gap-2 text-[10px] sm:text-xs font-mono">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 font-semibold tracking-wider flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+                    {isVi ? 'BÁCH KHOA TOÀN THƯ MỆNH LÝ' : 'ENCYCLOPEDIC METAPHYSICS'}
+                  </span>
+                  <span className="text-slate-500 hidden sm:inline">·</span>
+                  <span className="text-slate-300 hidden sm:inline">
+                    {isVi ? '32+ Thuật Ngữ Cốt Tủy' : '32+ Core Principles'}
+                  </span>
+                  <span className="text-slate-500 hidden sm:inline">·</span>
+                  <span className="text-teal-300/90 hidden sm:inline">
+                    {isVi ? 'Giáo Sư - Prof.TOAN Thẩm Định' : 'Peer-Reviewed by Prof.TOAN'}
+                  </span>
+                </div>
+
+                <h3 className="text-base sm:text-lg font-serif font-bold text-white tracking-wide">
+                  {isVi ? 'Đại Cẩm Nang Giải Mã Mệnh Lý (Tử Vi - Bát Tự - Thiên Văn)' : 'Grand Metaphysical Glossary & Practical Life Guide'}
+                </h3>
+
+                <p className="text-xs text-slate-300/90 font-light leading-relaxed">
+                  {isVi
+                    ? 'Giải nghĩa tường minh, loại bỏ mê tín dị đoan. Thấu suốt Dụng Thần, Tứ Hóa, Thập Thần, Cung Mệnh & Thân, Chân giờ mặt trời thực NASA và các đòn bẩy kích hoạt vượng khí đời sống thực tế.'
+                    : 'Scientific and unambiguous demystification of Bazi Day Master, Ziwei Stars, Useful Gods, and NASA Equation of Time true solar reckoning.'}
+                </p>
+
+                {/* Quick Topic Chips (Direct Jump into that Term) */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] font-mono text-slate-400 mr-1">
+                    {isVi ? 'Đọc nhanh:' : 'Direct jumps:'}
+                  </span>
+                  {[
+                    { id: 'dung_than_hy_than', label: 'Dụng Thần' },
+                    { id: 'sao_tu_vi', label: 'Tử Vi - Thiên Phủ' },
+                    { id: 'tu_hoa', label: 'Tứ Hóa' },
+                    { id: 'cung_than', label: 'Cung Thân' },
+                    { id: 'chan_gio_mat_troi', label: 'Chân Giờ Mặt Trời' },
+                    { id: 'tuan_triet_khong_vong', label: 'Tuần Triệt' }
+                  ].map((topic) => (
+                    <button
+                      key={topic.id}
+                      onClick={() => onOpenGlossaryModal(topic.id)}
+                      className="px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-amber-400/15 border border-white/10 hover:border-amber-400/40 text-slate-300 hover:text-amber-200 text-[11px] transition-all cursor-pointer font-medium"
+                    >
+                      {topic.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Executive Flagship CTA Button */}
+              <div className="w-full lg:w-auto shrink-0 flex items-center">
+                <button
+                  onClick={() => onOpenGlossaryModal()}
+                  className="w-full lg:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-400 hover:to-yellow-200 text-slate-950 font-bold text-xs sm:text-sm shadow-[0_0_20px_rgba(245,158,11,0.25)] hover:shadow-[0_0_28px_rgba(245,158,11,0.45)] transition-all flex items-center justify-center gap-2 cursor-pointer group"
+                  title="Mở toàn bộ cẩm nang bách khoa 32+ thuật ngữ"
+                >
+                  <BookOpen className="w-4 h-4 text-slate-950 group-hover:scale-110 transition-transform" />
+                  <span>{isVi ? 'Khám Phá Toàn Bộ Cẩm Nang (32 Thuật Ngữ)' : 'Explore Full Glossary (32 Terms)'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Bottom Bar: Copyright & Navigation Shortcuts */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-400">
           <div className="text-center md:text-left leading-relaxed">
@@ -337,12 +413,16 @@ export const AppFooter: React.FC<Props> = ({
             {onOpenGlossaryModal && (
               <button
                 id="btn-footer-glossary-modal"
-                onClick={onOpenGlossaryModal}
-                className="text-amber-300 hover:underline transition-colors cursor-pointer flex items-center gap-1 font-semibold"
-                title="Cẩm Nang & Từ Điển Giải Mã Thuật Ngữ Huyền Học Tinh Hoa"
+                onClick={() => onOpenGlossaryModal()}
+                className="relative px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-400/15 to-purple-500/20 hover:from-amber-500/30 hover:to-purple-500/30 border border-amber-400/50 hover:border-amber-300 text-amber-200 hover:text-white font-medium text-xs shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_22px_rgba(245,158,11,0.35)] transition-all flex items-center gap-2 group cursor-pointer"
+                title="Cẩm Nang & Từ Điển Giải Mã Thuật Ngữ Huyền Học Tinh Hoa (32 Thuật Ngữ Cốt Tủy)"
               >
-                <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                <span>{isVi ? 'Cẩm Nang Giải Mã' : 'Astrology Glossary'}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping inline-block" />
+                <BookOpen className="w-3.5 h-3.5 text-amber-300 group-hover:scale-110 transition-transform" />
+                <span className="font-semibold">{isVi ? 'Cẩm Nang Giải Mã' : 'Astrology Glossary'}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-400/20 text-amber-300 font-mono hidden sm:inline">
+                  32 Thuật Ngữ
+                </span>
               </button>
             )}
             {onOpenCommunityModal && (
