@@ -38,6 +38,7 @@ import { PWAProfileManagerModal } from './components/PWAProfileManagerModal';
 import { AstrologyGlossaryModal } from './components/AstrologyGlossaryModal';
 import { SacredOracleModal } from './components/SacredOracleModal';
 import { SacredParticles } from './components/SacredParticles';
+import { CelestialHeroSection } from './components/CelestialHeroSection';
 import { pwaProfileStorage } from './services/pwaProfileStorage';
 import { sacredSound } from './services/soundService';
 import { sacredVoice } from './services/sacredVoiceService';
@@ -723,195 +724,21 @@ export default function App() {
             </p>
           </div>
         ) : !activeProfile || !calculation || !ensemble ? (
-          <div className="flex flex-col items-center justify-center my-auto w-full max-w-xl mx-auto text-center px-4 py-2 relative">
-            {/* Sacred Ambient Atmospheric Backlight (Êm dịu, tĩnh tại, hoàn toàn không có vòng tròn chồng lấn) */}
-            <div className="absolute -top-6 inset-x-0 h-80 pointer-events-none flex items-center justify-center -z-10 overflow-hidden">
-              <div className="w-full max-w-lg h-60 bg-gradient-to-b from-amber-500/10 via-yellow-600/5 to-transparent blur-3xl pointer-events-none" />
-            </div>
-
-            {/* Dignified Kicker & Title Header */}
-            <div className="space-y-1.5 mb-2 relative z-10">
-              <div className="flex items-center justify-center gap-2 text-[11px] sm:text-xs font-mono tracking-widest text-amber-400/90 uppercase">
-                <span>Huyền Phong Phật Đạo</span>
-                <span className="text-amber-500/60">·</span>
-                <span>Tử Vi Đẩu Số Toàn Thư</span>
-              </div>
-
-              <div className="flex items-center justify-center gap-2.5 flex-wrap">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-serif text-white font-medium tracking-wide">
-                  Khai Mở Bản Đồ <span className="bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 bg-clip-text text-transparent font-semibold">Thiên Cơ Bản Mệnh</span>
-                </h2>
-                <SacredSealBadge text="THIÊN CƠ" subtext="KHAI QUANG" size="sm" className="hidden sm:inline-flex" />
-              </div>
-
-              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed max-w-lg mx-auto font-light">
-                Chiêm bái cuốn cổ thư nghìn năm để giải mã trọn vẹn <span className="text-amber-300 font-medium">12 Cung Tử Vi</span>, <span className="text-teal-300 font-medium">Tứ Trụ Bát Tự</span> và <span className="text-amber-300 font-medium">Vận Hạn 2026</span> cùng Hội Đồng 7 Tác Tử Chuyên Môn AI (Multi-Agent Perspectives).
-              </p>
-            </div>
-
-            {/* The Centerpiece: Cuốn Cổ Thư Tử Vi Hoàng Gia Ngự Trên Bệ Sen Kim Cương */}
-            <SacredCosmicCipher3D onActivate={() => {
+          <CelestialHeroSection
+            language={language}
+            onOpenCreateChart={() => {
               sacredSound.playSacredTap(528);
               setShowOnboarding(true);
-            }} />
-
-            {/* Sacred Voice Guidance Option (Tế nhị, truyền cảm, không gây phiền) */}
-            <div className="my-2">
-              <button
-                type="button"
-                onClick={() => {
-                  sacredVoice.speak('welcome_invitation');
-                }}
-                className="px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-amber-500/15 border border-white/10 hover:border-amber-400/40 text-amber-200/90 hover:text-amber-100 text-xs font-medium transition-all flex items-center gap-2 cursor-pointer shadow-sm mx-auto"
-                title="Lắng nghe lời thỉnh mệnh truyền cảm từ Huyền Phong Phật Đạo"
-              >
-                <Volume2 className="w-3.5 h-3.5 text-amber-400" />
-                <span>Lắng Nghe Lời Khai Tâm (Giọng Truyền Cảm)</span>
-              </button>
-            </div>
-
-            {/* ================= ULTRA-PRESTIGIOUS ROYAL CTA BUTTON ================= */}
-            <div className="w-full max-w-md mx-auto my-2">
-              <motion.button
-                id="btn-open-onboarding-empty-state"
-                whileHover={{
-                  scale: 1.025,
-                  rotate: [0, -1.8, 1.8, -1.1, 0.7, -0.3, 0],
-                  y: [0, -2, -3, -2, -1, 0],
-                  transition: { duration: 0.85, ease: "easeInOut" }
-                }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  sacredSound.playSacredTap(528);
-                  setShowOnboarding(true);
-                }}
-                className="group relative w-full overflow-hidden px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-300 hover:from-yellow-300 hover:via-amber-300 hover:to-orange-400 text-slate-950 font-bold shadow-[0_0_35px_rgba(245,158,11,0.5)] hover:shadow-[0_0_60px_rgba(245,158,11,0.8)] hover-sacred-wobble transition-all cursor-pointer border-2 border-amber-200/90 ring-1 ring-amber-400/50 flex flex-col items-center justify-center gap-1 z-10"
-              >
-                {/* Internal Shimmering Light Sweep Beam */}
-                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
-                  <div className="w-1/2 h-full bg-gradient-to-r from-transparent via-white/50 to-transparent sacred-light-sweep-beam" />
-                </div>
-
-                {/* Main Action Text + Rotating Sacred Taiji Icon */}
-                <div className="flex items-center justify-center gap-2.5 text-base sm:text-lg font-extrabold tracking-wide text-slate-950">
-                  <SacredTaijiSpinner size={26} speed={6} className="shrink-0" />
-                  <span className="drop-shadow-xs">LẬT MỞ THIÊN THƯ • LẬP LÁ SỐ BẢN MỆNH</span>
-                  <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform shrink-0" />
-                </div>
-
-                {/* Subtitle Guarantee (Clean, reassuring) */}
-                <span className="text-[11px] sm:text-xs text-slate-900/85 font-medium font-sans">
-                  Giải mã 12 Cung Số, Tứ Trụ Bát Tự & Vận Hạn 120 Năm Đời Người • Miễn Phí 100%
-                </span>
-              </motion.button>
-            </div>
-
-            {/* Micro Feature Proof Pillars (Clean, unboxed text with subtle dividers) */}
-            <div className="flex items-center justify-center gap-4 sm:gap-6 mt-2 text-xs text-slate-400 font-sans">
-              <span className="flex items-center gap-1 text-slate-300">
-                <span className="text-amber-400 font-bold">✓</span> Cổ Học Chính Bản
-              </span>
-              <span className="text-slate-600">·</span>
-              <span className="flex items-center gap-1 text-slate-300">
-                <span className="text-teal-400 font-bold">✓</span> 7 Tác Tử AI Chuyên Môn
-              </span>
-              <span className="text-slate-600">·</span>
-              <span className="flex items-center gap-1 text-slate-300">
-                <span className="text-emerald-400 font-bold">✓</span> Bảo Mật Cục Bộ 100%
-              </span>
-            </div>
-
-            {/* 4 Sacred Pillars Unlocked Preview (Tăng ham muốn xem tử vi lên mức tối đa) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full max-w-2xl mt-4 text-left">
-              <button
-                type="button"
-                onClick={() => {
-                  sacredSound.playSacredTap(528);
-                  setShowOnboarding(true);
-                }}
-                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-amber-500/10 border border-white/10 hover:border-amber-400/40 transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                    <BookOpen className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs font-bold text-white group-hover:text-amber-200">12 Cung Tử Vi</div>
-                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                    Mệnh, Tài, Quan, Thân · Tinh tú Miếu Hãm
-                  </p>
-                </div>
-                <span className="text-[10px] text-amber-400/90 font-medium mt-2 flex items-center gap-0.5">
-                  Khai mở ngay <span>→</span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sacredSound.playSacredTap(528);
-                  setShowOnboarding(true);
-                }}
-                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-teal-500/10 border border-white/10 hover:border-teal-400/40 transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                    <Compass className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs font-bold text-white group-hover:text-teal-200">Bát Tự & Dụng Thần</div>
-                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                    Ngũ Hành chân khí · Quý nhân trợ mệnh
-                  </p>
-                </div>
-                <span className="text-[10px] text-teal-400/90 font-medium mt-2 flex items-center gap-0.5">
-                  Khai mở ngay <span>→</span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sacredSound.playSacredTap(528);
-                  setShowOnboarding(true);
-                }}
-                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-rose-500/10 border border-white/10 hover:border-rose-400/40 transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                    <Flame className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs font-bold text-white group-hover:text-rose-200">Vận Hạn 2026</div>
-                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                    Lưu Niên Bính Ngọ · Tháng đại cát & hóa giải
-                  </p>
-                </div>
-                <span className="text-[10px] text-rose-400/90 font-medium mt-2 flex items-center gap-0.5">
-                  Khai mở ngay <span>→</span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  sacredSound.playSacredTap(528);
-                  setShowOnboarding(true);
-                }}
-                className="p-3 rounded-2xl bg-white/[0.03] hover:bg-purple-500/10 border border-white/10 hover:border-purple-400/40 transition-all cursor-pointer group flex flex-col justify-between"
-              >
-                <div>
-                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                    <Layers className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="text-xs font-bold text-white group-hover:text-purple-200">7 AI Chuyên Môn</div>
-                  <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                    Hội đồng Đa góc nhìn · Không bịa đặt
-                  </p>
-                </div>
-                <span className="text-[10px] text-purple-400/90 font-medium mt-2 flex items-center gap-0.5">
-                  Khai mở ngay <span>→</span>
-                </span>
-              </button>
-            </div>
-          </div>
+            }}
+            onOpenGlossary={() => {
+              sacredSound.playSacredTap(528);
+              setShowGlossaryModal(true);
+            }}
+            onOpenGuide={() => {
+              sacredSound.playSacredTap(440);
+              setShowSeniorGuideModal(true);
+            }}
+          />
         ) : (
           <AnimatePresence mode="wait">
             <motion.div

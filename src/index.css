@@ -1,6 +1,67 @@
 @import "tailwindcss";
 
+:root {
+  /* ===================================================
+     AURORA DESTINY — CELESTIAL INTELLIGENCE DESIGN SYSTEM
+     Tokens: Midnight Navy, Cosmic Indigo, Champagne Gold, Aurora Teal, Ivory White, Neutral Slate
+     =================================================== */
+  --color-midnight-navy: #060814;
+  --color-midnight-navy-surface: #0a0e20;
+  --color-midnight-navy-elevated: #0f1530;
+  --color-cosmic-indigo: #1e1b4b;
+  --color-champagne-gold: #d4af37;
+  --color-champagne-gold-light: #fef08a;
+  --color-champagne-gold-muted: #856a1e;
+  --color-aurora-teal: #14b8a6;
+  --color-aurora-teal-light: #5eead4;
+  --color-ivory-white: #f8fafc;
+  --color-neutral-slate: #94a3b8;
+  --color-neutral-slate-dark: #64748b;
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(212, 175, 55, 0.35);
+
+  --font-serif: 'Cinzel', 'Playfair Display', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
+}
+
 @layer utilities {
+  .font-serif-celestial {
+    font-family: var(--font-serif);
+  }
+
+  .font-sans-celestial {
+    font-family: var(--font-sans);
+  }
+
+  .font-mono-celestial {
+    font-family: var(--font-mono);
+  }
+
+  .bg-midnight-navy {
+    background-color: var(--color-midnight-navy);
+  }
+
+  .bg-midnight-surface {
+    background-color: var(--color-midnight-navy-surface);
+  }
+
+  .bg-midnight-elevated {
+    background-color: var(--color-midnight-navy-elevated);
+  }
+
+  .text-champagne-gold {
+    color: var(--color-champagne-gold);
+  }
+
+  .text-aurora-teal {
+    color: var(--color-aurora-teal);
+  }
+
+  .border-celestial-subtle {
+    border-color: var(--color-border-subtle);
+  }
+
   .bg-immersive-radial {
     background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
     background-size: 36px 36px;

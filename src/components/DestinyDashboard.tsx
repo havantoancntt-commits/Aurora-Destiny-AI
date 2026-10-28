@@ -282,18 +282,15 @@ export const DestinyDashboard: React.FC<Props> = ({
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-2.5">
-            {/* Academic Credential & Bureau Badges */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono tracking-wide">
-                Huyền Phong Phật Đạo
-              </span>
-              <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono">
-                {bazi.structureType}
-              </span>
-              <span className="px-3 py-0.5 rounded-full text-xs font-semibold bg-teal-500/10 border border-teal-500/30 text-teal-300">
-                {ziwei.elementBureau}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] bg-white/5 border border-white/10 text-slate-300">
+            {/* Quiet Clean Unboxed Kicker (Zero-Pill Discipline) */}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-slate-400">
+              <span className="text-amber-400 font-medium">Huyền Phong Phật Đạo</span>
+              <span className="text-slate-600" aria-hidden="true">·</span>
+              <span className="text-teal-300 font-medium">{bazi.structureType}</span>
+              <span className="text-slate-600" aria-hidden="true">·</span>
+              <span className="text-purple-300 font-medium">{ziwei.elementBureau}</span>
+              <span className="text-slate-600" aria-hidden="true">·</span>
+              <span className="text-slate-300">
                 {ziwei.yinYangGenderHarmony?.yinYangNature || (profile.birthData.gender === 'Male' ? 'Nam Mệnh' : 'Nữ Mệnh')}
               </span>
             </div>

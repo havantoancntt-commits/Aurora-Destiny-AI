@@ -143,11 +143,12 @@ export const Navbar: React.FC<Props> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm font-semibold tracking-[0.15em] text-white uppercase">
-                  Aurora <span className="text-teal-400 font-light">Destiny</span>
+                <span className="text-xs sm:text-sm font-semibold tracking-[0.15em] text-white uppercase font-serif-celestial">
+                  Aurora <span className="text-amber-300 font-light">Destiny</span>
                 </span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono tracking-wider uppercase bg-amber-500/10 border border-amber-500/25 text-amber-300/90 hidden sm:inline-block">
-                  Huyền Phong Phật Đạo
+                <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">·</span>
+                <span className="text-[10px] font-mono text-teal-300/80 uppercase tracking-wider hidden sm:inline">
+                  {language === 'en' ? 'Celestial Intelligence' : 'Huyền Phong Phật Đạo'}
                 </span>
               </div>
               <p className="text-[9px] uppercase tracking-widest text-slate-400 font-mono hidden md:block">
@@ -155,6 +156,66 @@ export const Navbar: React.FC<Props> = ({
               </p>
             </div>
           </div>
+
+          {/* Primary Desktop Navigation Links (Zero-Pill Typographic Navigation) */}
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-medium text-slate-300">
+            <button
+              onClick={() => {
+                sacredSound.playSacredTap(440);
+                if (onNavigateTab) onNavigateTab('dashboard');
+              }}
+              className="hover:text-amber-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-amber-400/80"
+            >
+              {language === 'en' ? 'Discover' : 'Khám Phá'}
+            </button>
+
+            <button
+              onClick={() => {
+                sacredSound.playSacredTap(528);
+                onOpenNewProfileModal();
+              }}
+              className="hover:text-amber-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-amber-400/80"
+            >
+              {language === 'en' ? 'Create Chart' : 'Lập Lá Số'}
+            </button>
+
+            <button
+              onClick={() => {
+                sacredSound.playSacredTap(480);
+                setShowProfileMenu(!showProfileMenu);
+              }}
+              className="hover:text-amber-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-amber-400/80 flex items-center gap-1.5"
+            >
+              <span>{language === 'en' ? 'My Profiles' : 'Lá Số Của Tôi'}</span>
+              {profiles.length > 0 && (
+                <span className="text-[10px] font-mono text-teal-400">({profiles.length})</span>
+              )}
+            </button>
+
+            {onOpenGlossaryModal && (
+              <button
+                onClick={() => {
+                  sacredSound.playSacredTap(528);
+                  onOpenGlossaryModal();
+                }}
+                className="hover:text-amber-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-amber-400/80"
+              >
+                {language === 'en' ? 'Glossary' : 'Cẩm Nang'}
+              </button>
+            )}
+
+            {onOpenSeniorGuide && (
+              <button
+                onClick={() => {
+                  sacredSound.playSacredTap(440);
+                  onOpenSeniorGuide();
+                }}
+                className="hover:text-amber-300 transition-colors cursor-pointer py-1 border-b-2 border-transparent hover:border-amber-400/80"
+              >
+                {language === 'en' ? 'Guide' : 'Hướng Dẫn'}
+              </button>
+            )}
+          </nav>
 
           {/* Action Controls & System Status */}
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
