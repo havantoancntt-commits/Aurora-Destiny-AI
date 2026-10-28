@@ -222,14 +222,14 @@ class PwaProfileStorageService {
    */
   public async saveProfile(profile: UserProfile): Promise<void> {
     if (!profile || !profile.id) return;
-    if (this.isDeleted(profile.id)) {
+    if (this.isDeleted(profile)) {
       console.warn(`[PwaStorage] Rejecting save of tombstoned profile: ${profile.id}`);
       return;
     }
 
     // 1. Always update localStorage mirror for instant synchronous recovery
     try {
-      const localProfiles = this.getLocalStorageProfiles().filter((p) => !this.isDeleted(p.id));
+      const localProfiles = this.getLocalStorageProfiles().filter((p) => !this.isDeleted(p));
       const existingIdx = localProfiles.findIndex((p) => p.id === profile.id);
       if (existingIdx >= 0) {
         localProfiles[existingIdx] = profile;
@@ -269,8 +269,7 @@ class PwaProfileStorageService {
    */
   public async saveAllProfiles(profiles: UserProfile[]): Promise<void> {
     if (!Array.isArray(profiles)) return;
-    const deleted = this.getDeletedIds();
-    const cleanList = profiles.filter((p) => p && p.id && !deleted.has(p.id));
+    const cleanList = profiles.filter((p) => p && p.id && !this.isDeleted(p));
 
     // LocalStorage sync
     try {
@@ -352,6 +351,19 @@ class PwaProfileStorageService {
         const existing = this.getLocalStorageProfiles().find((p) => p && p.id === profileId);
         if (existing) {
           this.recordDeletedProfile(existing);
+        } else {
+          const db = await this.getDb();
+          if (db) {
+            const tx = db.transaction(STORE_PROFILES, 'readonly');
+            const req = tx.objectStore(STORE_PROFILES).get(profileId);
+            const foundProfile = await new Promise<UserProfile | null>((resolve) => {
+              req.onsuccess = () => resolve(req.result || null);
+              req.onerror = () => resolve(null);
+            });
+            if (foundProfile) {
+              this.recordDeletedProfile(foundProfile);
+            }
+          }
         }
       } catch {}
     }
@@ -666,12 +678,33 @@ class PwaProfileStorageService {
     try {
       const storage = this.getStorage();
       if (!storage) return [];
-      const raw = storage.getItem('aurora_cached_profiles');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed?.profiles)) return parsed.profiles;
-        if (Array.isArray(parsed)) return parsed;
+      const profileMap = new Map<string, UserProfile>();
+
+      const keysToScan: string[] = ['aurora_cached_profiles', 'aurora_cached_profiles_guest'];
+      for (let i = 0; i < storage.length; i++) {
+        const k = storage.key(i);
+        if (k && k.startsWith('aurora_cached_profiles') && !keysToScan.includes(k)) {
+          keysToScan.push(k);
+        }
       }
+
+      for (const k of keysToScan) {
+        const raw = storage.getItem(k);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            const list: UserProfile[] = Array.isArray(parsed?.profiles)
+              ? parsed.profiles
+              : (Array.isArray(parsed) ? parsed : []);
+            for (const p of list) {
+              if (p && p.id && !this.isDeleted(p)) {
+                profileMap.set(p.id, p);
+              }
+            }
+          } catch {}
+        }
+      }
+      return Array.from(profileMap.values());
     } catch {}
     return [];
   }

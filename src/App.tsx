@@ -335,14 +335,15 @@ export default function App() {
   }, []);
 
   // Handle Profile Switch
-  const handleSelectProfile = async (profileId: string) => {
+  const handleSelectProfile = async (profileId: string, profileListOverride?: UserProfile[]) => {
     setActiveProfileId(profileId);
     try {
       const [calcData, btData] = await Promise.all([
         api.getCalculation(profileId).catch(() => ({ calculation: null, ensemble: null, backtest: null })),
         api.getBacktests(profileId).catch(() => ({ events: [], result: null }))
       ]);
-      const prof = profiles.find((p) => p.id === profileId);
+      const currentList = profileListOverride || profiles;
+      const prof = currentList.find((p) => p.id === profileId);
 
       let currentCalc = calcData.calculation;
       if (!currentCalc && prof?.birthData) {
@@ -606,7 +607,7 @@ export default function App() {
         setEvents([]);
         setShowOnboarding(true);
       } else if (activeProfileId === profileId) {
-        handleSelectProfile(remaining[0].id);
+        handleSelectProfile(remaining[0].id, remaining);
       }
     } catch (err) {
       console.error('Delete profile error:', err);
@@ -623,7 +624,7 @@ export default function App() {
         setEvents([]);
         setShowOnboarding(true);
       } else if (activeProfileId === profileId) {
-        handleSelectProfile(remaining[0].id);
+        handleSelectProfile(remaining[0].id, remaining);
       }
     }
   };

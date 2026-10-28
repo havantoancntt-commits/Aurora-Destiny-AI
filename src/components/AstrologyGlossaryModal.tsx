@@ -75,15 +75,19 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
   const [sharedId, setSharedId] = useState<string | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [fontSizeScale, setFontSizeScale] = useState<FontSizeScale>('standard');
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('detail');
 
   // Synchronize selection when initialTermId or modal opens
   useEffect(() => {
-    if (isOpen && initialTermId) {
-      const match = ASTROLOGY_GLOSSARY.find((item) => item.id === initialTermId);
-      if (match) {
-        setSelectedItem(match);
-        setSelectedCategory(match.category);
-        setSearchQuery('');
+    if (isOpen) {
+      if (initialTermId) {
+        const match = ASTROLOGY_GLOSSARY.find((item) => item.id === initialTermId);
+        if (match) {
+          setSelectedItem(match);
+          setSelectedCategory(match.category);
+          setSearchQuery('');
+          setMobileView('detail');
+        }
       }
     }
   }, [isOpen, initialTermId]);
@@ -201,7 +205,7 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 15 }}
         transition={{ duration: 0.25 }}
-        className="relative z-10 w-full max-w-5xl h-[94vh] max-h-[880px] bg-gradient-to-b from-[#101322]/98 via-[#090b16]/98 to-[#04050b]/98 border border-amber-500/35 rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden backdrop-blur-2xl"
+        className="relative z-10 w-full max-w-5xl h-[92dvh] sm:h-[88vh] max-h-[880px] bg-gradient-to-b from-[#101322]/98 via-[#090b16]/98 to-[#04050b]/98 border border-amber-500/35 rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden backdrop-blur-2xl"
       >
         {/* Specular Ambient Glow Header Accent */}
         <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 via-teal-300 to-transparent pointer-events-none" />
@@ -346,6 +350,7 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
                       setSelectedItem(found);
                       setSelectedCategory('all');
                       setSearchQuery('');
+                      setMobileView('detail');
                       sacredSound.playSacredTap(528);
                     }
                   }}
@@ -362,10 +367,49 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* 3. Main Workspace: Two-Column Master / Detail Layout */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+        {/* 2.5 Mobile Navigation Switcher (Tối ưu vuốt chạm & xem độc lập trên di động) */}
+        <div className="flex md:hidden items-center p-2 bg-black/50 border-b border-white/10 shrink-0">
+          <div className="grid grid-cols-2 gap-1 p-1 bg-white/[0.04] border border-white/10 rounded-xl w-full">
+            <button
+              onClick={() => {
+                setMobileView('list');
+                sacredSound.playSacredTap(440);
+              }}
+              className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                mobileView === 'list'
+                  ? 'bg-amber-500/25 text-amber-200 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-400" />
+              <span>Danh Mục ({filteredItems.length})</span>
+            </button>
+            <button
+              onClick={() => {
+                setMobileView('detail');
+                sacredSound.playSacredTap(528);
+              }}
+              className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                mobileView === 'detail'
+                  ? 'bg-amber-500/25 text-amber-200 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="truncate max-w-[130px]">{selectedItem ? selectedItem.termVi : 'Luận Giải Chi Tiết'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3. Main Workspace: Master / Detail Layout with Independent Scrolling */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 relative">
           {/* Left Column: Term List (Scrollable) */}
-          <div className="w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto p-3 space-y-1.5 bg-black/15 shrink-0">
+          <div
+            className={`${
+              mobileView === 'list' ? 'flex' : 'hidden'
+            } md:flex flex-col w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto overscroll-contain touch-pan-y p-3 space-y-1.5 bg-black/15 shrink-0 min-h-0 h-full`}
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
             <div className="text-[11px] text-slate-400 px-2 py-1 font-mono uppercase tracking-wider flex items-center justify-between">
               <span>Danh mục ({filteredItems.length})</span>
               <span className="text-amber-400/70">{selectedCategory === 'all' ? 'Toàn bộ' : 'Đã lọc'}</span>
@@ -392,6 +436,7 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
                     key={item.id}
                     onClick={() => {
                       setSelectedItem(item);
+                      setMobileView('detail');
                       sacredSound.playSacredTap(528);
                     }}
                     className={`w-full text-left p-3 rounded-xl transition-all cursor-pointer border flex flex-col gap-1 ${
@@ -418,9 +463,31 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
           </div>
 
           {/* Right Column: In-Depth Term Dossier (Scrollable) */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          <div
+            className={`${
+              mobileView === 'detail' ? 'flex' : 'hidden'
+            } md:flex flex-col flex-1 overflow-y-auto overscroll-contain touch-pan-y p-4 sm:p-6 min-h-0 h-full`}
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
             {selectedItem ? (
-              <div className="space-y-6 max-w-3xl">
+              <div className="space-y-6 max-w-3xl pb-10">
+                {/* Mobile Back Button to return to list */}
+                <div className="md:hidden flex items-center justify-between pb-3 border-b border-white/10">
+                  <button
+                    onClick={() => {
+                      setMobileView('list');
+                      sacredSound.playSacredTap(440);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-amber-300 hover:text-amber-200 py-1.5 px-3 rounded-xl bg-amber-500/15 border border-amber-500/30 cursor-pointer shadow-sm"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                    <span>← Xem danh mục 32+ thuật ngữ</span>
+                  </button>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {selectedItem.categoryLabelVi}
+                  </span>
+                </div>
+
                 {/* Title & Quick Actions */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
                   <div>
@@ -592,6 +659,7 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
                           key={rel.id}
                           onClick={() => {
                             setSelectedItem(rel);
+                            setMobileView('detail');
                             sacredSound.playSacredTap(600);
                           }}
                           className="p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/50 text-left transition-all cursor-pointer group flex flex-col justify-between gap-1.5"

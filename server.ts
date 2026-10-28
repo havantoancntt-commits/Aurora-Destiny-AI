@@ -1186,8 +1186,11 @@ app.delete('/api/profiles/:id', requireAuth, async (req, res) => {
     if (!verified) return;
   }
 
-  const deleted = await (repository as any).deleteProfileSync(id, req.user!.id, signature);
-  if ((repository as any).markProfileDeletedSync) {
+  const deleted = typeof (repository as any).deleteProfileSync === 'function'
+    ? (repository as any).deleteProfileSync(id, req.user!.id, signature)
+    : await repository.deleteProfile(id, req.user!.id);
+
+  if (typeof (repository as any).markProfileDeletedSync === 'function') {
     (repository as any).markProfileDeletedSync(id, signature);
   }
 
