@@ -33,7 +33,9 @@ import {
   ArrowRight,
   Volume2,
   AlertTriangle,
-  HardDrive
+  HardDrive,
+  Trash2,
+  X
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -74,6 +76,7 @@ interface Props {
   onOpenSeniorGuide?: () => void;
   onOpenPwaProfileManager?: () => void;
   onOpenGlossaryModal?: () => void;
+  onDeleteProfile?: (profileId: string) => Promise<void> | void;
 }
 
 // 4x4 Classical Celestial Grid Coordinate Definition (12 Earthly Branches clockwise perimeter)
@@ -121,7 +124,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   onOpenTalismanModal,
   onOpenSeniorGuide,
   onOpenPwaProfileManager,
-  onOpenGlossaryModal
+  onOpenGlossaryModal,
+  onDeleteProfile
 }) => {
   const [selectedPalaceKey, setSelectedPalaceKey] = useState<PalaceKey>('life');
   const [ziweiViewMode, setZiweiViewMode] = useState<'board4x4' | 'cardList'>('board4x4');
@@ -130,6 +134,8 @@ export const DestinyDashboard: React.FC<Props> = ({
   const [voiceState, setVoiceState] = useState(sacredVoice.getState());
   const [selectedEnergyMonth, setSelectedEnergyMonth] = useState<{ year: number; month: number } | null>(null);
   const [showSacredCodex, setShowSacredCodex] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   useEffect(() => {
     const unsub = sacredVoice.subscribe(setVoiceState);
@@ -366,8 +372,91 @@ export const DestinyDashboard: React.FC<Props> = ({
                 <RefreshCw className={`w-5 h-5 ${isRecalculating ? 'animate-spin text-teal-400' : ''}`} />
               </motion.button>
             )}
+
+            {onDeleteProfile && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  sacredSound.playSacredTap(400);
+                  setShowDeleteConfirm(true);
+                }}
+                className="p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 hover:border-red-400/50 transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                title={`Xóa dứt điểm lá số ${profile.name}`}
+              >
+                <Trash2 className="w-5 h-5 text-red-400" />
+                <span className="hidden xl:inline text-xs font-semibold text-red-300">Xóa Lá Số</span>
+              </motion.button>
+            )}
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+            <div className="w-full max-w-md p-6 rounded-2xl bg-gradient-to-b from-red-950/90 via-[#120a10]/95 to-[#080509]/98 border border-red-500/50 shadow-[0_20px_60px_rgba(239,68,68,0.25)] space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-base font-bold text-white">Xác Nhận Xóa Dứt Điểm Lá Số</h4>
+                  <p className="text-xs text-red-300 font-mono">Hành động này không thể hoàn tác</p>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-black/50 border border-white/10 space-y-1.5 text-xs text-slate-300">
+                <p>
+                  Bạn có chắc chắn muốn xóa hoàn toàn lá số <strong className="text-white font-bold">{profile.name}</strong> ({profile.birthData.solarDay}/{profile.birthData.solarMonth}/{profile.birthData.solarYear}) khỏi bộ nhớ thiết bị ngoại tuyến và máy chủ?
+                </p>
+                <p className="text-[11px] text-slate-400 italic">
+                  Toàn bộ dữ liệu 12 cung Tử Vi, Tứ Trụ Bát Tự và lịch sử liên quan sẽ được thanh lọc dứt điểm.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
+                >
+                  Hủy Bỏ
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={async () => {
+                    setIsDeleting(true);
+                    try {
+                      if (onDeleteProfile) {
+                        await onDeleteProfile(profile.id);
+                      }
+                      setShowDeleteConfirm(false);
+                    } catch (err) {
+                      console.error('Delete failed:', err);
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  }}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang Xóa...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Xóa Dứt Điểm</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Master Synthesis Insight */}
         <div className="mt-4 pt-3.5 border-t border-white/10">

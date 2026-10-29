@@ -5,7 +5,7 @@
 // Curated by Giáo Sư - Prof.TOAN & Kênh Huyền Phong Phật Đạo
 // ==========================================
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -19,6 +19,7 @@ import {
   Compass,
   Layers,
   ArrowRight,
+  ArrowUp,
   Lightbulb,
   ShieldAlert,
   Heart,
@@ -76,6 +77,14 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [fontSizeScale, setFontSizeScale] = useState<FontSizeScale>('standard');
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('detail');
+  const detailScrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll detail view to top whenever selected item changes
+  useEffect(() => {
+    if (detailScrollRef.current) {
+      detailScrollRef.current.scrollTop = 0;
+    }
+  }, [selectedItem?.id]);
 
   // Synchronize selection when initialTermId or modal opens
   useEffect(() => {
@@ -189,7 +198,7 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
   }[fontSizeScale];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 md:p-6 overflow-hidden">
       {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -199,47 +208,47 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
         className="absolute inset-0 bg-black/85 backdrop-blur-md"
       />
 
-      {/* Main Modal Container */}
+      {/* Main Modal Container: Full-screen on mobile, elevated window on desktop */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        initial={{ opacity: 0, scale: 0.98, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 15 }}
+        exit={{ opacity: 0, scale: 0.98, y: 15 }}
         transition={{ duration: 0.25 }}
-        className="relative z-10 w-full max-w-5xl h-[92dvh] sm:h-[88vh] max-h-[880px] bg-gradient-to-b from-[#101322]/98 via-[#090b16]/98 to-[#04050b]/98 border border-amber-500/35 rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden backdrop-blur-2xl"
+        className="relative z-10 w-full h-[100dvh] sm:h-[88vh] sm:max-h-[880px] sm:max-w-5xl bg-gradient-to-b from-[#0e1224]/98 via-[#080a14]/98 to-[#04050b]/98 border-0 sm:border sm:border-amber-500/35 rounded-none sm:rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden backdrop-blur-2xl"
       >
         {/* Specular Ambient Glow Header Accent */}
         <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400 via-teal-300 to-transparent pointer-events-none" />
 
         {/* 1. Header (Fixed) */}
-        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between gap-4 shrink-0 bg-black/40">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500/25 via-purple-600/25 to-teal-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shadow-md shrink-0">
-              <BookOpen className="w-5 h-5 text-amber-400" />
+        <div className="p-3 sm:p-5 border-b border-white/10 flex items-center justify-between gap-3 shrink-0 bg-black/40">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500/25 via-purple-600/25 to-teal-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shadow-md shrink-0">
+              <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono text-amber-400/90 uppercase tracking-widest truncate">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-mono text-amber-400/90 uppercase tracking-widest truncate">
                 <span>Bách Khoa Mệnh Lý</span>
                 <span aria-hidden="true">·</span>
-                <span className="hidden sm:inline">32+ Thuật Ngữ Cốt Tủy</span>
+                <span>32+ Thuật Ngữ</span>
                 <span aria-hidden="true" className="hidden sm:inline">·</span>
-                <span className="text-teal-300/80">Prof.TOAN Thẩm Định</span>
+                <span className="text-teal-300/80 hidden sm:inline">Prof.TOAN Thẩm Định</span>
               </div>
-              <h2 className="text-base sm:text-xl font-serif font-bold text-white tracking-wide truncate">
-                Cẩm Nang Giải Mã Tử Vi & Bát Tự Toàn Thư
+              <h2 className="text-sm sm:text-xl font-serif font-bold text-white tracking-wide truncate">
+                Cẩm Nang Giải Mã Mệnh Lý Toàn Thư
               </h2>
             </div>
           </div>
 
           {/* Reading Comfort Scaling Controls & Close */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Font Scaling Control */}
-            <div className="hidden sm:flex items-center gap-1 p-1 bg-white/[0.04] border border-white/10 rounded-lg text-slate-300 text-xs">
+            <div className="flex items-center gap-1 p-0.5 sm:p-1 bg-white/[0.04] border border-white/10 rounded-lg text-slate-300 text-xs">
               <button
                 onClick={() => {
                   setFontSizeScale('standard');
                   sacredSound.playSacredTap(440);
                 }}
-                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                className={`px-1.5 sm:px-2 py-0.5 rounded transition-colors cursor-pointer text-[11px] sm:text-xs ${
                   fontSizeScale === 'standard' ? 'bg-amber-500/30 text-amber-200 font-bold' : 'hover:text-white'
                 }`}
                 title="Cỡ chữ tiêu chuẩn"
@@ -251,7 +260,7 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
                   setFontSizeScale('large');
                   sacredSound.playSacredTap(528);
                 }}
-                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                className={`px-1.5 sm:px-2 py-0.5 rounded transition-colors cursor-pointer text-[11px] sm:text-xs ${
                   fontSizeScale === 'large' ? 'bg-amber-500/30 text-amber-200 font-bold' : 'hover:text-white'
                 }`}
                 title="Cỡ chữ vừa"
@@ -263,10 +272,10 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
                   setFontSizeScale('xlarge');
                   sacredSound.playSacredTap(660);
                 }}
-                className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                className={`px-1.5 sm:px-2 py-0.5 rounded transition-colors cursor-pointer text-[11px] sm:text-xs ${
                   fontSizeScale === 'xlarge' ? 'bg-amber-500/30 text-amber-200 font-bold' : 'hover:text-white'
                 }`}
-                title="Cỡ chữ lớn cho người cao tuổi"
+                title="Cỡ chữ lớn"
               >
                 A+
               </button>
@@ -274,7 +283,7 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
 
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Đóng cẩm nang"
             >
               <X className="w-5 h-5" />
@@ -282,8 +291,8 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* 2. Controls Bar: Search & Quick Essential Jump Tags (Fixed) */}
-        <div className="p-3 sm:p-4 border-b border-white/10 bg-black/25 flex flex-col gap-2.5 shrink-0">
+        {/* 2. Controls Bar: Visible on Desktop, or on Mobile only in List View */}
+        <div className={`${mobileView === 'list' ? 'flex' : 'hidden md:flex'} p-3 sm:p-4 border-b border-white/10 bg-black/25 flex-col gap-2.5 shrink-0`}>
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
             {/* Instant Search Bar */}
             <div className="relative flex-1">
@@ -401,13 +410,13 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* 3. Main Workspace: Master / Detail Layout with Independent Scrolling */}
+        {/* 3. Main Workspace: Master / Detail Layout with Independent Smooth Scrolling */}
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 relative">
           {/* Left Column: Term List (Scrollable) */}
           <div
             className={`${
               mobileView === 'list' ? 'flex' : 'hidden'
-            } md:flex flex-col w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto overscroll-contain touch-pan-y p-3 space-y-1.5 bg-black/15 shrink-0 min-h-0 h-full`}
+            } md:flex flex-col w-full md:w-80 lg:w-96 border-b md:border-b-0 md:border-r border-white/10 overflow-y-auto overscroll-y-auto touch-auto p-3 space-y-1.5 bg-black/15 shrink-0 min-h-0 h-full scroll-smooth`}
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             <div className="text-[11px] text-slate-400 px-2 py-1 font-mono uppercase tracking-wider flex items-center justify-between">
@@ -462,16 +471,18 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Right Column: In-Depth Term Dossier (Scrollable) */}
+          {/* Right Column: In-Depth Term Dossier (Scrollable with ample bottom padding) */}
           <div
+            id="glossary-detail-pane"
+            ref={detailScrollRef}
             className={`${
               mobileView === 'detail' ? 'flex' : 'hidden'
-            } md:flex flex-col flex-1 overflow-y-auto overscroll-contain touch-pan-y p-4 sm:p-6 min-h-0 h-full`}
+            } md:flex flex-col flex-1 overflow-y-auto overscroll-y-auto touch-auto p-4 sm:p-6 min-h-0 h-full scroll-smooth`}
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {selectedItem ? (
-              <div className="space-y-6 max-w-3xl pb-10">
-                {/* Mobile Back Button to return to list */}
+              <div className="space-y-6 max-w-3xl pb-28 sm:pb-20">
+                {/* Mobile Header Toolbar to return to list */}
                 <div className="md:hidden flex items-center justify-between pb-3 border-b border-white/10">
                   <button
                     onClick={() => {
@@ -678,6 +689,23 @@ export const AstrologyGlossaryModal: React.FC<Props> = ({
                     </div>
                   </div>
                 )}
+
+                {/* Quick Scroll To Top Button */}
+                <div className="pt-4 flex justify-end">
+                  <button
+                    onClick={() => {
+                      if (detailScrollRef.current) {
+                        detailScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                        sacredSound.playSacredTap(440);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-amber-400/40 text-slate-300 hover:text-white text-xs font-mono transition-all cursor-pointer shadow-sm"
+                    title="Cuộn lên đầu trang"
+                  >
+                    <span>Lên đầu trang</span>
+                    <ArrowUp className="w-3.5 h-3.5 text-amber-400" />
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-slate-400 text-sm">

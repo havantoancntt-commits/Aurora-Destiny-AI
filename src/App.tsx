@@ -765,6 +765,7 @@ export default function App() {
                   onOpenSeniorGuide={() => setShowSeniorGuideModal(true)}
                   onOpenPwaProfileManager={() => setShowPwaProfileModal(true)}
                   onOpenGlossaryModal={() => setShowGlossaryModal(true)}
+                  onDeleteProfile={handleDeleteProfile}
                 />
               )}
 

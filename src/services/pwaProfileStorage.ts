@@ -428,22 +428,38 @@ class PwaProfileStorageService {
     const db = await this.getDb();
     if (db) {
       try {
+        // Step 3a: First query all profiles to find any matching tombstones or signature
+        const existingProfiles: UserProfile[] = await new Promise((res) => {
+          try {
+            const readTx = db.transaction(STORE_PROFILES, 'readonly');
+            const req = readTx.objectStore(STORE_PROFILES).getAll();
+            req.onsuccess = () => res(req.result || []);
+            req.onerror = () => res([]);
+          } catch {
+            res([]);
+          }
+        });
+
+        // Step 3b: In a write transaction, delete target profileId and any tombstoned ghosts
         const tx = db.transaction([STORE_PROFILES, STORE_CALCULATIONS, STORE_ENSEMBLES, STORE_SYNC_QUEUE], 'readwrite');
         const profileStore = tx.objectStore(STORE_PROFILES);
-        profileStore.delete(profileId);
-        tx.objectStore(STORE_CALCULATIONS).delete(profileId);
-        tx.objectStore(STORE_ENSEMBLES).delete(profileId);
-        tx.objectStore(STORE_SYNC_QUEUE).delete(profileId);
+        const calcStore = tx.objectStore(STORE_CALCULATIONS);
+        const ensembleStore = tx.objectStore(STORE_ENSEMBLES);
+        const syncStore = tx.objectStore(STORE_SYNC_QUEUE);
 
-        // Also sweep any ghost profiles matching tombstones in IndexedDB
-        const allReq = profileStore.getAll();
-        allReq.onsuccess = () => {
-          for (const p of (allReq.result || [])) {
-            if (p && (p.id === profileId || this.isDeleted(p))) {
-              profileStore.delete(p.id);
-            }
+        profileStore.delete(profileId);
+        calcStore.delete(profileId);
+        ensembleStore.delete(profileId);
+        syncStore.delete(profileId);
+
+        for (const p of existingProfiles) {
+          if (p && (p.id === profileId || this.isDeleted(p))) {
+            profileStore.delete(p.id);
+            calcStore.delete(p.id);
+            ensembleStore.delete(p.id);
+            syncStore.delete(p.id);
           }
-        };
+        }
 
         await new Promise<void>((res, rej) => {
           tx.oncomplete = () => res();
