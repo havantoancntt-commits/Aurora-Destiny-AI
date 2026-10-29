@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { LanguageCode } from '../types/destiny';
 import { OfficialSocialChannels } from './OfficialSocialChannels';
+import { CelestialZiWeiLogo } from './CelestialZiWeiLogo';
 
 interface Props {
   language?: LanguageCode;
@@ -200,9 +201,7 @@ export const AppFooter: React.FC<Props> = ({
           {/* Column 1: System Identity */}
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-                A
-              </div>
+              <CelestialZiWeiLogo size="sm" withAura={false} interactive={false} />
               <div>
                 <span className="text-xs font-semibold tracking-wider text-white uppercase block">
                   Aurora <span className="text-teal-400">Destiny</span>

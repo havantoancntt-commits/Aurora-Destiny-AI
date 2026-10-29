@@ -40,6 +40,7 @@ import { RealTimePulsePill } from './RealTimePulsePill';
 import { sacredSound } from '../services/soundService';
 import { PWAInstallButton } from './PWAInstallButton';
 import { PWAInstallModal } from './PWAInstallModal';
+import { CelestialZiWeiLogo } from './CelestialZiWeiLogo';
 
 interface Props {
   language: LanguageCode;
@@ -138,10 +139,21 @@ export const Navbar: React.FC<Props> = ({
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           {/* Brand Logo & Title */}
           <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-teal-500 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(45,212,191,0.25)] shrink-0 border border-white/10">
-              <span className="text-white font-bold text-sm sm:text-base font-serif tracking-wider">A</span>
-            </div>
-            <div>
+            <CelestialZiWeiLogo
+              size="sm"
+              interactive={true}
+              onClick={() => {
+                sacredSound.playSacredTap(440);
+                if (onNavigateTab) onNavigateTab('dashboard');
+              }}
+            />
+            <div
+              className="cursor-pointer"
+              onClick={() => {
+                sacredSound.playSacredTap(440);
+                if (onNavigateTab) onNavigateTab('dashboard');
+              }}
+            >
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm font-semibold tracking-[0.15em] text-white uppercase font-serif-celestial">
                   Aurora <span className="text-amber-300 font-light">Destiny</span>
