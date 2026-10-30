@@ -35,7 +35,8 @@ import {
   AlertTriangle,
   HardDrive,
   Trash2,
-  X
+  X,
+  Orbit
 } from 'lucide-react';
 import { CalculationResult, ZiWeiPalace, PalaceKey, FiveElement, EarthlyBranch } from '../types/destiny';
 import { UserProfile } from '../types/user';
@@ -59,6 +60,7 @@ import { SacredCosmicCipher3D } from './SacredCosmicCipher3D';
 import { SacredVoiceGuideWidget } from './SacredVoiceGuideWidget';
 import { SacredSanctuaryBar } from './SacredSanctuaryBar';
 import { SacredMandalaAura } from './SacredMandalaAura';
+import { CelestialPlanetaryMap } from './CelestialPlanetaryMap';
 
 interface Props {
   profile: UserProfile;
@@ -517,6 +519,19 @@ export const DestinyDashboard: React.FC<Props> = ({
                 <span>Thẻ Chia Sẻ</span>
               </button>
             )}
+            <button
+              id="btn-view-celestial-ephemeris"
+              onClick={() => {
+                sacredSound.playSacredTap(528);
+                const el = document.getElementById('celestial-planetary-map-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="flex-1 sm:flex-initial px-3.5 py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 text-amber-200 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Xem vị trí các hành tinh (vĩ độ, kinh độ thiên văn) tại thời điểm sinh"
+            >
+              <Orbit className="w-3.5 h-3.5 text-amber-400" />
+              <span>Thiên Cầu Hành Tinh</span>
+            </button>
             {onOpenReportModal && (
               <button
                 id="btn-open-executive-dossier"
@@ -897,6 +912,15 @@ export const DestinyDashboard: React.FC<Props> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* 3.5. BẢN ĐỒ THIÊN CẦU & TỌA ĐỘ THIÊN VĂN CÁC HÀNH TINH (ECLIPTIC LONGITUDE & LATITUDE) */}
+      <div id="celestial-planetary-map-section">
+        <CelestialPlanetaryMap
+          birthData={calculation.inputSnapshot || profile.birthData}
+          userName={profile.name}
+          onOpenGlossaryModal={onOpenGlossaryModal}
+        />
+      </div>
 
       {/* 4. ZI WEI DOU SHU 12 PALACES CELESTIAL MASTER BOARD (THIÊN BÀN 12 CUNG CHÍNH TÔNG) */}
       <motion.div
