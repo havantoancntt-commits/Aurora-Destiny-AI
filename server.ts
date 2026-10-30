@@ -14,7 +14,7 @@ const currentDir = typeof __dirname !== 'undefined'
   ? __dirname
   : (typeof process !== 'undefined' ? process.cwd() : '.');
 
-import { repository } from './src/db/repository';
+import { repository, normalizeProfileSignature } from './src/db/repository';
 import {
   authMiddleware,
   requireAuth,
@@ -1175,13 +1175,20 @@ app.delete('/api/profiles/:id', requireAuth, async (req, res) => {
     return res.json({ success: true, profileId: id, alreadyDeleted: true });
   }
 
-  // Authorization: Owner, Super Admin, or Guest requester deleting guest/offline-originated profile
+  // Authorization: Owner, Super Admin, Guest requester, or claiming authenticated user deleting guest-originated profile
   const isGuestProfile = existingProfile.userId === 'usr_guest' || existingProfile.userId.startsWith('usr_guest_');
   const isGuestRequester = req.user!.role === 'GUEST' || req.user!.id.startsWith('usr_guest_') || req.user!.id === 'usr_guest';
   const isOwner = existingProfile.userId === req.user!.id;
   const isSuperAdmin = req.user!.role === 'SUPER_ADMIN';
+  const sigMatches = Boolean(
+    signature &&
+    existingProfile.name &&
+    existingProfile.birthData &&
+    normalizeProfileSignature(existingProfile.name, existingProfile.birthData) === signature
+  );
 
-  if (!isOwner && !isSuperAdmin && !(isGuestProfile && isGuestRequester)) {
+  // Allow if owner, super admin, guest user managing guest profile, authenticated user claiming/deleting guest profile, or matching cryptographic signature
+  if (!isOwner && !isSuperAdmin && !(isGuestProfile && isGuestRequester) && !isGuestProfile && !sigMatches) {
     const verified = await verifyProfileOwnershipAsync(req, res, id);
     if (!verified) return;
   }

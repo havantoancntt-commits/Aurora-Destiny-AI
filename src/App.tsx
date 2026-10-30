@@ -408,6 +408,9 @@ export default function App() {
         console.error('API Error details (sessionStorage):', e);
       }
 
+      // Clear any prior stale tombstone if recreating profile
+      pwaProfileStorage.clearTombstone(undefined, name, birthData);
+
       await api.ensureSession();
 
       const data = await api.createProfile({
@@ -591,6 +594,13 @@ export default function App() {
 
       const targetProf = profiles.find((p) => p.id === profileId);
 
+      // Clean local pending sync queue if profile was created locally
+      setLocalProfileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(profileId);
+        return next;
+      });
+
       // 1. Dual purge: Server database + local IndexedDB & LocalStorage
       await api.deleteProfile(targetProf || profileId);
       await pwaProfileStorage.deleteProfile(targetProf || profileId);
@@ -599,20 +609,25 @@ export default function App() {
       const remaining = profiles.filter((p) => p && p.id !== profileId && !pwaProfileStorage.isDeleted(p));
       setProfiles(remaining);
 
-      // 3. Switch active profile or gracefully reset to onboarding
+      // 3. Switch active profile or cleanly reset to home
       if (remaining.length === 0) {
         setActiveProfileId('');
         setCalculation(null);
         setEnsemble(null);
         setBacktestResult(null);
         setEvents([]);
-        setShowOnboarding(true);
+        setShowOnboarding(false);
       } else if (activeProfileId === profileId) {
         handleSelectProfile(remaining[0].id, remaining);
       }
     } catch (err) {
       console.error('Delete profile error:', err);
       const targetProf = profiles.find((p) => p.id === profileId);
+      setLocalProfileIds((prev) => {
+        const next = new Set(prev);
+        next.delete(profileId);
+        return next;
+      });
       pwaProfileStorage.addDeletedId(profileId);
       await pwaProfileStorage.deleteProfile(targetProf || profileId).catch(() => {});
       const remaining = profiles.filter((p) => p && p.id !== profileId && !pwaProfileStorage.isDeleted(p));
@@ -623,7 +638,7 @@ export default function App() {
         setEnsemble(null);
         setBacktestResult(null);
         setEvents([]);
-        setShowOnboarding(true);
+        setShowOnboarding(false);
       } else if (activeProfileId === profileId) {
         handleSelectProfile(remaining[0].id, remaining);
       }

@@ -381,11 +381,11 @@ export const DestinyDashboard: React.FC<Props> = ({
                   sacredSound.playSacredTap(400);
                   setShowDeleteConfirm(true);
                 }}
-                className="p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 hover:border-red-400/50 transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+                className="p-2.5 sm:p-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 hover:border-red-400/50 transition-all shadow-md cursor-pointer flex items-center gap-1.5"
                 title={`Xóa dứt điểm lá số ${profile.name}`}
               >
-                <Trash2 className="w-5 h-5 text-red-400" />
-                <span className="hidden xl:inline text-xs font-semibold text-red-300">Xóa Lá Số</span>
+                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
+                <span className="text-xs font-semibold text-red-300">Xóa Lá Số</span>
               </motion.button>
             )}
           </div>
@@ -919,8 +919,8 @@ export const DestinyDashboard: React.FC<Props> = ({
             </p>
           </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/60 border border-white/10 self-start sm:self-auto">
+          {/* View Mode Toggle & Chart Actions */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-black/60 border border-white/10 self-start sm:self-auto">
             <button
               onClick={() => setZiweiViewMode('board4x4')}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -943,6 +943,21 @@ export const DestinyDashboard: React.FC<Props> = ({
               <LayoutGrid className="w-3.5 h-3.5" />
               <span>Danh Sách 12 Cung</span>
             </button>
+            {onDeleteProfile && (
+              <button
+                type="button"
+                onClick={() => {
+                  sacredSound.playSacredTap(400);
+                  setShowDeleteConfirm(true);
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-300 hover:text-rose-100 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-all flex items-center gap-1.5 cursor-pointer"
+                title={`Xóa lá số ${profile.name}`}
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span className="hidden sm:inline">Xóa Lá Số Này</span>
+                <span className="sm:hidden">Xóa</span>
+              </button>
+            )}
           </div>
         </div>
 

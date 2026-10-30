@@ -213,6 +213,37 @@ class PwaProfileStorageService {
     return false;
   }
 
+  /**
+   * Clears tombstones for a profile ID or signature when deliberately re-created by the user
+   */
+  public clearTombstone(profileId?: string, name?: string, birthData?: any): void {
+    if (profileId) {
+      this.memoryDeletedIds.delete(profileId);
+      try {
+        const storage = this.getStorage();
+        if (storage) {
+          const current = this.getDeletedIds();
+          current.delete(profileId);
+          storage.setItem(this.TOMBSTONE_KEY, JSON.stringify(Array.from(current)));
+        }
+      } catch {}
+    }
+    if (name && birthData) {
+      const sig = normalizeProfileSignature(name, birthData);
+      if (sig) {
+        this.memoryDeletedSigs.delete(sig);
+        try {
+          const storage = this.getStorage();
+          if (storage) {
+            const current = this.getDeletedSignatures();
+            current.delete(sig);
+            storage.setItem(this.TOMBSTONE_SIGS_KEY, JSON.stringify(Array.from(current)));
+          }
+        } catch {}
+      }
+    }
+  }
+
   // ==========================================
   // PROFILE OPERATIONS
   // ==========================================

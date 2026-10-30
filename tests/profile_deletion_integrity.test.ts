@@ -234,4 +234,30 @@ test('🗑️ Profile Deletion Integrity & Cache Purge Suite', async (t) => {
     await restartedRepo.close();
     fs.rmSync(testDir, { recursive: true, force: true });
   });
+
+  await t.test('7. clearTombstone permits intentional profile recreation without stale ghost suppression', async () => {
+    const recreateProfile: UserProfile = {
+      ...sampleProfile1,
+      id: 'prof_recreated_99',
+      name: 'NGUYỄN TÁI LẬP LÁ SỐ'
+    };
+
+    // First delete and verify tombstoned
+    await pwaProfileStorage.deleteProfile(recreateProfile);
+    assert.strictEqual(pwaProfileStorage.isDeleted(recreateProfile), true, 'Must initially be tombstoned');
+
+    // User deliberately creates again -> clearTombstone
+    pwaProfileStorage.clearTombstone(recreateProfile.id, recreateProfile.name, recreateProfile.birthData);
+    assert.strictEqual(pwaProfileStorage.isDeleted(recreateProfile), false, 'Must no longer be tombstoned after clearTombstone');
+
+    // Save and verify it persists
+    await pwaProfileStorage.saveProfile(recreateProfile);
+    const stored = await pwaProfileStorage.getProfiles();
+    const found = stored.find((p) => p.id === recreateProfile.id);
+    assert.ok(found, 'Re-created profile must be saved cleanly');
+    assert.strictEqual(found?.name, 'NGUYỄN TÁI LẬP LÁ SỐ');
+
+    // Clean up
+    await pwaProfileStorage.deleteProfile(recreateProfile);
+  });
 });

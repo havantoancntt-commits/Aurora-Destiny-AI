@@ -191,8 +191,16 @@ export const PWAProfileManagerModal: React.FC<Props> = ({
         type: 'success',
         text: `Đã xóa dứt điểm lá số "${deletedProf?.name || 'hồ sơ'}" khỏi thiết bị và máy chủ thành công!`
       });
-      setTimeout(() => setStatusMessage(null), 4000);
       refreshStats();
+
+      // If last profile was removed, smoothly close modal to reveal the home hero screen
+      if (updated.length === 0) {
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      } else {
+        setTimeout(() => setStatusMessage(null), 4000);
+      }
     } catch (err) {
       console.error('Failed to delete profile:', err);
       // Fallback offline deletion ensuring local state is always cleanly updated
@@ -684,7 +692,7 @@ export const PWAProfileManagerModal: React.FC<Props> = ({
         {/* Dedicated Modal Dialog Cho Xóa Dứt Điểm Lá Số */}
         <AnimatePresence>
           {profileToDelete && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
               <motion.div
                 initial={{ opacity: 0, scale: 0.92, y: 12 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}

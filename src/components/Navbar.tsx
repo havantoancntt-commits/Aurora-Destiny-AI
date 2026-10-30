@@ -340,13 +340,23 @@ export const Navbar: React.FC<Props> = ({
                           return (
                             <div
                               key={prof.id}
-                              className="p-2 rounded-xl bg-red-950/60 border border-red-500/40 text-xs flex items-center justify-between gap-2 animate-in fade-in"
+                              className="p-2.5 rounded-xl bg-red-950/80 border border-red-500/50 text-xs flex flex-col gap-2 animate-in fade-in shadow-lg"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <div className="truncate text-[11px] text-red-200">
-                                Xác nhận xóa <strong className="text-white font-medium">{prof.name}</strong>?
+                              <div className="text-xs text-red-200">
+                                Xác nhận xóa vĩnh viễn lá số <strong className="text-white font-bold">{prof.name}</strong>?
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
+                              <div className="flex items-center justify-end gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setProfileIdToDelete(null);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-xs transition-colors cursor-pointer"
+                                >
+                                  Hủy
+                                </button>
                                 <button
                                   type="button"
                                   disabled={isDeletingProfileId === prof.id}
@@ -356,25 +366,19 @@ export const Navbar: React.FC<Props> = ({
                                       setIsDeletingProfileId(prof.id);
                                       try {
                                         await onDeleteProfile(prof.id);
+                                        if (profiles.length <= 1) {
+                                          setShowProfileMenu(false);
+                                        }
                                       } finally {
                                         setIsDeletingProfileId(null);
                                         setProfileIdToDelete(null);
                                       }
                                     }
                                   }}
-                                  className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                                  className="px-3 py-1 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs transition-all disabled:opacity-50 cursor-pointer shadow-md flex items-center gap-1"
                                 >
-                                  {isDeletingProfileId === prof.id ? 'Đang xóa...' : 'Xóa'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setProfileIdToDelete(null);
-                                  }}
-                                  className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-[10px] transition-colors cursor-pointer"
-                                >
-                                  Hủy
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>{isDeletingProfileId === prof.id ? 'Đang xóa...' : 'Xóa Dứt Điểm'}</span>
                                 </button>
                               </div>
                             </div>
@@ -384,31 +388,36 @@ export const Navbar: React.FC<Props> = ({
                         return (
                           <div
                             key={prof.id}
-                            onClick={() => {
-                              onSelectProfile(prof.id);
-                              setShowProfileMenu(false);
-                            }}
-                            className={`w-full flex items-center justify-between p-2 rounded-xl text-xs transition-all cursor-pointer group ${
+                            className={`w-full flex items-center justify-between p-1.5 sm:p-2 rounded-xl text-xs transition-all group ${
                               isCurrent
                                 ? 'bg-white/10 border border-teal-400/40 text-teal-200 font-medium'
                                 : 'text-slate-300 hover:bg-white/5 hover:text-white border border-transparent'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 truncate min-w-0">
-                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
+                            {/* Profile Info Click Target */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onSelectProfile(prof.id);
+                                setShowProfileMenu(false);
+                              }}
+                              className="flex items-center gap-2.5 truncate min-w-0 flex-1 text-left cursor-pointer"
+                            >
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${
                                 isCurrent ? 'bg-teal-500/20 text-teal-300' : 'bg-white/10 text-slate-400'
                               }`}>
                                 {prof.name.charAt(0).toUpperCase()}
                               </div>
-                              <div className="text-left truncate">
+                              <div className="truncate min-w-0">
                                 <div className="truncate font-medium text-white">{prof.name}</div>
                                 <div className="text-[10px] text-slate-400 font-mono">
                                   {prof.birthData.solarDay}/{prof.birthData.solarMonth}/{prof.birthData.solarYear}
                                 </div>
                               </div>
-                            </div>
+                            </button>
 
-                            <div className="flex items-center gap-1 shrink-0 ml-1.5">
+                            {/* Actions Right Side */}
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
                               {isCurrent && (
                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-teal-400/20 text-teal-300 font-bold shrink-0">
                                   Đang Xem
@@ -419,12 +428,14 @@ export const Navbar: React.FC<Props> = ({
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    sacredSound.playSacredTap(400);
                                     setProfileIdToDelete(prof.id);
                                   }}
-                                  className="p-1 rounded-md text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-70 group-hover:opacity-100 cursor-pointer"
-                                  title={`Xóa lá số ${prof.name}`}
+                                  className="w-8 h-8 rounded-lg text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                                  title={`Xóa dứt điểm lá số ${prof.name}`}
+                                  aria-label={`Xóa lá số ${prof.name}`}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4 text-red-400" />
                                 </button>
                               )}
                             </div>
